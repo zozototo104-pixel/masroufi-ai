@@ -809,14 +809,17 @@ function processText(t){
 
 function reply(r){
 
- setTimeout(()=>{
+  setTimeout(()=>{
 
-   chat.innerHTML +=
-   '<div class="bubble ai">'+r+'</div>';
+    chat.innerHTML +=
+      '<div class="bubble ai">'+r+'</div>';
 
-   chat.scrollTop=chat.scrollHeight;
+    chat.scrollTop = chat.scrollHeight;
 
- },100);
+    /* نطق رد المساعد بصوت */
+    speak(r);
+
+  },100);
 }
 
 function send(){
@@ -831,64 +834,138 @@ function send(){
 }
 
 /* الصوت الحقيقي */
+/* ===== الصوت المحسّن ===== */
+
+let recognition = null;
+let isListening = false;
+
+function speak(text){
+  if(!text || !('speechSynthesis' in window)) return;
+
+  window.speechSynthesis.cancel();
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ar-SA';
+  u.rate = 0.95;
+  u.pitch = 1;
+
+  const voices = window.speechSynthesis.getVoices();
+  const arabicVoice = voices.find(v =>
+    v.lang && v.lang.toLowerCase().startsWith('ar')
+  );
+
+  if(arabicVoice) u.voice = arabicVoice;
+
+  window.speechSynthesis.speak(u);
+}
 
 function voice(){
 
- openChat();
+  openChat();
 
- let SR=
- window.SpeechRecognition ||
- window.webkitSpeechRecognition;
+  const SR =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
 
- if(!SR){
+  if(!SR){
+    reply('المتصفح لا يدعم التعرف على الصوت. جرّب فتح الموقع في Chrome أو Safari.');
+    speak('المتصفح لا يدعم التعرف على الصوت.');
+    return;
+  }
 
-   reply(
-   'المتصفح الحالي لا يدعم التعرف الصوتي مباشرة. يمكنك استخدام الإملاء الصوتي من لوحة المفاتيح أو فتح التطبيق في Chrome.'
-   );
+  /* أوقف صوت المساعد قبل أن يبدأ بالاستماع */
+  if('speechSynthesis' in window){
+    window.speechSynthesis.cancel();
+  }
 
-   return;
- }
+  /* إذا كان الميكروفون يعمل، لا نشغله مرة ثانية */
+  if(isListening){
+    try{
+      recognition.stop();
+    }catch(e){}
+    return;
+  }
 
- let r=new SR();
+  recognition = new SR();
 
- r.lang='ar-IL';
- r.interimResults=false;
- r.continuous=false;
+  recognition.lang = 'ar';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
 
- micBtn.classList.add('listening');
- micBtn.textContent='⏹️';
+  recognition.onstart = ()=>{
+    isListening = true;
 
- r.onresult=e=>{
+    if(typeof micBtn !== 'undefined' && micBtn){
+      micBtn.classList.add('listening');
+      micBtn.textContent = '🔴';
+    }
+  };
 
-   let t=
-   e.results[0][0].transcript;
+  recognition.onresult = (e)=>{
 
-   processText(t);
- };
+    const t =
+      e.results &&
+      e.results[0] &&
+      e.results[0][0]
+        ? e.results[0][0].transcript.trim()
+        : '';
 
- r.onerror=e=>{
+    if(!t) return;
 
-   reply(
-   'تعذر سماع الصوت. تأكد من السماح للمتصفح باستخدام الميكروفون ثم حاول مرة أخرى.'
-   );
- };
+    /* اعرض الكلام الذي سمعه */
+    if(typeof msg !== 'undefined' && msg){
+      msg.value = t;
+    }
 
- r.onend=()=>{
+    /* أرسل الكلام لنفس محرك المحادثة */
+    processText(t);
 
-   micBtn.classList.remove('listening');
-   micBtn.textContent='🎙️';
- };
+    if(typeof msg !== 'undefined' && msg){
+      msg.value = '';
+    }
+  };
 
- try{
-   r.start();
- }
- catch(e){
+  recognition.onerror = (e)=>{
 
-   reply(
-   'تعذر بدء الميكروفون. حاول مرة أخرى.'
-   );
- }
+    isListening = false;
+
+    if(typeof micBtn !== 'undefined' && micBtn){
+      micBtn.classList.remove('listening');
+      micBtn.textContent = '🎙️';
+    }
+
+    if(e.error === 'not-allowed'){
+      reply('اسمح للموقع باستخدام الميكروفون ثم حاول مرة أخرى.');
+    }
+    else if(e.error === 'no-speech'){
+      reply('لم أسمع شيئاً. اضغط الميكروفون وتحدث مرة أخرى.');
+    }
+    else{
+      reply('تعذر استخدام الميكروفون. حاول مرة أخرى.');
+    }
+  };
+
+  recognition.onend = ()=>{
+
+    isListening = false;
+
+    if(typeof micBtn !== 'undefined' && micBtn){
+      micBtn.classList.remove('listening');
+      micBtn.textContent = '🎙️';
+    }
+  };
+
+  try{
+    recognition.start();
+  }
+  catch(e){
+    isListening = false;
+    reply('تعذر بدء الميكروفون. حاول مرة أخرى.');
+  }
 }
+
+   
 
 fillCats();
 render();
