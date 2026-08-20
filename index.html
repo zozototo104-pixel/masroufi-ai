@@ -1,14 +1,899 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#081426"><title>مصروفي AI</title><style>
-*{box-sizing:border-box}body{margin:0;background:#07101f;color:#f7f9ff;font-family:system-ui,Tahoma}.app{max-width:760px;margin:auto;padding:18px 15px 100px}.top,.tx{display:flex;justify-content:space-between;align-items:center;gap:10px}.brand{font-size:23px;font-weight:900}.muted{color:#9daccc}.hero,.card{background:#101b31;border:1px solid #ffffff12;border-radius:22px;padding:17px;margin-top:14px}.hero{background:linear-gradient(135deg,#172a4b,#101a30)}.bal{font-size:38px;font-weight:900}.safe{color:#39d6a0;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{background:#101b31;border-radius:18px;padding:14px;margin-top:9px}.metric b{display:block;font-size:20px;margin-top:5px}.section{margin-top:20px}.bar{height:9px;background:#ffffff12;border-radius:8px;overflow:hidden;margin:7px 0 14px}.bar i{display:block;height:100%;background:linear-gradient(90deg,#6ea8ff,#39d6a0)}button,input,select{font:inherit}.btn{border:0;background:#6ea8ff;color:#07101f;font-weight:900;padding:10px 14px;border-radius:13px}.nav{position:fixed;bottom:0;left:0;right:0;background:#0c1629ee;display:flex;justify-content:space-around;padding:13px 4px 19px}.nav button{background:none;border:0;color:#9daccc}.nav .on{color:white;font-weight:900}.screen{display:none}.screen.on{display:block}.mic{position:fixed;bottom:68px;left:50%;transform:translateX(-50%);width:68px;height:68px;border-radius:50%;border:5px solid #07101f;background:#755cff;color:white;font-size:28px}.field{width:100%;padding:12px;background:#0b162b;border:1px solid #ffffff20;border-radius:13px;color:white;margin:6px 0}.modal{display:none;position:fixed;inset:0;background:#000a;z-index:9;align-items:flex-end}.modal.on{display:flex}.sheet{background:#111d34;width:min(760px,100%);margin:auto;padding:20px;border-radius:25px 25px 0 0;max-height:85vh;overflow:auto}.bubble{padding:12px 14px;border-radius:16px;margin:9px 0;line-height:1.6}.ai{background:#192945}.me{background:#365db3;margin-right:18%}.amount.e{color:#ff7380}.amount.i{color:#39d6a0}.tx{padding:12px 0;border-bottom:1px solid #ffffff10}.small{font-size:12px}
-</style></head><body><div class="app"><div class="top"><div><div class="brand">مصروفي <span style="color:#7fa8ff">AI</span></div><small class="muted">مساعدك المالي الشخصي</small></div><button class="btn" onclick="addM.classList.add('on')">+ عملية</button></div>
-<section id="home" class="screen on"><div class="hero"><div class="muted">رصيدك الحالي</div><div class="bal" id="bal"></div><div class="safe" id="safe"></div><small class="muted" id="accs"></small></div><div class="grid"><div class="metric">الدخل<b id="inc"></b></div><div class="metric">المصروف<b id="exp"></b></div><div class="metric">التزامات قادمة<b>470 ₪</b></div><div class="metric">توقع نهاية الشهر<b id="forecast"></b></div></div><div class="section"><h3>تحليل المساعد</h3><div class="card" id="insight"></div></div><div class="section"><h3>أين تذهب أموالك؟</h3><div class="card" id="cats"></div></div></section>
-<section id="ops" class="screen"><div class="section"><h3>العمليات</h3><input id="q" class="field" placeholder="ابحث..." oninput="render()"><div class="card" id="list"></div></div></section>
-<section id="reports" class="screen"><div class="section"><h3>التقرير المالي</h3><div class="card" id="report"></div></div></section>
-<section id="settings" class="screen"><div class="section"><h3>الحسابات</h3><div class="card"><div class="tx">📱 PalPay <b id="pal"></b></div><div class="tx">💵 نقدي <b id="cash"></b></div></div></div><div class="section"><h3>شخصية المستشار</h3><div class="card"><select class="field"><option>متوازن</option><option>لطيف</option><option>حازم</option></select><small class="muted">مفاتيح الذكاء ستوضع لاحقًا بأمان في Vercel Environment Variables، وليس داخل GitHub.</small></div></div></section>
-<button class="mic" onclick="openChat()">🎙️</button></div>
-<div class="nav"><button class="on" onclick="go(this,'home')">الرئيسية</button><button onclick="go(this,'ops')">العمليات</button><button onclick="go(this,'reports')">التقارير</button><button onclick="go(this,'settings')">الإعدادات</button></div>
-<div class="modal" id="addM"><div class="sheet"><div class="top"><h3>إضافة عملية</h3><button class="btn" onclick="addM.classList.remove('on')">إغلاق</button></div><select id="typ" class="field"><option value="expense">مصروف</option><option value="income">دخل</option></select><input id="amt" class="field" inputmode="decimal" placeholder="المبلغ"><select id="account" class="field"><option>PalPay</option><option>نقدي</option></select><input id="merchant" class="field" placeholder="المتجر / المصدر"><input id="category" class="field" placeholder="التصنيف الرئيسي"><input id="sub" class="field" placeholder="التصنيف الفرعي"><button class="field btn" onclick="addTx()">حفظ</button></div></div>
-<div class="modal" id="chatM"><div class="sheet"><div class="top"><h3>مساعدك المالي</h3><button class="btn" onclick="chatM.classList.remove('on')">إغلاق</button></div><div id="chat"></div><input id="msg" class="field" placeholder="مثال: سجل 120 شيكل ملابس للأولاد من زوزو"><button class="field btn" onclick="send()">إرسال</button><small class="muted">V2 تفهم أوامر أساسية محليًا. الذكاء والصوت المتقدم سنربطهما في المرحلة التالية.</small></div></div>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081426">
+<title>مصروفي AI</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#07101f;color:#f7f9ff;
+  font-family:system-ui,Tahoma
+}
+.app{max-width:760px;margin:auto;padding:18px 15px 100px}
+.top,.tx{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.brand{font-size:23px;font-weight:900}
+.muted{color:#9daccc}
+.hero,.card{
+  background:#101b31;border:1px solid #ffffff12;
+  border-radius:22px;padding:17px;margin-top:14px
+}
+.hero{background:linear-gradient(135deg,#172a4b,#101a30)}
+.bal{font-size:38px;font-weight:900}
+.safe{color:#39d6a0;font-weight:800}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.metric{background:#101b31;border-radius:18px;padding:14px;margin-top:9px}
+.metric b{display:block;font-size:20px;margin-top:5px}
+.section{margin-top:20px}
+.bar{
+  height:9px;background:#ffffff12;border-radius:8px;
+  overflow:hidden;margin:7px 0 14px
+}
+.bar i{
+  display:block;height:100%;
+  background:linear-gradient(90deg,#6ea8ff,#39d6a0)
+}
+button,input,select{font:inherit}
+.btn{
+  border:0;background:#6ea8ff;color:#07101f;
+  font-weight:900;padding:10px 14px;border-radius:13px
+}
+.nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#0c1629ee;display:flex;
+  justify-content:space-around;padding:13px 4px 19px
+}
+.nav button{background:none;border:0;color:#9daccc}
+.nav .on{color:white;font-weight:900}
+.screen{display:none}
+.screen.on{display:block}
+.mic{
+  position:fixed;bottom:68px;left:50%;
+  transform:translateX(-50%);
+  width:68px;height:68px;border-radius:50%;
+  border:5px solid #07101f;background:#755cff;
+  color:white;font-size:28px
+}
+.mic.listening{background:#ff5f75}
+.field{
+  width:100%;padding:12px;background:#0b162b;
+  border:1px solid #ffffff20;border-radius:13px;
+  color:white;margin:6px 0
+}
+.modal{
+  display:none;position:fixed;inset:0;
+  background:#000a;z-index:9;align-items:flex-end
+}
+.modal.on{display:flex}
+.sheet{
+  background:#111d34;width:min(760px,100%);
+  margin:auto;padding:20px;border-radius:25px 25px 0 0;
+  max-height:85vh;overflow:auto
+}
+.bubble{
+  padding:12px 14px;border-radius:16px;
+  margin:9px 0;line-height:1.6
+}
+.ai{background:#192945}
+.me{background:#365db3;margin-right:18%}
+.amount.e{color:#ff7380}
+.amount.i{color:#39d6a0}
+.tx{padding:12px 0;border-bottom:1px solid #ffffff10}
+.small{font-size:12px}
+.row{
+  display:grid;grid-template-columns:1fr auto;
+  gap:8px;align-items:center
+}
+.mini{
+  padding:11px;border-radius:12px;
+  border:1px solid #ffffff20;
+  background:#172a4b;color:white;font-weight:800
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="top">
+  <div>
+    <div class="brand">
+      مصروفي <span style="color:#7fa8ff">AI</span>
+    </div>
+    <small class="muted">مساعدك المالي الشخصي</small>
+  </div>
+
+  <button class="btn" onclick="openAdd()">+ عملية</button>
+</div>
+
+<section id="home" class="screen on">
+
+<div class="hero">
+  <div class="muted">رصيدك الحالي</div>
+  <div class="bal" id="bal"></div>
+  <div class="safe" id="safe"></div>
+  <small class="muted" id="accs"></small>
+</div>
+
+<div class="grid">
+  <div class="metric">الدخل<b id="inc"></b></div>
+  <div class="metric">المصروف<b id="exp"></b></div>
+  <div class="metric">التزامات قادمة<b>470 ₪</b></div>
+  <div class="metric">توقع نهاية الشهر<b id="forecast"></b></div>
+</div>
+
+<div class="section">
+  <h3>تحليل المساعد</h3>
+  <div class="card" id="insight"></div>
+</div>
+
+<div class="section">
+  <h3>أين تذهب أموالك؟</h3>
+  <div class="card" id="cats"></div>
+</div>
+
+</section>
+
+<section id="ops" class="screen">
+<div class="section">
+  <h3>العمليات</h3>
+  <input id="q" class="field" placeholder="ابحث..." oninput="render()">
+  <div class="card" id="list"></div>
+</div>
+</section>
+
+<section id="reports" class="screen">
+<div class="section">
+  <h3>التقرير المالي</h3>
+  <div class="card" id="report"></div>
+</div>
+</section>
+
+<section id="settings" class="screen">
+
+<div class="section">
+<h3>الحسابات</h3>
+
+<div class="card">
+  <div class="tx">📱 PalPay <b id="pal"></b></div>
+  <div class="tx">💵 نقدي <b id="cash"></b></div>
+</div>
+</div>
+
+<div class="section">
+<h3>شخصية المستشار</h3>
+
+<div class="card">
+<select class="field">
+  <option>متوازن</option>
+  <option>لطيف</option>
+  <option>حازم</option>
+</select>
+</div>
+</div>
+
+</section>
+
+<button id="micBtn" class="mic" onclick="voice()">🎙️</button>
+
+</div>
+
+<div class="nav">
+<button class="on" onclick="go(this,'home')">الرئيسية</button>
+<button onclick="go(this,'ops')">العمليات</button>
+<button onclick="go(this,'reports')">التقارير</button>
+<button onclick="go(this,'settings')">الإعدادات</button>
+</div>
+
+<!-- إضافة عملية -->
+
+<div class="modal" id="addM">
+<div class="sheet">
+
+<div class="top">
+<h3>إضافة عملية</h3>
+<button class="btn" onclick="addM.classList.remove('on')">إغلاق</button>
+</div>
+
+<select id="typ" class="field">
+<option value="expense">مصروف</option>
+<option value="income">دخل</option>
+</select>
+
+<input id="amt" class="field" inputmode="decimal" placeholder="المبلغ">
+
+<select id="account" class="field">
+<option value="">اختر الحساب</option>
+<option>PalPay</option>
+<option>نقدي</option>
+</select>
+
+<input id="merchant" class="field" placeholder="المتجر / المصدر">
+
+<div class="row">
+<select id="category" class="field" onchange="fillSubs()"></select>
+<button class="mini" onclick="addCategory()">+ رئيسي</button>
+</div>
+
+<div class="row">
+<select id="sub" class="field"></select>
+<button class="mini" onclick="addSub()">+ فرعي</button>
+</div>
+
+<button class="field btn" onclick="addTx()">حفظ</button>
+
+</div>
+</div>
+
+<!-- المساعد -->
+
+<div class="modal" id="chatM">
+<div class="sheet">
+
+<div class="top">
+<h3>مساعدك المالي</h3>
+<button class="btn" onclick="chatM.classList.remove('on')">إغلاق</button>
+</div>
+
+<div id="chat"></div>
+
+<input
+ id="msg"
+ class="field"
+ placeholder="مثال: سجل 120 شيكل ملابس للأولاد من كومبو نقدي"
+>
+
+<button class="field btn" onclick="send()">إرسال</button>
+
+<small class="muted">
+إذا لم تذكر الحساب سأطلب منك تحديده بدل افتراض PalPay.
+</small>
+
+</div>
+</div>
+
 <script>
-const demo=[{id:1,type:'income',amount:3500,account:'PalPay',category:'الدخل',sub:'راتب',merchant:'الراتب'},{id:2,type:'expense',amount:200,account:'PalPay',category:'الأبناء',sub:'ملابس',merchant:'زوزو'},{id:3,type:'expense',amount:145,account:'نقدي',category:'المنزل',sub:'تموين',merchant:'السوبرماركت'},{id:4,type:'expense',amount:80,account:'PalPay',category:'الطعام',sub:'مطاعم',merchant:'مطعم'}];let tx=JSON.parse(localStorage.getItem('m2')||'null')||demo,base={PalPay:1200,'نقدي':650},com=470;function m(n){return Math.round(n).toLocaleString('ar')+' ₪'}function st(){let i=0,e=0,b={...base};tx.forEach(x=>{x.type==='income'?i+=x.amount:e+=x.amount;b[x.account]=(b[x.account]||0)+(x.type==='income'?x.amount:-x.amount)});return{i,e,b,t:b.PalPay+b['نقدي']}}function render(){localStorage.setItem('m2',JSON.stringify(tx));let s=st(),sa=Math.max(0,s.t-com-500);bal.textContent=m(s.t);safe.textContent='المتاح الآمن: '+m(sa);accs.textContent='PalPay '+m(s.b.PalPay)+' • نقدي '+m(s.b['نقدي']);inc.textContent=m(s.i);exp.textContent=m(s.e);pal.textContent=m(s.b.PalPay);cash.textContent=m(s.b['نقدي']);forecast.textContent=m(Math.max(0,s.t-com-s.e/Math.max(1,new Date().getDate())*7));insight.innerHTML=s.e>s.i*.5?'⚠️ مصروفك مرتفع نسبيًا. المتاح الآمن الآن <b>'+m(sa)+'</b>.':'🟢 وضعك تحت السيطرة. المتاح الآمن الآن <b>'+m(sa)+'</b>.';let g={};tx.filter(x=>x.type==='expense').forEach(x=>g[x.category]=(g[x.category]||0)+x.amount);cats.innerHTML=Object.entries(g).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' <b style="float:left">'+m(v)+'</b><div class="bar"><i style="width:'+v/Math.max(1,s.e)*100+'%"></i></div>').join('');let qv=(q?.value||'').toLowerCase();list.innerHTML=tx.filter(x=>JSON.stringify(x).toLowerCase().includes(qv)).slice().reverse().map(x=>'<div class="tx" onclick="edit('+x.id+')"><div><b>'+x.merchant+'</b><div class="muted small">'+x.category+' ← '+x.sub+' • '+x.account+'</div></div><b class="amount '+(x.type==='expense'?'e':'i')+'">'+(x.type==='expense'?'-':'+')+m(x.amount)+'</b></div>').join('');report.innerHTML='<div class="tx">إجمالي الدخل <b>'+m(s.i)+'</b></div><div class="tx">إجمالي المصروف <b>'+m(s.e)+'</b></div><div class="tx">صافي التدفق <b>'+m(s.i-s.e)+'</b></div><div class="tx">الرصيد الحالي <b>'+m(s.t)+'</b></div>'}function go(b,id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on');b.classList.add('on');render()}function addTx(){let a=+amt.value;if(!a)return alert('أدخل المبلغ');tx.push({id:Date.now(),type:typ.value,amount:a,account:account.value,merchant:merchant.value||category.value||'عملية',category:category.value||'أخرى',sub:sub.value||''});addM.classList.remove('on');amt.value=merchant.value=category.value=sub.value='';render()}function edit(id){let x=tx.find(y=>y.id===id),n=prompt('تعديل المبلغ',x.amount);if(n&&+n){x.amount=+n;render()}}function openChat(){let s=st(),sa=Math.max(0,s.t-com-500),t='أهلًا وسهلًا أبو مصعب. '+(s.e>s.i*.5?'خلينا ننتبه اليوم شوي، المصروف مرتفع. ':'أمورك جيدة لحد الآن. ')+'رصيدك '+m(s.t)+' والمتاح الآمن '+m(sa)+'. شو بدك نعمل؟';chat.innerHTML='<div class="bubble ai">'+t+'</div>';chatM.classList.add('on');if(speechSynthesis){let u=new SpeechSynthesisUtterance(t);u.lang='ar';speechSynthesis.speak(u)}}function send(){let t=msg.value.trim();if(!t)return;chat.innerHTML+='<div class="bubble me">'+t+'</div>';msg.value='';let z=t.match(/\d+(?:\.\d+)?/),a=z?+z[0]:0,r='فهمت عليك. ربط الذكاء الحقيقي هو المرحلة التالية.';if(a&&/سجل|اشتريت|دفعت/.test(t)){let ac=/نقد|كاش/.test(t)?'نقدي':'PalPay',c=/ولد|أولاد|اولاد|ملابس|اواعي|أواعي/.test(t)?'الأبناء':'أخرى',su=/ملابس|اواعي|أواعي/.test(t)?'ملابس':'';tx.push({id:Date.now(),type:'expense',amount:a,account:ac,category:c,sub:su,merchant:(t.match(/من\s+([^،,.]+)/)||[])[1]||c});render();r='تم. سجلت '+m(a)+'، '+c+(su?' ← '+su:'')+' من '+ac+'.'}else if(a&&/راتب|استلمت/.test(t)){tx.push({id:Date.now(),type:'income',amount:a,account:'PalPay',category:'الدخل',sub:'راتب',merchant:'الراتب'});render();r='تم تسجيل الراتب '+m(a)+' في PalPay.'}setTimeout(()=>{chat.innerHTML+='<div class="bubble ai">'+r+'</div>';if(speechSynthesis){let u=new SpeechSynthesisUtterance(r);u.lang='ar';speechSynthesis.speak(u)}},200)}render();
-</script></body></html>
+
+const defaultCats = {
+  'الأولاد':['ملابس','مدرسة','مصروف'],
+  'المنزل':['تموين','صيانة'],
+  'الطعام':['مطاعم','بقالة'],
+  'اشتراكات':['إنترنت'],
+  'المواصلات':['وقود','مواصلات'],
+  'أخرى':['أخرى'],
+  'الدخل':['راتب','دخل آخر']
+};
+
+let catMap =
+JSON.parse(localStorage.getItem('mCats') || 'null')
+|| defaultCats;
+
+const demo = [
+{
+ id:1,type:'income',amount:3500,
+ account:'PalPay',
+ category:'الدخل',
+ sub:'راتب',
+ merchant:'الراتب'
+},
+{
+ id:2,type:'expense',amount:200,
+ account:'PalPay',
+ category:'الأولاد',
+ sub:'ملابس',
+ merchant:'زوزو'
+},
+{
+ id:3,type:'expense',amount:145,
+ account:'نقدي',
+ category:'المنزل',
+ sub:'تموين',
+ merchant:'السوبرماركت'
+},
+{
+ id:4,type:'expense',amount:80,
+ account:'PalPay',
+ category:'الطعام',
+ sub:'مطاعم',
+ merchant:'مطعم'
+}
+];
+
+let tx =
+JSON.parse(localStorage.getItem('m2') || 'null')
+|| demo;
+
+let base = {
+ PalPay:1200,
+ 'نقدي':650
+};
+
+let com = 470;
+let pending = null;
+
+/* توحيد الأبناء والأولاد */
+
+tx.forEach(x=>{
+ if(x.category === 'الأبناء' ||
+    x.category === 'الابناء'){
+   x.category = 'الأولاد';
+ }
+});
+
+function saveCats(){
+ localStorage.setItem('mCats',JSON.stringify(catMap));
+}
+
+function m(n){
+ return Math.round(n).toLocaleString('ar')+' ₪';
+}
+
+function st(){
+
+ let i=0,e=0;
+ let b={...base};
+
+ tx.forEach(x=>{
+
+   if(x.type==='income') i+=x.amount;
+   else e+=x.amount;
+
+   b[x.account]=(b[x.account]||0)
+   +(x.type==='income'?x.amount:-x.amount);
+
+ });
+
+ return {
+   i,e,b,
+   t:(b.PalPay||0)+(b['نقدي']||0)
+ };
+}
+
+/* القوائم المرنة */
+
+function fillCats(sel){
+
+ category.innerHTML =
+ Object.keys(catMap)
+ .map(k=>'<option>'+k+'</option>')
+ .join('');
+
+ if(sel && catMap[sel])
+   category.value=sel;
+
+ fillSubs();
+}
+
+function fillSubs(sel){
+
+ let c=category.value;
+
+ sub.innerHTML =
+ (catMap[c]||[])
+ .map(k=>'<option>'+k+'</option>')
+ .join('');
+
+ if(sel && (catMap[c]||[]).includes(sel))
+   sub.value=sel;
+}
+
+function addCategory(){
+
+ let n=prompt('اسم التصنيف الرئيسي الجديد');
+
+ if(!n) return;
+
+ n=n.trim();
+
+ if(!catMap[n])
+   catMap[n]=[];
+
+ saveCats();
+ fillCats(n);
+}
+
+function addSub(){
+
+ let c=category.value;
+
+ let n=prompt('اسم التصنيف الفرعي الجديد');
+
+ if(!c || !n) return;
+
+ n=n.trim();
+
+ if(!catMap[c].includes(n))
+   catMap[c].push(n);
+
+ saveCats();
+ fillSubs(n);
+}
+
+/* إنشاء تصنيف تلقائيًا من كلام المستخدم */
+
+function ensureCat(c,s){
+
+ if(!catMap[c])
+   catMap[c]=[];
+
+ if(s && !catMap[c].includes(s))
+   catMap[c].push(s);
+
+ saveCats();
+}
+
+/* العرض */
+
+function render(){
+
+ localStorage.setItem('m2',JSON.stringify(tx));
+
+ let s=st();
+
+ let sa=Math.max(0,s.t-com-500);
+
+ bal.textContent=m(s.t);
+ safe.textContent='المتاح الآمن: '+m(sa);
+
+ accs.textContent=
+ 'PalPay '+m(s.b.PalPay||0)
+ +' • نقدي '+m(s.b['نقدي']||0);
+
+ inc.textContent=m(s.i);
+ exp.textContent=m(s.e);
+
+ pal.textContent=m(s.b.PalPay||0);
+ cash.textContent=m(s.b['نقدي']||0);
+
+ forecast.textContent=
+ m(
+ Math.max(
+ 0,
+ s.t-com-
+ s.e/Math.max(1,new Date().getDate())*7
+ )
+ );
+
+ insight.innerHTML =
+ s.e>s.i*.5
+ ? '⚠️ مصروفك مرتفع نسبيًا. المتاح الآمن الآن <b>'+m(sa)+'</b>.'
+ : '🟢 وضعك تحت السيطرة. المتاح الآمن الآن <b>'+m(sa)+'</b>.';
+
+ let g={};
+
+ tx.filter(x=>x.type==='expense')
+ .forEach(x=>{
+   g[x.category]=(g[x.category]||0)+x.amount;
+ });
+
+ cats.innerHTML =
+ Object.entries(g)
+ .sort((a,b)=>b[1]-a[1])
+ .map(([k,v])=>
+   k+
+   '<b style="float:left">'+m(v)+'</b>'+
+   '<div class="bar"><i style="width:'+
+   v/Math.max(1,s.e)*100+
+   '%"></i></div>'
+ ).join('');
+
+ let qv=(window.q?.value||'').toLowerCase();
+
+ list.innerHTML =
+ tx.filter(x=>
+   JSON.stringify(x).toLowerCase().includes(qv)
+ )
+ .slice()
+ .reverse()
+ .map(x=>
+ '<div class="tx" onclick="edit('+x.id+')">'+
+ '<div><b>'+x.merchant+'</b>'+
+ '<div class="muted small">'+
+ x.category+' ← '+x.sub+' • '+x.account+
+ '</div></div>'+
+ '<b class="amount '+(x.type==='expense'?'e':'i')+'">'+
+ (x.type==='expense'?'-':'+')+
+ m(x.amount)+
+ '</b></div>'
+ ).join('');
+
+ report.innerHTML =
+ '<div class="tx">إجمالي الدخل <b>'+m(s.i)+'</b></div>'+
+ '<div class="tx">إجمالي المصروف <b>'+m(s.e)+'</b></div>'+
+ '<div class="tx">صافي التدفق <b>'+m(s.i-s.e)+'</b></div>'+
+ '<div class="tx">الرصيد الحالي <b>'+m(s.t)+'</b></div>';
+}
+
+function go(b,id){
+
+ document.querySelectorAll('.screen')
+ .forEach(x=>x.classList.remove('on'));
+
+ document.querySelectorAll('.nav button')
+ .forEach(x=>x.classList.remove('on'));
+
+ document.getElementById(id).classList.add('on');
+
+ b.classList.add('on');
+
+ render();
+}
+
+/* إضافة يدوية */
+
+function openAdd(){
+
+ fillCats();
+ addM.classList.add('on');
+}
+
+function addTx(){
+
+ let a=+amt.value;
+
+ if(!a)
+   return alert('أدخل المبلغ');
+
+ if(!account.value)
+   return alert('اختر الحساب');
+
+ tx.push({
+   id:Date.now(),
+   type:typ.value,
+   amount:a,
+   account:account.value,
+   merchant:merchant.value||category.value||'عملية',
+   category:category.value||'أخرى',
+   sub:sub.value||''
+ });
+
+ addM.classList.remove('on');
+
+ amt.value='';
+ merchant.value='';
+
+ render();
+}
+
+function edit(id){
+
+ let x=tx.find(y=>y.id===id);
+
+ let n=prompt('تعديل المبلغ',x.amount);
+
+ if(n && +n){
+   x.amount=+n;
+   render();
+ }
+}
+
+/* المساعد */
+
+function openChat(){
+
+ let s=st();
+
+ let sa=Math.max(0,s.t-com-500);
+
+ let t=
+ 'أهلًا وسهلًا أبو مصعب. رصيدك '+
+ m(s.t)+
+ ' والمتاح الآمن '+
+ m(sa)+
+ '. شو بدك نعمل؟';
+
+ chat.innerHTML=
+ '<div class="bubble ai">'+t+'</div>';
+
+ chatM.classList.add('on');
+}
+
+/* فهم التصنيف */
+
+function infer(t){
+
+ let c='أخرى';
+ let s='أخرى';
+
+ if(
+ /ولد|اولاد|أولاد|الأولاد|الابناء|الأبناء|ملابس|اواعي|أواعي/.test(t)
+ ){
+   c='الأولاد';
+
+   s=
+   /ملابس|اواعي|أواعي/.test(t)
+   ? 'ملابس'
+   : 'مصروف';
+ }
+
+ else if(
+ /انترنت|إنترنت|اشتراك النت|اشتراك الإنترنت/.test(t)
+ ){
+   c='اشتراكات';
+   s='إنترنت';
+ }
+
+ else if(
+ /مطعم|اكل|أكل|طعام/.test(t)
+ ){
+   c='الطعام';
+   s='مطاعم';
+ }
+
+ else if(
+ /سوبر|تموين|بقالة/.test(t)
+ ){
+   c='المنزل';
+   s='تموين';
+ }
+
+ ensureCat(c,s);
+
+ return [c,s];
+}
+
+/* معالجة الكلام */
+
+function processText(t){
+
+ chat.innerHTML +=
+ '<div class="bubble me">'+t+'</div>';
+
+ let z=t.match(/\d+(?:\.\d+)?/);
+
+ let a=z ? +z[0] : 0;
+
+ /* في حال كنا ننتظر تحديد الحساب */
+
+ if(
+ pending &&
+ /palpay|بال باي|بالبي|نقد|كاش/i.test(t)
+ ){
+
+   pending.account=
+   /نقد|كاش/.test(t)
+   ? 'نقدي'
+   : 'PalPay';
+
+   tx.push(pending);
+
+   let r=
+   'تم. سجلت '+
+   m(pending.amount)+
+   '، '+
+   pending.category+
+   ' ← '+
+   pending.sub+
+   ' من '+
+   pending.account+
+   '.';
+
+   pending=null;
+
+   render();
+
+   reply(r);
+
+   return;
+ }
+
+ /* مصروف */
+
+ if(
+ a &&
+ /سجل|اشتريت|دفعت|اشتركت|اشتراك/.test(t)
+ ){
+
+   let ac=
+   /نقد|كاش/.test(t)
+   ? 'نقدي'
+   : (
+     /palpay|بال باي|بالبي/i.test(t)
+     ? 'PalPay'
+     : ''
+   );
+
+   let [c,s]=infer(t);
+
+   let mer=
+   (t.match(/(?:من|متجر)\s+([^،,.]+)/)||[])[1]
+   || c;
+
+   let obj={
+     id:Date.now(),
+     type:'expense',
+     amount:a,
+     account:ac,
+     category:c,
+     sub:s,
+     merchant:mer.trim()
+   };
+
+   /* لا نفترض PalPay */
+
+   if(!ac){
+
+     pending=obj;
+
+     reply(
+       'تمام. من أي حساب دفعت؟ PalPay أم نقدي؟'
+     );
+
+     return;
+   }
+
+   tx.push(obj);
+
+   render();
+
+   reply(
+     'تم. سجلت '+
+     m(a)+
+     '، '+
+     c+
+     ' ← '+
+     s+
+     ' من '+
+     ac+
+     '.'
+   );
+
+   return;
+ }
+
+ /* دخل */
+
+ if(
+ a &&
+ /راتب|استلمت/.test(t)
+ ){
+
+   let ac=
+   /نقد|كاش/.test(t)
+   ? 'نقدي'
+   : (
+     /palpay|بال باي|بالبي/i.test(t)
+     ? 'PalPay'
+     : ''
+   );
+
+   if(!ac){
+
+     pending={
+       id:Date.now(),
+       type:'income',
+       amount:a,
+       account:'',
+       category:'الدخل',
+       sub:'راتب',
+       merchant:'الراتب'
+     };
+
+     reply(
+       'على أي حساب استلمت الراتب؟ PalPay أم نقدي؟'
+     );
+
+     return;
+   }
+
+   tx.push({
+     id:Date.now(),
+     type:'income',
+     amount:a,
+     account:ac,
+     category:'الدخل',
+     sub:'راتب',
+     merchant:'الراتب'
+   });
+
+   render();
+
+   reply(
+     'تم تسجيل الراتب '+
+     m(a)+
+     ' في '+
+     ac+
+     '.'
+   );
+
+   return;
+ }
+
+ reply(
+ 'فهمت كلامك، لكن لم أجد أمرًا ماليًا واضحًا للتسجيل.'
+ );
+}
+
+function reply(r){
+
+ setTimeout(()=>{
+
+   chat.innerHTML +=
+   '<div class="bubble ai">'+r+'</div>';
+
+   chat.scrollTop=chat.scrollHeight;
+
+ },100);
+}
+
+function send(){
+
+ let t=msg.value.trim();
+
+ if(!t) return;
+
+ msg.value='';
+
+ processText(t);
+}
+
+/* الصوت الحقيقي */
+
+function voice(){
+
+ openChat();
+
+ let SR=
+ window.SpeechRecognition ||
+ window.webkitSpeechRecognition;
+
+ if(!SR){
+
+   reply(
+   'المتصفح الحالي لا يدعم التعرف الصوتي مباشرة. يمكنك استخدام الإملاء الصوتي من لوحة المفاتيح أو فتح التطبيق في Chrome.'
+   );
+
+   return;
+ }
+
+ let r=new SR();
+
+ r.lang='ar-IL';
+ r.interimResults=false;
+ r.continuous=false;
+
+ micBtn.classList.add('listening');
+ micBtn.textContent='⏹️';
+
+ r.onresult=e=>{
+
+   let t=
+   e.results[0][0].transcript;
+
+   processText(t);
+ };
+
+ r.onerror=e=>{
+
+   reply(
+   'تعذر سماع الصوت. تأكد من السماح للمتصفح باستخدام الميكروفون ثم حاول مرة أخرى.'
+   );
+ };
+
+ r.onend=()=>{
+
+   micBtn.classList.remove('listening');
+   micBtn.textContent='🎙️';
+ };
+
+ try{
+   r.start();
+ }
+ catch(e){
+
+   reply(
+   'تعذر بدء الميكروفون. حاول مرة أخرى.'
+   );
+ }
+}
+
+fillCats();
+render();
+
+</script>
+
+</body>
+</html>
