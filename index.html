@@ -855,7 +855,13 @@ function speak(text){
   );
 
   if(arabicVoice) u.voice = arabicVoice;
-
+  u.onend = function () {
+  if (pending && !isListening) {
+    setTimeout(() => {
+      voice();
+    }, 400);
+  }
+};
   window.speechSynthesis.speak(u);
 }
 
