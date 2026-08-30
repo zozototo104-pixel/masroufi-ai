@@ -459,19 +459,22 @@ export async function addTransaction(args: any, userId: string, token: string) {
       }
       const results: any[] = [];
       for (const alloc of allocations) {
-        const r = await addTransaction({ ...args, amount: alloc.amount, account: alloc.account, paymentMethod: alloc.account, allocations: [], split: [], incomeSplit: [], notes: [notes, alloc.note].filter(Boolean).join(' - ') }, userId, token);
+        const r = await addTransaction({ ...args, amount: alloc.amount, account: alloc.account, paymentMethod: alloc.account, incomeDestinationConfirmed: true, destinationConfirmed: true, allocations: [], split: [], incomeSplit: [], notes: [notes, alloc.note].filter(Boolean).join(' - ') }, userId, token);
         results.push(r);
         if (!r?.success) return r;
       }
       return { success: true, splitIncome: true, results, message: `تم توزيع الدخل: ${allocations.map(a => `${a.amount} ₪ ${a.account === 'palPay' ? 'PalPay' : 'كاش'}`).join('، ')}.` };
     }
-    if (needsIncomeAllocationQuestion(args, type, paymentWasProvided)) {
-      return {
-        success: false,
-        needsClarification: true,
-        reason: 'MISSING_INCOME_DESTINATION',
-        message: 'قبل تسجيل الدخل: كم منه نقدي وكم في محفظة PalPay؟ إن كان كله في جهة واحدة قل لي مثلاً: كله كاش أو كله PalPay.'
-      };
+    const incomeDestinationConfirmed = Boolean(args.incomeDestinationConfirmed || args.destinationConfirmed || args.confirmedDestination || args.allocationConfirmed);
+    if (!incomeDestinationConfirmed || needsIncomeAllocationQuestion(args, type, false)) {
+      if (!incomeDestinationConfirmed) {
+        return {
+          success: false,
+          needsClarification: true,
+          reason: 'MISSING_INCOME_DESTINATION_CONFIRMATION',
+          message: 'قبل تسجيل الراتب/الدخل لازم تأكيد مكانه صراحة: كم منه نقدي وكم في PalPay؟ إن كان كله في جهة واحدة قل: كله كاش أو كله PalPay.'
+        };
+      }
     }
   }
 
