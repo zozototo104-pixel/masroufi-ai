@@ -52,6 +52,20 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get("/api/cloud-health", async (req, res) => {
+    try {
+      const { adminDb } = await import('./src/server/firebaseAdmin');
+      await adminDb.collection('__health').doc('firestore').get();
+      res.json({ status: 'ok', firestore: 'ok' });
+    } catch (e: any) {
+      res.status(503).json({
+        status: 'degraded',
+        firestore: 'unavailable',
+        error: e?.message || 'Firestore unavailable'
+      });
+    }
+  });
+
   // Safari & Mobile friendly direct authentication using Firebase Custom Tokens.
   // V6: replaces unsigned masrofi_token_ bypass (CF-1). Server mints a real
   // Firebase Custom Token via Admin SDK; client calls signInWithCustomToken.
