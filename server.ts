@@ -935,8 +935,8 @@ ${relationshipContext}
                 const authToken = req.headers.authorization.split('Bearer ')[1];
                 const stableOperationId = buildStableOperationIdForToolCall(call, String(clientMessageId || ''));
                 const toolArgs = stableOperationId
-                  ? { ...(call.args || {}), operationId: stableOperationId, clientMessageId, userText: message }
-                  : { ...(call.args || {}), clientMessageId, userText: message };
+                  ? { ...(call.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
+                  : { ...(call.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
                 responseData = await handler(toolArgs, req.user.uid, authToken);
               } catch (e: any) {
                 responseData = { error: e.message };
