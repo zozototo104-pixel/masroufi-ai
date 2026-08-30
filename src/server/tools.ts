@@ -852,11 +852,20 @@ export async function addTransaction(args: any, userId: string, token: string) {
     operationId,
     currentBalances: balances.balances,
     // V6: explicit durability flag. UI/AI MUST inspect this.
+    // Important: do NOT conflate a partial balance read with a pending write.
+    // A transaction can be safely committed to Firestore while the follow-up balance read is partial.
     durability: writeResult!.durability,
     pending: writeResult!.pending,
-    partial: balances.partial || writeResult!.pending,
+    partial: writeResult!.pending,
+    balanceReadPartial: Boolean(balances.partial),
     cloudStorageConfirmed: writeResult!.durability === 'committed',
     cloudStoragePending: writeResult!.pending,
+    message: writeResult!.durability === 'committed'
+      ? `تم حفظ القيد في السحابة بقيمة ${amount} ₪.`
+      : undefined,
+    balanceWarning: balances.partial && writeResult!.durability === 'committed'
+      ? 'تم حفظ القيد سحابياً، لكن قراءة الرصيد بعد الحفظ كانت جزئية؛ حدّث الصفحة إذا لم يظهر الرصيد فوراً.'
+      : undefined,
     pendingReason: writeResult!.pending ? 'CLOUD_STORAGE_NOT_CONFIRMED' : undefined,
     pendingError: writeResult!.pending ? writeResult!.error : undefined,
     userFacingPendingMessage: writeResult!.pending
