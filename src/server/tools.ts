@@ -2652,6 +2652,20 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "repair_duplicate_credit_purchase",
+    description: "يصلح تكرار شراء بالدين: يحذف النسخ الزائدة من نفس قيد الشراء بالدين ويبقي نسخة واحدة. استخدمه عندما يقول المستخدم إن شراء دين بقيمة معينة تسجل مرتين وزاد الدين للضعف.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "مبلغ الشراء بالدين المكرر مثل 50" },
+        creditor: { type: "string", description: "اسم الدائن/المحل مثل فلان" },
+        merchant: { type: "string", description: "اسم المحل إن ذكر" },
+        date: { type: "string", description: "تاريخ يوم محدد YYYY-MM-DD اختياري" },
+        month: { type: "string", description: "شهر محدد YYYY-MM اختياري" }
+      }
+    }
+  },
+  {
     name: "check_budget_status",
     description: "يفحص وضع الميزانية الحالي لمعرفة هل هناك تجاوز أو اقتراب من الحد المسموح، سواء لتصنيف معين أو للمجموع الكلي.",
     parameters: {
