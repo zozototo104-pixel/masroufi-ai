@@ -107,6 +107,16 @@ function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: s
   if (intent !== 'cash_borrowing' && isCashBorrowingToolCall(call) && sameBatchDebtPurchase) {
     return { skip: true, reason: 'DEBT_PURCHASE_AND_CASH_BORROWING_SAME_AMOUNT_IN_SAME_BATCH' };
   }
+  if (isDebtPurchaseToolCall(call)) {
+    const args: any = call.args || {};
+    const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
+    const creditor = normalizeArabicForIntent(args.merchant || args.creditor || '');
+    const sameDebtPurchaseBatchKey = `__ONE_DEBT_PURCHASE_ADD_TRANSACTION_IN_BATCH__|${amount}|${creditor || 'unknown'}`;
+    if (seenKeys.has(sameDebtPurchaseBatchKey)) {
+      return { skip: true, reason: 'MULTIPLE_DEBT_PURCHASE_ADD_TRANSACTION_CALLS_IN_SAME_BATCH' };
+    }
+    seenKeys.add(sameDebtPurchaseBatchKey);
+  }
   if (intent === 'credit_purchase' && isDebtPurchaseToolCall(call)) {
     // One user sentence like "اشتريت من فلان بـ 50 دين" must create exactly one debt expense.
     // If the model emits a second add_transaction with slightly different category/subcategory,
