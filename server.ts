@@ -171,6 +171,37 @@ If individual line items cannot be broken down, provide a single item in the ite
     }
   });
 
+  app.post("/api/scan-receipt/record", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { addTransaction } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed } = req.body || {};
+      if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
+      if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
+      const created: any[] = [];
+      for (const item of items) {
+        const result = await addTransaction({
+          amount: item.amount,
+          type: 'expense',
+          account: paymentMethod,
+          paymentMethod,
+          category: item.category,
+          subcategory: item.subcategory || item.notes || 'مشتريات',
+          merchant: item.merchant || merchant,
+          notes: item.notes || item.name || 'بند من فاتورة ممسوحة',
+          necessity: item.necessity || 'ضروري',
+          riskConfirmed: Boolean(riskConfirmed)
+        }, req.user.uid, token);
+        if (!result?.success) return res.json({ ...result, createdBeforeFailure: created });
+        created.push({ ...item, transactionId: result.transactionId });
+      }
+      res.json({ success: true, createdCount: created.length, created });
+    } catch (e: any) {
+      console.error('Record scanned receipt error:', e.message);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   app.get("/api/budgets", authMiddleware, async (req: any, res: any) => {
     try {
       const { getBudgetsOverview } = await import('./src/server/tools');
