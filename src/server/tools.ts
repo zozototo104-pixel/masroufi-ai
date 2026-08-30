@@ -552,14 +552,16 @@ export async function addTransaction(args: any, userId: string, token: string) {
   };
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
   if (type === 'expense' && account === 'debt') {
-    const vagueAutoCategory = !explicitCategoryProvided || !explicitSubcategoryProvided || category === 'أخرى' || subcategory === 'غير مصنف' || subcategory === 'متفرقات';
-    const hasPurchaseDescription = Boolean(explicitPurchaseItem || notes);
-    if (vagueAutoCategory || !hasPurchaseDescription) {
+    // For credit purchases, the user does NOT have to provide category/subcategory/necessity manually.
+    // Masroufi should infer category and necessity using Gaza context. The backend only requires enough
+    // ledger identity to know this is a real distinct entry: what was bought OR for whom/purpose OR notes.
+    const hasLedgerIdentity = Boolean(explicitPurchaseItem || beneficiary || notes || subcategory);
+    if (!hasLedgerIdentity) {
       return {
         success: false,
         needsClarification: true,
         reason: 'MISSING_CREDIT_PURCHASE_DETAILS',
-        message: 'قبل تسجيل الشراء بالدين لازم أعرف بالضبط: شو اشتريت من هذا الشخص/المحل؟ لأي بند أصنفها؟ وهل هي ضرورية أم كمالية؟'
+        message: 'قبل تسجيل الشراء بالدين لازم أعرف القيد نفسه: شو اشتريت أو لمين/لأي غرض؟ وأنا أصنف البند والضرورة وفق واقع غزة.'
       };
     }
   }
