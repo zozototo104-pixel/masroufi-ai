@@ -539,8 +539,11 @@ export async function addTransaction(args: any, userId: string, token: string) {
         message: 'هذا يبدو قرضاً/سلفة وليس دخلاً. هل استلمت مالاً يجب تسجيله كدين، أم هو منحة/مساعدة لا تُرد؟'
       };
     }
+    const userStatedNonReturnAid = ['لا ترد', 'لا يرد', 'غير مسترده', 'غير مستردة', 'بدون رد', 'مش سلفه', 'مش سلفة', 'مش قرض'].some(word => originalUserIncomeText.includes(normalizeArabicText(word)));
     const incomeDestinationConfirmed = Boolean(args.incomeDestinationConfirmed || args.destinationConfirmed || args.confirmedDestination || args.allocationConfirmed || explicitIncomeDestination);
-    const incomeNatureConfirmed = Boolean(args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed || userStatedIncomeNature || /راتب|salary|قبض/i.test(toolIncomeText));
+    const incomeNatureConfirmed = originalUserIncomeText
+      ? Boolean(userStatedIncomeNature || userStatedNonReturnAid)
+      : Boolean(args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed || /راتب|salary|قبض/i.test(toolIncomeText));
     if (!incomeNatureConfirmed) {
       return {
         success: false,
