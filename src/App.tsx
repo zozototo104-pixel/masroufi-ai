@@ -988,7 +988,12 @@ export default function App() {
         }
         window.dispatchEvent(new CustomEvent('masrofi:refresh'));
       } else {
-        setChatMessages(prev => [...prev, { role: 'ai', text: 'عذراً، حدث خطأ في النظام.' }]);
+        if (!res.ok) {
+          const queued = await queueOfflineFinancialCommand(text, clientMessageId);
+          if (!queued) setChatMessages(prev => [...prev, { role: 'ai', text: 'عذراً، حدث خطأ في النظام.' }]);
+        } else {
+          setChatMessages(prev => [...prev, { role: 'ai', text: 'عذراً، حدث خطأ في النظام.' }]);
+        }
       }
     } catch (err) {
       const queued = await queueOfflineFinancialCommand(text, clientMessageId);
