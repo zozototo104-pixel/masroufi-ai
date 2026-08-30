@@ -194,6 +194,56 @@ If individual line items cannot be broken down, provide a single item in the ite
     }
   });
 
+  app.get("/api/treasurer/profile", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getTreasurerProfile } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getTreasurerProfile({}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/treasurer/profile", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { updateTreasurerProfile } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await updateTreasurerProfile(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/savings-goals", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getSavingsGoals } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getSavingsGoals({}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/savings-goals", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { createSavingsGoal } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await createSavingsGoal(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/savings-goals/:id/contribute", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { addSavingsContribution } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await addSavingsContribution({ ...(req.body || {}), id: req.params.id }, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/commitments", authMiddleware, async (req: any, res: any) => {
     try {
       const { getCommitments } = await import('./src/server/tools');
