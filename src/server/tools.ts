@@ -447,6 +447,12 @@ export async function addTransaction(args: any, userId: string, token: string) {
     category = 'دخل';
     subcategory = /راتب|salary|قبض/i.test(`${notes} ${args.category || ''}`) ? 'راتب' : 'دخل عام';
   }
+  const necessitySuggestion = type === 'expense'
+    ? inferNecessityForGazaContext({ category, subcategory, notes, merchant, item: explicitPurchaseItem, amount })
+    : null;
+  if (type === 'expense' && !necessity && necessitySuggestion && necessitySuggestion.necessity !== 'محتاج تأكيد' && necessitySuggestion.confidence !== 'low') {
+    necessity = necessitySuggestion.necessity;
+  }
 
   // Treasurer Mode: income must not be silently dumped into cash.
   // Salary/income needs an explicit destination or a split between cash and PalPay.
