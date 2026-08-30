@@ -1647,6 +1647,41 @@ export async function deleteCommitment(args: any, userId: string, token: string)
   return { success: true };
 }
 
+export async function getTreasurerProfile(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const ref = adminDb.collection('users').doc(userId).collection('treasurer').doc('profile');
+  const snap = await ref.get();
+  const profile = snap.exists ? snap.data() : {
+    monthlySalary: 0,
+    salaryDay: null,
+    cashReserveTarget: 0,
+    savingsRateTarget: 10,
+    strictness: 'balanced',
+    currency: 'ILS',
+    locale: 'Gaza/Palestine',
+    createdAt: null,
+    updatedAt: null
+  };
+  return { success: true, profile };
+}
+
+export async function updateTreasurerProfile(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const ref = adminDb.collection('users').doc(userId).collection('treasurer').doc('profile');
+  const patch: any = { updatedAt: new Date().toISOString() };
+  if (args.monthlySalary !== undefined) patch.monthlySalary = Math.abs(Number(args.monthlySalary) || 0);
+  if (args.salaryDay !== undefined) patch.salaryDay = args.salaryDay ? Number(args.salaryDay) : null;
+  if (args.cashReserveTarget !== undefined || args.reserveTarget !== undefined) patch.cashReserveTarget = Math.abs(Number(args.cashReserveTarget ?? args.reserveTarget) || 0);
+  if (args.savingsRateTarget !== undefined) patch.savingsRateTarget = Math.max(0, Math.min(80, Number(args.savingsRateTarget) || 0));
+  if (args.strictness !== undefined) patch.strictness = String(args.strictness || 'balanced');
+  if (args.locale !== undefined) patch.locale = String(args.locale || 'Gaza/Palestine');
+  if (args.notes !== undefined) patch.notes = String(args.notes || '');
+  const snap = await ref.get();
+  if (!snap.exists) patch.createdAt = new Date().toISOString();
+  await ref.set({ ...(snap.exists ? snap.data() : {}), ...patch });
+  return { success: true, profile: { ...(snap.exists ? snap.data() : {}), ...patch } };
+}
+
 export async function getSavingsGoals(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const snap = await adminDb.collection('users').doc(userId).collection('savingsGoals').get();
