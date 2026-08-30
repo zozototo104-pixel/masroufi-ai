@@ -704,6 +704,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
     account,
     category,
     subcategory,
+    purchaseItem: explicitPurchaseItem,
+    beneficiary,
     merchant,
     notes,
     necessity: type === 'expense' ? necessity : '',
