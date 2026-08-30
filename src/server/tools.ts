@@ -508,7 +508,12 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
   if (!category) return { success: false, needsClarification: true, reason: 'MISSING_CATEGORY', message: 'ما بند العملية الرئيسي؟' };
   if (type === 'expense' && !subcategory) return { success: false, needsClarification: true, reason: 'MISSING_SUBCATEGORY', message: 'ما البند الفرعي لهذا المصروف؟' };
-  if (type === 'expense' && !necessity) return { success: false, needsClarification: true, reason: 'MISSING_NECESSITY', message: 'هل تعتبر هذا المصروف ضرورياً أم كمالياً حسب ظروفك الحالية؟' };
+  if (type === 'expense' && !necessity) return {
+    success: false,
+    needsClarification: true,
+    reason: 'MISSING_NECESSITY_CONTEXT',
+    message: `لم أستطع تصنيف هذا المصروف كضروري أو كمالي وفق واقع غزة من الوصف الحالي. ${necessitySuggestion?.reason || ''} قل لي باختصار: ما الحاجة من هذا الشراء؟`
+  };
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
   if (type === 'expense' && account === 'debt') {
     const vagueAutoCategory = !explicitCategoryProvided || !explicitSubcategoryProvided || category === 'أخرى' || subcategory === 'غير مصنف' || subcategory === 'متفرقات';
