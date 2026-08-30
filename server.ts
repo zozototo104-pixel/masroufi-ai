@@ -210,9 +210,10 @@ function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: s
   }
   if (intent === 'unknown' && isDebtPurchaseToolCall(call) && sameBatchCashBorrowing) {
     // Ambiguous live/tool batch: if both actions are emitted for the same amount, prefer the explicit purchase record
-    // and drop the borrowing record to avoid turning one 50 ₪ credit purchase into 100 ₪ debt.
-    const debtPurchaseTurnKey = '__ONE_AMBIGUOUS_DEBT_PURCHASE_ENTRY_FOR_THIS_TOOL_BATCH__';
-    if (seenKeys.has(debtPurchaseTurnKey)) return { skip: true, reason: 'ONE_DEBT_ENTRY_PER_AMBIGUOUS_TOOL_BATCH' };
+    // and drop the borrowing record to avoid turning one 50 ₪ credit purchase into 100 ₪ debt. The guard is per
+    // ledger-entry fingerprint, so two different purposes/beneficiaries remain valid separate entries.
+    const debtPurchaseTurnKey = `__AMBIGUOUS_DEBT_PURCHASE_ENTRY__|${financialOperationCoreKey(call)}`;
+    if (seenKeys.has(debtPurchaseTurnKey)) return { skip: true, reason: 'DUPLICATE_AMBIGUOUS_DEBT_PURCHASE_ENTRY' };
     seenKeys.add(debtPurchaseTurnKey);
   }
   return { skip: false };
