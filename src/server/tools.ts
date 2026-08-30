@@ -578,16 +578,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type === 'expense' && account === 'debt') {
     // For credit purchases, the user does NOT have to provide category/subcategory/necessity manually.
     // Masroufi should infer category and necessity using Gaza context.
-    // However, category/subcategory alone are NOT a ledger identity. Generic notes like
-    // "شراء بالدين من فلان" are also not enough. We must know what was bought or for whom/purpose.
-    const cleanedNotesForIdentity = normalizeArabicText(notes)
+    // But the identity of the ledger entry MUST come from the user's original words, not from
+    // model-invented purchaseItem/beneficiary/category/notes. Otherwise "اشتريت دين من أبو محمد"
+    // could be auto-filled by the model and recorded without knowing what was bought or for whom.
+    const identitySource = String(args.userText || notes || '').trim();
+    const cleanedOriginalForIdentity = normalizeArabicText(identitySource)
       .replace(normalizeArabicText(merchant), ' ')
-      .replace(/شراء|اشتريت|شريت|اشتري|دين|بالدين|من|عند|على|قيد|تسجيل|سجل|سجلي|مصروف|مبلغ|شيكل|ش/g, ' ')
+      .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|دين|بالدين|من|عند|على|قيد|تسجيل|سجل|سجلي|مصروف|مبلغ|قيمه|قيمة|شيكل|ش|₪|ب|بـ/g, ' ')
       .replace(/\d+(\.\d+)?/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    const hasRealPurchaseIdentity = Boolean(explicitPurchaseItem || beneficiary || cleanedNotesForIdentity.length >= 3);
-    if (!hasRealPurchaseIdentity) {
+    const userProvidedPurchaseIdentity = cleanedOriginalForIdentity.length >= 3;
+    if (!userProvidedPurchaseIdentity) {
       return {
         success: false,
         needsClarification: true,
