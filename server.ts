@@ -30,9 +30,10 @@ function normalizeArabicForIntent(value: any): string {
 
 function classifyDebtIntent(message: string): 'credit_purchase' | 'cash_borrowing' | 'unknown' {
   const text = normalizeArabicForIntent(message);
-  const hasDebt = /\bدين\b|بالدين|سلف|سلفه|سلفة|استدن|اقترض/.test(text);
+  // Do not use \b with Arabic; JS word boundaries are unreliable for Arabic text.
+  const hasDebt = ['دين', 'بالدين', 'دينا', 'سلف', 'سلفه', 'سلفة', 'استدن', 'اقترض'].some(w => text.includes(normalizeArabicForIntent(w)));
   if (!hasDebt) return 'unknown';
-  const purchaseWords = ['اشتريت', 'شريت', 'اشتري', 'شراء', 'بعتني', 'فاتوره', 'فاتورة', 'من محل', 'من عند'];
+  const purchaseWords = ['اشتريت', 'شريت', 'اشتري', 'شراء', 'بعتني', 'فاتوره', 'فاتورة', 'من محل', 'من عند', 'اخذت من محل', 'اخدت من محل'];
   const borrowWords = ['اخدت دين نقدي', 'اخذت دين نقدي', 'دين نقدي', 'استدنت', 'اقترضت', 'اخدت سلفه', 'اخذت سلفه', 'سلفني', 'سلفت من'];
   if (borrowWords.some(w => text.includes(normalizeArabicForIntent(w)))) return 'cash_borrowing';
   if (purchaseWords.some(w => text.includes(normalizeArabicForIntent(w)))) return 'credit_purchase';
