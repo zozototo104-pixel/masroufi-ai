@@ -260,14 +260,25 @@ export async function searchLocalMarket(args: any, userId: string, token: string
     };
   }
 
-  // V6.1: check cache first (reduces API cost + latency).
+  const adminDb = getDb(token);
+  const savedResults = await searchSavedMarketOffers(adminDb, userId, item, model);
+
+  // V6.1: check cache first (reduces API cost + latency), but blend the user's Gaza market directory first.
   const cached = getCachedMarketResult({ product: item, model, condition });
   if (cached) {
-    return cached;
+    const merged = [...savedResults, ...(cached.results || [])];
+    const marketComparison = buildMarketComparison(merged, Number(args.offeredPrice || args.price || 0) || undefined);
+    return { ...cached, results: merged, marketComparison, priceRange: computeNormalizedPriceRange(merged) || cached.priceRange, directoryMatches: savedResults.length };
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { success: false, marketUnavailable: true, message: 'البحث الحي في السوق غير متاح حالياً لأن مفتاح Gemini غير مهيأ على الخادم.' };
+  if (!apiKey) {
+    if (savedResults.length) {
+      const marketComparison = buildMarketComparison(savedResults, Number(args.offeredPrice || args.price || 0) || undefined);
+      return { success: true, item, model: model || undefined, results: savedResults, priceRange: computeNormalizedPriceRange(savedResults) || undefined, marketComparison, sources: [], searchQueries: [], summary: 'اعتمدت على دفتر سوق غزة/فلسطين المحفوظ لديك لأن البحث الحي غير متاح.', directoryMatches: savedResults.length };
+    }
+    return { success: false, marketUnavailable: true, message: 'البحث الحي في السوق غير متاح حالياً لأن مفتاح Gemini غير مهيأ على الخادم.' };
+  }
   try {
     const ai = new GoogleGenAI({ apiKey });
     const q = `ابحث في الويب عن أسعار حديثة ومتاحة فعلياً في سوق غزة/قطاع غزة للسلعة التالية: ${item}${model ? `، الموديل: ${model}` : ''}${condition ? `، الحالة: ${condition}` : ''}. أعطِ فقط الأسعار التي تجد لها مصدراً حديثاً وواضحاً. لا تخترع متجراً أو سعراً. إذا لم تجد عروضاً محلية موثوقة فقل ذلك صراحة. اذكر اسم البائع/المصدر والسعر بالشيكل إن أمكن وتاريخ/حداثة المعلومة.`;
