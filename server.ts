@@ -399,27 +399,31 @@ If individual line items cannot be broken down, provide a single item in the ite
 
   app.post("/api/scan-receipt/record", authMiddleware, async (req: any, res: any) => {
     try {
-      const { addTransaction } = await import('./src/server/tools');
       const token = req.headers.authorization.split('Bearer ')[1];
       const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed } = req.body || {};
       if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
+      const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${items.length}_${merchant}_${paymentMethod}_${items.map((i: any) => `${i.amount}:${i.name || i.notes || i.subcategory || ''}`).join('|')}`);
       const created: any[] = [];
-      for (const item of items) {
-        const result = await addTransaction({
+      for (const [index, item] of items.entries()) {
+        const txArgs = {
           amount: item.amount,
           type: 'expense',
           account: paymentMethod,
           paymentMethod,
           category: item.category,
           subcategory: item.subcategory || item.notes || 'مشتريات',
+          purchaseItem: item.purchaseItem || item.name || item.notes || item.subcategory || 'بند فاتورة',
+          beneficiary: item.beneficiary || item.forWhom || '',
           merchant: item.merchant || merchant,
           notes: item.notes || item.name || 'بند من فاتورة ممسوحة',
-          necessity: item.necessity || 'ضروري',
-          riskConfirmed: Boolean(riskConfirmed)
-        }, req.user.uid, token);
+          necessity: item.necessity || '',
+          riskConfirmed: Boolean(riskConfirmed),
+          operationId: `receipt:${receiptId}:item:${index}:${paymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
+        };
+        const result = await toolHandlers.add_transaction(txArgs, req.user.uid, token);
         if (!result?.success) return res.json({ ...result, createdBeforeFailure: created });
-        created.push({ ...item, transactionId: result.transactionId });
+        created.push({ ...item, transactionId: result.transactionId, operationId: txArgs.operationId });
       }
       res.json({ success: true, createdCount: created.length, created });
     } catch (e: any) {
