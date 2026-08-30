@@ -802,6 +802,144 @@ export default function App() {
     }
   };
 
+  const normalizeLocalArabic = (value: string) => String(value || '')
+    .toLowerCase()
+    .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[ـًٌٍَُِّْ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const extractAmountFromText = (text: string): number | null => {
+    const normalized = normalizeLocalArabic(text);
+    const match = normalized.match(/(?:^|\s)(\d+(?:[\.,]\d+)?)(?=\s*(?:ش|شيكل|₪|دينار|دولار|$|\s|$))/);
+    if (!match) return null;
+    const amount = Number(String(match[1]).replace(',', '.'));
+    return Number.isFinite(amount) && amount > 0 ? amount : null;
+  };
+
+  const normalizeOfflineAccount = (text: string): 'cash' | 'palPay' | 'debt' | null => {
+    const t = normalizeLocalArabic(text);
+    if (t.includes('بال باي') || t.includes('palpay') || t.includes('pal pay') || t.includes('محفظ')) return 'palPay';
+    if (t.includes('دين') || t.includes('بالدين')) return 'debt';
+    if (t.includes('كاش') || t.includes('نقد')) return 'cash';
+    return null;
+  };
+
+  const inferOfflineCategory = (text: string): { category: string; subcategory: string; purchaseItem: string } => {
+    const t = normalizeLocalArabic(text);
+    if (/اولاد|الاولاد|عيال|ابن|بنت|اطفال|اطفال/.test(t)) return { category: 'الأبناء', subcategory: 'مصروف', purchaseItem: 'احتياجات الأبناء' };
+    if (/تموين|بقال|خبز|طحين|رز|سكر|زيت|خضار|فواكه|بطاطا|ماء|مياه|غاز/.test(t)) return { category: 'طعام ومشتريات منزل', subcategory: 'تموين', purchaseItem: 'تموين ومشتريات منزل' };
+    if (/دواء|صيدليه|صيدلية|دكتور|طبيب|علاج|تحاليل/.test(t)) return { category: 'صحة وعلاج', subcategory: 'علاج', purchaseItem: 'علاج/دواء' };
+    if (/ملابس|لبس|اواعي|حذاء|كندره|جزمه/.test(t)) return { category: 'الأبناء', subcategory: 'ملابس', purchaseItem: 'ملابس/أحذية' };
+    if (/مواصلات|تاكسي|اجره|بنزين|سولار/.test(t)) return { category: 'مواصلات', subcategory: 'مواصلات', purchaseItem: 'مواصلات' };
+    return { category: 'أخرى', subcategory: 'متفرقات', purchaseItem: '' };
+  };
+
+  const extractMerchantFromPurchase = (text: string): string => {
+    const raw = String(text || '').trim();
+    const match = raw.match(/(?:من\s+(?:عند\s+)?|عند\s+)([^\d،,.]+?)(?=\s+(?:ب|بـ|بمبلغ|بقيمة|ل|لل|لاجل|عشان|دين|كاش|بال|على)|$)/i);
+    return match?.[1]?.trim() || '';
+  };
+
+  const extractBeneficiary = (text: string): string => {
+    const raw = String(text || '').trim();
+    const match = raw.match(/(?:لل|لـ|ل)([\p{L}\s]+?)(?=$|\s+(?:من|عند|ب|بـ|دين|كاش|بال|على|و))/u);
+    return match?.[1]?.trim() || '';
+  };
+
+  const buildOfflineFinancialCommand = (text: string, clientMessageId: string): { commandType: FinancialCommandType; args: any; operationId: string; summary: string } | { error: string } => {
+    const amount = extractAmountFromText(text);
+    const normalized = normalizeLocalArabic(text);
+    const account = normalizeOfflineAccount(text);
+    const isPurchase = /اشتريت|شريت|اخذت|اخدت|شراء/.test(normalized);
+    const isIncome = /دخل|راتب|مساعده|مساعدة|هديه|هدية|استلمت|وصلني/.test(normalized) && !isPurchase;
+    const isCashBorrowing = /دين نقدي|سلفني|سلفه|سلفة|استدنت|اقترضت/.test(normalized);
+
+    if (!amount) return { error: 'وأنت أوفلاين لازم تذكر المبلغ صراحة حتى أحفظها للمزامنة.' };
+
+    if (isCashBorrowing) {
+      const creditor = extractMerchantFromPurchase(text) || 'غير محدد';
+      const args = { amount, fromAccount: 'debt', toAccount: 'cash', creditor, notes: text };
+      return {
+        commandType: 'TRANSFER_MONEY',
+        args,
+        operationId: `offline:${clientMessageId}:borrow-cash:${amount}:${normalizeLocalArabic(creditor)}`,
+        summary: `حفظت أمر استدانة نقدية ${amount} ₪ للمزامنة عند رجوع السحابة.`
+      };
+    }
+
+    if (isIncome) {
+      if (!account || account === 'debt') return { error: 'الدخل أوفلاين يحتاج تحديد واضح: كاش أم PalPay؟' };
+      const args = {
+        amount,
+        type: 'income',
+        paymentMethod: account,
+        account,
+        category: normalized.includes('راتب') ? 'دخل' : 'دخل',
+        subcategory: normalized.includes('راتب') ? 'راتب' : 'دخل عام',
+        notes: text,
+        incomeDestinationConfirmed: true,
+        incomeNatureConfirmed: true,
+      };
+      return {
+        commandType: 'ADD_TRANSACTION',
+        args,
+        operationId: `offline:${clientMessageId}:income:${account}:${amount}:${normalizeLocalArabic(args.subcategory)}`,
+        summary: `حفظت أمر دخل ${amount} ₪ على ${account === 'palPay' ? 'PalPay' : 'كاش'} للمزامنة عند رجوع السحابة.`
+      };
+    }
+
+    if (isPurchase) {
+      if (!account) return { error: 'الشراء أوفلاين يحتاج طريقة دفع واضحة: كاش، PalPay، أو دين.' };
+      const merchant = extractMerchantFromPurchase(text);
+      const beneficiary = extractBeneficiary(text);
+      const inferred = inferOfflineCategory(text);
+      const purchaseItem = inferred.purchaseItem || beneficiary || text;
+      if (account === 'debt' && !merchant) return { error: 'شراء الدين أوفلاين يحتاج اسم الدائن أو المحل.' };
+      if (account === 'debt' && !beneficiary && !inferred.purchaseItem && !/ل|لل|اولاد|زوجتي|البيت|تموين|علاج|دواء|ملابس|كندره|كندرة|خبز|غاز|ماء/.test(normalized)) {
+        return { error: 'شراء الدين أوفلاين يحتاج توضيح: شو اشتريت أو لمين/لأي غرض؟' };
+      }
+      const args = {
+        amount,
+        type: 'expense',
+        paymentMethod: account,
+        account,
+        category: inferred.category,
+        subcategory: inferred.subcategory,
+        purchaseItem,
+        beneficiary,
+        merchant,
+        notes: text,
+      };
+      return {
+        commandType: 'ADD_TRANSACTION',
+        args,
+        operationId: `offline:${clientMessageId}:expense:${account}:${amount}:${normalizeLocalArabic(merchant)}:${normalizeLocalArabic(purchaseItem)}:${normalizeLocalArabic(beneficiary)}`,
+        summary: `حفظت أمر شراء ${amount} ₪ ${account === 'debt' ? 'دين' : account === 'palPay' ? 'PalPay' : 'كاش'} للمزامنة عند رجوع السحابة.`
+      };
+    }
+
+    return { error: 'وأنت أوفلاين أقدر أحفظ أوامر واضحة مثل: اشتريت ... بـ ... كاش/دين، أو دخل ... كاش/PalPay.' };
+  };
+
+  const queueOfflineFinancialCommand = async (text: string, clientMessageId: string): Promise<boolean> => {
+    if (!user?.uid) return false;
+    const command = buildOfflineFinancialCommand(text, clientMessageId);
+    if ('error' in command) {
+      setChatMessages(prev => [...prev, { role: 'ai', text: command.error }]);
+      return true;
+    }
+    await enqueuePendingOp(user.uid, command.commandType, command.args, command.operationId);
+    const pending = await getPendingCount(user.uid).catch(() => 0);
+    setChatMessages(prev => [...prev, { role: 'ai', text: `${command.summary}\nسيتم إرسالها للسحابة عبر /api/command عند عودة الاتصال. العمليات المعلقة الآن: ${pending}.` }]);
+    window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+    return true;
+  };
+
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !user || isChatLoading) return;
