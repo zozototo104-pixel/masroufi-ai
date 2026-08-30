@@ -839,7 +839,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentToken}`
         },
-        body: JSON.stringify({ message: text, history: chatMessages, userName, aiName, relationship: aiRelationship, persona, apiKey })
+        body: JSON.stringify({ message: text, clientMessageId, history: chatMessages, userName, aiName, relationship: aiRelationship, persona, apiKey })
       });
       const data = await res.json();
       
