@@ -297,7 +297,7 @@ export default function App() {
 
         // V6.1 (OFF-04, OFF-05): attempt to sync pending offline ops at start of every refresh.
         // Server-side idempotency (runIdempotent + operationId) prevents duplication.
-        if (user?.uid) {
+        if (cloudReady && user?.uid) {
           try {
             // V6.2 (FINDING-05): migrate any legacy pending ops from V6.1 schema.
             await migrateLegacyPendingOps(user.uid);
