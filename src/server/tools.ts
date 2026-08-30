@@ -2406,6 +2406,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   transfer_money: transferMoney,
   pay_debt: payDebt,
   get_recent_transactions: getRecentTransactions,
+  audit_financial_duplicates: auditFinancialDuplicates,
   check_budget_status: checkBudgetStatus,
   set_category_budget: setCategoryBudget,
   get_budgets_overview: getBudgetsOverview,
