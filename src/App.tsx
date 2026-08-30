@@ -2519,13 +2519,18 @@ export default function App() {
               </table>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
-              <p className="text-xs text-slate-400">هذه مسودة فقط. قل لمصروفي: سجل الفاتورة كاش أو PalPay أو دين حتى تُحفظ فعلياً.</p>
+            <div className="pt-3 border-t border-slate-800 space-y-3">
+              <p className="text-xs text-slate-400">هذه مسودة فقط. اختر طريقة الدفع حتى تُحفظ فعلياً في الخزينة.</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => handleRecordScannedReceipt('cash')} className="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all">سجلها كاش</button>
+                <button onClick={() => handleRecordScannedReceipt('palPay')} className="px-3 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all">سجلها PalPay</button>
+                <button onClick={() => handleRecordScannedReceipt('debt')} className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all">سجلها دين</button>
+              </div>
               <button 
                 onClick={() => setShowScannerResult(null)}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all"
+                className="w-full px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all"
               >
-                فهمت
+                إلغاء بدون تسجيل
               </button>
             </div>
           </div>
