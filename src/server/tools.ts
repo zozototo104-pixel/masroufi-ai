@@ -14,6 +14,14 @@ import {
   type MarketResult,
   type MarketSearchResponse,
 } from './marketIntelligence';
+import {
+  inferCategory,
+  normalizeIncomeAllocations,
+  needsIncomeAllocationQuestion,
+  evaluateTreasurerRisk,
+  buildTreasurerReport,
+  TREASURER_CATEGORY_TAXONOMY,
+} from './treasurerEngine';
 
 // Persistent notification center. Notifications are stored per-user so Cloud Run restarts do not erase them.
 // The UI still renders short-lived toasts, but persistence is the source of truth.
