@@ -62,6 +62,37 @@ export function normalizeArabicText(value: any): string {
     .trim();
 }
 
+export type NecessitySuggestion = {
+  necessity: 'ضروري' | 'كمالي' | 'محتاج تأكيد';
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+  warContext: true;
+};
+
+const GAZA_NECESSITY_RULES: Array<{ necessity: 'ضروري' | 'كمالي' | 'محتاج تأكيد'; confidence: 'high' | 'medium' | 'low'; keywords: string[]; reason: string }> = [
+  { necessity: 'ضروري', confidence: 'high', keywords: ['خبز','طحين','دقيق','رز','سكر','زيت','عدس','فول','معلبات','تموين','بقاله','بقالة','خضار','بطاطا','بندوره','بندورة','مياه','ماء','تنك مياه','غاز','حليب','حفاض','حفاظ','رضاعه','رضاعة'], reason: 'غذاء/ماء/تموين أساسي، وفي واقع غزة والحرب هذا يُعامل كضرورة.' },
+  { necessity: 'ضروري', confidence: 'high', keywords: ['دواء','ادويه','أدوية','صيدليه','صيدلية','دكتور','طبيب','عياده','عيادة','تحاليل','اسعاف','إسعاف','طوارئ','علاج','حليب اطفال','حليب أطفال'], reason: 'صحة وعلاج؛ هذا لا يُعامل كمالي في ظروف الحرب وصعوبة الوصول للخدمات.' },
+  { necessity: 'ضروري', confidence: 'high', keywords: ['كهرباء','شحن كهربا','شحن كهرباء','مولد','بطاريه','بطارية','اناره','إنارة','شمع','كشاف','باور بانك','غاز طبخ'], reason: 'طاقة/إنارة/طبخ أساسي في ظروف الانقطاع والحرب.' },
+  { necessity: 'ضروري', confidence: 'medium', keywords: ['مواصلات','مشوار','تاكسي','اجره','أجرة','بنزين','سولار'], reason: 'المواصلات قد تكون ضرورة للعمل أو العلاج أو قضاء حاجة أساسية في غزة.' },
+  { necessity: 'ضروري', confidence: 'medium', keywords: ['ملابس اطفال','ملابس للاطفال','لبس للعيال','حذاء للاطفال','بطانيه','بطانية','فرشه','فراش','حرام','نايلون','خيمه','خيمة'], reason: 'احتياج عائلي/أطفال/مأوى؛ غالباً ضروري في واقع النزوح والحرب.' },
+  { necessity: 'محتاج تأكيد', confidence: 'medium', keywords: ['جوال','موبايل','هاتف','شاحن','سماعه','سماعة','راوتر','انترنت','إنترنت','لابتوب','كمبيوتر'], reason: 'قد يكون ضرورياً للتواصل والعمل والتعليم والأمان، وقد يكون كمالياً حسب السعر والبديل والحاجة.' },
+  { necessity: 'محتاج تأكيد', confidence: 'medium', keywords: ['هدية','هدايا','ضيافه','ضيافة','زياره','زيارة','حلويات'], reason: 'قد تكون اجتماعية مهمة، لكنها تحتاج تقدير حسب الوضع والميزانية.' },
+  { necessity: 'كمالي', confidence: 'medium', keywords: ['مطعم','وجبه جاهزه','وجبة جاهزة','قهوه','قهوة','حلويات فخمه','اكسسوار','إكسسوار','عطر','ميك اب','مكياج','لعبه','لعبة'], reason: 'غالباً كمالي إذا لم يكن مرتبطاً بحالة صحية أو عائلية مباشرة.' },
+  { necessity: 'كمالي', confidence: 'high', keywords: ['ايفون','آيفون','iphone','بلايستيشن','playstation','ساعة ذكية','تابلت للترفيه'], reason: 'مشتريات كبيرة/ترفيهية غالباً كمالية ما لم يثبت أنها للعمل أو الأمان أو ضرورة تواصل.' }
+];
+
+export function inferNecessityForGazaContext(input: { category?: any; subcategory?: any; notes?: any; merchant?: any; item?: any; amount?: any }): NecessitySuggestion {
+  const text = normalizeArabicText(`${input.category || ''} ${input.subcategory || ''} ${input.notes || ''} ${input.merchant || ''} ${input.item || ''}`);
+  for (const rule of GAZA_NECESSITY_RULES) {
+    if (rule.keywords.some(k => text.includes(normalizeArabicText(k)))) {
+      return { necessity: rule.necessity, confidence: rule.confidence, reason: rule.reason, warContext: true };
+    }
+  }
+  const amount = Number(input.amount) || 0;
+  if (amount >= 1000) return { necessity: 'محتاج تأكيد', confidence: 'medium', reason: 'المبلغ كبير؛ يجب تحديد هل هو حاجة قاهرة أم يمكن تأجيله.', warContext: true };
+  return { necessity: 'محتاج تأكيد', confidence: 'low', reason: 'الوصف لا يكفي للحكم على الضرورة وفق واقع غزة؛ يلزم سؤال مختصر.', warContext: true };
+}
+
 export function inferCategory(input: {
   type?: any;
   category?: any;
