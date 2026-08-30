@@ -96,6 +96,24 @@ service cloud.firestore {
         allow read: if ownsUserPath(userId);
         allow write: if ownsUserPath(userId);
       }
+
+      // Treasurer profile subcollection.
+      match /treasurer/{docId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
+
+      // Savings goals subcollection.
+      match /savingsGoals/{goalId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
+
+      // Gaza/Palestine market directory subcollection.
+      match /marketDirectory/{offerId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
     }
 
     // debts collection (legacy recurring items path — kept for backward compatibility,
