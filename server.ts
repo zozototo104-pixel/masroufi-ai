@@ -94,6 +94,64 @@ function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
   return aa > 0 && Math.abs(aa - bb) < 0.01;
 }
 
+function liveFinancialCommitKey(call: FunctionCall, userId: string | null | undefined): string | null {
+  if (!userId) return null;
+  const args: any = call.args || {};
+  const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
+  if (!amount) return null;
+  if (call.name === 'add_transaction') {
+    return [
+      userId,
+      'add_transaction',
+      String(args.type || '').toLowerCase(),
+      normalizeToolAccount(args.paymentMethod || args.account),
+      amount,
+      normalizeArabicForIntent(args.merchant || args.creditor || '') || 'none'
+    ].join('|');
+  }
+  if (call.name === 'transfer_money') {
+    return [
+      userId,
+      'transfer_money',
+      normalizeToolAccount(args.fromAccount || args.account),
+      normalizeToolAccount(args.toAccount),
+      amount,
+      normalizeArabicForIntent(args.creditor || args.lender || args.person || args.merchant || '') || 'none'
+    ].join('|');
+  }
+  if (call.name === 'pay_debt') {
+    return [
+      userId,
+      'pay_debt',
+      normalizeToolAccount(args.paymentMethod || args.fromAccount),
+      amount,
+      normalizeArabicForIntent(args.creditor || args.person || args.merchant || '') || 'none'
+    ].join('|');
+  }
+  return null;
+}
+
+const recentLiveFinancialCommits = new Map<string, { timestamp: number; result: any }>();
+const LIVE_FINANCIAL_DEDUPE_MS = 15_000;
+
+function getRecentLiveFinancialCommit(key: string | null): any | null {
+  if (!key) return null;
+  const hit = recentLiveFinancialCommits.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.timestamp > LIVE_FINANCIAL_DEDUPE_MS) {
+    recentLiveFinancialCommits.delete(key);
+    return null;
+  }
+  return hit.result;
+}
+
+function rememberLiveFinancialCommit(key: string | null, result: any) {
+  if (!key) return;
+  if (result?.success === true && !result?.needsClarification && !result?.needsConfirmation && !result?.skipped) {
+    recentLiveFinancialCommits.set(key, { timestamp: Date.now(), result });
+  }
+}
+
 function buildStableOperationIdForToolCall(call: FunctionCall, clientMessageId: string): string | null {
   if (!clientMessageId) return null;
   const args: any = call.args || {};
