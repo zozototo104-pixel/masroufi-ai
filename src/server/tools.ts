@@ -492,8 +492,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
     category = 'دخل';
     subcategory = /راتب|salary|قبض/i.test(`${notes} ${args.category || ''}`) ? 'راتب' : 'دخل عام';
   }
+  const originalExpenseText = String(args.userText || '').trim();
+  const expenseIdentitySource = originalExpenseText || `${explicitPurchaseItem} ${beneficiary} ${notes}`;
+  const cleanedExpenseIdentity = normalizeArabicText(expenseIdentitySource)
+    .replace(normalizeArabicText(merchant), ' ')
+    .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|مصروف|دفعت|دفع|سجل|سجلي|تسجيل|قيد|مبلغ|قيمه|قيمة|شيكل|ش|₪|كاش|نقد|محفظه|محفظة|بال باي|palpay|pal pay|دين|بالدين|من|عند|على|ب|بـ/g, ' ')
+    .replace(/\d+(\.\d+)?/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const purchaseItemForRecord = explicitPurchaseItem || cleanedExpenseIdentity;
+
   const necessitySuggestion = type === 'expense'
-    ? inferNecessityForGazaContext({ category, subcategory, notes, merchant, item: explicitPurchaseItem, amount })
+    ? inferNecessityForGazaContext({ category, subcategory, notes, merchant, item: purchaseItemForRecord, amount })
     : null;
   if (type === 'expense' && !necessity && necessitySuggestion && necessitySuggestion.necessity !== 'محتاج تأكيد' && necessitySuggestion.confidence !== 'low') {
     necessity = necessitySuggestion.necessity;
