@@ -44,22 +44,31 @@ function loadServiceAccount() {
   return null;
 }
 
+const serviceAccountForAdmin = loadServiceAccount();
+
 if (!getApps().length) {
-  const serviceAccount = loadServiceAccount();
-  initializeApp(serviceAccount
+  initializeApp(serviceAccountForAdmin
     ? {
-        credential: cert(serviceAccount),
-        projectId: serviceAccount.project_id || firebaseConfig.projectId,
+        credential: cert(serviceAccountForAdmin),
+        projectId: serviceAccountForAdmin.project_id || firebaseConfig.projectId,
       }
     : {
         projectId: firebaseConfig.projectId,
       }
   );
 
-  if (!serviceAccount) {
+  if (!serviceAccountForAdmin) {
     console.warn('[firebase-admin] No service account was provided. Local ADC may work, but Render requires FIREBASE_SERVICE_ACCOUNT_KEY or a secret file.');
   }
 }
+
+export const firebaseAdminDiagnostics = {
+  hasServiceAccount: Boolean(serviceAccountForAdmin),
+  serviceAccountProjectId: serviceAccountForAdmin?.project_id || null,
+  webConfigProjectId: firebaseConfig.projectId,
+  firestoreDatabaseId: firebaseConfig.firestoreDatabaseId || '(default)',
+  projectIdMatches: serviceAccountForAdmin ? serviceAccountForAdmin.project_id === firebaseConfig.projectId : false,
+};
 
 export const adminDb = firebaseConfig.firestoreDatabaseId
   ? getFirestore(firebaseConfig.firestoreDatabaseId)
