@@ -17,7 +17,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { buildHierarchicalReport, buildWordDocumentContent, buildWhatsAppReportText, matchesArabicCategory } from './lib/reportUtils';
 import { calculateFinancialFitness } from './lib/fitnessScore';
 import { calculateBalances } from './lib/balanceCalc';
-import { clearPendingOpsForUser, syncPendingOps, getPendingCount, migrateLegacyPendingOps } from './lib/offlineQueue';
+import { clearPendingOpsForUser, syncPendingOps, getPendingCount, migrateLegacyPendingOps, enqueuePendingOp, type FinancialCommandType } from './lib/offlineQueue';
 
 export default function App() {
   const [user, setUser] = useState<any | null>(null);
