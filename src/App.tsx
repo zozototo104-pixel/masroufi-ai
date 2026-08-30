@@ -349,7 +349,7 @@ export default function App() {
           }
           await idbSet('lkgs_transactions', finalTx);
         } else {
-          setIsOfflineMode(false); // API responded; partial/empty data is not a connectivity failure
+          setIsOfflineMode(true); // Firestore did not return durable cloud data; stay in local mode
           let cachedTx = (await idbGet<any[]>('lkgs_transactions')) || [];
           if (!Array.isArray(cachedTx)) cachedTx = [];
           const pending = (txData && txData.partial && txData.transactions) ? txData.transactions : [];
