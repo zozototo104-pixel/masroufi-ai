@@ -1871,7 +1871,7 @@ function getMutationKey(name: string, args: any, userId: string): string {
 }
 
 function wrapWithDeduplication(name: string, fn: (args: any, userId: string, token: string) => Promise<any>) {
-  const mutatingTools = ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'create_commitment', 'delete_transaction', 'update_transaction'];
+  const mutatingTools = ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'create_commitment', 'delete_transaction', 'update_transaction', 'create_savings_goal', 'add_savings_contribution', 'update_savings_goal'];
   if (!mutatingTools.includes(name)) return fn;
 
   return async (args: any, userId: string, token: string) => {
