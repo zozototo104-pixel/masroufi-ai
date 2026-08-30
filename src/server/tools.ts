@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { getDb, clearAllLocalUserData, type WriteResult } from './fakeDb';
 import { matchesArabicCategory } from '../lib/reportUtils';
 import { GoogleGenAI } from '@google/genai';
