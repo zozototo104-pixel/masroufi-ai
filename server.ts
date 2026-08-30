@@ -169,22 +169,11 @@ function buildStableOperationIdForToolCall(call: FunctionCall, clientMessageId: 
   const args: any = call.args || {};
   const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
   if (!amount && ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment'].includes(call.name)) return null;
-  if (call.name === 'add_transaction') {
-    const type = String(args.type || '').toLowerCase();
-    const account = normalizeToolAccount(args.paymentMethod || args.account);
-    const merchant = normalizeArabicForIntent(args.merchant || args.creditor || '');
-    // Intentionally ignore category/subcategory/notes. Gemini may vary those across duplicate calls
-    // for the same user sentence; the ledger operation is still one financial write.
-    return `chat:${clientMessageId}:add_transaction:${type}:${account}:${amount}:${merchant || 'none'}`;
-  }
-  if (call.name === 'transfer_money') {
-    return `chat:${clientMessageId}:transfer_money:${normalizeToolAccount(args.fromAccount || args.account)}:${normalizeToolAccount(args.toAccount)}:${amount}:${normalizeArabicForIntent(args.creditor || args.lender || args.person || args.merchant || '') || 'none'}`;
-  }
-  if (call.name === 'pay_debt') {
-    return `chat:${clientMessageId}:pay_debt:${normalizeToolAccount(args.paymentMethod || args.fromAccount)}:${amount}:${normalizeArabicForIntent(args.creditor || args.person || args.merchant || '') || 'none'}`;
+  if (['add_transaction', 'transfer_money', 'pay_debt'].includes(call.name)) {
+    return `chat:${clientMessageId}:${financialOperationCoreKey(call)}`;
   }
   if (call.name === 'send_palpay_payment') {
-    return `chat:${clientMessageId}:send_palpay_payment:${amount}:${normalizeArabicForIntent(args.phoneNumber || args.recipientName || '') || 'none'}`;
+    return `chat:${clientMessageId}:send_palpay_payment:${amount}:${normalizeArabicForIntent(args.phoneNumber || args.recipientName || '') || 'none'}:${ledgerEntryFingerprint(args)}`;
   }
   return null;
 }
