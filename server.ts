@@ -62,7 +62,32 @@ function isCashBorrowingToolCall(call: FunctionCall): boolean {
     && (normalizeToolAccount(args.toAccount) === 'cash' || normalizeToolAccount(args.toAccount) === 'palPay');
 }
 
-function semanticToolKey(call: FunctionCall): string {
+function ledgerEntryFingerprint(args: any): string {
+  const raw = [
+    args.item,
+    args.purchaseItem,
+    args.what,
+    args.description,
+    args.notes,
+    args.beneficiary,
+    args.forWhom,
+    args.forWho,
+    args.person,
+    args.category,
+    args.subcategory,
+  ].filter(v => v !== undefined && v !== null).join(' ');
+
+  const normalized = normalizeArabicForIntent(raw)
+    .replace(/\b(add|expense|income|transaction)\b/g, ' ')
+    .replace(/مصروف|شراء|اشتريت|شريت|سجل|سجلي|دين|بالدين|شيكل|ش|₪/g, ' ')
+    .replace(/\d+(\.\d+)?/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return normalized || 'unspecified-ledger-purpose';
+}
+
+function financialOperationCoreKey(call: FunctionCall): string {
   const args: any = call.args || {};
   const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
   if (call.name === 'add_transaction') {
@@ -71,9 +96,8 @@ function semanticToolKey(call: FunctionCall): string {
       String(args.type || '').toLowerCase(),
       normalizeToolAccount(args.paymentMethod || args.account),
       amount,
-      normalizeArabicForIntent(args.merchant || args.creditor || ''),
-      normalizeArabicForIntent(args.category || ''),
-      normalizeArabicForIntent(args.subcategory || '')
+      normalizeArabicForIntent(args.merchant || args.creditor || '') || 'none',
+      ledgerEntryFingerprint(args),
     ].join('|');
   }
   if (call.name === 'transfer_money') {
@@ -82,10 +106,24 @@ function semanticToolKey(call: FunctionCall): string {
       normalizeToolAccount(args.fromAccount || args.account),
       normalizeToolAccount(args.toAccount),
       amount,
-      normalizeArabicForIntent(args.creditor || args.lender || args.person || '')
+      normalizeArabicForIntent(args.creditor || args.lender || args.person || args.merchant || '') || 'none',
+      ledgerEntryFingerprint(args),
+    ].join('|');
+  }
+  if (call.name === 'pay_debt') {
+    return [
+      call.name,
+      normalizeToolAccount(args.paymentMethod || args.fromAccount),
+      amount,
+      normalizeArabicForIntent(args.creditor || args.person || args.merchant || '') || 'none',
+      ledgerEntryFingerprint(args),
     ].join('|');
   }
   return `${call.name}|${JSON.stringify(args)}`;
+}
+
+function semanticToolKey(call: FunctionCall): string {
+  return financialOperationCoreKey(call);
 }
 
 function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
