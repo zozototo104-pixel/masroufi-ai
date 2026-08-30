@@ -2274,6 +2274,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   update_transaction: updateTransaction,
   delete_transaction: deleteTransaction,
   repair_duplicate_income: repairDuplicateIncome,
+  repair_duplicate_credit_purchase: repairDuplicateCreditPurchase,
   get_balance: getBalance,
   get_financial_decision_context: getFinancialDecisionContext,
   assess_purchase: assessPurchase,
