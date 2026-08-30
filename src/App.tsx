@@ -313,7 +313,11 @@ export default function App() {
         const notifRes = await fetch('/api/notifications', { headers });
         const notifData = await notifRes.json();
         if (notifData && notifData.notifications && notifData.notifications.length > 0) {
-          setNotifications(prev => [...prev, ...notifData.notifications]);
+          setNotifications(prev => {
+            const byId = new Map(prev.map((n: any) => [n.id, n]));
+            for (const n of notifData.notifications) byId.set(n.id, n);
+            return Array.from(byId.values());
+          });
           notifData.notifications.forEach((n: any) => {
             setTimeout(() => {
               setNotifications(prev => prev.filter(item => item.id !== n.id));
