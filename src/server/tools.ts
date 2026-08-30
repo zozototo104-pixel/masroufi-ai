@@ -1756,6 +1756,35 @@ export async function wipeAllUserData(userId: string, token: string) {
   };
 }
 
+export async function generateTreasurerReport(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log('TOOL CALL: generateTreasurerReport', args);
+  const [txSnapshot, budgets, savingsSnap] = await Promise.all([
+    adminDb.collection('transactions').where('userId', '==', userId).get(),
+    getUserBudgets(userId, adminDb),
+    adminDb.collection('users').doc(userId).collection('savingsGoals').get().catch(() => ({ docs: [] }))
+  ]);
+  if ((txSnapshot as any).partial === true) {
+    return { success: false, partial: true, retryable: true, reason: 'PARTIAL_STATE_UNSAFE', message: 'لا أستطيع إصدار تقرير أمين صندوق دقيق الآن لأن بيانات العمليات جزئية. حاول عند استقرار الاتصال.' };
+  }
+  const txs = txSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const savingsGoals = (savingsSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const report = buildTreasurerReport(args, txs, budgets, savingsGoals);
+  if (args?.save !== false) {
+    const reportRef = adminDb.collection('reports').doc();
+    await reportRef.set({
+      userId,
+      type: 'treasurer',
+      title: report.title,
+      content: JSON.stringify(report, null, 2),
+      data: report,
+      createdAt: new Date().toISOString()
+    });
+    return { success: true, reportId: reportRef.id, report };
+  }
+  return { success: true, report };
+}
+
 // In-memory cache to guard against rapid duplicate tool calls
 const recentMutations = new Map<string, { result: any; timestamp: number }>();
 
