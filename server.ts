@@ -54,14 +54,24 @@ async function startServer() {
 
   app.get("/api/cloud-health", async (req, res) => {
     try {
-      const { adminDb } = await import('./src/server/firebaseAdmin');
-      await adminDb.collection('__health').doc('firestore').get();
-      res.json({ status: 'ok', firestore: 'ok' });
+      const { adminDb, firebaseAdminDiagnostics } = await import('./src/server/firebaseAdmin');
+      const ref = adminDb.collection('__health').doc('firestore');
+      const checkedAt = new Date().toISOString();
+      await ref.set({ checkedAt, service: 'masroufi-ai' }, { merge: true });
+      const snap = await ref.get();
+      res.json({
+        status: snap.exists ? 'ok' : 'degraded',
+        firestore: snap.exists ? 'read-write-ok' : 'write-not-visible',
+        checkedAt,
+        diagnostics: firebaseAdminDiagnostics,
+      });
     } catch (e: any) {
       res.status(503).json({
         status: 'degraded',
-        firestore: 'unavailable',
-        error: e?.message || 'Firestore unavailable'
+        firestore: 'read-write-failed',
+        error: e?.message || 'Firestore unavailable',
+        code: e?.code || null,
+        details: e?.details || null,
       });
     }
   });
