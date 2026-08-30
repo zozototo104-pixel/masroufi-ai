@@ -2453,7 +2453,7 @@ export default function App() {
                 <Camera className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">تم تفكيك الفاتورة بنجاح بواسطة الذكاء الاصطناعي</h2>
+                <h2 className="text-xl font-bold text-white">تم تحليل الفاتورة ولم يتم تسجيلها بعد</h2>
                 <p className="text-xs text-slate-400">
                   المتجر: <strong className="text-emerald-400">{showScannerResult.merchant || 'سوبرماركت / متجر'}</strong> • إجمالي الفاتورة: <strong className="text-white">{showScannerResult.totalAmount || 0} ₪</strong> ({showScannerResult.itemsCount || 0} بنود مفككة)
                 </p>
