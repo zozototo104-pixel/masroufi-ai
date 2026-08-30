@@ -826,7 +826,9 @@ ${relationshipContext}
             if (handler) {
               try {
                 const authToken = req.headers.authorization.split('Bearer ')[1];
-                responseData = await handler(call.args || {}, req.user.uid, authToken);
+                const stableOperationId = buildStableOperationIdForToolCall(call, String(clientMessageId || ''));
+                const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId, clientMessageId } : (call.args || {});
+                responseData = await handler(toolArgs, req.user.uid, authToken);
               } catch (e: any) {
                 responseData = { error: e.message };
               }
