@@ -465,16 +465,29 @@ export async function addTransaction(args: any, userId: string, token: string) {
       }
       return { success: true, splitIncome: true, results, message: `تم توزيع الدخل: ${allocations.map(a => `${a.amount} ₪ ${a.account === 'palPay' ? 'PalPay' : 'كاش'}`).join('، ')}.` };
     }
-    const incomeDestinationConfirmed = Boolean(args.incomeDestinationConfirmed || args.destinationConfirmed || args.confirmedDestination || args.allocationConfirmed);
-    if (!incomeDestinationConfirmed || needsIncomeAllocationQuestion(args, type, false)) {
-      if (!incomeDestinationConfirmed) {
-        return {
-          success: false,
-          needsClarification: true,
-          reason: 'MISSING_INCOME_DESTINATION_CONFIRMATION',
-          message: 'قبل تسجيل الراتب/الدخل لازم تأكيد مكانه صراحة: كم منه نقدي وكم في PalPay؟ إن كان كله في جهة واحدة قل: كله كاش أو كله PalPay.'
-        };
-      }
+    const incomeText = normalizeArabicText(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''}`);
+    const explicitIncomeDestination = paymentWasProvided && (account === 'cash' || account === 'palPay');
+    const knownIncomeNature = [
+      'راتب', 'مساعده', 'مساعدة', 'هديه', 'هدية', 'منحه', 'مكافاه', 'مكافأة',
+      'عمل اضافي', 'دخل اضافي', 'بيع', 'ربح', 'تحويل وارد', 'ايداع', 'إيداع'
+    ].some(word => incomeText.includes(normalizeArabicText(word)));
+    const incomeDestinationConfirmed = Boolean(args.incomeDestinationConfirmed || args.destinationConfirmed || args.confirmedDestination || args.allocationConfirmed || explicitIncomeDestination);
+    const incomeNatureConfirmed = Boolean(args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed || knownIncomeNature);
+    if (!incomeNatureConfirmed) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_INCOME_NATURE_CONFIRMATION',
+        message: 'قبل تسجيل الدخل: هل هو راتب، مساعدة/هدية، دخل عمل إضافي، بيع، أم سلفة/دين؟ إذا كان سلفة لا أسجلها كدخل.'
+      };
+    }
+    if (!incomeDestinationConfirmed) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_INCOME_DESTINATION_CONFIRMATION',
+        message: 'تمام، وطبيعة الدخل واضحة. الآن أكد لي أين دخل فعلياً: كاش أم PalPay؟ وإن كان موزعاً قل كم كاش وكم PalPay.'
+      };
     }
   }
 
