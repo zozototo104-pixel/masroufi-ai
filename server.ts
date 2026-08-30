@@ -132,6 +132,38 @@ function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
   return aa > 0 && Math.abs(aa - bb) < 0.01;
 }
 
+function isFinancialToolName(name: string): boolean {
+  return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase'].includes(name);
+}
+
+function buildDeterministicFinancialReply(functionResponses: Array<{ name: string; response: any }>): string | null {
+  const financial = functionResponses.filter(r => isFinancialToolName(r.name));
+  if (financial.length === 0) return null;
+  const hardError = financial.find(r => r.response?.success === false && !r.response?.needsClarification && !r.response?.needsConfirmation && !r.response?.retryable && !r.response?.inFlight);
+  if (hardError) {
+    return hardError.response?.message || hardError.response?.error || 'تعذر تنفيذ العملية المالية ولم أسجلها.';
+  }
+  const clarification = financial.find(r => r.response?.needsClarification || r.response?.needsConfirmation);
+  if (clarification) {
+    return clarification.response?.message || 'أحتاج توضيحاً قبل تسجيل العملية.';
+  }
+  const retryable = financial.find(r => r.response?.retryable || r.response?.inFlight);
+  if (retryable) {
+    return retryable.response?.message || 'العملية لم تُسجّل الآن لأن حالة الحفظ غير مؤكدة، أعد المحاولة لاحقاً.';
+  }
+  const committed = financial.filter(r => r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
+  if (committed.length > 0) {
+    const first = committed[0].response || {};
+    const amountText = first.amount ? ` بقيمة ${first.amount} ₪` : '';
+    const txText = first.transactionId ? `\nرقم القيد: ${first.transactionId}` : '';
+    const warn = first.balanceWarning ? `\nتنبيه: ${first.balanceWarning}` : '';
+    return first.message || `تم تنفيذ العملية المالية${amountText} وحفظها في السحابة.${txText}${warn}`;
+  }
+  const skippedOnly = financial.every(r => r.response?.skipped === true || r.response?.deduped === true);
+  if (skippedOnly) return 'لم أكرر التسجيل؛ هذه العملية عولجت قبل لحظات بنفس معرّف القيد.';
+  return null;
+}
+
 function liveFinancialCommitKey(call: FunctionCall, userId: string | null | undefined): string | null {
   if (!userId) return null;
   const args: any = call.args || {};
