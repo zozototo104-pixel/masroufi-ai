@@ -15,6 +15,8 @@
  * TTL: 1 hour (prices may change).
  */
 
+export type MarketScope = 'gaza' | 'palestine' | 'global' | 'unknown';
+
 export interface MarketResult {
   product: string;
   brand?: string;
@@ -25,6 +27,10 @@ export interface MarketResult {
   location?: string;
   price: number;
   currency: string;
+  originalPrice?: number;
+  originalCurrency?: string;
+  normalizedPriceIls?: number;
+  marketScope?: MarketScope;
   availability?: 'in-stock' | 'out-of-stock' | 'unknown';
   source: string;       // e.g., "Google Search grounding" or seller name
   sourceUrl?: string;
