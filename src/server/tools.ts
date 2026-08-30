@@ -1843,6 +1843,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   search_market_information: searchMarketInformation,
   send_palpay_payment: sendPalPayPayment,
   generate_report: generateReport,
+  generate_treasurer_report: generateTreasurerReport,
   delete_report: deleteReport,
   clear_all_reports: clearAllReports
 };
