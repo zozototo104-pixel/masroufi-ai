@@ -2731,6 +2731,14 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "audit_financial_duplicates",
+    description: "يفحص قاعدة البيانات بحثاً عن عمليات مالية مكررة أو إشعارات نجاح غير مربوطة بعملية، ويعيد تقرير تدقيق يوضح هل المشكلة تكرار عرض إشعار فقط أم وجود قيود مالية مكررة فعلاً.",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
     name: "update_transaction",
     description: "يعدل عملية مالية سابقة باستخدام الـ id الخاص بها.",
     parameters: {
