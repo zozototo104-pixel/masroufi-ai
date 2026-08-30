@@ -1,0 +1,120 @@
+/**
+ * V6.1 — Canonical client-side financial balance calculator.
+ *
+ * This mirrors src/server/tools.ts::calculateBalancesFromDocs EXACTLY.
+ * Both the Dashboard and the AI tool layer must use this same canonical
+ * algorithm to ensure UI == Backend == Report == Forecast == Export.
+ *
+ * Single Source of Truth rule (PHASE 2 of V6.1):
+ * - The backend (tools.ts) exports calculateBalancesFromDocs.
+ * - The frontend imports and uses this shared module instead of duplicating logic.
+ * - If the backend algorithm changes, this module MUST be updated to match.
+ */
+
+// Mirrors backend normalizeAccount (tools.ts).
+export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
+  if (!acc) return 'cash';
+  const s = String(acc).toLowerCase().trim();
+  if (s.includes('pal') || s.includes('بال') || s.includes('محفظ')) return 'palPay';
+  if (s.includes('debt') || s.includes('دين') || s.includes('آجل') || s.includes('اجل')) return 'debt';
+  return 'cash';
+}
+
+export interface Balances {
+  cash: number;
+  palPay: number;
+  debt: number;
+  total: number; // cash + palPay (debt excluded from liquidity)
+}
+
+export interface BalanceBreakdown {
+  income: number;
+  expense: number;
+  transferCount: number;
+  creditorDebts: Record<string, number>;
+}
+
+/**
+ * Canonical balance calculator. Accepts transaction objects (with .account, .type,
+ * .amount, .fromAccount, .toAccount, .creditor, .merchant, .transactionType).
+ *
+ * Pass plain JS objects (NOT Firestore DocumentSnapshot). The backend version
+ * handles both — this client version assumes plain objects.
+ */
+export function calculateBalances(transactions: any[]): Balances {
+  let cash = 0, palPay = 0, debt = 0;
+  for (const tx of transactions || []) {
+    const amount = Number(tx?.amount) || 0;
+    const account = normalizeAccount(tx?.account);
+    if (tx?.type === 'expense') {
+      if (account === 'palPay') palPay -= amount;
+      else if (account === 'debt') debt += amount;
+      else cash -= amount;
+    } else if (tx?.type === 'income') {
+      if (account === 'palPay') palPay += amount;
+      else if (account === 'debt') debt -= amount;
+      else cash += amount;
+    } else if (tx?.type === 'transfer') {
+      const f = normalizeAccount(tx?.fromAccount || tx?.account);
+      const t = normalizeAccount(tx?.toAccount);
+      if (f === 'palPay') palPay -= amount;
+      else if (f === 'debt') debt += amount;
+      else cash -= amount;
+      if (t === 'palPay') palPay += amount;
+      else if (t === 'debt') debt -= amount;
+      else cash += amount;
+    }
+  }
+  // Round to 2 decimal places to avoid floating-point drift.
+  cash = Math.round(cash * 100) / 100;
+  palPay = Math.round(palPay * 100) / 100;
+  debt = Math.round(debt * 100) / 100;
+  return { cash, palPay, debt, total: cash + palPay };
+}
+
+/**
+ * Detailed breakdown for reports/forecast. Mirrors what the backend's
+ * buildHierarchicalReport and getFinancialDecisionContext do separately.
+ */
+export function calculateBreakdown(transactions: any[]): BalanceBreakdown {
+  let income = 0, expense = 0, transferCount = 0;
+  const creditorDebts: Record<string, number> = {};
+  for (const tx of transactions || []) {
+    const amount = Number(tx?.amount) || 0;
+    if (tx?.type === 'income' && tx?.transactionType !== 'DEBT_BORROWING') {
+      income += amount;
+    } else if (tx?.type === 'expense') {
+      // V6.1: exclude CREDIT_PURCHASE from "real expense" for forecast, but count in expense total.
+      expense += amount;
+    } else if (tx?.type === 'transfer') {
+      transferCount++;
+    }
+    // Per-creditor debt tracking — same logic as backend calculateOpenCreditorDebts.
+    const creditor = String(tx?.creditor || tx?.merchant || '').trim();
+    if (!creditor) continue;
+    let delta = 0;
+    if (tx?.type === 'expense' && normalizeAccount(tx?.account) === 'debt') delta = amount;
+    if (tx?.type === 'income' && normalizeAccount(tx?.account) === 'debt') delta = -amount;
+    if (tx?.type === 'transfer' && normalizeAccount(tx?.toAccount) === 'debt') delta = -amount;
+    if (tx?.type === 'transfer' && normalizeAccount(tx?.fromAccount || tx?.account) === 'debt') delta = amount;
+    if (delta === 0) continue;
+    const key = normalizeCreditorKey(creditor);
+    creditorDebts[key] = (creditorDebts[key] || 0) + delta;
+  }
+  // Filter to only positive remaining debts (like backend).
+  const positiveDebts: Record<string, number> = {};
+  for (const [k, v] of Object.entries(creditorDebts)) {
+    if (v > 0.0001) positiveDebts[k] = Math.round(v * 100) / 100;
+  }
+  return { income, expense, transferCount, creditorDebts: positiveDebts };
+}
+
+/** Mirror backend normalizeCreditorName. */
+export function normalizeCreditorKey(value: any): string {
+  return String(value || '').trim().toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[ـًٌٍَُِّْ]/g, '')
+    .replace(/\s+/g, ' ');
+}

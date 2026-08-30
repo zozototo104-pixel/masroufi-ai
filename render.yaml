@@ -3,8 +3,8 @@ services:
     name: masrofi-ai
     runtime: node
     plan: free
-    buildCommand: bash scripts/render-build.sh
-    startCommand: bash scripts/render-start.sh
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
     healthCheckPath: /api/health
     maxShutdownDelaySeconds: 30
     envVars:

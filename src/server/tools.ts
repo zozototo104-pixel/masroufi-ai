@@ -1,0 +1,2130 @@
+import { getDb, clearAllLocalUserData, type WriteResult } from './fakeDb';
+import { matchesArabicCategory } from '../lib/reportUtils';
+import { GoogleGenAI } from '@google/genai';
+import { runIdempotent } from './idempotency';
+import { atomicAddTransaction, atomicPayDebt, atomicTransferMoney } from './atomicOps';
+import {
+  getCachedMarketResult,
+  cacheMarketResult,
+  isGazaSource,
+  extractPricesFromText,
+  computePriceRange,
+  shouldSearchMarket,
+  isSmallDailyPurchase,
+  type MarketResult,
+  type MarketSearchResponse,
+} from './marketIntelligence';
+
+// Persistent notification center. Notifications are stored per-user so Cloud Run restarts do not erase them.
+// The UI still renders short-lived toasts, but persistence is the source of truth.
+export async function getNotifications(userId: string, token: string, limit: number = 50) {
+  const adminDb = getDb(token);
+  const snap = await adminDb.collection('users').doc(userId).collection('notifications').get();
+  const allItems = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const items = allItems.filter((n: any) => !n.delivered).slice(0, Math.max(1, Math.min(100, limit)));
+  // V6 (MF-5): mark items as delivered in a SINGLE Firestore batch instead of N writes.
+  // This reduces quota usage and prevents partial-write storms.
+  if (items.length > 0) {
+    const batch = adminDb.batch();
+    const now = new Date().toISOString();
+    for (const n of items) {
+      batch.set(adminDb.collection('users').doc(userId).collection('notifications').doc(n.id), {
+        ...n,
+        delivered: true,
+        deliveredAt: now,
+      });
+    }
+    try {
+      await batch.commit();
+    } catch (batchErr) {
+      // Best-effort delivery marking. Don't fail the GET if the batch write fails.
+      console.warn('[notifications] delivery-marking batch failed:', batchErr);
+    }
+  }
+  return { notifications: items, unreadCount: allItems.filter((n: any) => !n.read).length, partial: (snap as any).partial };
+}
+
+export async function markNotificationRead(args: any, userId: string, token: string) {
+  if (!args?.id) return { success: false, error: 'Notification ID is required' };
+  const adminDb = getDb(token);
+  const ref = adminDb.collection('users').doc(userId).collection('notifications').doc(String(args.id));
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, error: 'Notification not found' };
+  await ref.set({ ...snap.data(), read: true, readAt: new Date().toISOString() });
+  return { success: true };
+}
+
+async function addNotification(userId: string, message: string, type: string = 'success', adminDb?: any) {
+  if (!adminDb) return;
+  const ref = adminDb.collection('users').doc(userId).collection('notifications').doc();
+  await ref.set({ message, type, read: false, delivered: false, createdAt: new Date().toISOString() });
+}
+
+
+
+// V5: unified financial context used by the assistant before consequential decisions.
+// It is on-demand only: no timers/polling. The transaction snapshot is reused for all calculations.
+// V6 (MF-1): exclude commitments with status='paid' from due30 to prevent double subtraction.
+export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = new Date();
+  const txSnap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const txs = txSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const balances = calculateBalancesFromDocs(txs);
+  const budgets = await getUserBudgets(userId, adminDb);
+  const commitmentSnap = await adminDb.collection('commitments').where('userId', '==', userId).get();
+  const commitments = commitmentSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const horizon90 = now.getTime() - 90 * 86400000;
+  const recent = txs.filter((t: any) => {
+    const d = new Date(t.date || t.createdAt || 0).getTime();
+    return Number.isFinite(d) && d >= horizon90 && d <= now.getTime();
+  });
+  const expenseTxs = recent.filter((t: any) => t.type === 'expense');
+  // V6: exclude CREDIT_PURCHASE from dailyExpense so projected forecast doesn't
+  // double-count purchases that didn't actually deduct cash.
+  const realExpenseTxs = expenseTxs.filter((t: any) => t.transactionType !== 'CREDIT_PURCHASE');
+  const incomeTxs = recent.filter((t: any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING');
+  const firstTs = recent.length ? Math.min(...recent.map((t: any) => new Date(t.date || t.createdAt).getTime()).filter(Number.isFinite)) : now.getTime();
+  const historyDays = recent.length ? Math.max(7, Math.min(90, Math.ceil((now.getTime() - firstTs) / 86400000) + 1)) : 7;
+  const expenseTotal = realExpenseTxs.reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+  const incomeTotal = incomeTxs.reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+  const dailyExpense = expenseTotal / historyDays;
+  const dailyIncome = incomeTotal / historyDays;
+  const next30 = now.getTime() + 30 * 86400000;
+  // V6 (MF-1): exclude paid/cancelled commitments from the forecast subtraction.
+  const due30 = commitments.filter((c: any) => {
+    if (c.status === 'paid' || c.status === 'cancelled') return false;
+    const d = new Date(c.dueDate).getTime();
+    return Number.isFinite(d) && d <= next30;
+  }).reduce((a: number, c: any) => a + (Number(c.amount) || 0), 0);
+  const projected30 = Math.round((balances.total || 0) + dailyIncome * 30 - dailyExpense * 30 - due30);
+  const thisMonth = now.toISOString().slice(0,7);
+  const monthExpenses = txs.filter((t:any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth));
+  const budgetStatus = Object.entries(budgets).map(([category, limitRaw]) => {
+    const limit = Number(limitRaw) || 0;
+    const spent = monthExpenses.filter((t:any)=>t.category===category).reduce((a:number,t:any)=>a+(Number(t.amount)||0),0);
+    return { category, limit, spent, remaining: limit-spent, percentage: limit>0?Math.round(spent/limit*100):0 };
+  });
+  return {
+    success: true,
+    balances,
+    dailyExpenseAverage: Math.round(dailyExpense * 100) / 100,
+    dailyIncomeAverage: Math.round(dailyIncome * 100) / 100,
+    projected30DayBalance: projected30,
+    dueCommitments30Days: due30,
+    historyDays,
+    confidence: recent.length >= 30 ? 'good' : recent.length >= 10 ? 'medium' : 'initial',
+    budgetStatus,
+    commitments: commitments.filter((c:any)=>c.status!=='paid' && c.status!=='cancelled').map((c:any)=>({id:c.id,title:c.title,amount:c.amount,dueDate:c.dueDate,category:c.category,status:c.status||'pending'})),
+    // V6: propagate partial flag so AI/UI refuses decisions on partial data.
+    partial: Boolean((txSnap as any).partial || (commitmentSnap as any).partial)
+  };
+}
+
+// V6.1: real local-market lookup with source-backed result model, freshness,
+// Gaza priority, cache, and explicit MARKET_DATA_UNAVAILABLE on failure.
+// Never invents prices. Returns structured MarketResult[] with sources + timestamps.
+export async function searchLocalMarket(args: any, userId: string, token: string): Promise<MarketSearchResponse | any> {
+  const item = String(args?.item || '').trim();
+  const model = String(args?.model || '').trim();
+  const condition = String(args?.condition || '').trim().toLowerCase();
+  if (!item) return { success: false, needsClarification: true, message: 'ما السلعة التي تريد مقارنة سعرها؟' };
+
+  // V6.1 (PHASE 31): refuse small daily purchases — no market search needed.
+  if (isSmallDailyPurchase(item)) {
+    return {
+      success: false,
+      marketUnavailable: true,
+      message: 'هذه السلعة يومية ولا تحتاج مقارنة أسعار. سجّلها كمصروف مباشرة.',
+    };
+  }
+
+  // V6.1: check cache first (reduces API cost + latency).
+  const cached = getCachedMarketResult({ product: item, model, condition });
+  if (cached) {
+    return cached;
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { success: false, marketUnavailable: true, message: 'البحث الحي في السوق غير متاح حالياً لأن مفتاح Gemini غير مهيأ على الخادم.' };
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const q = `ابحث في الويب عن أسعار حديثة ومتاحة فعلياً في سوق غزة/قطاع غزة للسلعة التالية: ${item}${model ? `، الموديل: ${model}` : ''}${condition ? `، الحالة: ${condition}` : ''}. أعطِ فقط الأسعار التي تجد لها مصدراً حديثاً وواضحاً. لا تخترع متجراً أو سعراً. إذا لم تجد عروضاً محلية موثوقة فقل ذلك صراحة. اذكر اسم البائع/المصدر والسعر بالشيكل إن أمكن وتاريخ/حداثة المعلومة.`;
+    const response: any = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: q, config: { tools: [{ googleSearch: {} }] } });
+    const meta = response?.candidates?.[0]?.groundingMetadata;
+    const groundingChunks = (meta?.groundingChunks || []).map((c: any) => c?.web).filter(Boolean);
+    const sources = groundingChunks.map((w: any) => ({
+      title: w.title,
+      uri: w.uri,
+      isLocalGaza: isGazaSource(w.title || '', w.uri || ''),
+    })).slice(0, 8);
+
+    // V6.1: extract structured price results from Gemini's text response.
+    const text = String(response.text || '');
+    const extractedPrices = extractPricesFromText(text);
+    const now = new Date().toISOString();
+    const results: MarketResult[] = extractedPrices.map((p, i) => ({
+      product: item,
+      model: model || undefined,
+      condition: (condition as any) || 'unknown',
+      // Try to associate a source with each price (best-effort).
+      seller: sources[i]?.title || 'غير محدد',
+      location: sources[i]?.isLocalGaza ? 'غزة' : 'خارج غزة (مرجعي)',
+      price: p.price,
+      currency: p.currency,
+      availability: 'unknown',
+      source: sources[i]?.title || 'Gemini + Google Search',
+      sourceUrl: sources[i]?.uri,
+      fetchedAt: now,
+      isLocalGaza: sources[i]?.isLocalGaza ?? false,
+      confidence: sources[i]?.isLocalGaza ? 'high' : 'medium',
+      notes: `Raw: "${p.raw}"`,
+    }));
+
+    const priceRange = computePriceRange(results);
+
+    const searchResponse: MarketSearchResponse = {
+      success: true,
+      item,
+      model: model || undefined,
+      results,
+      priceRange: priceRange || undefined,
+      sources,
+      searchQueries: meta?.webSearchQueries || [],
+      summary: text,
+      partial: results.length === 0,  // partial = we got text but couldn't extract structured prices
+    };
+
+    // Cache the result.
+    cacheMarketResult({ product: item, model, condition }, searchResponse);
+
+    return searchResponse;
+  } catch (e: any) {
+    return { success: false, marketUnavailable: true, message: 'تعذر التحقق من أسعار السوق المحلي الآن، لذلك لن أقدم سعراً غير موثوق.', error: String(e?.message || e) };
+  }
+}
+
+export async function assessPurchase(args: any, userId: string, token: string) {
+  const price = Math.abs(Number(args?.price) || 0);
+  if (!price) return { success:false, needsClarification:true, message:'كم السعر المعروض عليك؟' };
+  const ctx:any = await getFinancialDecisionContext({}, userId, token);
+  const account = normalizeAccount(args?.paymentMethod || 'cash');
+  const available = account === 'palPay' ? Number(ctx.balances.palPay||0) : account === 'cash' ? Number(ctx.balances.cash||0) : Number(ctx.balances.total||0);
+  const after = available - price;
+  const projectedAfter = Number(ctx.projected30DayBalance||0) - (account === 'debt' ? 0 : price);
+  const daysCoverage = ctx.dailyExpenseAverage > 0 ? Math.floor(Math.max(0, after) / ctx.dailyExpenseAverage) : null;
+  const categoryBudget = (ctx.budgetStatus||[]).find((b:any)=>b.category===args?.category);
+  const projectedBudgetPct = categoryBudget?.limit > 0 ? Math.round((categoryBudget.spent + price)/categoryBudget.limit*100) : null;
+  const warnings:string[]=[];
+  if (account !== 'debt' && after < 0) warnings.push(`الرصيد في الحساب لا يكفي؛ العجز الفوري ${Math.abs(after)} ₪.`);
+  if (projectedAfter < 0) warnings.push(`بعد هذا الشراء يُتوقع عجز خلال 30 يوماً بحوالي ${Math.abs(projectedAfter)} ₪ وفق نمط الصرف والالتزامات الحالية.`);
+  if (projectedBudgetPct !== null && projectedBudgetPct >= 100) warnings.push(`الشراء سيرفع بند ${args.category} إلى نحو ${projectedBudgetPct}% من سقفه الشهري.`);
+  if (String(args?.necessity||'') === 'كمالي' && daysCoverage !== null && daysCoverage < 14) warnings.push(`بعد الشراء يغطي الرصيد المتبقي قرابة ${daysCoverage} يوماً فقط وفق متوسط صرفك الحالي.`);
+  return { success:true, decision:warnings.length?'CAUTION':'OK', warnings, price, paymentMethod:account, availableBefore:available, availableAfter:after, projected30DayBalanceAfterPurchase:projectedAfter, dailyExpenseAverage:ctx.dailyExpenseAverage, daysCoverage, categoryBudget, projectedBudgetPercentage:projectedBudgetPct, confidence:ctx.confidence };
+}
+
+export const DEFAULT_BUDGETS: Record<string, number> = {
+  'الأبناء': 1500,
+  'طعام ومشتريات منزل': 2000,
+  'زيارات وضيافة': 600,
+  'مواصلات': 500,
+  'فواتير والتزامات': 800,
+  'صحة وعلاج': 600,
+  'تعليم وتدريب': 800,
+  'أخرى': 500
+};
+
+export async function getUserBudgets(userId: string, adminDb: any): Promise<Record<string, number>> {
+  // V6 (HF-6): NEVER silently swallow errors and return DEFAULT_BUDGETS.
+  // On Firestore error / quota / network, propagate the error so callers can
+  // mark the response as `partial` and refuse to issue budget warnings on stale data.
+  const snapshot = await adminDb.collection('users').doc(userId).collection('budgets').get();
+  const customBudgets: Record<string, number> = { ...DEFAULT_BUDGETS };
+  snapshot.docs.forEach((d: any) => {
+    const data = d.data();
+    if (data && data.limit) {
+      customBudgets[d.id] = Number(data.limit);
+    }
+  });
+  return customBudgets;
+}
+
+export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
+  if (!acc) return 'cash';
+  const s = String(acc).toLowerCase().trim();
+  if (s.includes('pal') || s.includes('بال') || s.includes('محفظ')) return 'palPay';
+  if (s.includes('debt') || s.includes('دين') || s.includes('آجل') || s.includes('اجل')) return 'debt';
+  return 'cash';
+}
+
+export async function addTransaction(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: addTransaction", args);
+  
+  const rawAmount = typeof args.amount === 'string' ? parseFloat(args.amount) : Number(args.amount);
+  const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+
+  const textToCheck = `${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''}`.toLowerCase();
+
+  if (args.fromAccount && args.toAccount) {
+    return await transferMoney(args, userId, token);
+  }
+
+  let type = String(args.type || 'expense').toLowerCase();
+  if (type.includes('صرف') || type.includes('مصروف') || type.includes('دفع') || type.includes('شراء')) type = 'expense';
+  if (type.includes('دخل') || type.includes('قبض') || type.includes('راتب') || type.includes('إيداع') || type.includes('ايداع') || type.includes('مرحل') || type.includes('تحويل لي') || type.includes('income')) type = 'income';
+  if (type !== 'income' && type !== 'expense') type = 'expense';
+
+  const paymentWasProvided = Boolean(args.paymentMethod || args.account);
+  let account = normalizeAccount(args.paymentMethod || args.account || 'cash');
+  const category = String(args.category || '').trim();
+  const subcategory = String(args.subcategory || '').trim();
+  const merchant = String(args.merchant || '').trim();
+  const notes = String(args.notes || '').trim();
+  const necessity = String(args.necessity || '').trim();
+
+  // Financial writes must never silently invent missing accounting dimensions.
+  // The AI is expected to collect these slots conversationally; the backend remains the final guard.
+  if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'ما قيمة العملية بالضبط؟' };
+  if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
+  if (!category) return { success: false, needsClarification: true, reason: 'MISSING_CATEGORY', message: 'ما بند العملية الرئيسي؟' };
+  if (type === 'expense' && !subcategory) return { success: false, needsClarification: true, reason: 'MISSING_SUBCATEGORY', message: 'ما البند الفرعي لهذا المصروف؟' };
+  if (type === 'expense' && !necessity) return { success: false, needsClarification: true, reason: 'MISSING_NECESSITY', message: 'هل تعتبر هذا المصروف ضرورياً أم كمالياً حسب ظروفك الحالية؟' };
+  if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
+
+  if (
+    textToCheck.includes('دفع دين') || 
+    textToCheck.includes('دفعت دين') || 
+    (type === 'expense' && category.includes('سداد')) || 
+    ((textToCheck.includes('سداد') || textToCheck.includes('سدد') || textToCheck.includes('تسديد')) && (textToCheck.includes('دين') || textToCheck.includes('الديون') || textToCheck.includes('لشخص') || textToCheck.includes('لصديق'))) ||
+    (account === 'debt' && type === 'expense' && (textToCheck.includes('سداد') || textToCheck.includes('تسديد') || textToCheck.includes('سدد') || textToCheck.includes('دفع') || category.includes('سداد')))
+  ) {
+    let fromAcc = normalizeAccount(args.paymentMethod || args.fromAccount || 'cash');
+    if (fromAcc === 'debt') fromAcc = 'cash'; 
+    return await payDebt({ amount, paymentMethod: fromAcc, creditor: args.merchant || args.subcategory || 'سداد دين', notes: args.notes }, userId, token);
+  }
+
+  if ((textToCheck.includes('تحويل') && (textToCheck.includes('من') || textToCheck.includes('إلى') || textToCheck.includes('لبال') || textToCheck.includes('كاش'))) || args.category === 'تحويل' || args.category === 'تحويل داخلي') {
+    const fromAcc = normalizeAccount(args.fromAccount || args.account || (textToCheck.includes('من بال') ? 'palPay' : 'cash'));
+    const toAcc = normalizeAccount(args.toAccount || (textToCheck.includes('إلى بال') || textToCheck.includes('لبال') ? 'palPay' : 'cash'));
+    return await transferMoney({ amount, fromAccount: fromAcc, toAccount: toAcc, notes: args.notes }, userId, token);
+  }
+
+  // V5 pre-execution guard: the same budget/transaction reads that used to happen after the write
+  // are performed before it so the assistant can warn before damage, then reused below (no duplicate polling/read loop).
+  let preTxSnapshot: any = null;
+  let preUserBudgets: Record<string, number> | null = null;
+  if (type === 'expense') {
+    try {
+      [preUserBudgets, preTxSnapshot] = await Promise.all([
+        getUserBudgets(userId, adminDb),
+        adminDb.collection('transactions').where('userId', '==', userId).get()
+      ]);
+      // V6.2 (FINDING-07): if the snapshot is partial (Firestore quota/network failure),
+      // we MUST NOT issue a balance-sensitive mutation on incomplete state.
+      // The operation becomes pending (client-side queue) or rejected.
+      if ((preTxSnapshot as any).partial === true) {
+        return {
+          success: false,
+          retryable: true,
+          reason: 'PARTIAL_STATE_UNSAFE',
+          message: 'تعذّر التحقق من رصيدك الحالي بدقة (البيانات الجزئية). لا يمكن تنفيذ عملية مالية حساسة الآن. حاول مرة أخرى عند استعادة الاتصال الكامل.',
+          operationId: String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
+        };
+      }
+      const existing = preTxSnapshot.docs.map((d:any)=>d.data());
+      const balances = calculateBalancesFromDocs(existing);
+      // V6 (HF-7): for debt purchases, available is no longer Infinity. We compute
+      // projected debt-to-income ratio and require confirmation if it exceeds a threshold.
+      if (account !== 'debt') {
+        const available = account === 'cash' ? Number(balances.cash||0) : account === 'palPay' ? Number(balances.palPay||0) : 0;
+        if (amount > available + 0.0001) {
+          return { success:false, needsClarification:true, reason:'INSUFFICIENT_FUNDS', message:`المبلغ ${amount} ₪ أكبر من رصيد ${account === 'palPay' ? 'PalPay' : 'الكاش'} المتاح (${available} ₪). لن أنفذ العملية قبل أن تحدد طريقة دفع أخرى أو تعدل المبلغ.` };
+        }
+      } else {
+        // Debt purchase guard.
+        const projectedDebt = Number(balances.debt || 0) + amount;
+        const monthlyIncome90d = existing
+          .filter((t:any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING')
+          .reduce((s:number, t:any) => s + (Number(t.amount) || 0), 0);
+        const debtToIncomeRatio = monthlyIncome90d > 0 ? projectedDebt / monthlyIncome90d : Infinity;
+        if (!args.riskConfirmed && (debtToIncomeRatio > 1.0 || amount > 5000)) {
+          return {
+            success:false,
+            needsConfirmation:true,
+            reason:'DEBT_PURCHASE_RISK',
+            message:`هذا الشراء بالدين سيرفع إجمالي ديونك إلى ${projectedDebt} ₪ (نسبة الدين للدخل ${(debtToIncomeRatio * 100).toFixed(0)}%). هل تريد المتابعة رغم هذا الوضع؟`,
+            financialImpact: {
+              currentDebt: balances.debt,
+              purchaseAmount: amount,
+              projectedDebt,
+              debtToIncomeRatio: Number.isFinite(debtToIncomeRatio) ? Math.round(debtToIncomeRatio * 100) / 100 : null,
+            },
+          };
+        }
+      }
+      const thisMonth = new Date().toISOString().slice(0,7);
+      const spent = existing.filter((t:any)=>t.type==='expense' && String(t.date||'').startsWith(thisMonth) && t.category===category).reduce((a:number,t:any)=>a+(Number(t.amount)||0),0);
+      const limit = Number((preUserBudgets as any)?.[category] || DEFAULT_BUDGETS[category] || 0);
+      const projected = spent + amount;
+      if (limit > 0 && projected >= limit && !args.riskConfirmed) {
+        return { success:false, needsConfirmation:true, reason:'BUDGET_WILL_BE_EXCEEDED', message:`هذه العملية سترفع مصروف بند [${category}] إلى ${projected} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة رغم التجاوز؟`, financialImpact:{spent,amount,projected,limit,percentage:Math.round(projected/limit*100)} };
+      }
+    } catch (preErr) {
+      console.error('V5 preflight warning check unavailable:', preErr);
+      // Do not fabricate a warning when data is unavailable. Existing write/fallback behavior remains intact.
+    }
+  }
+
+  const txRef = adminDb.collection('transactions').doc();
+  const operationId = String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
+  const tx = {
+    userId,
+    amount,
+    type,
+    account,
+    category,
+    subcategory,
+    merchant,
+    notes,
+    necessity: type === 'expense' ? necessity : '',
+    transactionType: type === 'expense' && account === 'debt' ? 'CREDIT_PURCHASE' : (type === 'income' ? 'INCOME' : 'EXPENSE'),
+    creditor: type === 'expense' && account === 'debt' ? merchant : '',
+    creditorKey: type === 'expense' && account === 'debt' ? normalizeCreditorName(merchant) : '',
+    operationId,
+    date: args.date || new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  };
+
+  // V6.1 (CONC-01..CONC-05): use atomic Firestore transaction for balance-sensitive ops.
+  // Cash expense, PalPay expense, and outbound transfers go through atomicAddTransaction
+  // to prevent TOCTOU races where two concurrent requests both pass the preflight check.
+  // Debt purchases and income do not need atomicity (they don't deduct cash/palPay).
+  const isBalanceSensitive = (type === 'expense' && (account === 'cash' || account === 'palPay'))
+                          || (type === 'transfer' && (account === 'cash' || account === 'palPay'));
+
+  let writeResult: WriteResult | null = null;
+  let actualTxId = txRef.id;
+  if (isBalanceSensitive) {
+    const atomicResult = await atomicAddTransaction(userId, tx, {
+      skipBalanceCheck: false,
+      riskConfirmed: Boolean(args.riskConfirmed),
+    });
+    if (!atomicResult.ok) {
+      const failReason = (atomicResult as any).reason as string;
+      const failAvailable = (atomicResult as any).available as number | undefined;
+      if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
+        return {
+          success: false,
+          needsClarification: true,
+          reason: 'INSUFFICIENT_FUNDS',
+          message: `المبلغ ${amount} ₪ أكبر من الرصيد المتاح (${failAvailable} ₪). العملية مرفوضة لمنع تجاوز الرصيد.`,
+        };
+      }
+      return { success: false, error: failReason };
+    }
+    actualTxId = atomicResult.docId;
+    // Synthesize a WriteResult equivalent (atomic write succeeded = committed).
+    writeResult = { durability: 'committed', synced: true, pending: false };
+  } else {
+    // V6 (CF-5): writeResult is checked. If the write is only 'pending' (not durable),
+    // the response includes `durability:'pending'` so the AI/UI can warn the user.
+    writeResult = await txRef.set(tx);
+  }
+  
+  let notificationMsg = `تم تسجيل ${type === 'expense' ? 'مصروف' : 'دخل'} بقيمة ${amount} ₪`;
+  if (account === 'debt') {
+    notificationMsg += " (دين)";
+  } else if (account === 'palPay') {
+    notificationMsg += " (PalPay)";
+  }
+  if (category && category !== 'غير مصنف') {
+    notificationMsg += ` [${category}]`;
+  }
+  if (tx.necessity) {
+    notificationMsg += ` - ${tx.necessity}`;
+  }
+  
+  await addNotification(userId, notificationMsg, 'success', adminDb);
+
+  // Budget threshold warning check (80% / 100%)
+  if (type === 'expense' && category && category !== 'غير مصنف') {
+    try {
+      const userBudgets = preUserBudgets || await getUserBudgets(userId, adminDb);
+      const budgetLimit = userBudgets[category] || DEFAULT_BUDGETS[category] || 1000;
+      
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      const txSnapshot = preTxSnapshot || await adminDb.collection('transactions').where('userId', '==', userId).get();
+      const monthExpenses = txSnapshot.docs
+        .map((d: any) => d.data())
+        .filter((t: any) => t.type === 'expense' && (t.date || '').startsWith(thisMonth) && t.category === category);
+      
+      const totalSpentForCat = monthExpenses.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+      const ratio = totalSpentForCat / budgetLimit;
+
+      if (ratio >= 1.0) {
+        await addNotification(
+          userId, 
+          `⚠️ تنبيه ميزانية: تجاوزت سقف ميزانية [${category}] لهذا الشهر (${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
+          'warning', adminDb
+        );
+      } else if (ratio >= 0.8) {
+        await addNotification(
+          userId, 
+          `⚠️ تنبيه ميزانية: اقتربت من سقف ميزانية [${category}] لهذا الشهر (وصلت ${Math.round(ratio * 100)}% - ${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
+          'warning', adminDb
+        );
+      }
+    } catch (budgetErr) {
+      console.error("Budget check error:", budgetErr);
+    }
+  }
+  
+  const balances = await getBalance({}, userId, token);
+  return {
+    success: true,
+    transactionId: actualTxId,
+    operationId,
+    currentBalances: balances.balances,
+    // V6: explicit durability flag. UI/AI MUST inspect this.
+    durability: writeResult!.durability,
+    pending: writeResult!.pending,
+    partial: balances.partial || writeResult!.pending,
+  };
+}
+
+export async function sendPalPayPayment(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: sendPalPayPayment", args);
+
+  // V6 (HF-3): full validation mirroring addTransaction guards.
+  const rawAmount = typeof args.amount === 'string' ? parseFloat(args.amount) : Number(args.amount);
+  const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'المبلغ يجب أن يكون رقماً موجباً.' };
+  }
+  const recipientName = String(args.recipientName || '').trim();
+  const phoneNumber = String(args.phoneNumber || '').trim();
+  const description = String(args.description || '').trim();
+  if (!recipientName) return { success: false, needsClarification: true, reason: 'MISSING_RECIPIENT', message: 'إلى من ترسل المبلغ؟' };
+  if (!phoneNumber) return { success: false, needsClarification: true, reason: 'MISSING_PHONE', message: 'ما رقم جوال المستلم؟' };
+  // Palestinian phone format: +970/+972 or 05xxxxxxxx. Loose validation.
+  const normalizedPhone = phoneNumber.replace(/[\s-]/g, '');
+  if (!/^(\+9(70|72)|0)?5\d{8}$/.test(normalizedPhone)) {
+    return { success: false, needsClarification: true, reason: 'INVALID_PHONE', message: `رقم الجوال ${phoneNumber} غير صالح. يجب أن يبدأ بـ 05 أو +9705 أو +9725.` };
+  }
+
+  // Check PalPay balance BEFORE writing.
+  const balanceCheck = await getBalance({}, userId, token);
+  const palPayAvailable = Number(balanceCheck?.balances?.palPay || 0);
+  if (amount > palPayAvailable + 0.0001) {
+    return { success: false, needsClarification: true, reason: 'INSUFFICIENT_FUNDS', message: `رصيد PalPay المتاح هو ${palPayAvailable} ₪ فقط. لا يمكن تحويل ${amount} ₪.` };
+  }
+
+  const operationId = String(args.operationId || `palpay_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
+  const txRef = adminDb.collection('transactions').doc();
+  const tx = {
+    userId,
+    amount,
+    type: 'expense',
+    account: 'palPay',
+    // V6 (LF-14): use a category that exists in DEFAULT_BUDGETS so budget tracking fires.
+    category: 'تحويلات PalPay',
+    subcategory: `تحويل إلى ${recipientName}`,
+    merchant: 'PalPay',
+    notes: description || `تحويل ${amount} ₪ إلى ${recipientName} (${phoneNumber})`,
+    transactionType: 'PALPAY_TRANSFER',
+    operationId,
+    necessity: 'ضروري',
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    // Preserve recipient metadata for audit trail.
+    palpayRecipient: recipientName,
+    palpayPhone: normalizedPhone,
+  };
+
+  // Add PalPay category to DEFAULT_BUDGETS lazily if not present (so budget tracking works).
+  if (!DEFAULT_BUDGETS['تحويلات PalPay']) {
+    DEFAULT_BUDGETS['تحويلات PalPay'] = 1000;
+  }
+
+  const writeResult = await txRef.set(tx);
+
+  await addNotification(userId, `تم تحويل ${amount} ₪ إلى ${recipientName} (${normalizedPhone}) عبر PalPay بنجاح.`, 'success', adminDb);
+
+  const balances = await getBalance({}, userId, token);
+  return {
+    success: true,
+    transactionId: txRef.id,
+    operationId,
+    currentBalances: balances.balances,
+    durability: writeResult.durability,
+    pending: writeResult.pending,
+    partial: balances.partial || writeResult.pending,
+  };
+}
+
+export async function generateReport(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: generateReport", args);
+  
+  // Fetch transactions based on user
+  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const allUserTxs = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  const now = new Date();
+  const timeframe = args.timeframe || 'all';
+  const categoryQuery = args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود' ? args.category : '';
+
+  // 1. First attempt: filter by category and timeframe
+  let filtered = allUserTxs.filter((t: any) => {
+    if (categoryQuery && !matchesArabicCategory(t, categoryQuery)) {
+      return false;
+    }
+    
+    if (timeframe === 'today') {
+      const today = now.toISOString().split('T')[0];
+      return (t.date || t.createdAt || '').startsWith(today);
+    } else if (timeframe === 'week') {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return new Date(t.date || t.createdAt || now) >= weekAgo;
+    } else if (timeframe === 'month') {
+      const thisMonth = now.toISOString().slice(0, 7);
+      return (t.date || t.createdAt || '').startsWith(thisMonth);
+    }
+    return true;
+  });
+
+  // 2. V6 (LF-18, MF-25): if no transactions match the timeframe, return EMPTY — do NOT
+  // silently fall back to ALL time. The report title says "الشهر الحالي" so the data
+  // MUST be this month. An empty period report is the honest answer.
+  // (The previous fallback misled users into thinking old data was current.)
+  // We still keep the category-only fallback if a category was requested AND timeframe
+  // was 'all' (which is the default and means no time constraint).
+
+  // 3. If STILL zero transactions and title provides a hint, search by title — but ONLY
+  // when timeframe is 'all'. Otherwise we'd be mixing timeframes silently.
+  if (filtered.length === 0 && args.title && timeframe === 'all') {
+    filtered = allUserTxs.filter((t: any) => matchesArabicCategory(t, args.title));
+  }
+
+  // Sort descending by date
+  filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
+  
+  const defaultTitle = args.title || (
+    timeframe === 'today' ? 'تقرير مصروفات اليوم التفصيلي' :
+    timeframe === 'month' ? 'التقرير المالي الشهري الشامل' :
+    categoryQuery ? `تقرير تفصيلي لبند (${categoryQuery})` :
+    'التقرير المالي الهيكلي الشامل لكافة البنود'
+  );
+
+  const reportRef = adminDb.collection('reports').doc();
+  const report = {
+    userId,
+    title: defaultTitle,
+    timeframe,
+    category: categoryQuery || 'كافة البنود',
+    status: filtered.length === 0 ? 'empty' : 'completed',
+    date: new Date().toISOString(),
+    // V6 (CF-26): explicitly mark this report as a SNAPSHOT, not a live view.
+    // The transactions array is frozen at generation time and will NOT auto-update.
+    // UI MUST surface generatedAt and the snapshot nature.
+    isSnapshot: true,
+    generatedAt: new Date().toISOString(),
+    transactions: filtered,
+    createdAt: new Date().toISOString()
+  };
+  
+  await reportRef.set(report);
+
+  await addNotification(userId, `تم إنجاز ${defaultTitle} بنجاح (${filtered.length} عملية)! تجده في حافظة المهام.`, 'success', adminDb);
+
+  return { 
+    success: true, 
+    reportId: reportRef.id, 
+    transactionsCount: filtered.length, 
+    message: `Report generated with ${filtered.length} transactions and saved to inbox.` 
+  };
+}
+
+export async function getReports(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const snapshot = await adminDb.collection('reports').where('userId', '==', userId).orderBy('createdAt', 'desc').get();
+  return { reports: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })), partial: (snapshot as any).partial };
+}
+
+export async function deleteReport(args: { id: string }, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: deleteReport", args);
+  if (!args.id) throw new Error("Report id is required");
+  
+  const reportRef = adminDb.collection('reports').doc(args.id);
+  const doc = await reportRef.get();
+  if (doc.exists && doc.data()?.userId === userId) {
+    await reportRef.delete();
+    return { success: true, message: "تم حذف التقرير بنجاح." };
+  }
+  return { success: false, message: "التقرير غير موجود أو تم حذفه مسبقاً." };
+}
+
+export async function clearAllReports(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: clearAllReports for user", userId);
+  const snapshot = await adminDb.collection('reports').where('userId', '==', userId).get();
+  
+  if (snapshot.docs.length > 0) {
+    const batch = adminDb.batch();
+    for (const d of snapshot.docs) {
+      batch.delete(adminDb.collection('reports').doc(d.id));
+    }
+    await batch.commit();
+  }
+  return { success: true, count: snapshot.docs.length, message: `تم حذف كافة التقارير (${snapshot.docs.length} تقرير).` };
+}
+
+export async function memorySave(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: memorySave", args);
+  // Just use debts collection or user profile for memory for now, let's store in a 'memory' subcollection of user
+  await adminDb.collection('users').doc(userId).collection('memory').doc(args.key).set({ value: args.value, updatedAt: new Date().toISOString() });
+  return { success: true, message: `Saved ${args.key} to memory.` };
+}
+
+export async function memorySearch(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: memorySearch", args);
+  // V6 (MF-2): actually filter by args.query (was previously ignored).
+  const snapshot = await adminDb.collection('users').doc(userId).collection('memory').get();
+  const query = String(args?.query || '').trim().toLowerCase();
+  const allEntries: { key: string; value: string }[] = [];
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    if (data && data.value) {
+      allEntries.push({ key: doc.id, value: String(data.value) });
+    }
+  });
+  // If no query provided, return top 20 (was previously returning ALL — bloated).
+  if (!query) {
+    return { memory: Object.fromEntries(allEntries.slice(0, 20).map(e => [e.key, e.value])) };
+  }
+  // Filter by substring match on key OR value, case-insensitive.
+  const matched = allEntries.filter(e =>
+    e.key.toLowerCase().includes(query) || e.value.toLowerCase().includes(query)
+  );
+  // Return top 10 matches to bound context size.
+  const top = matched.slice(0, 10);
+  return { memory: Object.fromEntries(top.map(e => [e.key, e.value])) };
+}
+
+export async function deleteMemoryKey(args: { key: string }, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: deleteMemoryKey", args);
+  if (!args.key) return { error: "Key is required" };
+  await adminDb.collection('users').doc(userId).collection('memory').doc(args.key).delete();
+  return { success: true, message: `Deleted ${args.key} from memory.` };
+}
+
+export async function createRecurringItem(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: createRecurringItem", args);
+  const docRef = adminDb.collection('debts').doc();
+  await docRef.set({
+    userId,
+    type: 'subscription',
+    personOrService: args.name,
+    amount: args.amount,
+    dueDate: args.next_date || new Date().toISOString(),
+    status: 'active',
+    createdAt: new Date().toISOString()
+  });
+  return { success: true, message: "Recurring item created." };
+}
+
+export async function exportUserData(userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: exportUserData for", userId);
+  
+  // 1. Fetch transactions
+  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const transactions = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // 2. Fetch custom budgets
+  const budgetsSnapshot = await adminDb.collection('users').doc(userId).collection('budgets').get();
+  const budgets: Record<string, number> = {};
+  budgetsSnapshot.docs.forEach((d: any) => {
+    const data = d.data();
+    if (data && data.limit !== undefined) {
+      budgets[d.id] = Number(data.limit);
+    }
+  });
+
+  // 3. Fetch commitments
+  const commitmentsSnapshot = await adminDb.collection('commitments').where('userId', '==', userId).get();
+  const commitments = commitmentsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // 4. Fetch reports
+  const reportsSnapshot = await adminDb.collection('reports').where('userId', '==', userId).get();
+  const reports = reportsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // 5. Fetch memory
+  const memorySnapshot = await adminDb.collection('users').doc(userId).collection('memory').get();
+  const memory: Record<string, string> = {};
+  memorySnapshot.docs.forEach(d => {
+    const data = d.data();
+    if (data && data.value) memory[d.id] = data.value;
+  });
+
+  return {
+    version: "1.0",
+    exportDate: new Date().toISOString(),
+    app: "Masrofi AI",
+    userId,
+    counts: {
+      transactions: transactions.length,
+      budgets: Object.keys(budgets).length,
+      commitments: commitments.length,
+      reports: reports.length,
+      memoryKeys: Object.keys(memory).length
+    },
+    transactions,
+    budgets,
+    commitments,
+    reports,
+    memory
+  };
+}
+
+export async function importUserData(payload: any, userId: string, token: string, mode: 'merge' | 'replace' = 'merge') {
+  const adminDb = getDb(token);
+  console.log(`TOOL CALL: importUserData for ${userId} with mode=${mode}`);
+
+  if (!payload || typeof payload !== 'object') {
+    throw new Error("Invalid backup payload provided.");
+  }
+
+  // Handle case where user directly imports an array of transactions or full backup object
+  const transactionsToImport: any[] = Array.isArray(payload) 
+    ? payload 
+    : Array.isArray(payload.transactions) 
+      ? payload.transactions 
+      : [];
+
+  const budgetsToImport: Record<string, number> = (payload.budgets && typeof payload.budgets === 'object') ? payload.budgets : {};
+  const commitmentsToImport: any[] = Array.isArray(payload.commitments) ? payload.commitments : [];
+  const reportsToImport: any[] = Array.isArray(payload.reports) ? payload.reports : [];
+  const memoryToImport: Record<string, string> = (payload.memory && typeof payload.memory === 'object') ? payload.memory : {};
+
+  // If mode is 'replace', clear existing collections for this user first
+  if (mode === 'replace') {
+    // 1. Delete existing transactions
+    const oldTx = await adminDb.collection('transactions').where('userId', '==', userId).get();
+    for (const d of oldTx.docs) {
+      await adminDb.collection('transactions').doc(d.id).delete();
+    }
+
+    // 2. Delete existing commitments
+    const oldComm = await adminDb.collection('commitments').where('userId', '==', userId).get();
+    for (const d of oldComm.docs) {
+      await adminDb.collection('commitments').doc(d.id).delete();
+    }
+
+    // 3. Delete existing reports
+    const oldRep = await adminDb.collection('reports').where('userId', '==', userId).get();
+    for (const d of oldRep.docs) {
+      await adminDb.collection('reports').doc(d.id).delete();
+    }
+    // 4. Replace really means replace: clear user-scoped budgets and memory too.
+    const oldBudgets = await adminDb.collection('users').doc(userId).collection('budgets').get();
+    for (const d of oldBudgets.docs) await adminDb.collection('users').doc(userId).collection('budgets').doc(d.id).delete();
+    const oldMemory = await adminDb.collection('users').doc(userId).collection('memory').get();
+    for (const d of oldMemory.docs) await adminDb.collection('users').doc(userId).collection('memory').doc(d.id).delete();
+  }
+
+  // 1. Write transactions
+  let importedTxCount = 0;
+  for (const t of transactionsToImport) {
+    const rawAmount = typeof t.amount === 'string' ? parseFloat(t.amount) : Number(t.amount);
+    const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+    if (amount <= 0 && !t.notes && !t.category) continue;
+
+    // Preserve financial semantics exactly. In particular, never convert transfers/debt payments into expenses.
+    const originalType = ['income','expense','transfer'].includes(String(t.type)) ? String(t.type) : 'expense';
+    const sourceId = String(t.id || t.legacyId || '').trim();
+    const docRef = sourceId ? adminDb.collection('transactions').doc(sourceId) : adminDb.collection('transactions').doc();
+    const docData:any = {
+      userId,
+      amount,
+      type: originalType,
+      account: normalizeAccount(t.account),
+      category: String(t.category || 'عام'),
+      subcategory: String(t.subcategory || ''),
+      notes: String(t.notes || t.name || ''),
+      merchant: String(t.merchant || ''),
+      necessity: String(t.necessity || (originalType === 'expense' ? 'ضروري' : '')),
+      date: t.date || t.createdAt || new Date().toISOString(),
+      createdAt: t.createdAt || new Date().toISOString(),
+      importedAt: new Date().toISOString()
+    };
+    // V6 (HF-5): preserve ALL financial semantics fields on import, regardless of type.
+    // Round-trip export -> import must not lose transactionType/creditor/creditorKey/operationId.
+    if (t.transactionType) docData.transactionType = String(t.transactionType);
+    if (t.creditor) docData.creditor = String(t.creditor);
+    if (t.creditorKey) docData.creditorKey = String(t.creditorKey);
+    // Derive creditorKey from creditor if missing but creditor is present.
+    if (!docData.creditorKey && docData.creditor) {
+      docData.creditorKey = normalizeCreditorName(docData.creditor);
+    }
+    // If account is debt and creditor is missing but merchant is set, derive creditor from merchant.
+    if (docData.account === 'debt' && !docData.creditor && docData.merchant) {
+      docData.creditor = docData.merchant;
+      docData.creditorKey = normalizeCreditorName(docData.merchant);
+    }
+    // Preserve transfer-specific fields.
+    if (originalType === 'transfer') {
+      docData.fromAccount = normalizeAccount(t.fromAccount || t.account);
+      docData.toAccount = normalizeAccount(t.toAccount);
+    }
+    if (t.operationId) docData.operationId = String(t.operationId);
+    await docRef.set(docData);
+    importedTxCount++;
+  }
+
+  // 2. Write custom budgets
+  let importedBudgetsCount = 0;
+  for (const [category, limit] of Object.entries(budgetsToImport)) {
+    if (category && typeof limit === 'number') {
+      await adminDb.collection('users').doc(userId).collection('budgets').doc(category).set({
+        limit: Number(limit),
+        updatedAt: new Date().toISOString()
+      });
+      importedBudgetsCount++;
+    }
+  }
+
+  // 3. Write commitments
+  let importedCommitmentsCount = 0;
+  for (const c of commitmentsToImport) {
+    if (c.title && c.amount) {
+      const docRef = adminDb.collection('commitments').doc();
+      await docRef.set({
+        userId,
+        title: String(c.title),
+        amount: Math.abs(Number(c.amount) || 0),
+        dueDate: c.dueDate || new Date().toISOString(),
+        category: c.category || 'أقساط والتزامات',
+        notes: c.notes || '',
+        createdAt: c.createdAt || new Date().toISOString()
+      });
+      importedCommitmentsCount++;
+    }
+  }
+
+  // 4. Write reports
+  let importedReportsCount = 0;
+  for (const r of reportsToImport) {
+    if (r.title) {
+      const docRef = adminDb.collection('reports').doc();
+      await docRef.set({
+        userId,
+        title: String(r.title),
+        category: r.category || 'all',
+        date: r.date || new Date().toISOString(),
+        createdAt: r.createdAt || new Date().toISOString(),
+        transactions: Array.isArray(r.transactions) ? r.transactions : []
+      });
+      importedReportsCount++;
+    }
+  }
+
+  // 5. Write memory
+  let importedMemoryCount = 0;
+  for (const [key, val] of Object.entries(memoryToImport)) {
+    if (key && val) {
+      await adminDb.collection('users').doc(userId).collection('memory').doc(key).set({
+        value: String(val),
+        updatedAt: new Date().toISOString()
+      });
+      importedMemoryCount++;
+    }
+  }
+
+  await addNotification(userId, `تم استيراد ${importedTxCount} عملية مالية و ${importedBudgetsCount} موازنة بنجاح.`, 'success', adminDb);
+
+  return {
+    success: true,
+    mode,
+    counts: {
+      transactions: importedTxCount,
+      budgets: importedBudgetsCount,
+      commitments: importedCommitmentsCount,
+      reports: importedReportsCount,
+      memory: importedMemoryCount
+    },
+    message: `تم بنجاح استيراد ${importedTxCount} عملية مالية، ${importedBudgetsCount} موازنة، و ${importedCommitmentsCount} التزام.`
+  };
+}
+
+/**
+ * V6 (HF-1): REMOVED searchMarketInformation — the hardcoded fake-price tool.
+ * AI must use only `search_local_market` which uses real Google Search grounding.
+ * If a real search fails, the response says so explicitly; no fabricated prices.
+ */
+export async function searchMarketInformation(args: any, userId: string, token: string) {
+  // Kept as a stub that always refuses, to prevent any prompt that still references
+  // this tool from accidentally executing it. The function declaration is removed below.
+  return {
+    success: false,
+    deprecated: true,
+    message: 'تم إيقاف هذه الأداة المزيّفة. استخدم search_local_market للحصول على أسعار حقيقية موثقة.',
+    useInstead: 'search_local_market',
+  };
+}
+
+export async function getBalance(args:any,userId:string,token:string){
+  const adminDb=getDb(token);
+  const snap=await adminDb.collection('transactions').where('userId','==',userId).get();
+  const balances=calculateBalancesFromDocs(snap.docs);
+  // V6 (CF-5): propagate partial flag from FakeDb. AI/UI must refuse decisions on partial data.
+  return {balances,total:balances.cash+balances.palPay,partial:(snap as any).partial===true};
+}
+
+export async function transferMoney(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: transferMoney", args);
+  
+  const rawAmount = typeof args.amount === 'string' ? parseFloat(args.amount) : Number(args.amount);
+  const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+  if (amount <= 0) {
+    return { error: "Amount must be greater than 0" };
+  }
+
+  const fromAccount = normalizeAccount(args.fromAccount || 'cash');
+  if (fromAccount === 'debt' && !args.toAccount) {
+    return { success: false, needsClarification: true, reason: 'MISSING_BORROW_DESTINATION', message: 'استلمت المبلغ نقدي (كاش) أم في محفظة PalPay؟' };
+  }
+  let toAccount = normalizeAccount(args.toAccount || (fromAccount === 'cash' ? 'palPay' : 'cash'));
+  
+  if (fromAccount === toAccount) {
+    toAccount = fromAccount === 'cash' ? 'palPay' : 'cash';
+  }
+
+  const fromName = fromAccount === 'palPay' ? 'PalPay' : fromAccount === 'debt' ? 'الديون' : 'النقدي';
+  const toName = toAccount === 'palPay' ? 'PalPay' : toAccount === 'debt' ? 'الديون' : 'النقدي';
+  const creditor = String(args.creditor || args.person || args.merchant || '').trim();
+
+  // Borrowing money (debt -> cash/PalPay) must identify the creditor; otherwise later repayment cannot be resolved safely.
+  if (fromAccount === 'debt' && !creditor) {
+    return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'ممن استدنت هذا المبلغ؟' };
+  }
+
+  // Internal wallet transfers cannot create money by driving the source wallet below zero.
+  if (fromAccount !== 'debt' && toAccount !== 'debt') {
+    const current = await getBalance({}, userId, token);
+    // V6.2 (FINDING-07): refuse balance-sensitive transfer on partial state.
+    if (current.partial === true) {
+      return {
+        success: false,
+        retryable: true,
+        reason: 'PARTIAL_STATE_UNSAFE',
+        message: 'تعذّر التحقق من رصيدك الحالي بدقة. لا يمكن تنفيذ التحويل الآن. حاول مرة أخرى عند استعادة الاتصال.',
+        operationId: String(args.operationId || `transfer_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
+      };
+    }
+    const available = Number(current?.balances?.[fromAccount] || 0);
+    if (amount > available + 0.0001) {
+      return { success: false, needsClarification: true, reason: 'INSUFFICIENT_FUNDS', message: `الرصيد المتاح في ${fromName} هو ${available} ₪ فقط. هل تريد مبلغاً آخر؟` };
+    }
+  }
+
+  // Create ONE single transaction of type 'transfer'
+  const txRef = adminDb.collection('transactions').doc();
+  const tx = {
+    userId,
+    amount,
+    type: 'transfer',
+    account: fromAccount,
+    fromAccount,
+    toAccount,
+    category: 'تحويل داخلي',
+    subcategory: `تحويل من ${fromName} إلى ${toName}`,
+    notes: args.notes || `تحويل مبلغ ${amount} ₪ من ${fromName} إلى ${toName}`,
+    merchant: fromAccount === 'debt' ? creditor : 'تحويل بين المحافظ',
+    creditor: fromAccount === 'debt' ? creditor : '',
+    creditorKey: fromAccount === 'debt' ? normalizeCreditorName(creditor) : '',
+    transactionType: fromAccount === 'debt' ? 'DEBT_BORROWING' : 'INTERNAL_TRANSFER',
+    operationId: String(args.operationId || `transfer_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
+    necessity: '',
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  };
+
+  // V6.2 (FINDING-02): atomic balance-sensitive transfer.
+  // No more TOCTOU: the balance check + write happen inside a single
+  // Firestore runTransaction. Atomic failure NEVER downgrades to direct write.
+  let actualTxId = txRef.id;
+  let writeResult: WriteResult | { durability: 'committed'; synced: true; pending: false };
+  try {
+    const atomicResult = await atomicTransferMoney(userId, tx, { riskConfirmed: Boolean(args.riskConfirmed) });
+    if (!atomicResult.ok) {
+      const failReason = (atomicResult as any).reason as string;
+      const failAvailable = (atomicResult as any).available as number | undefined;
+      if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
+        return {
+          success: false,
+          needsClarification: true,
+          reason: 'INSUFFICIENT_FUNDS',
+          message: `الرصيد المتاح في ${fromName} هو ${failAvailable} ₪ فقط. التحويل مرفوض لمنع تجاوز الرصيد.`,
+        };
+      }
+      return { success: false, error: failReason };
+    }
+    actualTxId = atomicResult.docId;
+    writeResult = { durability: 'committed', synced: true, pending: false };
+  } catch (atomicErr: any) {
+    // V6.2 (FINDING-04): NO direct write fallback. Surface as FAILED.
+    console.error('[transferMoney] atomic transaction FAILED — refusing direct write fallback:', atomicErr?.message);
+    const isRetryable = atomicErr?.code === 8 || /RESOURCE_EXHAUSTED|quota|contention|aborted/i.test(String(atomicErr?.message || ''));
+    return {
+      success: false,
+      retryable: isRetryable,
+      reason: isRetryable ? 'ATOMIC_FAILED_RETRYABLE' : 'ATOMIC_FAILED',
+      message: isRetryable
+        ? 'تعذّر تنفيذ التحويل الآن بسبب ضغط مؤقت على قاعدة البيانات. حاول مرة أخرى خلال لحظات.'
+        : `تعذّر تنفيذ التحويل بشكل آمن: ${atomicErr?.message || 'unknown error'}`,
+      operationId: tx.operationId,
+    };
+  }
+
+  await addNotification(userId, `تم تحويل ${amount} ₪ من ${fromName} إلى ${toName} بنجاح.`, 'success', adminDb);
+
+  const balances = await getBalance({}, userId, token);
+  return {
+    success: true,
+    transactionId: actualTxId,
+    operationId: tx.operationId,
+    message: `تم تحويل ${amount} ₪ من ${fromName} إلى ${toName} بنجاح. التحويل لا يؤثر على الدخل أو المصروف العام.`,
+    currentBalances: balances.balances,
+    durability: writeResult.durability,
+    pending: writeResult.pending,
+    partial: balances.partial || writeResult.pending,
+  };
+}
+
+function normalizeCreditorName(value: any): string {
+  return String(value || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/[ـًٌٍَُِّْ]/g, '').replace(/\s+/g, ' ');
+}
+
+// V6: exported so that regression tests can verify financial invariants directly.
+export function calculateBalancesFromDocs(docs: any[]) {
+  let cash=0, palPay=0, debt=0;
+  for (const doc of docs) { const tx=typeof doc?.data==='function'?doc.data():doc; const amount=Number(tx?.amount)||0; const account=normalizeAccount(tx?.account);
+    if(tx?.type==='expense'){ if(account==='palPay') palPay-=amount; else if(account==='debt') debt+=amount; else cash-=amount; }
+    else if(tx?.type==='income'){ if(account==='palPay') palPay+=amount; else if(account==='debt') debt-=amount; else cash+=amount; }
+    else if(tx?.type==='transfer'){ const f=normalizeAccount(tx?.fromAccount||tx?.account), t=normalizeAccount(tx?.toAccount); if(f==='palPay')palPay-=amount;else if(f==='debt')debt+=amount;else cash-=amount; if(t==='palPay')palPay+=amount;else if(t==='debt')debt-=amount;else cash+=amount; }
+  } return {cash,palPay,debt,total:cash+palPay};
+}
+
+function calculateOpenCreditorDebts(docs:any[]){ const m=new Map<string,{creditor:string;remaining:number}>(); for(const doc of docs){const tx=typeof doc?.data==='function'?doc.data():doc;const amount=Number(tx?.amount)||0;if(amount<=0)continue;const merchant=String(tx?.creditor||tx?.merchant||'').trim(),key=normalizeCreditorName(merchant);if(!key||key===normalizeCreditorName('سداد دين')||key===normalizeCreditorName('تحويل بين المحافظ'))continue;let d=0;if(tx?.type==='expense'&&normalizeAccount(tx?.account)==='debt')d=amount;if(tx?.type==='income'&&normalizeAccount(tx?.account)==='debt')d=-amount;if(tx?.type==='transfer'&&normalizeAccount(tx?.toAccount)==='debt')d=-amount;if(tx?.type==='transfer'&&normalizeAccount(tx?.fromAccount||tx?.account)==='debt')d=amount;if(!d)continue;const c=m.get(key)||{creditor:merchant,remaining:0};c.remaining+=d;m.set(key,c);}return Array.from(m.entries()).filter(([,d])=>d.remaining>0.0001).map(([key,d])=>({key,creditor:d.creditor,remaining:Math.round(d.remaining*100)/100}));}
+
+export async function payDebt(args:any,userId:string,token:string){
+ const adminDb=getDb(token), amount=Math.abs(Number(args.amount)||0); if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'}; let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');if(fromAccount==='debt')fromAccount='cash';const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
+ const snap=await adminDb.collection('transactions').where('userId','==',userId).get();
+ // V6.2 (FINDING-07): refuse debt payment on partial state — could produce wrong creditor/debt math.
+ if ((snap as any).partial === true) {
+   return { success:false, retryable:true, reason:'PARTIAL_STATE_UNSAFE', message:'تعذّر التحقق من ديونك الحالية بدقة. لا يمكن تنفيذ السداد الآن.' };
+ }
+ const debts=calculateOpenCreditorDebts(snap.docs); const requested=String(args.creditor||args.person||args.merchant||'').trim(), key=normalizeCreditorName(requested); let selected:any=null;
+ if(debts.length===1&&!key)selected=debts[0]; else if(!key){return{success:false,needsClarification:true,reason:debts.length?'AMBIGUOUS_CREDITOR':'NO_IDENTIFIABLE_OPEN_DEBT',options:debts.map(d=>({creditor:d.creditor,remaining:d.remaining})),message:debts.length?`لمن تريد سداد ${amount} ₪؟ لديك ديون مفتوحة لـ: ${debts.map(d=>`${d.creditor} (${d.remaining} ₪)`).join('، ')}`:'لم أجد ديناً مفتوحاً محدداً. لمن تريد تسجيل هذا السداد؟'};} else {const matches=debts.filter(d=>d.key===key);if(matches.length!==1)return{success:false,needsClarification:true,reason:'CREDITOR_NOT_FOUND',options:debts.map(d=>({creditor:d.creditor,remaining:d.remaining})),message:`لم أجد ديناً مفتوحاً مطابقاً تماماً لـ ${requested}. حدد الدائن.`};selected=matches[0];}
+ if(amount>selected.remaining+0.0001)return{success:false,needsClarification:true,reason:'OVERPAYMENT',creditor:selected.creditor,remaining:selected.remaining,message:`المتبقي لـ ${selected.creditor} هو ${selected.remaining} ₪ فقط.`};
+ const beforeBalances=calculateBalancesFromDocs(snap.docs); const available=Number(beforeBalances[fromAccount]||0); if(amount>available+0.0001)return{success:false,needsClarification:true,reason:'INSUFFICIENT_FUNDS',available,message:`الرصيد المتاح في ${fromName} هو ${available} ₪ فقط. لا يمكن تنفيذ سداد ${amount} ₪.`};
+ const operationId=String(args.operationId||`debtpay_${Date.now()}_${Math.random().toString(36).slice(2,10)}`), txRef=adminDb.collection('transactions').doc(); const tx={userId,operationId,amount,type:'transfer',account:fromAccount,fromAccount,toAccount:'debt',transactionType:'DEBT_PAYMENT',creditor:selected.creditor,creditorKey:selected.key,category:'سداد ديون والتزامات',subcategory:`سداد دين - ${selected.creditor}`,notes:args.notes||`سداد دين بقيمة ${amount} ₪ من ${fromName} لصالح ${selected.creditor}`,merchant:selected.creditor,necessity:'ضروري',date:new Date().toISOString(),createdAt:new Date().toISOString()};
+ // V6.1 (CONC-03): atomic debt payment prevents concurrent payments from exceeding the creditor's remaining debt.
+ // V6.2 (FINDING-01): ATOMIC FAILURE MUST NEVER DOWNGRADE TO NON-ATOMIC WRITE.
+ // If atomicPayDebt fails (contention/network/quota/transaction failure), we MUST NOT
+ // fall back to direct txRef.set(). The operation becomes FAILED, and the client can
+ // retry or queue it offline. A direct write would bypass the financial validation
+ // engine and could create a debt that exceeds the creditor's remaining balance.
+ let atomicResult: { ok: true; docId: string } | { ok: false; reason: string; remaining?: number; available?: number };
+ try {
+   atomicResult = await atomicPayDebt(userId, tx, selected.key, selected.remaining, { riskConfirmed: Boolean(args.riskConfirmed) });
+ } catch (atomicErr: any) {
+   // V6.2: NO direct write fallback. Surface as FAILED with retryable status.
+   console.error('[payDebt] atomic transaction FAILED — refusing direct write fallback:', atomicErr?.message);
+   const isRetryable = atomicErr?.code === 8 || /RESOURCE_EXHAUSTED|quota|contention|aborted/i.test(String(atomicErr?.message || ''));
+   return {
+     success: false,
+     needsClarification: !isRetryable,
+     retryable: isRetryable,
+     reason: isRetryable ? 'ATOMIC_FAILED_RETRYABLE' : 'ATOMIC_FAILED',
+     message: isRetryable
+       ? 'تعذّر تنفيذ سداد الدين الآن بسبب ضغط مؤقت على قاعدة البيانات. حاول مرة أخرى خلال لحظات.'
+       : `تعذّر تنفيذ سداد الدين بشكل آمن: ${atomicErr?.message || 'unknown error'}`,
+     operationId,
+   };
+ }
+ if (!atomicResult.ok) {
+   const failReason = (atomicResult as any).reason as string;
+   const failRemaining = (atomicResult as any).remaining as number | undefined;
+   const failAvailable = (atomicResult as any).available as number | undefined;
+   if (failReason === 'OVERPAYMENT_ATOMIC') {
+     return { success: false, needsClarification: true, reason: 'OVERPAYMENT', creditor: selected.creditor, remaining: failRemaining, message: `المتبقي لـ ${selected.creditor} هو ${failRemaining} ₪ فقط (تم رصد محاولة سداد متزامنة).` };
+   }
+   if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
+     return { success: false, needsClarification: true, reason: 'INSUFFICIENT_FUNDS', available: failAvailable, message: `الرصيد المتاح في ${fromName} هو ${failAvailable} ₪ فقط.` };
+   }
+   return { success: false, error: failReason };
+ }
+ const finalTxId = atomicResult.docId;
+ await addNotification(userId,`تم سداد ${amount} ₪ من دين ${selected.creditor} من ${fromName}.`, 'success', adminDb); const balances=calculateBalancesFromDocs([...snap.docs,tx]); return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:Math.max(0,Math.round((selected.remaining-amount)*100)/100),message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}.`,currentBalances:balances};
+}
+
+export async function getRecentTransactions(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(10).get();
+  return { transactions: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) };
+}
+
+export async function updateTransaction(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: updateTransaction", args);
+  const txRef = adminDb.collection('transactions').doc(args.id);
+  const doc = await txRef.get();
+  if (!doc.exists || doc.data()?.userId !== userId) return { error: "Transaction not found" };
+  const existing = doc.data() as any;
+
+  // V6 (CF-4): re-validate financial invariants on update.
+  // Build the projected post-update document and run addTransaction-style guards.
+
+  // 1. Reject NaN / Infinity / negative / zero amounts.
+  if (args.amount !== undefined) {
+    const n = Number(args.amount);
+    if (!Number.isFinite(n) || n <= 0) {
+      return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'المبلغ الجديد غير صالح (يجب أن يكون رقماً محدداً موجباً).' };
+    }
+  }
+  // 2. Reject NaN / Infinity / negative on other numeric fields (defensive).
+  //    (None currently besides amount — left here for future-proofing.)
+
+  const updates: any = {};
+  if (args.amount !== undefined) updates.amount = Math.abs(Number(args.amount));
+  if (args.type) updates.type = String(args.type).toLowerCase();
+  if (args.account) updates.account = normalizeAccount(args.account);
+  if (args.fromAccount) updates.fromAccount = normalizeAccount(args.fromAccount);
+  if (args.toAccount) updates.toAccount = normalizeAccount(args.toAccount);
+  if (args.category !== undefined) updates.category = String(args.category);
+  if (args.subcategory !== undefined) updates.subcategory = String(args.subcategory);
+  if (args.merchant !== undefined) updates.merchant = String(args.merchant);
+  if (args.notes !== undefined) updates.notes = String(args.notes);
+  if (args.necessity !== undefined) updates.necessity = String(args.necessity);
+  if (args.date !== undefined) updates.date = String(args.date);
+  updates.updatedAt = new Date().toISOString();
+
+  // 3. Compute projected state.
+  const projected: any = { ...existing, ...updates };
+  // If account changed, recompute derived fields (creditor/creditorKey/transactionType).
+  if (updates.account !== undefined || updates.type !== undefined) {
+    const t = (projected.type || 'expense').toLowerCase();
+    const a = normalizeAccount(projected.account);
+    projected.account = a;
+    projected.transactionType = (t === 'expense' && a === 'debt')
+      ? 'CREDIT_PURCHASE'
+      : (t === 'income' ? 'INCOME' : (t === 'transfer' ? (projected.transactionType || 'INTERNAL_TRANSFER') : 'EXPENSE'));
+    // If transitioning to a debt-expense, ensure creditor is set.
+    if (t === 'expense' && a === 'debt') {
+      const cred = String(projected.merchant || projected.creditor || '').trim();
+      if (!cred) {
+        return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'عند تحويل العملية إلى دين، يجب تحديد الدائن.' };
+      }
+      projected.creditor = cred;
+      projected.creditorKey = normalizeCreditorName(cred);
+    } else if (updates.account !== undefined) {
+      // Moving away from debt — clear creditor fields.
+      projected.creditor = '';
+      projected.creditorKey = '';
+    }
+  }
+
+  // 4. Re-derive subcategory/necessity consistency for expenses.
+  if ((projected.type || 'expense') === 'expense') {
+    if (updates.category !== undefined && !projected.category) {
+      return { success: false, needsClarification: true, reason: 'MISSING_CATEGORY', message: 'ما بند العملية الرئيسي؟' };
+    }
+  }
+
+  // 5. Snapshot all transactions (excluding the doc being updated) to compute resulting balance.
+  const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const otherDocs = snap.docs.filter((d: any) => d.id !== args.id);
+  // Apply projected doc to the set.
+  const projectedDoc = { id: args.id, data: () => projected };
+  const combinedDocs = [...otherDocs, projectedDoc as any];
+  const resultingBalances = calculateBalancesFromDocs(combinedDocs);
+
+  // 6. If the resulting cash or palPay would go negative (excluding debt), block unless riskConfirmed.
+  if (!args.riskConfirmed) {
+    if (resultingBalances.cash < -0.0001) {
+      return { success: false, needsConfirmation: true, reason: 'NEGATIVE_CASH_RESULT', message: `هذا التعديل سيجعل رصيد الكاش سالباً (${resultingBalances.cash} ₪). هل تريد المتابعة؟`, financialImpact: { cashAfter: resultingBalances.cash } };
+    }
+    if (resultingBalances.palPay < -0.0001) {
+      return { success: false, needsConfirmation: true, reason: 'NEGATIVE_PALPAY_RESULT', message: `هذا التعديل سيجعل رصيد PalPay سالباً (${resultingBalances.palPay} ₪). هل تريد المتابعة؟`, financialImpact: { palPayAfter: resultingBalances.palPay } };
+    }
+  }
+
+  // 7. If amount/category changed for an expense, re-check budget ceiling.
+  if (projected.type === 'expense' && (updates.amount !== undefined || updates.category !== undefined)) {
+    try {
+      const userBudgets = await getUserBudgets(userId, adminDb);
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      const sameCategoryThisMonth = combinedDocs
+        .map((d: any) => typeof d.data === 'function' ? d.data() : d)
+        .filter((t: any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth) && t.category === projected.category);
+      const spent = sameCategoryThisMonth.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+      const limit = Number(userBudgets?.[projected.category] || DEFAULT_BUDGETS[projected.category] || 0);
+      if (limit > 0 && spent >= limit && !args.riskConfirmed) {
+        return { success: false, needsConfirmation: true, reason: 'BUDGET_WILL_BE_EXCEEDED', message: `التعديل سيرفع بند [${projected.category}] إلى ${spent} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة؟` };
+      }
+    } catch (e) {
+      // Preflight failures are non-fatal — we don't want to block updates when budget check is unavailable.
+      console.error('update_transaction preflight budget check failed:', e);
+    }
+  }
+
+  // 8. Apply the update with the recomputed derived fields.
+  const finalUpdates: any = { ...updates };
+  if (updates.account !== undefined || updates.type !== undefined) {
+    finalUpdates.transactionType = projected.transactionType;
+    finalUpdates.creditor = projected.creditor;
+    finalUpdates.creditorKey = projected.creditorKey;
+  }
+
+  const writeResult = await txRef.update(finalUpdates);
+  const balances = await getBalance({}, userId, token);
+  return {
+    success: true,
+    currentBalances: balances.balances,
+    durability: writeResult.durability,
+    pending: writeResult.pending,
+    partial: balances.partial || writeResult.pending,
+  };
+}
+
+export async function deleteTransaction(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: deleteTransaction", args);
+  
+  // 1. Direct ID deletion if a valid ID was passed
+  if (args.id && typeof args.id === 'string' && args.id.length > 5) {
+    const txRef = adminDb.collection('transactions').doc(args.id);
+    const doc = await txRef.get();
+    if (doc.exists && doc.data()?.userId === userId) {
+      const data = doc.data();
+      await txRef.delete();
+      const accName = data?.account === 'palPay' ? 'PalPay' : data?.account === 'debt' ? 'الديون' : 'النقدي';
+      await addNotification(userId, `تم حذف عملية (${data?.notes || data?.category || ''} بقيمة ${data?.amount} ₪ من ${accName}) بنجاح.`, 'success', adminDb);
+      const balances = await getBalance({}, userId, token);
+      return { success: true, message: "تم حذف العملية بنجاح.", currentBalances: balances.balances };
+    }
+  }
+
+  // 2. Smart deletion by criteria (account, amount, category, or most recent)
+  const targetAccount = (args.account || args.fromAccount) ? normalizeAccount(args.account || args.fromAccount) : null;
+  const targetAmount = args.amount ? Math.abs(Number(args.amount)) : null;
+
+  const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  let userTxs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Sort descending by date/createdAt
+  userTxs.sort((a: any, b: any) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+
+  if (targetAccount) {
+    userTxs = userTxs.filter((t: any) => normalizeAccount(t.account) === targetAccount || normalizeAccount(t.fromAccount) === targetAccount || normalizeAccount(t.toAccount) === targetAccount);
+  }
+
+  if (targetAmount && !isNaN(targetAmount)) {
+    userTxs = userTxs.filter((t: any) => Math.abs(Number(t.amount) - targetAmount) < 0.01);
+  }
+
+  if (args.category) {
+    userTxs = userTxs.filter((t: any) => matchesArabicCategory(t, args.category));
+  }
+
+  if (userTxs.length > 1 && !args.id) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: 'AMBIGUOUS_DELETE',
+      message: `وجدت ${userTxs.length} عمليات مطابقة. حدد العملية أو أعطني تفاصيل إضافية قبل الحذف.`,
+      candidates: userTxs.slice(0, 5).map((t:any) => ({ id:t.id, amount:t.amount, category:t.category, subcategory:t.subcategory, merchant:t.merchant, date:t.date, account:t.account, notes:t.notes }))
+    };
+  }
+
+  // V6 (MF-6): smart-delete with a single candidate must STILL request confirmation.
+  // Silent destructive mutations based on AI guessing are not acceptable.
+  if (userTxs.length === 1 && !args.id) {
+    const toDelete = userTxs[0];
+    return {
+      success: false,
+      needsClarification: true,
+      reason: 'CONFIRM_SINGLE_SMART_DELETE',
+      message: `وجدت عملية واحدة مطابقة. هل تقصد حذفها؟`,
+      candidate: { id: toDelete.id, amount: toDelete.amount, category: toDelete.category, subcategory: toDelete.subcategory, merchant: toDelete.merchant, date: toDelete.date, account: toDelete.account, notes: toDelete.notes }
+    };
+  }
+
+  if (userTxs.length === 1 && (args.id || args.confirmed)) {
+    const toDelete = userTxs[0];
+    await adminDb.collection('transactions').doc(toDelete.id).delete();
+    
+    const accName = toDelete.account === 'palPay' ? 'PalPay' : toDelete.account === 'debt' ? 'الديون' : 'النقدي';
+    await addNotification(userId, `تم حذف عملية (${toDelete.notes || toDelete.category || ''} بقيمة ${toDelete.amount} ₪ من حساب ${accName}) بنجاح.`, 'success', adminDb);
+    
+    const balances = await getBalance({}, userId, token);
+    return { 
+      success: true, 
+      deletedTransaction: toDelete, 
+      message: `تم حذف عملية بقيمة ${toDelete.amount} ₪ من حساب ${accName} بنجاح.`,
+      currentBalances: balances.balances 
+    };
+  }
+
+  return { success: false, message: "لم يتم العثور على عملية مطابقة لحذفها. يرجى تحديد المبلغ أو اسم الحساب." };
+}
+
+export async function setCategoryBudget(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: setCategoryBudget", args);
+  const category = args.category;
+  const limit = Math.abs(Number(args.limit) || 500);
+  
+  if (!category) return { error: "Category is required" };
+  
+  await adminDb.collection('users').doc(userId).collection('budgets').doc(category).set({
+    category,
+    limit,
+    updatedAt: new Date().toISOString()
+  });
+
+  await addNotification(userId, `تم ضبط ميزانية بند [${category}] لتكون ${limit} ₪ شهرياً.`, 'success', adminDb);
+  return { success: true, category, limit, message: `Budget for ${category} set to ${limit} ILS.` };
+}
+
+export async function getBudgetsOverview(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const userBudgets = await getUserBudgets(userId, adminDb);
+  
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const monthExpenses = txSnapshot.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((t: any) => t.type === 'expense' && (t.date || '').startsWith(thisMonth));
+
+  const categories = Object.keys(userBudgets);
+  const budgets = categories.map(cat => {
+    const limit = userBudgets[cat];
+    const catExpenses = monthExpenses.filter(t => t.category === cat);
+    const spent = catExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const ratio = limit > 0 ? spent / limit : 0;
+    const percentage = Math.round(ratio * 100);
+    const status = ratio >= 1.0 ? 'exceeded' : ratio >= 0.8 ? 'warning' : 'safe';
+    return {
+      category: cat,
+      limit,
+      spent,
+      remaining: Math.max(0, limit - spent),
+      percentage,
+      status
+    };
+  });
+
+  const totalBudget = Object.values(userBudgets).reduce((a, b) => a + b, 0);
+  const totalSpent = monthExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  return {
+    budgets,
+    totalBudget,
+    totalSpent,
+    month: thisMonth,
+    partial: (txSnapshot as any).partial
+  };
+}
+
+export async function checkBudgetStatus(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: checkBudgetStatus", args);
+  
+  const userBudgets = await getUserBudgets(userId, adminDb);
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const expenses = txSnapshot.docs.map(d => d.data()).filter(t => t.type === 'expense' && (t.date || '').startsWith(thisMonth));
+  
+  if (args.category) {
+    const categoryExpenses = expenses.filter(t => t.category === args.category);
+    const spent = categoryExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const limit = userBudgets[args.category] || DEFAULT_BUDGETS[args.category] || 1000;
+    const percentage = Math.round((spent / limit) * 100);
+    
+    let warning = "الوضع ممتاز وفي نطاق الميزانية";
+    if (spent >= limit) {
+      warning = `انتبه يا صديقي، لقد تجاوزت سقف ميزانية ${args.category} لهذا الشهر (${spent} ₪ من أصل ${limit} ₪)!`;
+    } else if (spent >= limit * 0.8) {
+      warning = `انتبه يا صديقي، اقتربت من إقفال ميزانية ${args.category} لهذا الشهر (وصلت إلى ${percentage}% - ${spent} ₪ من أصل ${limit} ₪).`;
+    }
+    
+    return { 
+      category: args.category, 
+      spent, 
+      limit, 
+      remaining: Math.max(0, limit - spent),
+      percentage, 
+      warning 
+    };
+  }
+  
+  const totalSpent = expenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalLimit = Object.values(userBudgets).reduce((a, b) => a + b, 0);
+  const totalPercentage = Math.round((totalSpent / (totalLimit || 1)) * 100);
+  
+  let totalWarning = "الميزانية الشهرية العامة في وضع آمن ومستقر";
+  if (totalSpent >= totalLimit) {
+    totalWarning = `تحذير: إجمالي مصروفاتك للشهر تجاوز السقف المحدد للميزانية (${totalSpent} ₪ من ${totalLimit} ₪).`;
+  } else if (totalSpent >= totalLimit * 0.8) {
+    totalWarning = `تنبيه: اقتربت من إقفال الميزانية الإجمالية لهذا الشهر بنسبة ${totalPercentage}% (${totalSpent} ₪ من ${totalLimit} ₪).`;
+  }
+
+  return { 
+    totalSpent, 
+    totalLimit, 
+    totalPercentage, 
+    warning: totalWarning 
+  };
+}
+
+export async function getCommitments(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const snapshot = await adminDb.collection('commitments').where('userId', '==', userId).get();
+  const commitments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  const now = new Date();
+  const enriched = commitments.map((c: any) => {
+    const due = new Date(c.dueDate);
+    const diffMs = due.getTime() - now.getTime();
+    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    // V6: paid/cancelled commitments keep their explicit status — don't override with isOverdue.
+    const explicitStatus = c.status && ['pending', 'paid', 'cancelled'].includes(c.status) ? c.status : null;
+    const isDueSoon = explicitStatus === 'pending' && daysRemaining >= 0 && daysRemaining <= 3;
+    const isOverdue = explicitStatus === 'pending' && daysRemaining < 0;
+    return {
+      ...c,
+      daysRemaining,
+      isDueSoon,
+      isOverdue,
+      status: explicitStatus || (isOverdue ? 'overdue' : isDueSoon ? 'due_soon' : 'upcoming')
+    };
+  });
+
+  enriched.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  return { commitments: enriched, partial: (snapshot as any).partial };
+}
+
+export async function createCommitment(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const docRef = adminDb.collection('commitments').doc();
+  const commitment = {
+    userId,
+    title: args.title || 'التزام مجدول',
+    amount: Math.abs(Number(args.amount) || 0),
+    dueDate: args.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    category: args.category || 'أقساط والتزامات',
+    notes: args.notes || '',
+    // V6 (MF-1): explicit lifecycle status. Values: 'pending' | 'paid' | 'cancelled'.
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+  await docRef.set(commitment);
+  await addNotification(userId, `تمت جدولة التزام "${commitment.title}" بقيمة ${commitment.amount} ₪ في موعد ${commitment.dueDate.slice(0, 10)}.`, 'success', adminDb);
+  return { success: true, id: docRef.id, commitment };
+}
+
+/**
+ * V6 (MF-1): update commitment lifecycle status.
+ * Used to mark a commitment as paid (excludes from forecast) or cancelled.
+ */
+export async function updateCommitmentStatus(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  if (!args.id) return { success: false, error: 'Commitment ID is required' };
+  const status = String(args.status || '').toLowerCase();
+  if (!['pending', 'paid', 'cancelled'].includes(status)) {
+    return { success: false, error: "status must be 'pending', 'paid', or 'cancelled'" };
+  }
+  const ref = adminDb.collection('commitments').doc(args.id);
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, error: 'الالتزام غير موجود.' };
+  if (snap.data()?.userId !== userId) return { success: false, error: 'غير مصرح.' };
+  await ref.update({ status, statusUpdatedAt: new Date().toISOString() });
+  await addNotification(userId, `تم تحديث حالة التزام "${snap.data()?.title || args.id}" إلى ${status}.`, 'success', adminDb);
+  return { success: true, status };
+}
+
+export async function deleteCommitment(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  if (!args.id) return { success: false, error: "Commitment ID is required" };
+  const ref = adminDb.collection('commitments').doc(args.id);
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, error: "الالتزام غير موجود." };
+  if (snap.data()?.userId !== userId) return { success: false, error: "غير مصرح بحذف هذا الالتزام." };
+  await ref.delete();
+  await addNotification(userId, "تم حذف الالتزام المجدول.", 'success', adminDb);
+  return { success: true };
+}
+
+export async function queryTransactions(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log("TOOL CALL: queryTransactions", args);
+  const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  let filtered = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  if (args.type) {
+    filtered = filtered.filter((t: any) => t.type === args.type);
+  }
+
+  if (args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود') {
+    filtered = filtered.filter((t: any) => matchesArabicCategory(t, args.category));
+  }
+
+  if (args.account) {
+    filtered = filtered.filter((t: any) => t.account === args.account);
+  }
+
+  if (args.necessity) {
+    filtered = filtered.filter((t: any) => t.necessity === args.necessity);
+  }
+
+  const now = new Date();
+  if (args.period === 'today') {
+    const today = now.toISOString().split('T')[0];
+    filtered = filtered.filter((t: any) => (t.date || t.createdAt || '').startsWith(today));
+  } else if (args.period === 'this_week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    filtered = filtered.filter((t: any) => new Date(t.date || t.createdAt || now) >= weekAgo);
+  } else if (args.period === 'this_month') {
+    const thisMonth = now.toISOString().slice(0, 7);
+    filtered = filtered.filter((t: any) => (t.date || t.createdAt || '').startsWith(thisMonth));
+  } else if (args.startDate || args.endDate) {
+    if (args.startDate) {
+      const start = new Date(args.startDate);
+      filtered = filtered.filter((t: any) => new Date(t.date || t.createdAt || now) >= start);
+    }
+    if (args.endDate) {
+      const end = new Date(args.endDate);
+      filtered = filtered.filter((t: any) => new Date(t.date || t.createdAt || now) <= end);
+    }
+  }
+
+  // Sort descending by date
+  filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
+
+  const total = filtered.reduce((sum, t: any) => sum + (Number(t.amount) || 0), 0);
+  
+  return { 
+    success: true, 
+    count: filtered.length,
+    totalAmount: total,
+    transactions: filtered,
+    partial: (snapshot as any).partial
+  };
+}
+
+export async function wipeAllUserData(userId: string, token: string) {
+  const adminDb = getDb(token);
+  
+  // 1. Delete all transactions
+  try {
+    const txSnap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+    for (const d of txSnap.docs) {
+      await adminDb.collection('transactions').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 2. Delete all commitments
+  try {
+    const commSnap = await adminDb.collection('commitments').where('userId', '==', userId).get();
+    for (const d of commSnap.docs) {
+      await adminDb.collection('commitments').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 3. Delete all reports
+  try {
+    const repSnap = await adminDb.collection('reports').where('userId', '==', userId).get();
+    for (const d of repSnap.docs) {
+      await adminDb.collection('reports').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 4. Delete all user memories from the same canonical path used by memory_save/search/delete.
+  try {
+    const memSnap = await adminDb.collection('users').doc(userId).collection('memory').get();
+    for (const d of memSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('memory').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 5. Delete all custom budgets
+  try {
+    const budgetSnap = await adminDb.collection('users').doc(userId).collection('budgets').get();
+    for (const d of budgetSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('budgets').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 6. Wipe local disk & memoryStore cache so zero residual data exists
+  clearAllLocalUserData(userId);
+
+  return {
+    success: true,
+    message: "تم مسح وتصفير كافة البيانات من النظام والذاكرة والسحابة بنجاح."
+  };
+}
+
+// In-memory cache to guard against rapid duplicate tool calls
+const recentMutations = new Map<string, { result: any; timestamp: number }>();
+
+function getMutationKey(name: string, args: any, userId: string): string {
+  const cleanArgs: any = {};
+  for (const k of Object.keys(args || {}).sort()) {
+    // Ignore internal fields or timestamps if any
+    if (k === 'date' || k === 'createdAt') continue;
+    if (args[k] !== undefined && args[k] !== null && args[k] !== '') {
+      cleanArgs[k] = typeof args[k] === 'number' ? Math.round(args[k] * 100) / 100 : String(args[k]).trim().toLowerCase();
+    }
+  }
+  // For money transfers or debts or transactions, ensure amount and accounts create a strong deduplication key
+  return `${userId}:${name}:${JSON.stringify(cleanArgs)}`;
+}
+
+function wrapWithDeduplication(name: string, fn: (args: any, userId: string, token: string) => Promise<any>) {
+  const mutatingTools = ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'create_commitment', 'delete_transaction', 'update_transaction'];
+  if (!mutatingTools.includes(name)) return fn;
+
+  return async (args: any, userId: string, token: string) => {
+    // V6 (CF-6): persistent idempotency via Firestore. The args may carry an
+    // explicit operationId (preferred). If absent, derive one from args hash
+    // so duplicate identical calls within a short window still dedupe.
+    const operationId = args?.operationId
+      || `${name}_${getMutationKey(name, args, userId)}`;
+    return runIdempotent(userId, operationId, () => fn(args, userId, token)).then(outcome => {
+      if (outcome.kind === 'cache_hit') return outcome.cachedResult;
+      return outcome.result;
+    });
+  };
+}
+
+const rawToolHandlers: Record<string, (args: any, userId: string, token: string) => Promise<any>> = {
+  add_transaction: addTransaction,
+  update_transaction: updateTransaction,
+  delete_transaction: deleteTransaction,
+  get_balance: getBalance,
+  get_financial_decision_context: getFinancialDecisionContext,
+  assess_purchase: assessPurchase,
+  search_local_market: searchLocalMarket,
+  transfer_money: transferMoney,
+  pay_debt: payDebt,
+  get_recent_transactions: getRecentTransactions,
+  check_budget_status: checkBudgetStatus,
+  set_category_budget: setCategoryBudget,
+  get_budgets_overview: getBudgetsOverview,
+  get_commitments: getCommitments,
+  create_commitment: createCommitment,
+  update_commitment_status: updateCommitmentStatus,
+  delete_commitment: deleteCommitment,
+  query_transactions: queryTransactions,
+  memory_save: memorySave,
+  memory_search: memorySearch,
+  create_recurring_item: createRecurringItem,
+  search_market_information: searchMarketInformation,
+  send_palpay_payment: sendPalPayPayment,
+  generate_report: generateReport,
+  delete_report: deleteReport,
+  clear_all_reports: clearAllReports
+};
+
+export const toolHandlers: Record<string, (args: any, userId: string, token: string) => Promise<any>> = Object.fromEntries(
+  Object.entries(rawToolHandlers).map(([name, fn]) => [name, wrapWithDeduplication(name, fn)])
+);
+
+export const functionDeclarations = [
+  {
+    name: "pay_debt",
+    description: "يسدد ديناً قائماً لدائن محدد. إذا كان لدى المستخدم أكثر من دائن ولم يحدد لمن السداد، لا تخمن ولا تنفذ: اسأل لمن يريد السداد. اسأل أيضاً عن حساب الدفع إن لم يذكره. لا تستخدم add_transaction لسداد الديون.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "المبلغ المسدد بالشيكل" },
+        paymentMethod: { type: "string", description: "طريقة السداد والحساب المدفوع منه: 'cash' (نقداً/كاش) أو 'palPay' (محفظة بال باي)" },
+        creditor: { type: "string", description: "اسم الدائن كما ذكره المستخدم؛ لا تخمن الاسم عند وجود أكثر من دائن." },
+        operationId: { type: "string", description: "معرف ثابت اختياري للعملية عند إعادة المحاولة أو المزامنة" },
+        notes: { type: "string", description: "ملاحظات إضافية عن سداد الدين" }
+      },
+      required: ["amount", "paymentMethod"]
+    }
+  },
+  {
+    name: "delete_report",
+    description: "يحذف تقريراً مالياً محفوظاً من حافظة المهام للمستخدم لتجنب تراكم وتكدس التقارير.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "معرف التقرير المراد حذفه" }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "clear_all_reports",
+    description: "يمسح ويحذف كافة التقارير المحفوظة في حافظة المهام دفعة واحدة لمنع تكدسها.",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "set_category_budget",
+    description: "يحدد أو يعدل سقف الميزانية الشهرية لبند رئيسي معين (مثال: الأبناء 1500 شيكل، طعام ومشتريات 2000 شيكل).",
+    parameters: {
+      type: "object",
+      properties: {
+        category: { type: "string", description: "اسم البند الرئيسي (مثال: 'الأبناء', 'طعام ومشتريات منزل', 'زيارات وضيافة', 'مواصلات')" },
+        limit: { type: "number", description: "سقف الميزانية الشهري بالشيكل" }
+      },
+      required: ["category", "limit"]
+    }
+  },
+  {
+    name: "create_commitment",
+    description: "يجدول موعد استحقاق التزام مالي أو دين أو قسط أو رسوم جامعية أو فاتورة دورية لتذكير المستخدم بها.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "اسم الالتزام أو القسط (مثال: قسط جامعة، إيجار البيت، دين تاجر)" },
+        amount: { type: "number", description: "المبلغ المطلوب سداده بالشيكل" },
+        dueDate: { type: "string", description: "تاريخ الاستحقاق بصيغة YYYY-MM-DD" },
+        category: { type: "string", description: "التصنيف" }
+      },
+      required: ["title", "amount", "dueDate"]
+    }
+  },
+  {
+    name: "update_commitment_status",
+    description: "V6: يحدّث حالة التزام (pending/paid/cancelled). الالتزامات المدفوعة لا تُخصم مرة أخرى من توقع 30 يوماً. استخدمها بعد تنفيذ سداد الالتزام فعلياً.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "معرف الالتزام" },
+        status: { type: "string", description: "'pending' أو 'paid' أو 'cancelled'" }
+      },
+      required: ["id", "status"]
+    }
+  },
+  {
+    name: "send_palpay_payment",
+    description: "يقوم بتحويل مبلغ مالي لشخص عبر رقم الهاتف باستخدام محفظة PalPay. (مهم: اسأل عن رقم الهاتف قبل التحويل إن لم يذكره).",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "المبلغ المراد تحويله" },
+        recipientName: { type: "string", description: "اسم المستلم" },
+        phoneNumber: { type: "string", description: "رقم جوال المستلم (مطلوب)" },
+        description: { type: "string", description: "سبب التحويل (مثال: شراء خضار وفواكه)" }
+      },
+      required: ["amount", "recipientName", "phoneNumber", "description"]
+    }
+  },
+  {
+    name: "generate_report",
+    description: "يستخرج وينشئ تقريراً مالياً هيكلياً مفصلاً جداً يحتوي على بند الصرف الرئيسي وتحته بنود الصرف الفرعية وكل بند فرعي تحته تفصيل الدفع (اليوم والتاريخ، المبلغ، البيان/شو اشترى، المتجر، طريقة الدفع كاش/PalPay/دين، هل ضروري أو كمالي)، ويحفظه في حافظة المهام للمستخدم ليتمكن من طباعته أو تصديره لـ Word/PDF.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "عنوان التقرير (مثال: 'التقرير المالي التفصيلي الشامل', 'تقرير مصروفات الأبناء', 'تقرير زيارات وضيافة')" },
+        timeframe: { type: "string", description: "الفترة: 'all' لكافة العمليات, 'month' للشهر الحالي, 'today' لليوم, 'week' للأسبوع" },
+        category: { type: "string", description: "التصنيف إن كان التقرير مخصصاً لتصنيف محدد مثل 'الأبناء' أو 'زيارات' (اختياري، اتركه فارغاً للتقرير الشامل لكافة البنود)" }
+      },
+      required: ["title"]
+    }
+  },
+  {
+    name: "get_financial_decision_context",
+    description: "يجلب سياقاً مالياً موحداً لاتخاذ القرار: الأرصدة، متوسط الصرف اليومي، توقع 30 يوماً، الالتزامات والموازنات. استخدمه عند المناقشة المالية المهمة، وليس مع كل سؤال بسيط.",
+    parameters: { type: "object", properties: {} }
+  },
+  {
+    name: "assess_purchase",
+    description: "يقيّم شراءً قبل تنفيذه مقابل الرصيد، معدل الصرف، الالتزامات والموازنة. لا يسجل أي عملية.",
+    parameters: { type:"object", properties:{
+      price:{type:"number",description:"السعر المقترح"}, item:{type:"string",description:"السلعة"}, model:{type:"string",description:"الموديل إن وجد"}, paymentMethod:{type:"string",description:"cash أو palPay أو debt"}, category:{type:"string",description:"البند الرئيسي"}, necessity:{type:"string",description:"ضروري أو كمالي"}
+    }, required:["price"] }
+  },
+  {
+    name: "search_local_market",
+    description: "V6.1: يبحث عن أسعار موثقة بالسوق المحلي (غزة/فلسطين أولاً) باستخدام Google Search grounding. يرجع نتائج منظمة: نتائج بمصادر وروابط وأسعار وحداثة. لا يخترع أسعاراً. لا يستخدم للمشتريات اليومية الصغيرة (خبز، خضار، مواصلات). استخدمه للمشتريات المهمة أو الإلكترونيات أو السيارات أو عند طلب المستخدم مقارنة سعرية.",
+    parameters: { type:"object", properties:{
+      item:{type:"string",description:"اسم السلعة"},
+      model:{type:"string",description:"الموديل/المواصفات الدقيقة (مثال: Samsung A54 128GB)"},
+      condition:{type:"string",description:"حالة السلعة: 'new' (جديد) أو 'used' (مستعمل) أو 'unknown'"}
+    }, required:["item"] }
+  },
+  {
+    name: "add_transaction",
+    description: "يسجل عملية مالية بدقة (مصروف أو دخل). ❌ممنوع استخدام هذه الأداة لسداد الديون❌ لسداد الديون استخدم أداة pay_debt حصراً.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "المبلغ بالشيكل (مثال: 120)" },
+        type: { type: "string", description: "نوع العملية: 'expense' (مصروف) أو 'income' (دخل)" },
+        account: { type: "string", description: "اسم الحساب: 'cash', 'palPay', أو 'debt'" },
+        category: { type: "string", description: "بند الصرف الرئيسي (مثال: 'الأبناء', 'زيارات وضيافة', 'طعام ومشتريات منزل', 'مواصلات', 'فواتير والتزامات', 'صحة وعلاج', 'تعليم')" },
+        subcategory: { type: "string", description: "بند الصرف الفرعي (مثال تحت الأبناء: 'مصروف', 'ملابس', 'رسوم جامعة ومدرسة', 'دورة رسم', 'مستلزمات مدرسية', 'علاج' / وتحت زيارات: 'هدايا', 'مواصلات زيارة', 'ضيافة')" },
+        merchant: { type: "string", description: "اسم المتجر أو الجهة أو الشخص (مثال: 'مكتبة النور', 'سوبرماركت البركة', 'محل ملابس')" },
+        notes: { type: "string", description: "البيان وتفصيل شو اشترى أو ملاحظات إضافية" },
+        paymentMethod: { type: "string", description: "طريقة الدفع: 'cash' (نقدي/كاش), 'palPay' (محفظة), أو 'debt' (دين/آجل)." },
+        necessity: { type: "string", description: "تصنيف الأهمية: 'ضروري' أو 'كمالي' وفق ظروف المستخدم الفعلية." },
+        riskConfirmed: { type: "boolean", description: "true فقط إذا حذر النظام المستخدم من تجاوز/خطر مالي ووافق صراحة على المتابعة." }
+      },
+      required: ["amount", "type", "category", "subcategory", "paymentMethod", "necessity"]
+    }
+  },
+  {
+    name: "get_balance",
+    description: "يجلب رصيد الحسابات الحالي (نقدي، PalPay، والإجمالي).",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "transfer_money",
+    description: "يحول مبلغاً بين الحسابات والمحافظ (مثلاً: من الكاش إلى بال باي PalPay أو العكس). التحويل الداخلي لا يعتبر دخلاً ولا مصروفاً بل ينقل الرصيد بدقة.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "المبلغ المحول بالشيكل" },
+        fromAccount: { type: "string", description: "الحساب المحول منه: 'cash' (نقدي) أو 'palPay' (بال باي) أو 'debt' (دين)" },
+        toAccount: { type: "string", description: "الحساب المحول إليه: 'palPay' (بال باي) أو 'cash' (نقدي) أو 'debt' (دين)" },
+        creditor: { type: "string", description: "اسم الدائن. مطلوب عند استدانة مال من debt إلى cash/PalPay حتى يبقى الدين مربوطاً بصاحبه." },
+        notes: { type: "string", description: "ملاحظات إضافية عن التحويل" }
+      },
+      required: ["amount", "fromAccount", "toAccount"]
+    }
+  },
+  {
+    name: "get_recent_transactions",
+    description: "يجلب أحدث العمليات المالية. مفيد لمعرفة الـ id لتعديل أو حذف عملية.",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "update_transaction",
+    description: "يعدل عملية مالية سابقة باستخدام الـ id الخاص بها.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "معرف العملية (id)" },
+        amount: { type: "number", description: "المبلغ الجديد (اختياري)" },
+        type: { type: "string", description: "النوع (اختياري)" },
+        account: { type: "string", description: "الحساب (اختياري)" },
+        category: { type: "string", description: "التصنيف الرئيسي (اختياري)" },
+        subcategory: { type: "string", description: "التصنيف الفرعي (اختياري)" },
+        merchant: { type: "string", description: "المتجر/الجهة (اختياري)" },
+        notes: { type: "string", description: "التفاصيل (اختياري)" },
+        necessity: { type: "string", description: "ضروري أو كمالي حسب ظروف المستخدم (اختياري)" },
+        date: { type: "string", description: "تاريخ العملية ISO أو YYYY-MM-DD (اختياري)" }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "delete_transaction",
+    description: "يحذف عملية مالية سابقة. يمكن استخدام id صريح، أو البحث بـ account/amount/category. عند تطابق عملية واحدة فقط، يجب تمرير confirmed=true بعد عرض العملية على المستخدم. لا تحذف أبداً بصمت.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "معرف العملية (id) إن كان متوفراً" },
+        account: { type: "string", description: "الحساب: 'palPay' (بال باي), 'cash' (نقدي), أو 'debt' (دين)" },
+        amount: { type: "number", description: "مبلغ العملية المراد حذفها" },
+        category: { type: "string", description: "تصنيف العملية المراد حذفها" },
+        confirmed: { type: "boolean", description: "true فقط بعد عرض المرشح الواحد على المستخدم وتأكيده." }
+      }
+    }
+  },
+  {
+    name: "check_budget_status",
+    description: "يفحص وضع الميزانية الحالي لمعرفة هل هناك تجاوز أو اقتراب من الحد المسموح، سواء لتصنيف معين أو للمجموع الكلي.",
+    parameters: {
+      type: "object",
+      properties: {
+        category: { type: "string", description: "التصنيف المراد فحص ميزانيته (اختياري)" }
+      }
+    }
+  },
+  {
+    name: "query_transactions",
+    description: "يجلب ويحلل العمليات المالية لإنشاء تقارير، والإجابة عن أسئلة مثل: كم صرفت اليوم؟ كم صرفت على الأولاد هذا الشهر؟ ما هي مصروفات الكماليات هذا الأسبوع؟",
+    parameters: {
+      type: "object",
+      properties: {
+        period: { type: "string", description: "الفترة الزمنية. القيم المسموحة: 'today', 'this_week', 'this_month', 'custom'" },
+        startDate: { type: "string", description: "تاريخ البداية بصيغة YYYY-MM-DD (يستخدم فقط إذا كانت الفترة custom)" },
+        endDate: { type: "string", description: "تاريخ النهاية بصيغة YYYY-MM-DD (يستخدم فقط إذا كانت الفترة custom)" },
+        category: { type: "string", description: "التصنيف المراد البحث عنه مثل: أولاد، سيارة، كماليات (اختياري)" },
+        type: { type: "string", description: "نوع العملية: 'expense' أو 'income' (الافتراضي عادة expense إن سأل عن الصرف)" },
+        account: { type: "string", description: "الحساب: 'cash', 'palPay', 'debt' (لمعرفة الديون مثلاً)" },
+        necessity: { type: "string", description: "الضرورة: 'ضروري' أو 'كمالي'" }
+      }
+    }
+  },
+  {
+    name: "memory_save",
+    description: "يحفظ معلومة طويلة الأمد (مثل راتب، قرار مالي، التزام) للرجوع إليها لاحقاً.",
+    parameters: {
+      type: "object",
+      properties: {
+        key: { type: "string", description: "اسم أو مفتاح المعلومة (مثال: salary_amount)" },
+        value: { type: "string", description: "القيمة المراد حفظها" }
+      },
+      required: ["key", "value"]
+    }
+  },
+  {
+    name: "memory_search",
+    description: "يبحث في الذاكرة طويلة الأمد لاسترجاع قرارات أو التزامات سابقة.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "الكلمة المفتاحية للبحث" }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "create_recurring_item",
+    description: "ينشئ عملية مالية دورية أو راتب شهري لتذكير المستخدم به.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "اسم العملية الدورية (مثال: الراتب)" },
+        amount: { type: "number", description: "المبلغ المتوقع" },
+        type: { type: "string", description: "'expense' أو 'income'" },
+        next_date: { type: "string", description: "تاريخ الاستحقاق القادم" }
+      },
+      required: ["name", "amount", "type"]
+    }
+  }
+  // V6 (HF-1): search_market_information declaration REMOVED. The fake-price tool
+  // is no longer registered with the AI. The handler remains as a defensive stub
+  // (returns deprecation message) so any lingering prompt reference is harmless.
+];
+
+export async function syncOfflineData(args: any, userId: string, token: string) {
+  // V6 (CF-2): NEVER trust client-supplied userId or document IDs.
+  // - userId is force-overwritten with the authenticated UID.
+  // - For each incoming document, we verify ownership of any existing doc with the same ID.
+  //   If the doc exists and is owned by a different user, the sync item is rejected (403).
+  // - Deleted-flagged items also require ownership check before deletion.
+  const adminDb = getDb(token);
+  let count = 0;
+  const rejected: { id: string; reason: string }[] = [];
+
+  if (args.transactions && args.transactions.length > 0) {
+    for (const tx of args.transactions) {
+      // Force userId to the authenticated user — client cannot hijack ownership.
+      const safeId = String(tx.id || '').trim();
+      if (!safeId) { rejected.push({ id: '(empty)', reason: 'missing id' }); continue; }
+      // Ownership check on existing doc.
+      try {
+        const existingSnap = await adminDb.collection('transactions').doc(safeId).get();
+        if (existingSnap.exists) {
+          const existingData = existingSnap.data() as any;
+          if (existingData?.userId && existingData.userId !== userId) {
+            // Cross-user write attempt. Reject and log.
+            console.warn(`[CF-2] Rejected sync write: doc ${safeId} owned by ${existingData.userId}, requested by ${userId}`);
+            rejected.push({ id: safeId, reason: 'cross-user ownership violation' });
+            continue;
+          }
+        }
+      } catch (e: any) {
+        // If the lookup itself fails (quota/network), reject the item rather than guess.
+        rejected.push({ id: safeId, reason: `ownership check failed: ${e?.message || 'unknown'}` });
+        continue;
+      }
+      const doc = adminDb.collection('transactions').doc(safeId);
+      if (tx.deleted) {
+        await doc.delete();
+      } else {
+        // Strip any client-supplied userId and force the authenticated UID.
+        const { _unsynced, userId: _dropUid, ...data } = tx;
+        await doc.set({ ...data, userId });
+      }
+      count++;
+    }
+  }
+
+  if (args.reports && args.reports.length > 0) {
+    for (const rep of args.reports) {
+      const safeId = String(rep.id || '').trim();
+      if (!safeId) { rejected.push({ id: '(empty)', reason: 'missing id' }); continue; }
+      try {
+        const existingSnap = await adminDb.collection('reports').doc(safeId).get();
+        if (existingSnap.exists) {
+          const existingData = existingSnap.data() as any;
+          if (existingData?.userId && existingData.userId !== userId) {
+            rejected.push({ id: safeId, reason: 'cross-user ownership violation' });
+            continue;
+          }
+        }
+      } catch (e: any) {
+        rejected.push({ id: safeId, reason: `ownership check failed: ${e?.message || 'unknown'}` });
+        continue;
+      }
+      const doc = adminDb.collection('reports').doc(safeId);
+      if (rep.deleted) {
+        await doc.delete();
+      } else {
+        const { _unsynced, userId: _dropUid, ...data } = rep;
+        await doc.set({ ...data, userId });
+      }
+      count++;
+    }
+  }
+
+  if (args.commitments && args.commitments.length > 0) {
+    for (const com of args.commitments) {
+      const safeId = String(com.id || '').trim();
+      if (!safeId) { rejected.push({ id: '(empty)', reason: 'missing id' }); continue; }
+      try {
+        const existingSnap = await adminDb.collection('commitments').doc(safeId).get();
+        if (existingSnap.exists) {
+          const existingData = existingSnap.data() as any;
+          if (existingData?.userId && existingData.userId !== userId) {
+            rejected.push({ id: safeId, reason: 'cross-user ownership violation' });
+            continue;
+          }
+        }
+      } catch (e: any) {
+        rejected.push({ id: safeId, reason: `ownership check failed: ${e?.message || 'unknown'}` });
+        continue;
+      }
+      const doc = adminDb.collection('commitments').doc(safeId);
+      if (com.deleted) {
+        await doc.delete();
+      } else {
+        const { _unsynced, userId: _dropUid, ...data } = com;
+        await doc.set({ ...data, userId });
+      }
+      count++;
+    }
+  }
+
+  return { success: true, count, rejected };
+}

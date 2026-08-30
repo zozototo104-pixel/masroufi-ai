@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #report-content, #report-content * {
+    visibility: visible;
+  }
+  #report-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    box-shadow: none !important;
+    background-color: white !important;
+    color: #0f172a !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .page-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
