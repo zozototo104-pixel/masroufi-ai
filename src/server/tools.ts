@@ -2598,10 +2598,10 @@ export const functionDeclarations = [
         merchant: { type: "string", description: "اسم المتجر أو الجهة أو الشخص (مثال: 'مكتبة النور', 'سوبرماركت البركة', 'محل ملابس')" },
         notes: { type: "string", description: "البيان وتفصيل شو اشترى أو ملاحظات إضافية" },
         paymentMethod: { type: "string", description: "طريقة الدفع: 'cash' (نقدي/كاش), 'palPay' (محفظة), أو 'debt' (دين/آجل)." },
-        necessity: { type: "string", description: "تصنيف الأهمية: 'ضروري' أو 'كمالي' وفق ظروف المستخدم الفعلية." },
+        necessity: { type: "string", description: "اختياري. تصنيف الأهمية: 'ضروري' أو 'كمالي'. لا تطلبه من المستخدم إذا كان وصف الشراء واضحاً؛ اتركه فارغاً ليصنفه النظام وفق واقع غزة." },
         riskConfirmed: { type: "boolean", description: "true فقط إذا حذر النظام المستخدم من تجاوز/خطر مالي ووافق صراحة على المتابعة." }
       },
-      required: ["amount", "type", "category", "subcategory", "paymentMethod", "necessity"]
+      required: ["amount", "type", "category", "subcategory", "paymentMethod"]
     }
   },
   {
