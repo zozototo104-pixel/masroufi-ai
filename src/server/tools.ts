@@ -553,15 +553,22 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
   if (type === 'expense' && account === 'debt') {
     // For credit purchases, the user does NOT have to provide category/subcategory/necessity manually.
-    // Masroufi should infer category and necessity using Gaza context. The backend only requires enough
-    // ledger identity to know this is a real distinct entry: what was bought OR for whom/purpose OR notes.
-    const hasLedgerIdentity = Boolean(explicitPurchaseItem || beneficiary || notes || subcategory);
-    if (!hasLedgerIdentity) {
+    // Masroufi should infer category and necessity using Gaza context.
+    // However, category/subcategory alone are NOT a ledger identity. Generic notes like
+    // "شراء بالدين من فلان" are also not enough. We must know what was bought or for whom/purpose.
+    const cleanedNotesForIdentity = normalizeArabicText(notes)
+      .replace(normalizeArabicText(merchant), ' ')
+      .replace(/شراء|اشتريت|شريت|اشتري|دين|بالدين|من|عند|على|قيد|تسجيل|سجل|سجلي|مصروف|مبلغ|شيكل|ش/g, ' ')
+      .replace(/\d+(\.\d+)?/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const hasRealPurchaseIdentity = Boolean(explicitPurchaseItem || beneficiary || cleanedNotesForIdentity.length >= 3);
+    if (!hasRealPurchaseIdentity) {
       return {
         success: false,
         needsClarification: true,
-        reason: 'MISSING_CREDIT_PURCHASE_DETAILS',
-        message: 'قبل تسجيل الشراء بالدين لازم أعرف القيد نفسه: شو اشتريت أو لمين/لأي غرض؟ وأنا أصنف البند والضرورة وفق واقع غزة.'
+        reason: 'MISSING_CREDIT_PURCHASE_ITEM_OR_PURPOSE',
+        message: 'لا أسجل شراء بالدين بهذا الشكل. قل لي أولاً: شو اشتريت من هذا الشخص/المحل؟ ولمين أو لأي غرض؟ بعدها أنا أصنف البند والضرورة وفق واقع غزة.'
       };
     }
   }
