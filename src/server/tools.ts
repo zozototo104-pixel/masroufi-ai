@@ -286,11 +286,46 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   const paymentWasProvided = Boolean(args.paymentMethod || args.account);
   let account = normalizeAccount(args.paymentMethod || args.account || 'cash');
-  const category = String(args.category || '').trim();
-  const subcategory = String(args.subcategory || '').trim();
+  let category = String(args.category || '').trim();
+  let subcategory = String(args.subcategory || '').trim();
   const merchant = String(args.merchant || '').trim();
   const notes = String(args.notes || '').trim();
   const necessity = String(args.necessity || '').trim();
+  const categorySuggestion = inferCategory({ type, category, subcategory, notes, merchant, item: args.item || args.description });
+  category = category || categorySuggestion.category;
+  subcategory = subcategory || categorySuggestion.subcategory;
+
+  // Treasurer Mode: income must not be silently dumped into cash.
+  // Salary/income needs an explicit destination or a split between cash and PalPay.
+  if (type === 'income') {
+    const allocations = normalizeIncomeAllocations(args);
+    if (allocations.length > 0) {
+      const totalAllocated = allocations.reduce((s, a) => s + a.amount, 0);
+      if (Math.abs(totalAllocated - amount) > 0.01) {
+        return {
+          success: false,
+          needsClarification: true,
+          reason: 'INCOME_SPLIT_MISMATCH',
+          message: `مجموع توزيع الدخل (${totalAllocated} ₪) لا يساوي المبلغ الكلي (${amount} ₪). قل لي كم نقدي وكم PalPay بالضبط.`
+        };
+      }
+      const results: any[] = [];
+      for (const alloc of allocations) {
+        const r = await addTransaction({ ...args, amount: alloc.amount, account: alloc.account, paymentMethod: alloc.account, allocations: [], split: [], incomeSplit: [], notes: [notes, alloc.note].filter(Boolean).join(' - ') }, userId, token);
+        results.push(r);
+        if (!r?.success) return r;
+      }
+      return { success: true, splitIncome: true, results, message: `تم توزيع الدخل: ${allocations.map(a => `${a.amount} ₪ ${a.account === 'palPay' ? 'PalPay' : 'كاش'}`).join('، ')}.` };
+    }
+    if (needsIncomeAllocationQuestion(args, type, paymentWasProvided)) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_INCOME_DESTINATION',
+        message: 'قبل تسجيل الدخل: كم منه نقدي وكم في محفظة PalPay؟ إن كان كله في جهة واحدة قل لي مثلاً: كله كاش أو كله PalPay.'
+      };
+    }
+  }
 
   // Financial writes must never silently invent missing accounting dimensions.
   // The AI is expected to collect these slots conversationally; the backend remains the final guard.
