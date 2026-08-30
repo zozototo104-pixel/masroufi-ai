@@ -37,9 +37,11 @@ export default function App() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
   const [interruptedFeedback, setInterruptedFeedback] = useState(false);
-  const [isOfflineMode, setIsOfflineMode] = useState(!navigator.onLine);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   useEffect(() => {
+    // navigator.onLine is unreliable on iOS/Safari and may report false while fetch works.
+    // Treat real API success as the source of truth; browser offline event is only a hint.
     const handleOnline = () => setIsOfflineMode(false);
     const handleOffline = () => setIsOfflineMode(true);
     window.addEventListener('online', handleOnline);
