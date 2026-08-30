@@ -7,7 +7,7 @@ FULL_ARCHIVE_B64="archive/masrofi_ai_v6_2.tar.gz.b64"
 
 if [ ! -f "$APP_DIR/package.json" ]; then
   echo "[render-build] unpacking Masrofi AI archive..."
-  if [ -f archive/midi-part21.b64 ]; then
+  if [ -f archive/midi-part11.b64 ]; then
     cat archive/midi-part*.b64 | base64 -d > "$ARCHIVE_FILE"
   elif [ -f archive/tiny-part41.b64 ]; then
     cat archive/tiny-part*.b64 | base64 -d > "$ARCHIVE_FILE"
