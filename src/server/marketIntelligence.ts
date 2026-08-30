@@ -115,6 +115,56 @@ export function isGazaSource(title: string, uri: string): boolean {
   return t.includes('gaza') || t.includes('غزة') || t.includes('palestine') || t.includes('فلسطين') || t.includes('ramallah') || t.includes('رام الله');
 }
 
+export function classifyMarketScope(title: string = '', uri: string = '', location: string = ''): MarketScope {
+  const t = `${title} ${uri} ${location}`.toLowerCase();
+  if (t.includes('gaza') || t.includes('غزة') || t.includes('خان يونس') || t.includes('رفح') || t.includes('النصيرات') || t.includes('دير البلح') || t.includes('جباليا')) return 'gaza';
+  if (t.includes('palestine') || t.includes('فلسطين') || t.includes('ramallah') || t.includes('رام الله') || t.includes('nablus') || t.includes('نابلس') || t.includes('hebron') || t.includes('الخليل')) return 'palestine';
+  if (t.includes('amazon') || t.includes('ebay') || t.includes('aliexpress') || t.includes('gsmarena') || t.includes('apple.com') || t.includes('samsung.com') || t.includes('bestbuy') || t.includes('walmart')) return 'global';
+  return 'unknown';
+}
+
+export function normalizeCurrencyToIls(price: number, currency: string): number | null {
+  const cur = String(currency || 'ILS').toUpperCase();
+  const amount = Number(price) || 0;
+  if (amount <= 0) return null;
+  // Approximate reference rates for market comparison only. Live local search is still the source of truth.
+  const fx: Record<string, number> = { ILS: 1, NIS: 1, USD: 3.7, JOD: 5.2 };
+  const rate = fx[cur];
+  if (!rate) return null;
+  return Math.round(amount * rate * 100) / 100;
+}
+
+export function computeNormalizedPriceRange(results: MarketResult[]): { min: number; max: number; median: number; currency: string } | null {
+  const prices = results
+    .map(r => Number(r.normalizedPriceIls ?? normalizeCurrencyToIls(r.price, r.currency)))
+    .filter(p => Number.isFinite(p) && p > 0)
+    .sort((a, b) => a - b);
+  if (!prices.length) return null;
+  const median = prices[Math.floor(prices.length / 2)];
+  const filtered = prices.filter(p => p <= median * 2);
+  const list = filtered.length ? filtered : prices;
+  return { min: list[0], max: list[list.length - 1], median, currency: 'ILS' };
+}
+
+export function buildMarketComparison(results: MarketResult[], offeredPrice?: number) {
+  const byScope = (scope: MarketScope) => results.filter(r => (r.marketScope || (r.isLocalGaza ? 'gaza' : 'unknown')) === scope);
+  const gazaRange = computeNormalizedPriceRange(byScope('gaza'));
+  const palestineRange = computeNormalizedPriceRange(byScope('palestine'));
+  const globalRange = computeNormalizedPriceRange(byScope('global'));
+  const allRange = computeNormalizedPriceRange(results);
+  const reference = gazaRange || palestineRange || allRange || globalRange;
+  const warnings: string[] = [];
+  if (offeredPrice && reference) {
+    const diff = Math.round((offeredPrice - reference.median) * 100) / 100;
+    const pct = reference.median > 0 ? Math.round(diff / reference.median * 100) : 0;
+    if (pct > 20) warnings.push(`السعر المعروض أعلى من مرجع السوق بحوالي ${pct}% (${diff} ₪ فوق الوسيط).`);
+    else if (pct < -15) warnings.push(`السعر المعروض أقل من السوق بحوالي ${Math.abs(pct)}%؛ تأكد من الحالة والضمان حتى لا تكون صفقة ملغومة.`);
+  }
+  if (!gazaRange && (palestineRange || globalRange)) warnings.push('لم أجد سعراً محلياً موثوقاً من غزة؛ استخدمت فلسطين/العالمي كمرجع فقط.');
+  if (globalRange && reference && globalRange.median < reference.median * 0.75) warnings.push('السعر العالمي أقل بكثير من المحلي؛ راقب تكاليف الشحن والجمارك والتوفر قبل المقارنة النهائية.');
+  return { gazaRange, palestineRange, globalRange, allRange, warnings };
+}
+
 /**
  * Parse Gemini's text response to extract price candidates.
  * Returns array of (price, source) pairs. NO fabrication — only what Gemini returns.
