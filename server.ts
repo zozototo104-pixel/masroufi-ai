@@ -750,8 +750,13 @@ ${relationshipContext}
       
       // If there are function calls
       if (response.functionCalls && response.functionCalls.length > 0) {
+        const seenToolKeys = new Set<string>();
         const functionResponses = await Promise.all(
           response.functionCalls.map(async (call: FunctionCall) => {
+            const guard = shouldSkipFinancialToolCallForIntent(call, message, seenToolKeys);
+            if (guard.skip) {
+              return { id: call.id, name: call.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر/غير مناسب لنفس الأمر حتى لا يتضاعف القيد المالي.' } };
+            }
             const handler = toolHandlers[call.name];
             let responseData = { error: "Function not found" };
             if (handler) {
