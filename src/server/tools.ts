@@ -2058,6 +2058,27 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "get_treasurer_profile",
+    description: "يجلب الملف المالي الشخصي لأمين الصندوق: الراتب، يوم الراتب، هدف الاحتياطي، نسبة الادخار المستهدفة، ومستوى الصرامة.",
+    parameters: { type: "object", properties: {} }
+  },
+  {
+    name: "update_treasurer_profile",
+    description: "يحدث ملف أمين الصندوق الشخصي. استخدمه في onboarding أو عندما يقول المستخدم راتبي كذا، يوم الراتب كذا، بدي احتياطي أمان، أو بدي صرامة أعلى.",
+    parameters: {
+      type: "object",
+      properties: {
+        monthlySalary: { type: "number", description: "الراتب الشهري المتوقع" },
+        salaryDay: { type: "number", description: "يوم نزول الراتب من 1 إلى 31" },
+        cashReserveTarget: { type: "number", description: "حد الأمان/الاحتياطي النقدي المطلوب" },
+        savingsRateTarget: { type: "number", description: "نسبة الادخار المستهدفة من الدخل" },
+        strictness: { type: "string", description: "gentle, balanced, strict" },
+        locale: { type: "string", description: "المنطقة/السوق المحلي، الافتراضي غزة/فلسطين" },
+        notes: { type: "string", description: "ملاحظات شخصية مالية" }
+      }
+    }
+  },
+  {
     name: "get_savings_goals",
     description: "يعرض أهداف الادخار الحالية ومقدار المحفوظ والمتبقي لكل هدف.",
     parameters: { type: "object", properties: {} }
