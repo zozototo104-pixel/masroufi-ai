@@ -42,8 +42,16 @@ export default function App() {
   useEffect(() => {
     // navigator.onLine is unreliable on iOS/Safari and may report false while fetch works.
     // Treat real API success as the source of truth; browser offline event is only a hint.
+    const probeCloud = async () => {
+      try {
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        setIsOfflineMode(!res.ok);
+      } catch {
+        setIsOfflineMode(true);
+      }
+    };
     const handleOnline = () => setIsOfflineMode(false);
-    const handleOffline = () => setIsOfflineMode(true);
+    const handleOffline = () => { void probeCloud(); };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
