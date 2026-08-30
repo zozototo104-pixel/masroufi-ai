@@ -596,6 +596,34 @@ export async function addTransaction(args: any, userId: string, token: string) {
         }
       } else {
         // Debt purchase guard.
+        // A credit purchase must be recorded once as expense/account=debt.
+        // It must NOT be recorded again as a cash borrowing or a second debt purchase.
+        const nowTime = Date.now();
+        const creditorKey = normalizeCreditorName(merchant);
+        const possibleDuplicateDebtPurchase = existing
+          .filter((t:any) => t.type === 'expense' && (t.account === 'debt' || t.transactionType === 'CREDIT_PURCHASE'))
+          .filter((t:any) => Math.abs((Number(t.amount) || 0) - amount) < 0.01)
+          .filter((t:any) => {
+            const existingCreditor = normalizeCreditorName(t.creditor || t.merchant || '');
+            return creditorKey && existingCreditor && creditorKey === existingCreditor;
+          })
+          .filter((t:any) => {
+            const ts = new Date(t.date || t.createdAt || 0).getTime();
+            if (!Number.isFinite(ts)) return false;
+            const sameDay = new Date(ts).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
+            return sameDay || (nowTime - ts <= 30 * 60 * 1000);
+          });
+        if (possibleDuplicateDebtPurchase.length > 0 && !args.duplicateConfirmed) {
+          return {
+            success: false,
+            needsConfirmation: true,
+            reason: 'POSSIBLE_DUPLICATE_CREDIT_PURCHASE',
+            message: `انتبه: يوجد شراء بالدين بنفس المبلغ ${amount} ₪ لنفس الدائن/المحل (${merchant}) مسجل اليوم. لن أسجله مرة ثانية إلا إذا أكدت أنه شراء آخر مختلف.`,
+            duplicateOf: possibleDuplicateDebtPurchase[0]?.id,
+            matches: possibleDuplicateDebtPurchase.slice(0, 3).map((t:any) => ({ amount: t.amount, merchant: t.merchant, creditor: t.creditor, date: t.date, category: t.category, subcategory: t.subcategory }))
+          };
+        }
+
         const projectedDebt = Number(balances.debt || 0) + amount;
         const monthlyIncome90d = existing
           .filter((t:any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING')
