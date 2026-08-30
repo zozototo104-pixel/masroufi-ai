@@ -128,10 +128,6 @@ If individual line items cannot be broken down, provide a single item in the ite
       if (!jsonText) throw new Error("No response text");
       
       const parsed = JSON.parse(jsonText);
-      const { addTransaction } = await import('./src/server/tools');
-      const token = req.headers.authorization.split('Bearer ')[1];
-
-      const createdTransactions: any[] = [];
       const items = Array.isArray(parsed.items) && parsed.items.length > 0 ? parsed.items : [
         {
           name: "مشتريات من " + (parsed.merchant || "المتجر"),
@@ -142,32 +138,32 @@ If individual line items cannot be broken down, provide a single item in the ite
         }
       ];
 
-      for (const item of items) {
-        const itemAmount = Math.abs(Number(item.amount) || 0);
-        if (itemAmount <= 0) continue;
-
-        const txArgs = {
-          amount: itemAmount,
-          type: 'expense',
-          account: 'cash',
-          category: item.category || 'طعام ومشتريات منزل',
-          subcategory: item.subcategory || item.name || 'مشتريات',
-          merchant: parsed.merchant || 'متجر',
-          notes: item.name || 'تم تسجيلها عبر الماسح الضوئي للفاتورة',
-          paymentMethod: 'cash',
-          necessity: item.necessity || 'ضروري'
-        };
-
-        const result = await addTransaction(txArgs, req.user.uid, token);
-        createdTransactions.push({ ...txArgs, id: result.transactionId });
-      }
+      const draftTransactions = items
+        .map((item: any) => {
+          const itemAmount = Math.abs(Number(item.amount) || 0);
+          if (itemAmount <= 0) return null;
+          return {
+            amount: itemAmount,
+            type: 'expense',
+            category: item.category || 'طعام ومشتريات منزل',
+            subcategory: item.subcategory || item.name || 'مشتريات',
+            merchant: parsed.merchant || 'متجر',
+            notes: item.name || 'تم تحليلها عبر الماسح الضوئي للفاتورة',
+            necessity: item.necessity || 'ضروري'
+          };
+        })
+        .filter(Boolean);
 
       res.json({
         success: true,
+        requiresConfirmation: true,
+        reason: 'RECEIPT_PAYMENT_METHOD_REQUIRED',
+        message: 'حللت الفاتورة ولم أسجلها بعد. اختر طريقة الدفع لكل البنود: كاش أم PalPay أم دين؟',
         merchant: parsed.merchant || 'متجر',
-        totalAmount: parsed.totalAmount || createdTransactions.reduce((s, t) => s + t.amount, 0),
-        itemsCount: createdTransactions.length,
-        items: createdTransactions
+        totalAmount: parsed.totalAmount || draftTransactions.reduce((s: number, t: any) => s + t.amount, 0),
+        itemsCount: draftTransactions.length,
+        items: draftTransactions,
+        nextStep: 'مرر البنود إلى add_transaction بعد أن يحدد المستخدم طريقة الدفع أو الدائن.'
       });
     } catch (error: any) {
       console.error("Scanner error:", error);
