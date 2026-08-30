@@ -137,34 +137,8 @@ function liveFinancialCommitKey(call: FunctionCall, userId: string | null | unde
   const args: any = call.args || {};
   const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
   if (!amount) return null;
-  if (call.name === 'add_transaction') {
-    return [
-      userId,
-      'add_transaction',
-      String(args.type || '').toLowerCase(),
-      normalizeToolAccount(args.paymentMethod || args.account),
-      amount,
-      normalizeArabicForIntent(args.merchant || args.creditor || '') || 'none'
-    ].join('|');
-  }
-  if (call.name === 'transfer_money') {
-    return [
-      userId,
-      'transfer_money',
-      normalizeToolAccount(args.fromAccount || args.account),
-      normalizeToolAccount(args.toAccount),
-      amount,
-      normalizeArabicForIntent(args.creditor || args.lender || args.person || args.merchant || '') || 'none'
-    ].join('|');
-  }
-  if (call.name === 'pay_debt') {
-    return [
-      userId,
-      'pay_debt',
-      normalizeToolAccount(args.paymentMethod || args.fromAccount),
-      amount,
-      normalizeArabicForIntent(args.creditor || args.person || args.merchant || '') || 'none'
-    ].join('|');
+  if (['add_transaction', 'transfer_money', 'pay_debt'].includes(call.name)) {
+    return `${userId}|${financialOperationCoreKey(call)}`;
   }
   return null;
 }
