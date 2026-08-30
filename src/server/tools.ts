@@ -20,6 +20,7 @@ import {
 } from './marketIntelligence';
 import {
   inferCategory,
+  inferNecessityForGazaContext,
   normalizeArabicText,
   normalizeIncomeAllocations,
   needsIncomeAllocationQuestion,
