@@ -94,6 +94,31 @@ function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
   return aa > 0 && Math.abs(aa - bb) < 0.01;
 }
 
+function buildStableOperationIdForToolCall(call: FunctionCall, clientMessageId: string): string | null {
+  if (!clientMessageId) return null;
+  const args: any = call.args || {};
+  const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
+  if (!amount && ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment'].includes(call.name)) return null;
+  if (call.name === 'add_transaction') {
+    const type = String(args.type || '').toLowerCase();
+    const account = normalizeToolAccount(args.paymentMethod || args.account);
+    const merchant = normalizeArabicForIntent(args.merchant || args.creditor || '');
+    // Intentionally ignore category/subcategory/notes. Gemini may vary those across duplicate calls
+    // for the same user sentence; the ledger operation is still one financial write.
+    return `chat:${clientMessageId}:add_transaction:${type}:${account}:${amount}:${merchant || 'none'}`;
+  }
+  if (call.name === 'transfer_money') {
+    return `chat:${clientMessageId}:transfer_money:${normalizeToolAccount(args.fromAccount || args.account)}:${normalizeToolAccount(args.toAccount)}:${amount}:${normalizeArabicForIntent(args.creditor || args.lender || args.person || args.merchant || '') || 'none'}`;
+  }
+  if (call.name === 'pay_debt') {
+    return `chat:${clientMessageId}:pay_debt:${normalizeToolAccount(args.paymentMethod || args.fromAccount)}:${amount}:${normalizeArabicForIntent(args.creditor || args.person || args.merchant || '') || 'none'}`;
+  }
+  if (call.name === 'send_palpay_payment') {
+    return `chat:${clientMessageId}:send_palpay_payment:${amount}:${normalizeArabicForIntent(args.phoneNumber || args.recipientName || '') || 'none'}`;
+  }
+  return null;
+}
+
 function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: string, seenKeys: Set<string>, batchCalls: FunctionCall[] = []): { skip: boolean; reason?: string } {
   const key = semanticToolKey(call);
   if (seenKeys.has(key)) return { skip: true, reason: 'DUPLICATE_TOOL_CALL_IN_SAME_TURN' };
