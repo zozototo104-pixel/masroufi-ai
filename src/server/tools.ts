@@ -1465,7 +1465,12 @@ export async function transferMoney(args: any, userId: string, token: string) {
     };
   }
 
-  await addNotification(userId, `تم تحويل ${amount} ₪ من ${fromName} إلى ${toName} بنجاح.`, 'success', adminDb);
+  await addNotification(userId, `تم تحويل ${amount} ₪ من ${fromName} إلى ${toName} بنجاح.`, 'success', adminDb, {
+    idempotencyKey: `transfer-success:${tx.operationId}:${actualTxId}`,
+    transactionId: actualTxId,
+    operationId: tx.operationId,
+    metadata: { amount, fromAccount, toAccount }
+  });
 
   const balances = await getBalance({}, userId, token);
   return {
