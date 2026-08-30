@@ -433,7 +433,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
         categorySpent: spent,
         dailyExpenseAverage,
         projected30DayBalance: Number(balances.total || 0) - dailyExpenseAverage * 30,
-        savingsReserveTarget: Number(args.savingsReserveTarget || 0),
+        savingsReserveTarget: profileReserveTarget,
         riskConfirmed: Boolean(args.riskConfirmed),
       });
       if (risk.needsConfirmation) {
