@@ -951,6 +951,11 @@ export default function App() {
     setIsChatLoading(true);
 
     try {
+      if (isOfflineMode) {
+        await queueOfflineFinancialCommand(text, clientMessageId);
+        return;
+      }
+
       let currentToken = idToken;
       try {
         if (user && typeof user.getIdToken === 'function') {
