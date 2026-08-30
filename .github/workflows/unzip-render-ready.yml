@@ -1,0 +1,90 @@
+name: Unzip Render Ready Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Masrofi_AI_V6_2_Render_ready.zip'
+      - 'Masrofi_AI_V6_2.zip'
+      - 'upload.zip'
+      - '.github/workflows/unzip-render-ready.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unzip-and-commit:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pick uploaded zip
+        id: pick_zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE=""
+          for candidate in Masrofi_AI_V6_2_Render_ready.zip Masrofi_AI_V6_2.zip upload.zip; do
+            if [ -f "$candidate" ]; then
+              ZIP_FILE="$candidate"
+              break
+            fi
+          done
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No supported ZIP file found. Upload Masrofi_AI_V6_2_Render_ready.zip or upload.zip to repo root."
+            exit 0
+          fi
+          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Unzip package
+        if: steps.pick_zip.outputs.zip_file != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="${{ steps.pick_zip.outputs.zip_file }}"
+          rm -rf /tmp/masrofi_unpack
+          mkdir -p /tmp/masrofi_unpack
+          unzip -q "$ZIP_FILE" -d /tmp/masrofi_unpack
+
+          ROOT="/tmp/masrofi_unpack"
+          if [ -d /tmp/masrofi_unpack/masrofi_ai_v6_2 ]; then
+            ROOT="/tmp/masrofi_unpack/masrofi_ai_v6_2"
+          elif [ -d /tmp/masrofi_unpack/Masrofi_AI_V6_2_Render_ready ]; then
+            ROOT="/tmp/masrofi_unpack/Masrofi_AI_V6_2_Render_ready"
+          elif [ -d /tmp/masrofi_unpack/Masrofi_AI_V6_2 ]; then
+            ROOT="/tmp/masrofi_unpack/Masrofi_AI_V6_2"
+          fi
+
+          echo "Using package root: $ROOT"
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='dist/' \
+            --exclude='build/' \
+            --exclude='.env' \
+            --exclude='.env.local' \
+            "$ROOT"/ ./
+
+          rm -f Masrofi_AI_V6_2_Render_ready.zip Masrofi_AI_V6_2.zip upload.zip
+
+      - name: Commit extracted files
+        if: steps.pick_zip.outputs.zip_file != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Unpack Render ready package"
+          git push
