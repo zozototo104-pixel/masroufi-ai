@@ -334,7 +334,7 @@ export default function App() {
           }
           await idbSet('lkgs_transactions', finalTx);
         } else {
-          setIsOfflineMode(true); // Forced local mode
+          setIsOfflineMode(false); // API responded; partial/empty data is not a connectivity failure
           let cachedTx = (await idbGet<any[]>('lkgs_transactions')) || [];
           if (!Array.isArray(cachedTx)) cachedTx = [];
           const pending = (txData && txData.partial && txData.transactions) ? txData.transactions : [];
