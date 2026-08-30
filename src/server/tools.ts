@@ -2014,7 +2014,15 @@ export async function wipeAllUserData(userId: string, token: string) {
     }
   } catch (e) {}
 
-  // 7. Wipe local disk & memoryStore cache so zero residual data exists
+  // 7. Delete all saved market directory offers
+  try {
+    const marketSnap = await adminDb.collection('users').doc(userId).collection('marketDirectory').get();
+    for (const d of marketSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('marketDirectory').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 8. Wipe local disk & memoryStore cache so zero residual data exists
   clearAllLocalUserData(userId);
 
   return {
