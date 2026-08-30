@@ -804,7 +804,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
   }
   
   await addNotification(userId, notificationMsg, 'success', adminDb, {
-    idempotencyKey: `transaction-success:${operationId}:${actualTxId}`,
+    idempotencyKey: `transaction-success:${operationId}`,
     transactionId: actualTxId,
     operationId,
     metadata: { amount, type, account, category, subcategory, merchant, transactionType: tx.transactionType }
