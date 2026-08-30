@@ -1816,7 +1816,15 @@ export async function wipeAllUserData(userId: string, token: string) {
     }
   } catch (e) {}
 
-  // 6. Wipe local disk & memoryStore cache so zero residual data exists
+  // 6. Delete all savings goals
+  try {
+    const savingsSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').get();
+    for (const d of savingsSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 7. Wipe local disk & memoryStore cache so zero residual data exists
   clearAllLocalUserData(userId);
 
   return {
