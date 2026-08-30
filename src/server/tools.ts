@@ -135,6 +135,113 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   };
 }
 
+function normalizeMarketSearchText(value: any): string {
+  return normalizeArabicText(value).replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function marketOfferToResult(offer: any, item: string): MarketResult {
+  const scope = classifyMarketScope(offer.seller || '', offer.sourceUrl || '', `${offer.location || ''} ${offer.address || ''}`);
+  const normalized = normalizeCurrencyToIls(Number(offer.price || 0), offer.currency || 'ILS');
+  return {
+    product: offer.product || item,
+    brand: offer.brand || undefined,
+    model: offer.model || undefined,
+    variant: offer.variant || undefined,
+    condition: offer.condition || 'unknown',
+    seller: offer.seller || 'محل محفوظ في دفتر السوق',
+    location: offer.location || offer.address || (scope === 'gaza' ? 'غزة' : scope === 'palestine' ? 'فلسطين' : scope === 'global' ? 'عالمي' : 'غير محدد'),
+    price: Number(offer.price || 0),
+    currency: offer.currency || 'ILS',
+    originalPrice: Number(offer.price || 0),
+    originalCurrency: offer.currency || 'ILS',
+    normalizedPriceIls: normalized || undefined,
+    marketScope: scope,
+    availability: offer.availability || 'unknown',
+    source: offer.source || offer.seller || 'دفتر سوق مصروفي',
+    sourceUrl: offer.sourceUrl || undefined,
+    fetchedAt: offer.checkedAt || offer.createdAt || new Date().toISOString(),
+    isLocalGaza: scope === 'gaza',
+    confidence: offer.confidence || 'medium',
+    notes: offer.notes || 'عرض محفوظ في دفتر السوق المحلي.'
+  };
+}
+
+async function searchSavedMarketOffers(adminDb: any, userId: string, item: string, model?: string): Promise<MarketResult[]> {
+  try {
+    const snap = await adminDb.collection('users').doc(userId).collection('marketDirectory').get();
+    const q = normalizeMarketSearchText(`${item} ${model || ''}`);
+    const terms = q.split(' ').filter(Boolean);
+    return snap.docs
+      .map((d: any) => ({ id: d.id, ...d.data() }))
+      .filter((offer: any) => {
+        const haystack = normalizeMarketSearchText(`${offer.product || ''} ${offer.brand || ''} ${offer.model || ''} ${offer.variant || ''} ${offer.seller || ''} ${offer.location || ''}`);
+        if (!terms.length) return false;
+        return terms.every(term => haystack.includes(term)) || haystack.includes(q) || q.includes(haystack);
+      })
+      .map((offer: any) => marketOfferToResult(offer, item))
+      .filter((r: MarketResult) => Number(r.price) > 0)
+      .sort((a: MarketResult, b: MarketResult) => {
+        const scopeScore = (r: MarketResult) => r.marketScope === 'gaza' ? 0 : r.marketScope === 'palestine' ? 1 : r.marketScope === 'global' ? 2 : 3;
+        return scopeScore(a) - scopeScore(b) || Number(a.normalizedPriceIls || a.price) - Number(b.normalizedPriceIls || b.price);
+      })
+      .slice(0, 20);
+  } catch (e) {
+    console.warn('Saved market directory search failed:', e);
+    return [];
+  }
+}
+
+export async function saveMarketOffer(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const product = String(args.product || args.item || '').trim();
+  const price = Math.abs(Number(args.price) || 0);
+  const seller = String(args.seller || args.store || args.shop || '').trim();
+  if (!product) return { success: false, needsClarification: true, reason: 'MISSING_MARKET_PRODUCT', message: 'ما اسم السلعة التي تريد حفظ سعرها في دفتر السوق؟' };
+  if (price <= 0) return { success: false, needsClarification: true, reason: 'INVALID_MARKET_PRICE', message: 'ما السعر الذي تريد حفظه؟' };
+  const now = new Date().toISOString();
+  const scope = classifyMarketScope(seller, args.sourceUrl || '', `${args.location || ''} ${args.address || ''}`);
+  const doc = {
+    userId,
+    product,
+    brand: args.brand || '',
+    model: args.model || '',
+    variant: args.variant || '',
+    condition: args.condition || 'unknown',
+    seller,
+    location: args.location || (scope === 'gaza' ? 'غزة' : ''),
+    address: args.address || '',
+    phone: args.phone || args.whatsapp || '',
+    price,
+    currency: args.currency || 'ILS',
+    normalizedPriceIls: normalizeCurrencyToIls(price, args.currency || 'ILS') || price,
+    availability: args.availability || 'unknown',
+    source: args.source || 'إدخال المستخدم',
+    sourceUrl: args.sourceUrl || '',
+    confidence: args.confidence || (seller ? 'medium' : 'low'),
+    marketScope: scope,
+    notes: args.notes || '',
+    checkedAt: args.checkedAt || now,
+    createdAt: now,
+    updatedAt: now,
+    searchKey: normalizeMarketSearchText(`${product} ${args.brand || ''} ${args.model || ''} ${args.variant || ''} ${seller}`)
+  };
+  const ref = adminDb.collection('users').doc(userId).collection('marketDirectory').doc();
+  await ref.set(doc);
+  return { success: true, id: ref.id, offer: { id: ref.id, ...doc }, message: `حفظت سعر ${product} في دفتر سوق غزة/فلسطين للمقارنة القادمة.` };
+}
+
+export async function getMarketDirectory(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const item = String(args.item || args.product || '').trim();
+  const results = item ? await searchSavedMarketOffers(adminDb, userId, item, args.model) : [];
+  if (item) return { success: true, item, results, count: results.length };
+  const snap = await adminDb.collection('users').doc(userId).collection('marketDirectory').get();
+  const offers = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => String(b.checkedAt || b.createdAt || '').localeCompare(String(a.checkedAt || a.createdAt || '')))
+    .slice(0, 100);
+  return { success: true, offers, count: offers.length };
+}
+
 // V6.1: real local-market lookup with source-backed result model, freshness,
 // Gaza priority, cache, and explicit MARKET_DATA_UNAVAILABLE on failure.
 // Never invents prices. Returns structured MarketResult[] with sources + timestamps.
