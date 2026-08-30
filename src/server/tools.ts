@@ -509,6 +509,51 @@ export async function addTransaction(args: any, userId: string, token: string) {
   // are performed before it so the assistant can warn before damage, then reused below (no duplicate polling/read loop).
   let preTxSnapshot: any = null;
   let preUserBudgets: Record<string, number> | null = null;
+
+  if (type === 'income') {
+    try {
+      preTxSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+      if ((preTxSnapshot as any).partial === true) {
+        return {
+          success: false,
+          retryable: true,
+          reason: 'PARTIAL_STATE_UNSAFE',
+          message: 'لا أستطيع تسجيل دخل الآن لأن حالة السحابة غير مؤكدة. لن أسجل راتباً قد يتكرر أو يضيع حتى يرجع Firestore مؤكداً.',
+        };
+      }
+      const existingIncome = preTxSnapshot.docs.map((d:any)=>({ id: d.id, ...d.data() }));
+      const nowTime = Date.now();
+      const isSalaryLike = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes}`);
+      const sameIncome = existingIncome
+        .filter((t:any) => t.type === 'income' && Math.abs((Number(t.amount) || 0) - amount) < 0.01 && t.account === account)
+        .filter((t:any) => {
+          const ts = new Date(t.date || t.createdAt || 0).getTime();
+          if (!Number.isFinite(ts)) return false;
+          const sameDay = new Date(ts).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
+          const sameMonth = new Date(ts).toISOString().slice(0, 7) === new Date().toISOString().slice(0, 7);
+          return (nowTime - ts <= 30 * 60 * 1000) || (isSalaryLike && sameMonth) || sameDay;
+        });
+      if (sameIncome.length > 0 && !args.duplicateConfirmed) {
+        return {
+          success: false,
+          needsConfirmation: true,
+          reason: 'POSSIBLE_DUPLICATE_INCOME',
+          message: `انتبه يا كبير: يوجد دخل/راتب بنفس المبلغ ${amount} ₪ على نفس الحساب مسجل قريباً. لن أكرره حتى تؤكد أنه دخل آخر وليس تكراراً.`,
+          duplicateOf: sameIncome[0]?.id,
+          matches: sameIncome.slice(0, 3).map((t:any) => ({ id: t.id, amount: t.amount, account: t.account, date: t.date, category: t.category, subcategory: t.subcategory }))
+        };
+      }
+    } catch (incomePreErr) {
+      console.error('Income duplicate guard unavailable:', incomePreErr);
+      return {
+        success: false,
+        retryable: true,
+        reason: 'INCOME_DUPLICATE_GUARD_UNAVAILABLE',
+        message: 'لم أستطع التحقق من عدم تكرار الدخل في السحابة، لذلك لن أسجل الراتب حتى لا يتضاعف الرصيد.'
+      };
+    }
+  }
+
   if (type === 'expense') {
     try {
       [preUserBudgets, preTxSnapshot] = await Promise.all([
