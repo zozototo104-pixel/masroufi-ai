@@ -1559,6 +1559,50 @@ export async function getRecentTransactions(args: any, userId: string, token: st
   return { transactions: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) };
 }
 
+function auditLedgerFingerprint(t: any): string {
+  const amount = Math.round((Number(t.amount) || 0) * 100) / 100;
+  const purpose = normalizeArabicText(`${t.purchaseItem || ''} ${t.beneficiary || ''} ${t.notes || ''} ${t.category || ''} ${t.subcategory || ''}`)
+    .replace(/\d+(\.\d+)?/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'unspecified';
+  return [t.type || '', t.account || '', amount, normalizeArabicText(t.merchant || t.creditor || ''), purpose].join('|');
+}
+
+export async function auditFinancialDuplicates(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const txSnap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const transactions = txSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const notifSnap = await adminDb.collection('users').doc(userId).collection('notifications').get();
+  const notifications = notifSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+
+  const group = (items: any[], keyFn: (x: any) => string) => {
+    const m = new Map<string, any[]>();
+    for (const item of items) {
+      const key = keyFn(item);
+      if (!key) continue;
+      const arr = m.get(key) || [];
+      arr.push(item);
+      m.set(key, arr);
+    }
+    return Array.from(m.entries()).filter(([, arr]) => arr.length > 1).map(([key, arr]) => ({ key, count: arr.length, items: arr }));
+  };
+
+  const duplicateOperationIds = group(transactions.filter((t: any) => t.operationId), (t: any) => String(t.operationId));
+  const duplicateLedgerFingerprints = group(transactions, auditLedgerFingerprint);
+  const orphanSuccessNotifications = notifications.filter((n: any) => n.type === 'success' && /تم تسجيل|تم تحويل|تم سداد/.test(String(n.message || '')) && !n.transactionId);
+  const notificationsByTransaction = group(notifications.filter((n: any) => n.transactionId), (n: any) => String(n.transactionId));
+
+  return {
+    success: true,
+    counts: { transactions: transactions.length, notifications: notifications.length },
+    duplicateOperationIds: duplicateOperationIds.map(g => ({ key: g.key, count: g.count, transactionIds: g.items.map((t: any) => t.id), amounts: g.items.map((t: any) => t.amount) })),
+    duplicateLedgerFingerprints: duplicateLedgerFingerprints.map(g => ({ key: g.key, count: g.count, transactionIds: g.items.map((t: any) => t.id), sample: g.items.map((t: any) => ({ id: t.id, amount: t.amount, account: t.account, merchant: t.merchant, purchaseItem: t.purchaseItem, beneficiary: t.beneficiary, category: t.category, subcategory: t.subcategory, createdAt: t.createdAt })) })),
+    successNotificationsWithoutTransactionId: orphanSuccessNotifications.map((n: any) => ({ id: n.id, message: n.message, createdAt: n.createdAt })),
+    multipleNotificationsForSameTransaction: notificationsByTransaction.map(g => ({ transactionId: g.key, count: g.count, notificationIds: g.items.map((n: any) => n.id), messages: g.items.map((n: any) => n.message) })),
+    partial: (txSnap as any).partial || (notifSnap as any).partial
+  };
+}
+
 export async function updateTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: updateTransaction", args);
