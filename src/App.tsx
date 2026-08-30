@@ -44,13 +44,14 @@ export default function App() {
     // Treat real API success as the source of truth; browser offline event is only a hint.
     const probeCloud = async () => {
       try {
-        const res = await fetch('/api/health', { cache: 'no-store' });
-        setIsOfflineMode(!res.ok);
+        const res = await fetch('/api/cloud-health', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        setIsOfflineMode(!(res.ok && data?.firestore === 'read-write-ok'));
       } catch {
         setIsOfflineMode(true);
       }
     };
-    const handleOnline = () => setIsOfflineMode(false);
+    const handleOnline = () => { void probeCloud(); };
     const handleOffline = () => { void probeCloud(); };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
