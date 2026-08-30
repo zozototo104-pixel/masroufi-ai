@@ -521,14 +521,26 @@ export async function addTransaction(args: any, userId: string, token: string) {
       }
       return { success: true, splitIncome: true, results, message: `تم توزيع الدخل: ${allocations.map(a => `${a.amount} ₪ ${a.account === 'palPay' ? 'PalPay' : 'كاش'}`).join('، ')}.` };
     }
-    const incomeText = normalizeArabicText(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''}`);
+    const originalUserIncomeText = normalizeArabicText(args.userText || '');
+    const toolIncomeText = normalizeArabicText(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''}`);
     const explicitIncomeDestination = paymentWasProvided && (account === 'cash' || account === 'palPay');
-    const knownIncomeNature = [
-      'راتب', 'مساعده', 'مساعدة', 'هديه', 'هدية', 'منحه', 'مكافاه', 'مكافأة',
-      'عمل اضافي', 'دخل اضافي', 'بيع', 'ربح', 'تحويل وارد', 'ايداع', 'إيداع'
-    ].some(word => incomeText.includes(normalizeArabicText(word)));
+    // Nature must be explicit from the user's words, not inferred by the model's generated category/notes.
+    // Example: "مبلغ من الغذاء العالمي بال باي" is NOT enough; ask if it is aid/grant/loan.
+    const userStatedIncomeNature = [
+      'راتب', 'مساعده', 'مساعدة', 'هديه', 'هدية', 'منحه', 'منحة', 'مكافاه', 'مكافأة',
+      'عمل اضافي', 'دخل اضافي', 'بيع', 'ربح', 'تحويل وارد', 'ايداع', 'إيداع', 'دعم'
+    ].some(word => originalUserIncomeText.includes(normalizeArabicText(word)));
+    const userStatedLoanNature = ['سلفه', 'سلفة', 'قرض', 'دين', 'استدنت', 'اقترضت'].some(word => originalUserIncomeText.includes(normalizeArabicText(word)));
+    if (userStatedLoanNature && !userStatedIncomeNature) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'POSSIBLE_LOAN_NOT_INCOME',
+        message: 'هذا يبدو قرضاً/سلفة وليس دخلاً. هل استلمت مالاً يجب تسجيله كدين، أم هو منحة/مساعدة لا تُرد؟'
+      };
+    }
     const incomeDestinationConfirmed = Boolean(args.incomeDestinationConfirmed || args.destinationConfirmed || args.confirmedDestination || args.allocationConfirmed || explicitIncomeDestination);
-    const incomeNatureConfirmed = Boolean(args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed || knownIncomeNature);
+    const incomeNatureConfirmed = Boolean(args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed || userStatedIncomeNature || /راتب|salary|قبض/i.test(toolIncomeText));
     if (!incomeNatureConfirmed) {
       return {
         success: false,
