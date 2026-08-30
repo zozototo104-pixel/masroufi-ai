@@ -70,10 +70,44 @@ export async function markNotificationRead(args: any, userId: string, token: str
   return { success: true };
 }
 
-async function addNotification(userId: string, message: string, type: string = 'success', adminDb?: any) {
+function stableDocId(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 40);
+}
+
+async function addNotification(
+  userId: string,
+  message: string,
+  type: string = 'success',
+  adminDb?: any,
+  options: { idempotencyKey?: string; transactionId?: string; operationId?: string; metadata?: any } = {}
+) {
   if (!adminDb) return;
-  const ref = adminDb.collection('users').doc(userId).collection('notifications').doc();
-  await ref.set({ message, type, read: false, delivered: false, createdAt: new Date().toISOString() });
+  const now = new Date().toISOString();
+  const docId = options.idempotencyKey ? stableDocId(`${userId}|notification|${options.idempotencyKey}`) : undefined;
+  const ref = docId
+    ? adminDb.collection('users').doc(userId).collection('notifications').doc(docId)
+    : adminDb.collection('users').doc(userId).collection('notifications').doc();
+  const existing = docId ? await ref.get() : null;
+  if (existing?.exists) {
+    await ref.set({
+      duplicateCount: Number(existing.data()?.duplicateCount || 0) + 1,
+      lastDuplicateAt: now,
+      delivered: existing.data()?.delivered ?? false,
+    }, { merge: true });
+    return;
+  }
+  await ref.set({
+    message,
+    type,
+    read: false,
+    delivered: false,
+    createdAt: now,
+    transactionId: options.transactionId || null,
+    operationId: options.operationId || null,
+    idempotencyKey: options.idempotencyKey || null,
+    metadata: options.metadata || null,
+    duplicateCount: 0,
+  });
 }
 
 
