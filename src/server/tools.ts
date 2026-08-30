@@ -1647,6 +1647,75 @@ export async function deleteCommitment(args: any, userId: string, token: string)
   return { success: true };
 }
 
+export async function getSavingsGoals(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const snap = await adminDb.collection('users').doc(userId).collection('savingsGoals').get();
+  const goals = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+  return { success: true, goals, partial: (snap as any).partial };
+}
+
+export async function createSavingsGoal(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const name = String(args.name || args.title || '').trim();
+  const targetAmount = Math.abs(Number(args.targetAmount || args.amount) || 0);
+  if (!name) return { success: false, needsClarification: true, reason: 'MISSING_SAVINGS_GOAL_NAME', message: 'ما اسم هدف الادخار؟ مثال: احتياطي طوارئ، آيفون، تعليم الأبناء.' };
+  if (targetAmount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_TARGET_AMOUNT', message: 'كم مبلغ هدف الادخار؟' };
+  const docRef = adminDb.collection('users').doc(userId).collection('savingsGoals').doc();
+  const savedAmount = Math.abs(Number(args.savedAmount || args.initialAmount) || 0);
+  const goal = {
+    userId,
+    name,
+    targetAmount,
+    savedAmount,
+    dueDate: args.dueDate || '',
+    priority: args.priority || 'medium',
+    notes: args.notes || '',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  await docRef.set(goal);
+  await addNotification(userId, `تم إنشاء هدف ادخار "${name}" بمبلغ ${targetAmount} ₪.`, 'success', adminDb);
+  return { success: true, id: docRef.id, goal: { id: docRef.id, ...goal } };
+}
+
+export async function addSavingsContribution(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const id = String(args.id || args.goalId || '').trim();
+  const amount = Math.abs(Number(args.amount) || 0);
+  if (!id) return { success: false, needsClarification: true, reason: 'MISSING_SAVINGS_GOAL_ID', message: 'لأي هدف ادخار أضيف هذا المبلغ؟' };
+  if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_SAVINGS_AMOUNT', message: 'كم المبلغ الذي تريد ادخاره؟' };
+  const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, error: 'هدف الادخار غير موجود.' };
+  const current = snap.data() || {};
+  const savedAmount = Math.round((Number(current.savedAmount || 0) + amount) * 100) / 100;
+  const status = savedAmount >= Number(current.targetAmount || 0) ? 'completed' : (current.status || 'active');
+  await ref.update({ savedAmount, status, updatedAt: new Date().toISOString() });
+  await addNotification(userId, `تمت إضافة ${amount} ₪ إلى هدف ادخار "${current.name}". المجموع الآن ${savedAmount} ₪.`, 'success', adminDb);
+  return { success: true, id, savedAmount, status, remaining: Math.max(0, Number(current.targetAmount || 0) - savedAmount) };
+}
+
+export async function updateSavingsGoal(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const id = String(args.id || args.goalId || '').trim();
+  if (!id) return { success: false, error: 'Savings goal id is required' };
+  const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, error: 'هدف الادخار غير موجود.' };
+  const patch: any = { updatedAt: new Date().toISOString() };
+  if (args.name || args.title) patch.name = String(args.name || args.title).trim();
+  if (args.targetAmount !== undefined || args.amount !== undefined) patch.targetAmount = Math.abs(Number(args.targetAmount || args.amount) || 0);
+  if (args.savedAmount !== undefined) patch.savedAmount = Math.abs(Number(args.savedAmount) || 0);
+  if (args.dueDate !== undefined) patch.dueDate = args.dueDate || '';
+  if (args.priority !== undefined) patch.priority = args.priority;
+  if (args.notes !== undefined) patch.notes = args.notes;
+  if (args.status !== undefined) patch.status = args.status;
+  await ref.update(patch);
+  return { success: true, id, updated: patch };
+}
+
 export async function queryTransactions(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: queryTransactions", args);
