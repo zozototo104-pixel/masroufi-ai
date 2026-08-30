@@ -435,7 +435,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
   let subcategory = String(args.subcategory || '').trim();
   const merchant = String(args.merchant || '').trim();
   const notes = String(args.notes || '').trim();
-  const necessity = String(args.necessity || '').trim();
+  let necessity = String(args.necessity || '').trim();
+  const explicitNecessityProvided = Boolean(necessity);
   const explicitCategoryProvided = Boolean(String(args.category || '').trim());
   const explicitSubcategoryProvided = Boolean(String(args.subcategory || '').trim());
   const explicitPurchaseItem = String(args.item || args.description || args.purchaseItem || args.what || '').trim();
