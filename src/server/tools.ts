@@ -2333,12 +2333,40 @@ export const functionDeclarations = [
   },
   {
     name: "search_local_market",
-    description: "V6.1: يبحث عن أسعار موثقة بالسوق المحلي (غزة/فلسطين أولاً) باستخدام Google Search grounding. يرجع نتائج منظمة: نتائج بمصادر وروابط وأسعار وحداثة. لا يخترع أسعاراً. لا يستخدم للمشتريات اليومية الصغيرة (خبز، خضار، مواصلات). استخدمه للمشتريات المهمة أو الإلكترونيات أو السيارات أو عند طلب المستخدم مقارنة سعرية.",
+    description: "يبحث ويقارن الأسعار بترتيب صارم: غزة أولاً، فلسطين ثانياً، السوق العالمي ثالثاً. يدمج دفتر سوق غزة المحفوظ مع بحث Google Search grounding، ويرجع نطاقات غزة/فلسطين/العالمي وتحذيرات إذا السعر المعروض مرتفع أو أقل بشكل مريب. لا يخترع أسعاراً ولا يستخدم للمشتريات اليومية الصغيرة.",
     parameters: { type:"object", properties:{
       item:{type:"string",description:"اسم السلعة"},
-      model:{type:"string",description:"الموديل/المواصفات الدقيقة (مثال: Samsung A54 128GB)"},
-      condition:{type:"string",description:"حالة السلعة: 'new' (جديد) أو 'used' (مستعمل) أو 'unknown'"}
+      model:{type:"string",description:"الموديل/المواصفات الدقيقة (مثال: iPhone 15 Pro 256GB)"},
+      condition:{type:"string",description:"حالة السلعة: 'new' (جديد) أو 'used' (مستعمل) أو 'unknown'"},
+      offeredPrice:{type:"number",description:"السعر المعروض على المستخدم للمقارنة والاعتراض إذا كان مبالغاً"}
     }, required:["item"] }
+  },
+  {
+    name: "get_market_directory",
+    description: "يعرض أو يبحث في دفتر سوق غزة/فلسطين المحفوظ لدى المستخدم: محلات، عناوين، أسعار، أرقام، مصادر، وتاريخ آخر تحديث.",
+    parameters: { type:"object", properties:{
+      item:{type:"string",description:"اسم السلعة للبحث داخل دفتر السوق"},
+      model:{type:"string",description:"موديل أو مواصفة اختيارية"}
+    } }
+  },
+  {
+    name: "save_market_offer",
+    description: "يحفظ عرض سعر موثق في دفتر سوق غزة/فلسطين أو العالمي. استخدمه عندما يعطيك المستخدم اسم محل/سعر/عنوان أو عندما تريد بناء ذاكرة سوق محلية تدريجياً.",
+    parameters: { type:"object", properties:{
+      product:{type:"string",description:"اسم السلعة"},
+      brand:{type:"string",description:"العلامة التجارية"},
+      model:{type:"string",description:"الموديل"},
+      variant:{type:"string",description:"المواصفة/السعة/اللون"},
+      condition:{type:"string",description:"new أو used أو unknown"},
+      seller:{type:"string",description:"اسم المحل أو البائع"},
+      location:{type:"string",description:"المدينة/المنطقة مثل غزة، الرمال، خان يونس"},
+      address:{type:"string",description:"العنوان التفصيلي إن وجد"},
+      phone:{type:"string",description:"رقم الهاتف أو واتساب"},
+      price:{type:"number",description:"السعر"},
+      currency:{type:"string",description:"ILS أو USD أو JOD"},
+      sourceUrl:{type:"string",description:"رابط المصدر إن وجد"},
+      notes:{type:"string",description:"ملاحظات عن العرض أو الضمان أو التوفر"}
+    }, required:["product","price"] }
   },
   {
     name: "add_transaction",
