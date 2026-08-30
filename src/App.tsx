@@ -820,6 +820,7 @@ export default function App() {
     if (!chatInput.trim() || !user || isChatLoading) return;
     
     const text = chatInput.trim();
+    const clientMessageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', text }]);
     setIsChatLoading(true);
