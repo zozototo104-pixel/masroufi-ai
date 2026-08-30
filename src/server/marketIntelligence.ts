@@ -46,6 +46,13 @@ export interface MarketSearchResponse {
   model?: string;
   results: MarketResult[];
   priceRange?: { min: number; max: number; median: number; currency: string };
+  marketComparison?: {
+    gazaRange?: { min: number; max: number; median: number; currency: string } | null;
+    palestineRange?: { min: number; max: number; median: number; currency: string } | null;
+    globalRange?: { min: number; max: number; median: number; currency: string } | null;
+    allRange?: { min: number; max: number; median: number; currency: string } | null;
+    warnings: string[];
+  };
   sources: { title: string; uri: string; isLocalGaza: boolean }[];
   searchQueries: string[];
   summary: string;
