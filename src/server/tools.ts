@@ -706,6 +706,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
     merchant,
     notes,
     necessity: type === 'expense' ? necessity : '',
+    necessitySource: type === 'expense' && explicitNecessityProvided ? 'user' : (type === 'expense' ? 'gaza_context_classifier' : ''),
+    necessityReason: type === 'expense' ? (necessitySuggestion?.reason || '') : '',
     transactionType: type === 'expense' && account === 'debt' ? 'CREDIT_PURCHASE' : (type === 'income' ? 'INCOME' : 'EXPENSE'),
     creditor: type === 'expense' && account === 'debt' ? merchant : '',
     creditorKey: type === 'expense' && account === 'debt' ? normalizeCreditorName(merchant) : '',
