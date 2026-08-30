@@ -413,6 +413,13 @@ export async function addTransaction(args: any, userId: string, token: string) {
       const projected = spent + amount;
       const recentExpenses = existing.filter((t:any) => t.type === 'expense' && new Date(t.date || t.createdAt || 0).getTime() >= Date.now() - 30 * 86400000);
       const dailyExpenseAverage = recentExpenses.reduce((a:number,t:any)=>a+(Number(t.amount)||0),0) / 30;
+      let profileReserveTarget = Number(args.savingsReserveTarget || 0);
+      try {
+        const profileSnap = await adminDb.collection('users').doc(userId).collection('treasurer').doc('profile').get();
+        if (profileSnap.exists) profileReserveTarget = Math.max(profileReserveTarget, Number(profileSnap.data()?.cashReserveTarget || 0));
+      } catch (profileErr) {
+        console.warn('Treasurer profile unavailable for risk gate:', profileErr);
+      }
       const risk = evaluateTreasurerRisk({
         amount,
         type,
