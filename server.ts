@@ -930,7 +930,9 @@ ${relationshipContext}
               try {
                 const authToken = req.headers.authorization.split('Bearer ')[1];
                 const stableOperationId = buildStableOperationIdForToolCall(call, String(clientMessageId || ''));
-                const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId, clientMessageId } : (call.args || {});
+                const toolArgs = stableOperationId
+                  ? { ...(call.args || {}), operationId: stableOperationId, clientMessageId, userText: message }
+                  : { ...(call.args || {}), clientMessageId, userText: message };
                 responseData = await handler(toolArgs, req.user.uid, authToken);
               } catch (e: any) {
                 responseData = { error: e.message };
