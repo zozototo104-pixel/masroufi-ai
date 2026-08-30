@@ -275,6 +275,26 @@ If individual line items cannot be broken down, provide a single item in the ite
     }
   });
 
+  app.get("/api/market-directory", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getMarketDirectory } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getMarketDirectory(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/market-directory", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { saveMarketOffer } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await saveMarketOffer(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/commitments", authMiddleware, async (req: any, res: any) => {
     try {
       const { getCommitments } = await import('./src/server/tools');
