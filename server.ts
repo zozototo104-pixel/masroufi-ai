@@ -96,6 +96,14 @@ function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: s
   if (intent === 'credit_purchase' && isCashBorrowingToolCall(call)) {
     return { skip: true, reason: 'CREDIT_PURCHASE_MUST_NOT_CREATE_CASH_BORROWING' };
   }
+  if (intent === 'credit_purchase' && isDebtPurchaseToolCall(call)) {
+    // One user sentence like "اشتريت من فلان بـ 50 دين" must create exactly one debt expense.
+    // If the model emits a second add_transaction with slightly different category/subcategory,
+    // do not treat it as a separate purchase unless the user sends a separate command.
+    const debtPurchaseTurnKey = '__ONE_CREDIT_PURCHASE_ENTRY_FOR_THIS_USER_MESSAGE__';
+    if (seenKeys.has(debtPurchaseTurnKey)) return { skip: true, reason: 'ONE_CREDIT_PURCHASE_PER_USER_MESSAGE' };
+    seenKeys.add(debtPurchaseTurnKey);
+  }
   if (intent === 'cash_borrowing' && isDebtPurchaseToolCall(call)) {
     return { skip: true, reason: 'CASH_BORROWING_MUST_NOT_CREATE_DEBT_PURCHASE' };
   }
