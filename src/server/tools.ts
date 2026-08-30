@@ -82,32 +82,36 @@ async function addNotification(
   options: { idempotencyKey?: string; transactionId?: string; operationId?: string; metadata?: any } = {}
 ) {
   if (!adminDb) return;
-  const now = new Date().toISOString();
-  const docId = options.idempotencyKey ? stableDocId(`${userId}|notification|${options.idempotencyKey}`) : undefined;
-  const ref = docId
-    ? adminDb.collection('users').doc(userId).collection('notifications').doc(docId)
-    : adminDb.collection('users').doc(userId).collection('notifications').doc();
-  const existing = docId ? await ref.get() : null;
-  if (existing?.exists) {
+  try {
+    const now = new Date().toISOString();
+    const docId = options.idempotencyKey ? stableDocId(`${userId}|notification|${options.idempotencyKey}`) : undefined;
+    const ref = docId
+      ? adminDb.collection('users').doc(userId).collection('notifications').doc(docId)
+      : adminDb.collection('users').doc(userId).collection('notifications').doc();
+    const existing = docId ? await ref.get() : null;
+    if (existing?.exists) {
+      await ref.set({
+        duplicateCount: Number(existing.data()?.duplicateCount || 0) + 1,
+        lastDuplicateAt: now,
+        delivered: existing.data()?.delivered ?? false,
+      }, { merge: true });
+      return;
+    }
     await ref.set({
-      duplicateCount: Number(existing.data()?.duplicateCount || 0) + 1,
-      lastDuplicateAt: now,
-      delivered: existing.data()?.delivered ?? false,
-    }, { merge: true });
-    return;
+      message,
+      type,
+      read: false,
+      delivered: false,
+      createdAt: now,
+      transactionId: options.transactionId || null,
+      operationId: options.operationId || null,
+      idempotencyKey: options.idempotencyKey || null,
+      metadata: options.metadata || null,
+      duplicateCount: 0,
+    });
+  } catch (e) {
+    console.warn('Notification write failed after financial operation; financial commit remains valid:', e);
   }
-  await ref.set({
-    message,
-    type,
-    read: false,
-    delivered: false,
-    createdAt: now,
-    transactionId: options.transactionId || null,
-    operationId: options.operationId || null,
-    idempotencyKey: options.idempotencyKey || null,
-    metadata: options.metadata || null,
-    duplicateCount: 0,
-  });
 }
 
 
