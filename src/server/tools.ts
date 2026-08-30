@@ -2895,36 +2895,11 @@ export async function syncOfflineData(args: any, userId: string, token: string) 
   const rejected: { id: string; reason: string }[] = [];
 
   if (args.transactions && args.transactions.length > 0) {
+    // Financial transactions must NEVER be written by generic sync. They must go through
+    // /api/command -> dispatchFinancialCommand -> toolHandlers -> runIdempotent -> validation.
+    // Allowing doc.set() here is a financial backdoor and can create local+cloud duplicates.
     for (const tx of args.transactions) {
-      // Force userId to the authenticated user — client cannot hijack ownership.
-      const safeId = String(tx.id || '').trim();
-      if (!safeId) { rejected.push({ id: '(empty)', reason: 'missing id' }); continue; }
-      // Ownership check on existing doc.
-      try {
-        const existingSnap = await adminDb.collection('transactions').doc(safeId).get();
-        if (existingSnap.exists) {
-          const existingData = existingSnap.data() as any;
-          if (existingData?.userId && existingData.userId !== userId) {
-            // Cross-user write attempt. Reject and log.
-            console.warn(`[CF-2] Rejected sync write: doc ${safeId} owned by ${existingData.userId}, requested by ${userId}`);
-            rejected.push({ id: safeId, reason: 'cross-user ownership violation' });
-            continue;
-          }
-        }
-      } catch (e: any) {
-        // If the lookup itself fails (quota/network), reject the item rather than guess.
-        rejected.push({ id: safeId, reason: `ownership check failed: ${e?.message || 'unknown'}` });
-        continue;
-      }
-      const doc = adminDb.collection('transactions').doc(safeId);
-      if (tx.deleted) {
-        await doc.delete();
-      } else {
-        // Strip any client-supplied userId and force the authenticated UID.
-        const { _unsynced, userId: _dropUid, ...data } = tx;
-        await doc.set({ ...data, userId });
-      }
-      count++;
+      rejected.push({ id: String(tx?.id || tx?.operationId || '(unknown)'), reason: 'transactions must sync through /api/command, not /api/sync' });
     }
   }
 
