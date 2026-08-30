@@ -1948,6 +1948,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   create_commitment: createCommitment,
   update_commitment_status: updateCommitmentStatus,
   delete_commitment: deleteCommitment,
+  get_treasurer_profile: getTreasurerProfile,
+  update_treasurer_profile: updateTreasurerProfile,
   get_savings_goals: getSavingsGoals,
   create_savings_goal: createSavingsGoal,
   add_savings_contribution: addSavingsContribution,
