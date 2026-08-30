@@ -1956,6 +1956,7 @@ export async function setCategoryBudget(args: any, userId: string, token: string
 
 export async function getBudgetsOverview(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
+  const customBudgetDocs = await getUserCustomBudgetDocs(userId, adminDb);
   const userBudgets = await getUserBudgets(userId, adminDb);
   
   const thisMonth = new Date().toISOString().slice(0, 7);
