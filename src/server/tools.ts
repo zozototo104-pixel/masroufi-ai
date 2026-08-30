@@ -1953,6 +1953,26 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "generate_treasurer_report",
+    description: "ينشئ تقرير أمين الصندوق المتقدم: شهري/ربعي/سنوي/مخصص، مع تفصيل كل شهر، البنود الرئيسية والفرعية، المتاجر، طرق الدفع، الضروري والكمالي، أعلى المصروفات، التجاوزات، مؤشرات الادخار، وبيانات جاهزة للرسم البياني. استخدمه لأي سؤال تقريري عميق مثل: كم صرفت على الأبناء في شهر كذا؟ أو تقرير سنوي مفصل.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "عنوان التقرير" },
+        period: { type: "string", description: "today, week, month, quarter, year, all أو custom" },
+        year: { type: "number", description: "السنة عند التقرير السنوي أو الربعي أو شهر محدد" },
+        quarter: { type: "number", description: "رقم الربع 1-4" },
+        month: { type: "number", description: "رقم الشهر 1-12" },
+        startDate: { type: "string", description: "بداية فترة مخصصة YYYY-MM-DD" },
+        endDate: { type: "string", description: "نهاية فترة مخصصة YYYY-MM-DD" },
+        category: { type: "string", description: "بند رئيسي أو فرعي مثل الأبناء، الزيارات، الطعام" },
+        type: { type: "string", description: "expense أو income أو transfer" },
+        necessity: { type: "string", description: "ضروري أو كمالي" },
+        save: { type: "boolean", description: "احفظ التقرير في حافظة التقارير، الافتراضي true" }
+      }
+    }
+  },
+  {
     name: "get_financial_decision_context",
     description: "يجلب سياقاً مالياً موحداً لاتخاذ القرار: الأرصدة، متوسط الصرف اليومي، توقع 30 يوماً، الالتزامات والموازنات. استخدمه عند المناقشة المالية المهمة، وليس مع كل سؤال بسيط.",
     parameters: { type: "object", properties: {} }
