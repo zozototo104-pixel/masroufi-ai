@@ -716,6 +716,13 @@ export async function addTransaction(args: any, userId: string, token: string) {
     durability: writeResult!.durability,
     pending: writeResult!.pending,
     partial: balances.partial || writeResult!.pending,
+    cloudStorageConfirmed: writeResult!.durability === 'committed',
+    cloudStoragePending: writeResult!.pending,
+    pendingReason: writeResult!.pending ? 'CLOUD_STORAGE_NOT_CONFIRMED' : undefined,
+    pendingError: writeResult!.pending ? writeResult!.error : undefined,
+    userFacingPendingMessage: writeResult!.pending
+      ? 'الخادم يعمل، لكن Firestore لم يؤكد حفظ العملية سحابياً بعد. هذه ليست بالضرورة مشكلة إنترنت عندك؛ افحص إعدادات Firebase/Firestore أو أعد المحاولة.'
+      : undefined,
   };
 }
 
