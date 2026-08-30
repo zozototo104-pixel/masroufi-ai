@@ -192,21 +192,17 @@ function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: s
     return { skip: true, reason: 'DEBT_PURCHASE_AND_CASH_BORROWING_SAME_AMOUNT_IN_SAME_BATCH' };
   }
   if (isDebtPurchaseToolCall(call)) {
-    const args: any = call.args || {};
-    const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
-    const creditor = normalizeArabicForIntent(args.merchant || args.creditor || '');
-    const sameDebtPurchaseBatchKey = `__ONE_DEBT_PURCHASE_ADD_TRANSACTION_IN_BATCH__|${amount}|${creditor || 'unknown'}`;
+    const sameDebtPurchaseBatchKey = `__ONE_DEBT_PURCHASE_ADD_TRANSACTION_IN_BATCH__|${financialOperationCoreKey(call)}`;
     if (seenKeys.has(sameDebtPurchaseBatchKey)) {
-      return { skip: true, reason: 'MULTIPLE_DEBT_PURCHASE_ADD_TRANSACTION_CALLS_IN_SAME_BATCH' };
+      return { skip: true, reason: 'DUPLICATE_SAME_LEDGER_ENTRY_IN_SAME_BATCH' };
     }
     seenKeys.add(sameDebtPurchaseBatchKey);
   }
   if (intent === 'credit_purchase' && isDebtPurchaseToolCall(call)) {
-    // One user sentence like "اشتريت من فلان بـ 50 دين" must create exactly one debt expense.
-    // If the model emits a second add_transaction with slightly different category/subcategory,
-    // do not treat it as a separate purchase unless the user sends a separate command.
-    const debtPurchaseTurnKey = '__ONE_CREDIT_PURCHASE_ENTRY_FOR_THIS_USER_MESSAGE__';
-    if (seenKeys.has(debtPurchaseTurnKey)) return { skip: true, reason: 'ONE_CREDIT_PURCHASE_PER_USER_MESSAGE' };
+    // One ledger entry fingerprint = one write. Different beneficiaries/purposes in the same conversation
+    // get different fingerprints and must be allowed as separate entries.
+    const debtPurchaseTurnKey = `__CREDIT_PURCHASE_ENTRY__|${financialOperationCoreKey(call)}`;
+    if (seenKeys.has(debtPurchaseTurnKey)) return { skip: true, reason: 'DUPLICATE_SAME_CREDIT_PURCHASE_ENTRY' };
     seenKeys.add(debtPurchaseTurnKey);
   }
   if (intent === 'cash_borrowing' && isDebtPurchaseToolCall(call)) {
