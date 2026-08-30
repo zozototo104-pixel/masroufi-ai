@@ -423,19 +423,24 @@ export const DEFAULT_BUDGETS: Record<string, number> = {
   'أخرى': 500
 };
 
+export async function getUserCustomBudgetDocs(userId: string, adminDb: any): Promise<Array<{ id: string; category: string; limit: number; data: any }>> {
+  const snapshot = await adminDb.collection('users').doc(userId).collection('budgets').get();
+  return snapshot.docs.map((d: any) => {
+    const data = d.data() || {};
+    return { id: d.id, category: data.category || d.id, limit: Number(data.limit) || 0, data };
+  });
+}
+
 export async function getUserBudgets(userId: string, adminDb: any): Promise<Record<string, number>> {
   // V6 (HF-6): NEVER silently swallow errors and return DEFAULT_BUDGETS.
   // On Firestore error / quota / network, propagate the error so callers can
   // mark the response as `partial` and refuse to issue budget warnings on stale data.
-  const snapshot = await adminDb.collection('users').doc(userId).collection('budgets').get();
-  const customBudgets: Record<string, number> = { ...DEFAULT_BUDGETS };
-  snapshot.docs.forEach((d: any) => {
-    const data = d.data();
-    if (data && data.limit) {
-      customBudgets[d.id] = Number(data.limit);
-    }
+  const customDocs = await getUserCustomBudgetDocs(userId, adminDb);
+  const mergedBudgets: Record<string, number> = { ...DEFAULT_BUDGETS };
+  customDocs.forEach((b) => {
+    if (b.limit) mergedBudgets[b.category || b.id] = Number(b.limit);
   });
-  return customBudgets;
+  return mergedBudgets;
 }
 
 export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
