@@ -312,7 +312,7 @@ export default function App() {
         const txData = await txRes.json();
         let finalTx = [];
         if (txRes.ok && txData && txData.transactions && !txData.partial) {
-          setIsOfflineMode(!navigator.onLine); // Connected to cloud
+          setIsOfflineMode(false); // Cloud API succeeded; this is more reliable than navigator.onLine on iOS/Safari
           let cachedTx = (await idbGet<any[]>('lkgs_transactions')) || [];
           if (!Array.isArray(cachedTx)) cachedTx = [];
           const unsyncedTx = cachedTx.filter(t => t._unsynced);
