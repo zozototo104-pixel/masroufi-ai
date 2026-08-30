@@ -294,6 +294,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const categorySuggestion = inferCategory({ type, category, subcategory, notes, merchant, item: args.item || args.description });
   category = category || categorySuggestion.category;
   subcategory = subcategory || categorySuggestion.subcategory;
+  if (type === 'income' && (!args.category || category === 'أخرى')) {
+    category = 'دخل';
+    subcategory = /راتب|salary|قبض/i.test(`${notes} ${args.category || ''}`) ? 'راتب' : 'دخل عام';
+  }
 
   // Treasurer Mode: income must not be silently dumped into cash.
   // Salary/income needs an explicit destination or a split between cash and PalPay.
