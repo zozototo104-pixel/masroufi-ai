@@ -340,11 +340,13 @@ export async function searchLocalMarket(args: any, userId: string, token: string
       model: model || undefined,
       results,
       priceRange: priceRange || undefined,
+      marketComparison,
       sources,
       searchQueries: meta?.webSearchQueries || [],
       summary: text,
       partial: results.length === 0,  // partial = we got text but couldn't extract structured prices
-    };
+      directoryMatches: savedResults.length,
+    } as any;
 
     // Cache the result.
     cacheMarketResult({ product: item, model, condition }, searchResponse);
