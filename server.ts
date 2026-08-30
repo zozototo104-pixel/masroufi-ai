@@ -721,7 +721,7 @@ If individual line items cannot be broken down, provide a single item in the ite
 
   app.post("/api/chat", authMiddleware, async (req: any, res: any) => {
     try {
-      const { message, history = [], userName = "يا صديقي", aiName = "مصروفي", relationship = "", persona = "friendly", apiKey: customApiKey } = req.body;
+      const { message, clientMessageId = `server_msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, history = [], userName = "يا صديقي", aiName = "مصروفي", relationship = "", persona = "friendly", apiKey: customApiKey } = req.body;
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("No API key");
 
