@@ -17,6 +17,90 @@ import { dispatchFinancialCommand, isValidFinancialCommandType } from "./src/ser
 
 dotenv.config();
 
+function normalizeArabicForIntent(value: any): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[ـًٌٍَُِّْ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function classifyDebtIntent(message: string): 'credit_purchase' | 'cash_borrowing' | 'unknown' {
+  const text = normalizeArabicForIntent(message);
+  const hasDebt = /\bدين\b|بالدين|سلف|سلفه|سلفة|استدن|اقترض/.test(text);
+  if (!hasDebt) return 'unknown';
+  const purchaseWords = ['اشتريت', 'شريت', 'اشتري', 'شراء', 'بعتني', 'فاتوره', 'فاتورة', 'من محل', 'من عند'];
+  const borrowWords = ['اخدت دين نقدي', 'اخذت دين نقدي', 'دين نقدي', 'استدنت', 'اقترضت', 'اخدت سلفه', 'اخذت سلفه', 'سلفني', 'سلفت من'];
+  if (borrowWords.some(w => text.includes(normalizeArabicForIntent(w)))) return 'cash_borrowing';
+  if (purchaseWords.some(w => text.includes(normalizeArabicForIntent(w)))) return 'credit_purchase';
+  return 'unknown';
+}
+
+function normalizeToolAccount(value: any): string {
+  const v = normalizeArabicForIntent(value);
+  if (v.includes('pal') || v.includes('بال باي') || v.includes('محفظ')) return 'palPay';
+  if (v.includes('دين') || v === 'debt') return 'debt';
+  if (v.includes('كاش') || v.includes('نقد') || v === 'cash') return 'cash';
+  return String(value || '').trim();
+}
+
+function isDebtPurchaseToolCall(call: FunctionCall): boolean {
+  const args: any = call.args || {};
+  return call.name === 'add_transaction'
+    && String(args.type || '').toLowerCase() === 'expense'
+    && normalizeToolAccount(args.paymentMethod || args.account) === 'debt';
+}
+
+function isCashBorrowingToolCall(call: FunctionCall): boolean {
+  const args: any = call.args || {};
+  return call.name === 'transfer_money'
+    && normalizeToolAccount(args.fromAccount || args.account) === 'debt'
+    && (normalizeToolAccount(args.toAccount) === 'cash' || normalizeToolAccount(args.toAccount) === 'palPay');
+}
+
+function semanticToolKey(call: FunctionCall): string {
+  const args: any = call.args || {};
+  const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
+  if (call.name === 'add_transaction') {
+    return [
+      call.name,
+      String(args.type || '').toLowerCase(),
+      normalizeToolAccount(args.paymentMethod || args.account),
+      amount,
+      normalizeArabicForIntent(args.merchant || args.creditor || ''),
+      normalizeArabicForIntent(args.category || ''),
+      normalizeArabicForIntent(args.subcategory || '')
+    ].join('|');
+  }
+  if (call.name === 'transfer_money') {
+    return [
+      call.name,
+      normalizeToolAccount(args.fromAccount || args.account),
+      normalizeToolAccount(args.toAccount),
+      amount,
+      normalizeArabicForIntent(args.creditor || args.lender || args.person || '')
+    ].join('|');
+  }
+  return `${call.name}|${JSON.stringify(args)}`;
+}
+
+function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: string, seenKeys: Set<string>): { skip: boolean; reason?: string } {
+  const key = semanticToolKey(call);
+  if (seenKeys.has(key)) return { skip: true, reason: 'DUPLICATE_TOOL_CALL_IN_SAME_TURN' };
+  seenKeys.add(key);
+  const intent = classifyDebtIntent(userMessage);
+  if (intent === 'credit_purchase' && isCashBorrowingToolCall(call)) {
+    return { skip: true, reason: 'CREDIT_PURCHASE_MUST_NOT_CREATE_CASH_BORROWING' };
+  }
+  if (intent === 'cash_borrowing' && isDebtPurchaseToolCall(call)) {
+    return { skip: true, reason: 'CASH_BORROWING_MUST_NOT_CREATE_DEBT_PURCHASE' };
+  }
+  return { skip: false };
+}
+
 async function startServer() {
   const app = express();
   app.set("trust proxy", 1);
