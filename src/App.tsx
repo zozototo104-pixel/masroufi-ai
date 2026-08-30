@@ -610,6 +610,34 @@ export default function App() {
     e.target.value = ''; // Reset
   };
 
+  const handleRecordScannedReceipt = async (paymentMethod: 'cash' | 'palPay' | 'debt') => {
+    if (!idToken || !showScannerResult) return;
+    try {
+      const res = await fetch('/api/scan-receipt/record', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          paymentMethod,
+          merchant: showScannerResult.merchant,
+          items: showScannerResult.items || []
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        alert(data?.message || data?.error || 'تعذر تسجيل الفاتورة. قد تحتاج تأكيداً مالياً أو اختيار طريقة دفع أخرى.');
+        return;
+      }
+      setShowScannerResult(null);
+      window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+    } catch (err) {
+      console.error('Record scanned receipt error', err);
+      alert('حدث خطأ أثناء تسجيل الفاتورة.');
+    }
+  };
+
   const handleSaveBudgetLimit = async (category: string, limit: number) => {
     if (!idToken) return;
     try {
