@@ -1670,6 +1670,57 @@ export async function deleteTransaction(args: any, userId: string, token: string
   return { success: false, message: "لم يتم العثور على عملية مطابقة لحذفها. يرجى تحديد المبلغ أو اسم الحساب." };
 }
 
+export async function repairDuplicateIncome(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log('TOOL CALL: repairDuplicateIncome', args);
+  const targetAmount = args.amount !== undefined ? Math.abs(Number(args.amount) || 0) : null;
+  const targetDate = String(args.date || '').slice(0, 10);
+  const targetMonth = String(args.month || '').slice(0, 7);
+  const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  if ((snap as any).partial === true) {
+    return { success: false, retryable: true, reason: 'PARTIAL_STATE_UNSAFE', message: 'لا يمكن إصلاح التكرار الآن لأن قراءة السحابة جزئية وغير آمنة.' };
+  }
+  const incomes = snap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((t: any) => t.type === 'income')
+    .filter((t: any) => targetAmount === null || Math.abs((Number(t.amount) || 0) - targetAmount) < 0.01)
+    .filter((t: any) => {
+      const dateStr = String(t.date || t.createdAt || '');
+      if (targetDate) return dateStr.startsWith(targetDate);
+      if (targetMonth) return dateStr.startsWith(targetMonth);
+      return true;
+    });
+
+  const groups = new Map<string, any[]>();
+  for (const t of incomes) {
+    const day = String(t.date || t.createdAt || '').slice(0, 10);
+    const key = [day, Number(t.amount || 0).toFixed(2), t.account || 'cash', t.category || '', t.subcategory || ''].join('|');
+    const arr = groups.get(key) || [];
+    arr.push(t);
+    groups.set(key, arr);
+  }
+
+  const deleted: any[] = [];
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    group.sort((a: any, b: any) => String(a.createdAt || a.date || '').localeCompare(String(b.createdAt || b.date || '')));
+    const keep = group[0];
+    for (const dup of group.slice(1)) {
+      await adminDb.collection('transactions').doc(dup.id).delete();
+      deleted.push({ id: dup.id, amount: dup.amount, account: dup.account, date: dup.date, keptId: keep.id });
+    }
+  }
+
+  const balances = await getBalance({}, userId, token);
+  return {
+    success: true,
+    deletedCount: deleted.length,
+    deleted,
+    message: deleted.length ? `حذفت ${deleted.length} قيد دخل مكرر وأبقيت النسخة الأصلية.` : 'لم أجد تكرار دخل مطابقاً للمعايير.',
+    currentBalances: balances.balances
+  };
+}
+
 export async function setCategoryBudget(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: setCategoryBudget", args);
