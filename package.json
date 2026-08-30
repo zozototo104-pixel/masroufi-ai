@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "sh -c 'if [ ! -f dist/server.cjs ]; then npm run build; fi; node dist/server.cjs'",
+    "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
@@ -21,8 +21,7 @@
     "test:conc": "node --import tsx --test tests/concurrency.test.ts",
     "test:off": "node --import tsx --test tests/offline.test.ts",
     "test:market": "node --import tsx --test tests/market.test.ts",
-    "test:e2e": "node --import tsx --test tests/e2e.test.ts",
-    "render:start": "npm run build && node dist/server.cjs"
+    "test:e2e": "node --import tsx --test tests/e2e.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
