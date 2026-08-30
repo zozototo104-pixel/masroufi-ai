@@ -2569,6 +2569,18 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "repair_duplicate_income",
+    description: "يصلح تكرار الراتب/الدخل: يبحث عن قيود دخل مكررة بنفس المبلغ والحساب واليوم، ويحذف النسخ الزائدة ويبقي الأصلية. استخدمه عندما يقول المستخدم إن الراتب أو الدخل تسجل مرتين.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "مبلغ الدخل المكرر مثل 3350" },
+        date: { type: "string", description: "تاريخ يوم محدد YYYY-MM-DD اختياري" },
+        month: { type: "string", description: "شهر محدد YYYY-MM اختياري" }
+      }
+    }
+  },
+  {
     name: "check_budget_status",
     description: "يفحص وضع الميزانية الحالي لمعرفة هل هناك تجاوز أو اقتراب من الحد المسموح، سواء لتصنيف معين أو للمجموع الكلي.",
     parameters: {
