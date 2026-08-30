@@ -440,6 +440,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const explicitCategoryProvided = Boolean(String(args.category || '').trim());
   const explicitSubcategoryProvided = Boolean(String(args.subcategory || '').trim());
   const explicitPurchaseItem = String(args.item || args.description || args.purchaseItem || args.what || '').trim();
+  const beneficiary = String(args.beneficiary || args.forWhom || args.forWho || args.person || '').trim();
   const categorySuggestion = inferCategory({ type, category, subcategory, notes, merchant, item: explicitPurchaseItem });
   category = category || categorySuggestion.category;
   subcategory = subcategory || categorySuggestion.subcategory;
