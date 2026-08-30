@@ -2093,6 +2093,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_financial_decision_context: getFinancialDecisionContext,
   assess_purchase: assessPurchase,
   search_local_market: searchLocalMarket,
+  get_market_directory: getMarketDirectory,
+  save_market_offer: saveMarketOffer,
   transfer_money: transferMoney,
   pay_debt: payDebt,
   get_recent_transactions: getRecentTransactions,
