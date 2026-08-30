@@ -576,6 +576,19 @@ export async function addTransaction(args: any, userId: string, token: string) {
   // The AI is expected to collect these slots conversationally; the backend remains the final guard.
   if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'ما قيمة العملية بالضبط؟' };
   if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
+  if (type === 'expense') {
+    const hasOriginalUserContext = Boolean(originalExpenseText);
+    const userProvidedPurchaseIdentity = cleanedExpenseIdentity.length >= 3;
+    const voiceOrApiProvidedIdentity = !hasOriginalUserContext && Boolean(explicitPurchaseItem || beneficiary || notes);
+    if (!userProvidedPurchaseIdentity && !voiceOrApiProvidedIdentity) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_PURCHASE_ITEM',
+        message: 'قبل تسجيل أي مصروف لازم أعرف شو اشتريت بالضبط. قل لي مثلاً: خبز، دواء، ملابس للأولاد، تموين للبيت... بعدها أحدد أنا البند وهل هو ضروري أو كمالي وفق واقع غزة.'
+      };
+    }
+  }
   if (!category) return { success: false, needsClarification: true, reason: 'MISSING_CATEGORY', message: 'ما بند العملية الرئيسي؟' };
   if (type === 'expense' && !subcategory) return { success: false, needsClarification: true, reason: 'MISSING_SUBCATEGORY', message: 'ما البند الفرعي لهذا المصروف؟' };
   if (type === 'expense' && !necessity) return {
