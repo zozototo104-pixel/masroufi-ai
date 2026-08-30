@@ -88,13 +88,24 @@ function semanticToolKey(call: FunctionCall): string {
   return `${call.name}|${JSON.stringify(args)}`;
 }
 
-function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: string, seenKeys: Set<string>): { skip: boolean; reason?: string } {
+function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
+  const aa = Math.round((Number((a.args as any)?.amount) || 0) * 100) / 100;
+  const bb = Math.round((Number((b.args as any)?.amount) || 0) * 100) / 100;
+  return aa > 0 && Math.abs(aa - bb) < 0.01;
+}
+
+function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: string, seenKeys: Set<string>, batchCalls: FunctionCall[] = []): { skip: boolean; reason?: string } {
   const key = semanticToolKey(call);
   if (seenKeys.has(key)) return { skip: true, reason: 'DUPLICATE_TOOL_CALL_IN_SAME_TURN' };
   seenKeys.add(key);
   const intent = classifyDebtIntent(userMessage);
+  const sameBatchDebtPurchase = batchCalls.some(c => c !== call && isDebtPurchaseToolCall(c) && sameToolAmount(c, call));
+  const sameBatchCashBorrowing = batchCalls.some(c => c !== call && isCashBorrowingToolCall(c) && sameToolAmount(c, call));
   if (intent === 'credit_purchase' && isCashBorrowingToolCall(call)) {
     return { skip: true, reason: 'CREDIT_PURCHASE_MUST_NOT_CREATE_CASH_BORROWING' };
+  }
+  if (intent !== 'cash_borrowing' && isCashBorrowingToolCall(call) && sameBatchDebtPurchase) {
+    return { skip: true, reason: 'DEBT_PURCHASE_AND_CASH_BORROWING_SAME_AMOUNT_IN_SAME_BATCH' };
   }
   if (intent === 'credit_purchase' && isDebtPurchaseToolCall(call)) {
     // One user sentence like "اشتريت من فلان بـ 50 دين" must create exactly one debt expense.
@@ -106,6 +117,13 @@ function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: s
   }
   if (intent === 'cash_borrowing' && isDebtPurchaseToolCall(call)) {
     return { skip: true, reason: 'CASH_BORROWING_MUST_NOT_CREATE_DEBT_PURCHASE' };
+  }
+  if (intent === 'unknown' && isDebtPurchaseToolCall(call) && sameBatchCashBorrowing) {
+    // Ambiguous live/tool batch: if both actions are emitted for the same amount, prefer the explicit purchase record
+    // and drop the borrowing record to avoid turning one 50 ₪ credit purchase into 100 ₪ debt.
+    const debtPurchaseTurnKey = '__ONE_AMBIGUOUS_DEBT_PURCHASE_ENTRY_FOR_THIS_TOOL_BATCH__';
+    if (seenKeys.has(debtPurchaseTurnKey)) return { skip: true, reason: 'ONE_DEBT_ENTRY_PER_AMBIGUOUS_TOOL_BATCH' };
+    seenKeys.add(debtPurchaseTurnKey);
   }
   return { skip: false };
 }
