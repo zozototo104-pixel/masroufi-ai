@@ -2708,7 +2708,7 @@ export default function App() {
         idToken={idToken}
         userName={userName}
         transactionsCount={transactions.length}
-        budgetsCount={(budgetsData.budgets || []).length}
+        budgetsCount={Number(budgetsData.customBudgetCount ?? 0)}
         commitmentsCount={commitments.length}
         reportsCount={reportsList.length}
         onRefreshData={() => {
