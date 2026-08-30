@@ -2,24 +2,19 @@
 set -euo pipefail
 
 APP_DIR="masrofi_ai_v6_2"
-ARCHIVE_FILE="masrofi_ai_v6_2.tar.gz"
-FULL_ARCHIVE_B64="archive/masrofi_ai_v6_2.tar.gz.b64"
+ARCHIVE_BR="masrofi_ai_v6_2.tar.br"
+ARCHIVE_TAR="masrofi_ai_v6_2.tar"
 
 if [ ! -f "$APP_DIR/package.json" ]; then
-  echo "[render-build] unpacking Masrofi AI archive..."
-  if [ -f archive/midi-part11.b64 ]; then
-    cat archive/midi-part*.b64 | base64 -d > "$ARCHIVE_FILE"
-  elif [ -f archive/tiny-part41.b64 ]; then
-    cat archive/tiny-part*.b64 | base64 -d > "$ARCHIVE_FILE"
-  elif [ -f archive/safe-part17.b64 ]; then
-    cat archive/safe-part01.b64 archive/core-part02.b64 archive/safe-part0[3-9].b64 archive/safe-part1[0-7].b64 | base64 -d > "$ARCHIVE_FILE"
-  elif [ -f "$FULL_ARCHIVE_B64" ]; then
-    base64 -d "$FULL_ARCHIVE_B64" > "$ARCHIVE_FILE"
-  else
-    echo "[render-build] archive parts are incomplete" >&2
+  echo "[render-build] unpacking Masrofi AI Brotli archive..."
+  if [ ! -f archive/br-part07.b64 ]; then
+    echo "[render-build] archive/br-part07.b64 is missing; deploy archive is incomplete" >&2
     exit 1
   fi
-  tar -xzf "$ARCHIVE_FILE"
+  cat archive/br-part*.b64 | base64 -d > "$ARCHIVE_BR"
+  node -e "const fs=require('fs'); const zlib=require('zlib'); fs.writeFileSync('$ARCHIVE_TAR', zlib.brotliDecompressSync(fs.readFileSync('$ARCHIVE_BR')));"
+  mkdir -p "$APP_DIR"
+  tar -xf "$ARCHIVE_TAR" -C "$APP_DIR"
 fi
 
 cd "$APP_DIR"
