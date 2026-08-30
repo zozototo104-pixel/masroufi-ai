@@ -991,7 +991,10 @@ export default function App() {
         setChatMessages(prev => [...prev, { role: 'ai', text: 'عذراً، حدث خطأ في النظام.' }]);
       }
     } catch (err) {
-      setChatMessages(prev => [...prev, { role: 'ai', text: 'عذراً، لم أتمكن من الاتصال بالخادم.' }]);
+      const queued = await queueOfflineFinancialCommand(text, clientMessageId);
+      if (!queued) {
+        setChatMessages(prev => [...prev, { role: 'ai', text: 'عذراً، لم أتمكن من الاتصال بالخادم.' }]);
+      }
     } finally {
       setIsChatLoading(false);
     }
