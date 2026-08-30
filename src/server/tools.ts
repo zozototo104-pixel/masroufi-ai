@@ -2013,6 +2013,57 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "get_savings_goals",
+    description: "يعرض أهداف الادخار الحالية ومقدار المحفوظ والمتبقي لكل هدف.",
+    parameters: { type: "object", properties: {} }
+  },
+  {
+    name: "create_savings_goal",
+    description: "ينشئ هدف ادخار مثل احتياطي طوارئ أو شراء آيفون أو تعليم الأبناء. اسأل عن المبلغ المستهدف والموعد إن لم يذكرا.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "اسم هدف الادخار" },
+        targetAmount: { type: "number", description: "المبلغ المستهدف بالشيكل" },
+        savedAmount: { type: "number", description: "المبلغ المحفوظ حالياً إن وجد" },
+        dueDate: { type: "string", description: "موعد مستهدف اختياري YYYY-MM-DD" },
+        priority: { type: "string", description: "low, medium, high" },
+        notes: { type: "string", description: "ملاحظات" }
+      },
+      required: ["name", "targetAmount"]
+    }
+  },
+  {
+    name: "add_savings_contribution",
+    description: "يضيف مبلغاً إلى هدف ادخار موجود. لا تعتبر المساهمة مصروفاً إلا إذا طلب المستخدم نقلها من حساب مالي؛ هي تحديث لهدف الادخار.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "معرف هدف الادخار" },
+        amount: { type: "number", description: "المبلغ المضاف للادخار" }
+      },
+      required: ["id", "amount"]
+    }
+  },
+  {
+    name: "update_savings_goal",
+    description: "يعدل هدف ادخار: الاسم، المبلغ المستهدف، المحفوظ، الموعد، الأولوية أو الحالة.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "معرف هدف الادخار" },
+        name: { type: "string" },
+        targetAmount: { type: "number" },
+        savedAmount: { type: "number" },
+        dueDate: { type: "string" },
+        priority: { type: "string" },
+        status: { type: "string" },
+        notes: { type: "string" }
+      },
+      required: ["id"]
+    }
+  },
+  {
     name: "generate_report",
     description: "يستخرج وينشئ تقريراً مالياً هيكلياً مفصلاً جداً يحتوي على بند الصرف الرئيسي وتحته بنود الصرف الفرعية وكل بند فرعي تحته تفصيل الدفع (اليوم والتاريخ، المبلغ، البيان/شو اشترى، المتجر، طريقة الدفع كاش/PalPay/دين، هل ضروري أو كمالي)، ويحفظه في حافظة المهام للمستخدم ليتمكن من طباعته أو تصديره لـ Word/PDF.",
     parameters: {
