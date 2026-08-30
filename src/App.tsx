@@ -2492,12 +2492,12 @@ export default function App() {
             </div>
 
             <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
-              <p className="text-xs text-slate-400">تم تسجيل كافة البنود وتحديث أرصدتك وموازناتك تلقائياً.</p>
+              <p className="text-xs text-slate-400">هذه مسودة فقط. قل لمصروفي: سجل الفاتورة كاش أو PalPay أو دين حتى تُحفظ فعلياً.</p>
               <button 
                 onClick={() => setShowScannerResult(null)}
                 className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all"
               >
-                تم ومتابعة
+                فهمت
               </button>
             </div>
           </div>
