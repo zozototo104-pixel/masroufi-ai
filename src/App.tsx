@@ -325,10 +325,20 @@ export default function App() {
           if (!Array.isArray(cachedTx)) cachedTx = [];
           const unsyncedTx = cachedTx.filter(t => t._unsynced);
           if (unsyncedTx.length > 0) {
-            await fetch('/api/sync', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ transactions: unsyncedTx }) });
-            const newRes = await fetch('/api/transactions', { headers });
-            const newData = await newRes.json();
-            finalTx = newData.transactions || [];
+            const syncRes = await fetch('/api/sync', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ transactions: unsyncedTx }) });
+            const syncData = await syncRes.json().catch(() => ({}));
+            const rejectedCount = Array.isArray(syncData?.rejected) ? syncData.rejected.length : 0;
+            const syncAccepted = syncRes.ok && syncData?.success === true && rejectedCount === 0 && Number(syncData?.count || 0) >= unsyncedTx.length;
+            if (syncAccepted) {
+              const newRes = await fetch('/api/transactions', { headers });
+              const newData = await newRes.json().catch(() => ({}));
+              finalTx = newData.transactions || [];
+            } else {
+              console.warn('[offline] local transactions were not fully synced; preserving local copies', syncData);
+              const merged = new Map((txData.transactions || []).map((t: any) => [t.id, t]));
+              unsyncedTx.forEach((t: any) => merged.set(t.id || `local_${Date.now()}_${Math.random()}`, { ...t, _unsynced: true, syncError: syncData?.rejected || syncData?.error || 'sync rejected' }));
+              finalTx = Array.from(merged.values()).filter((t: any) => !t.deleted);
+            }
           } else {
             finalTx = txData.transactions;
           }
