@@ -304,25 +304,35 @@ export async function searchLocalMarket(args: any, userId: string, token: string
     const text = String(response.text || '');
     const extractedPrices = extractPricesFromText(text);
     const now = new Date().toISOString();
-    const results: MarketResult[] = extractedPrices.map((p, i) => ({
-      product: item,
-      model: model || undefined,
-      condition: (condition as any) || 'unknown',
-      // Try to associate a source with each price (best-effort).
-      seller: sources[i]?.title || 'غير محدد',
-      location: sources[i]?.isLocalGaza ? 'غزة' : 'خارج غزة (مرجعي)',
-      price: p.price,
-      currency: p.currency,
-      availability: 'unknown',
-      source: sources[i]?.title || 'Gemini + Google Search',
-      sourceUrl: sources[i]?.uri,
-      fetchedAt: now,
-      isLocalGaza: sources[i]?.isLocalGaza ?? false,
-      confidence: sources[i]?.isLocalGaza ? 'high' : 'medium',
-      notes: `Raw: "${p.raw}"`,
-    }));
+    const liveResults: MarketResult[] = extractedPrices.map((p, i) => {
+      const scope = (sources[i] as any)?.marketScope || classifyMarketScope(sources[i]?.title || '', sources[i]?.uri || '', '');
+      const normalized = normalizeCurrencyToIls(p.price, p.currency);
+      return {
+        product: item,
+        model: model || undefined,
+        condition: (condition as any) || 'unknown',
+        // Try to associate a source with each price (best-effort).
+        seller: sources[i]?.title || 'غير محدد',
+        location: scope === 'gaza' ? 'غزة' : scope === 'palestine' ? 'فلسطين' : scope === 'global' ? 'عالمي (مرجعي)' : 'غير محدد',
+        price: p.price,
+        currency: p.currency,
+        originalPrice: p.price,
+        originalCurrency: p.currency,
+        normalizedPriceIls: normalized || undefined,
+        marketScope: scope,
+        availability: 'unknown',
+        source: sources[i]?.title || 'Gemini + Google Search',
+        sourceUrl: sources[i]?.uri,
+        fetchedAt: now,
+        isLocalGaza: sources[i]?.isLocalGaza ?? scope === 'gaza',
+        confidence: scope === 'gaza' ? 'high' : scope === 'palestine' ? 'medium' : 'low',
+        notes: `Raw: "${p.raw}"`,
+      };
+    });
+    const results: MarketResult[] = [...savedResults, ...liveResults];
 
-    const priceRange = computePriceRange(results);
+    const priceRange = computeNormalizedPriceRange(results) || computePriceRange(results);
+    const marketComparison = buildMarketComparison(results, Number(args.offeredPrice || args.price || 0) || undefined);
 
     const searchResponse: MarketSearchResponse = {
       success: true,
