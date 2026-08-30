@@ -411,6 +411,33 @@ export async function addTransaction(args: any, userId: string, token: string) {
       const spent = existing.filter((t:any)=>t.type==='expense' && String(t.date||'').startsWith(thisMonth) && t.category===category).reduce((a:number,t:any)=>a+(Number(t.amount)||0),0);
       const limit = Number((preUserBudgets as any)?.[category] || DEFAULT_BUDGETS[category] || 0);
       const projected = spent + amount;
+      const recentExpenses = existing.filter((t:any) => t.type === 'expense' && new Date(t.date || t.createdAt || 0).getTime() >= Date.now() - 30 * 86400000);
+      const dailyExpenseAverage = recentExpenses.reduce((a:number,t:any)=>a+(Number(t.amount)||0),0) / 30;
+      const risk = evaluateTreasurerRisk({
+        amount,
+        type,
+        account,
+        category,
+        subcategory,
+        necessity,
+        merchant,
+        balances,
+        budgetLimit: limit,
+        categorySpent: spent,
+        dailyExpenseAverage,
+        projected30DayBalance: Number(balances.total || 0) - dailyExpenseAverage * 30,
+        savingsReserveTarget: Number(args.savingsReserveTarget || 0),
+        riskConfirmed: Boolean(args.riskConfirmed),
+      });
+      if (risk.needsConfirmation) {
+        return {
+          success:false,
+          needsConfirmation:true,
+          reason:'TREASURER_RISK_REVIEW_REQUIRED',
+          message:`أمين الصندوق يعترض قبل التسجيل: ${risk.warnings.join(' ')} هل تصر على تنفيذ العملية؟`,
+          financialImpact:risk,
+        };
+      }
       if (limit > 0 && projected >= limit && !args.riskConfirmed) {
         return { success:false, needsConfirmation:true, reason:'BUDGET_WILL_BE_EXCEEDED', message:`هذه العملية سترفع مصروف بند [${category}] إلى ${projected} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة رغم التجاوز؟`, financialImpact:{spent,amount,projected,limit,percentage:Math.round(projected/limit*100)} };
       }
