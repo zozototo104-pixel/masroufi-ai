@@ -502,6 +502,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type === 'expense' && !subcategory) return { success: false, needsClarification: true, reason: 'MISSING_SUBCATEGORY', message: 'ما البند الفرعي لهذا المصروف؟' };
   if (type === 'expense' && !necessity) return { success: false, needsClarification: true, reason: 'MISSING_NECESSITY', message: 'هل تعتبر هذا المصروف ضرورياً أم كمالياً حسب ظروفك الحالية؟' };
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
+  if (type === 'expense' && account === 'debt') {
+    const vagueAutoCategory = !explicitCategoryProvided || !explicitSubcategoryProvided || category === 'أخرى' || subcategory === 'غير مصنف' || subcategory === 'متفرقات';
+    const hasPurchaseDescription = Boolean(explicitPurchaseItem || notes);
+    if (vagueAutoCategory || !hasPurchaseDescription) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_CREDIT_PURCHASE_DETAILS',
+        message: 'قبل تسجيل الشراء بالدين لازم أعرف بالضبط: شو اشتريت من هذا الشخص/المحل؟ لأي بند أصنفها؟ وهل هي ضرورية أم كمالية؟'
+      };
+    }
+  }
 
   if (
     textToCheck.includes('دفع دين') || 
