@@ -451,6 +451,17 @@ If individual line items cannot be broken down, provide a single item in the ite
     }
   });
 
+  app.get("/api/audit/financial-duplicates", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { auditFinancialDuplicates } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await auditFinancialDuplicates({}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Financial audit error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/treasurer/profile", authMiddleware, async (req: any, res: any) => {
     try {
       const { getTreasurerProfile } = await import('./src/server/tools');
