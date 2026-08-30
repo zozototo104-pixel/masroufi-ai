@@ -940,10 +940,16 @@ ${relationshipContext}
           })
         );
         
-        // Send tool response back to the model
-        const secondResponse = await chat.sendMessage({ message: functionResponses as any });
-        if (secondResponse.text) {
-          replyText = secondResponse.text;
+        const deterministicFinancialReply = buildDeterministicFinancialReply(functionResponses as any);
+        if (deterministicFinancialReply) {
+          replyText = deterministicFinancialReply;
+        } else {
+          // Send non-financial tool response back to the model. For financial writes we do not let
+          // the model reinterpret a committed write as a failure; the server response is canonical.
+          const secondResponse = await chat.sendMessage({ message: functionResponses as any });
+          if (secondResponse.text) {
+            replyText = secondResponse.text;
+          }
         }
       }
 
