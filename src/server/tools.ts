@@ -803,7 +803,12 @@ export async function addTransaction(args: any, userId: string, token: string) {
     notificationMsg += ` - ${tx.necessity}`;
   }
   
-  await addNotification(userId, notificationMsg, 'success', adminDb);
+  await addNotification(userId, notificationMsg, 'success', adminDb, {
+    idempotencyKey: `transaction-success:${operationId}:${actualTxId}`,
+    transactionId: actualTxId,
+    operationId,
+    metadata: { amount, type, account, category, subcategory, merchant, transactionType: tx.transactionType }
+  });
 
   // Budget threshold warning check (80% / 100%)
   if (type === 'expense' && category && category !== 'غير مصنف') {
