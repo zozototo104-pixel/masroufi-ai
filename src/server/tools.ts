@@ -290,11 +290,15 @@ export async function searchLocalMarket(args: any, userId: string, token: string
     const response: any = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: q, config: { tools: [{ googleSearch: {} }] } });
     const meta = response?.candidates?.[0]?.groundingMetadata;
     const groundingChunks = (meta?.groundingChunks || []).map((c: any) => c?.web).filter(Boolean);
-    const sources = groundingChunks.map((w: any) => ({
-      title: w.title,
-      uri: w.uri,
-      isLocalGaza: isGazaSource(w.title || '', w.uri || ''),
-    })).slice(0, 8);
+    const sources = groundingChunks.map((w: any) => {
+      const scope = classifyMarketScope(w.title || '', w.uri || '', '');
+      return {
+        title: w.title,
+        uri: w.uri,
+        isLocalGaza: isGazaSource(w.title || '', w.uri || '') || scope === 'gaza',
+        marketScope: scope,
+      };
+    }).slice(0, 12);
 
     // V6.1: extract structured price results from Gemini's text response.
     const text = String(response.text || '');
