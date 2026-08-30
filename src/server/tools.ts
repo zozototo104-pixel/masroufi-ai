@@ -598,29 +598,6 @@ export async function addTransaction(args: any, userId: string, token: string) {
     message: `لم أستطع تصنيف هذا المصروف كضروري أو كمالي وفق واقع غزة من الوصف الحالي. ${necessitySuggestion?.reason || ''} قل لي باختصار: ما الحاجة من هذا الشراء؟`
   };
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
-  if (type === 'expense' && account === 'debt') {
-    // For credit purchases, the user does NOT have to provide category/subcategory/necessity manually.
-    // Masroufi should infer category and necessity using Gaza context.
-    // But the identity of the ledger entry MUST come from the user's original words, not from
-    // model-invented purchaseItem/beneficiary/category/notes. Otherwise "اشتريت دين من أبو محمد"
-    // could be auto-filled by the model and recorded without knowing what was bought or for whom.
-    const identitySource = String(args.userText || notes || '').trim();
-    const cleanedOriginalForIdentity = normalizeArabicText(identitySource)
-      .replace(normalizeArabicText(merchant), ' ')
-      .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|دين|بالدين|من|عند|على|قيد|تسجيل|سجل|سجلي|مصروف|مبلغ|قيمه|قيمة|شيكل|ش|₪|ب|بـ/g, ' ')
-      .replace(/\d+(\.\d+)?/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const userProvidedPurchaseIdentity = cleanedOriginalForIdentity.length >= 3;
-    if (!userProvidedPurchaseIdentity) {
-      return {
-        success: false,
-        needsClarification: true,
-        reason: 'MISSING_CREDIT_PURCHASE_ITEM_OR_PURPOSE',
-        message: 'لا أسجل شراء بالدين بهذا الشكل. قل لي أولاً: شو اشتريت من هذا الشخص/المحل؟ ولمين أو لأي غرض؟ بعدها أنا أصنف البند والضرورة وفق واقع غزة.'
-      };
-    }
-  }
 
   if (
     textToCheck.includes('دفع دين') || 
