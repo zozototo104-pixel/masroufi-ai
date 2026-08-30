@@ -1125,7 +1125,8 @@ ${relationshipContext}
                         if (recentResult) {
                           return { id: call.id, name: call.name, response: { ...recentResult, deduped: true, message: recentResult.message || 'هذه العملية نُفذت قبل لحظات، لذلك لم أكرر تسجيلها.' } };
                         }
-                        const stableOperationId = liveKey ? `live:${liveKey}` : null;
+                        const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
+                        const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
                         const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : (call.args || {});
                         const result = await handler(toolArgs, userId!, userToken!);
                         rememberLiveFinancialCommit(liveKey, result);
