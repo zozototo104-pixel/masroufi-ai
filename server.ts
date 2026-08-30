@@ -1018,7 +1018,7 @@ ${relationshipContext}
                 const functionResponses = await Promise.all(
                   message.toolCall.functionCalls.map(async (call: FunctionCall) => {
                     try {
-                      const guard = shouldSkipFinancialToolCallForIntent(call, '', seenToolKeys);
+                      const guard = shouldSkipFinancialToolCallForIntent(call, '', seenToolKeys, message.toolCall.functionCalls || []);
                       if (guard.skip) {
                         return { id: call.id, name: call.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
                       }
