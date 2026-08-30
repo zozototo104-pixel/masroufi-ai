@@ -397,6 +397,18 @@ If individual line items cannot be broken down, provide a single item in the ite
     }
   });
 
+  app.post("/api/reports/treasurer", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { generateTreasurerReport } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      const result = await generateTreasurerReport(req.body || {}, req.user.uid, token);
+      res.json(result);
+    } catch (e: any) {
+      console.error("Generate treasurer report API error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Data Export Endpoint
   app.get("/api/data/export", authMiddleware, async (req: any, res: any) => {
     try {
