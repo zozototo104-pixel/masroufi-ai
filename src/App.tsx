@@ -593,7 +593,9 @@ export default function App() {
         const data = await res.json();
         if (data.success) {
           setShowScannerResult(data);
-          window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+          if (!data.requiresConfirmation) {
+            window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+          }
         } else {
           alert("فشل في مسح الفاتورة: " + (data.error || "خطأ غير معروف"));
         }
