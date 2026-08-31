@@ -1,1 +1,1 @@
-Trigger verification after scoping PIPE-01 raw-write assertion to the financial transaction sync block.
+Trigger CI for current HEAD including scoped PIPE-01 regression guard.
