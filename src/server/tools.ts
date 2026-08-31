@@ -1598,21 +1598,32 @@ export async function importUserData(payload: any, userId: string, token: string
       ? payload.transactions 
       : [];
 
-  const budgetsToImport: Record<string, number> = (payload.budgets && typeof payload.budgets === 'object') ? payload.budgets : {};
-  const commitmentsToImport: any[] = Array.isArray(payload.commitments) ? payload.commitments : [];
-  const reportsToImport: any[] = Array.isArray(payload.reports) ? payload.reports : [];
-  const memoryToImport: Record<string, string> = (payload.memory && typeof payload.memory === 'object') ? payload.memory : {};
+  const rawBudgetsToImport = Array.isArray(payload) ? undefined : payload.budgets;
+  const rawCommitmentsToImport = Array.isArray(payload) ? undefined : payload.commitments;
+  const rawReportsToImport = Array.isArray(payload) ? undefined : payload.reports;
+  const rawMemoryToImport = Array.isArray(payload) ? undefined : payload.memory;
 
-  // Preflight the entire financial ledger BEFORE replace mode deletes anything.
-  // Restore is a historical-state operation, so we validate and normalize the backup
-  // without replaying notifications or other financial side effects.
+  // Preflight the entire backup BEFORE any import mutation. Restore/import is a
+  // historical-state operation, so we validate and normalize without replaying
+  // notifications or other financial side effects during preparation.
   const preparedTransactions = prepareImportedFinancialTransactions(transactionsToImport, userId);
-  if ('failures' in preparedTransactions) {
+  const preparedBudgets = prepareImportedBudgets(rawBudgetsToImport);
+  const preparedCommitments = prepareImportedCommitments(rawCommitmentsToImport, userId);
+  const preparedReports = prepareImportedReports(rawReportsToImport, userId);
+  const preparedMemory = prepareImportedMemory(rawMemoryToImport);
+  const validationFailures = [
+    ...('failures' in preparedTransactions ? preparedTransactions.failures : []),
+    ...('failures' in preparedBudgets ? preparedBudgets.failures : []),
+    ...('failures' in preparedCommitments ? preparedCommitments.failures : []),
+    ...('failures' in preparedReports ? preparedReports.failures : []),
+    ...('failures' in preparedMemory ? preparedMemory.failures : []),
+  ];
+  if (validationFailures.length > 0) {
     return {
       success: false,
-      reason: 'IMPORT_FINANCIAL_VALIDATION_FAILED',
-      message: 'لم يتم استيراد النسخة لأن بعض العمليات المالية غير صالحة. لم يتم حذف أو تغيير البيانات الحالية.',
-      validationFailures: preparedTransactions.failures,
+      reason: 'IMPORT_BACKUP_VALIDATION_FAILED',
+      message: 'لم يتم استيراد النسخة لأن بعض سجلات النسخة الاحتياطية غير صالحة. لم يتم حذف أو تغيير البيانات الحالية.',
+      validationFailures,
     };
   }
 
