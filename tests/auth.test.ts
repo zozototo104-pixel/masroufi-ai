@@ -44,8 +44,7 @@ test('AUTH-02: missing Authorization header rejected', async () => {
 });
 
 test('AUTH-03: no default-user fallback — invalid token stays 401', async () => {
-  const verifyBearer = makeVerifyBearerStub({});
-  const r = await verifyBearer('Bearer some.invalid.jwt.token');
+  const r = await verifyBearer('Bearer some.invalid.jwt.token', verifierFor({}));
   assert.equal(r.ok, false);
   assert.equal(r.status, 401);
   // Critical: the result MUST NOT contain usr_zozototo_default or any fallback uid.
