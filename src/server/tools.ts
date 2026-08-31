@@ -235,7 +235,7 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   const monthExpenses = txs.filter((t:any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth));
   const budgetStatus = Object.entries(budgets).map(([category, limitRaw]) => {
     const limit = Number(limitRaw) || 0;
-    const spent = monthExpenses.filter((t:any)=>t.category===category).reduce((a:number,t:any)=>a+(Number(t.amount)||0),0);
+    const spent = monthExpenses.filter((t:any)=>t.category===category).reduce((a:number,t:any)=>a+parsePositiveFinancialAmount(t.amount),0);
     return { category, limit, spent, remaining: limit-spent, percentage: limit>0?Math.round(spent/limit*100):0 };
   });
   return {
