@@ -96,7 +96,7 @@ export async function atomicAddTransaction(
       adminDb.collection('transactions').where('userId', '==', userId)
     );
     const existingDocs = snap.docs;
-    const balances = calculateBalancesFromDocs(existingDocs);
+    const balances = calculateBalances(plainTransactions(existingDocs));
 
     // Determine the new account impact.
     const account = newTx.account || (newTx.fromAccount === 'cash' || newTx.fromAccount === 'palPay' ? newTx.fromAccount : 'cash');
