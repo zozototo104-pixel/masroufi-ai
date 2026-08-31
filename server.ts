@@ -439,6 +439,41 @@ async function startServer() {
     });
   });
 
+  app.get("/api/custom-voice", authMiddleware, async (req: any, res: any) => {
+    try {
+      const profile = await getCustomVoiceProfile(req.user.uid);
+      res.json({ configured: profile.configured, provider: profile.provider, createdAt: profile.createdAt, updatedAt: profile.updatedAt });
+    } catch (error: any) {
+      console.error('[custom-voice] status failed', error);
+      res.status(500).json({ error: 'CUSTOM_VOICE_STATUS_FAILED' });
+    }
+  });
+
+  app.post("/api/custom-voice", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { audioBase64, mimeType, consent } = req.body || {};
+      if (consent !== true) return res.status(400).json({ error: 'VOICE_CONSENT_REQUIRED' });
+      if (typeof audioBase64 !== 'string' || !audioBase64) return res.status(400).json({ error: 'MISSING_AUDIO_SAMPLE' });
+      const profile = await createCustomVoiceClone({ userId: req.user.uid, audioBase64, mimeType, consent: true });
+      res.status(201).json({ configured: profile.configured, provider: profile.provider, createdAt: profile.createdAt, updatedAt: profile.updatedAt });
+    } catch (error: any) {
+      console.error('[custom-voice] creation failed', error);
+      const message = String(error?.message || 'CUSTOM_VOICE_CREATE_FAILED');
+      const clientError = /VOICE_CONSENT_REQUIRED|Missing audio|too short|exceeds 9 MB/.test(message);
+      res.status(clientError ? 400 : 502).json({ error: message });
+    }
+  });
+
+  app.delete("/api/custom-voice", authMiddleware, async (req: any, res: any) => {
+    try {
+      await deleteCustomVoice(req.user.uid);
+      res.json({ success: true, configured: false });
+    } catch (error: any) {
+      console.error('[custom-voice] deletion failed', error);
+      res.status(502).json({ error: String(error?.message || 'CUSTOM_VOICE_DELETE_FAILED') });
+    }
+  });
+
   app.post("/api/scan-receipt", authMiddleware, async (req: any, res: any) => {
     const { imageBase64, mimeType, apiKey: customApiKey } = req.body;
     if (!imageBase64 || !mimeType) {
