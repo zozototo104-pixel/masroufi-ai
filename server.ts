@@ -976,6 +976,9 @@ ${relationshipContext}
         .filter((r: any) => isFinancialToolName(r.name))
         .map((r: any) => r.response)
         .filter(Boolean);
+      if (financialToolResults.length === 0 && looksLikeFinancialIntent(recentUserConversationText) && looksLikeCommittedClaim(replyText || '')) {
+        replyText = 'لم أسجل أي قيد فعلياً في السحابة؛ لن أقول تم الحفظ بدون transactionId. أعد الأمر مع التفاصيل المطلوبة أو أجب عن السؤال الناقص.';
+      }
       const committedTransactions = financialToolResults
         .filter((r: any) => r?.success === true && r?.transaction)
         .map((r: any) => r.transaction);
