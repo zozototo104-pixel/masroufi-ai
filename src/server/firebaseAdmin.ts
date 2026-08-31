@@ -2,6 +2,7 @@ import fs from 'fs';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 function parseServiceAccount(raw: string) {
