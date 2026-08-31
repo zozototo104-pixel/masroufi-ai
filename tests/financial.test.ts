@@ -368,12 +368,33 @@ test('REP-05: empty month does not silently fall back to all-time', () => {
   assert.equal(filtered.length, 0, 'No transactions in August → empty (not back-filled)');
 });
 
-test('REP-06: saved report marked as snapshot (isSnapshot: true, generatedAt present)', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/tools.ts'), 'utf8'
-  ));
-  assert.ok(src.includes('isSnapshot: true'), 'generated reports must be marked as snapshots');
-  assert.ok(src.includes('generatedAt:'), 'generated reports must include generatedAt timestamp');
+test('REP-06: saved report payload is an immutable snapshot with generatedAt timestamp', () => {
+  const generatedAt = new Date('2026-08-31T09:00:00.000Z');
+  const txRows = [tx({ id: 'tx-1', type: 'expense', amount: 10 }) as Record<string, unknown>];
+  const report = buildReportSnapshotRecord({
+    userId: 'user-1',
+    title: 'تقرير اختبار',
+    timeframe: 'month',
+    category: 'طعام',
+    transactions: txRows,
+    now: generatedAt,
+  });
+  assert.equal(report.isSnapshot, true);
+  assert.equal(report.generatedAt, '2026-08-31T09:00:00.000Z');
+  assert.equal(report.createdAt, report.generatedAt);
+  assert.equal(report.date, report.generatedAt);
+  assert.equal(report.status, 'completed');
+  assert.deepEqual(report.transactions, txRows);
+
+  const emptyReport = buildReportSnapshotRecord({
+    userId: 'user-1',
+    title: 'تقرير فارغ',
+    timeframe: 'month',
+    category: 'كافة البنود',
+    transactions: [],
+    now: generatedAt,
+  });
+  assert.equal(emptyReport.status, 'empty');
 });
 
 test('REP-07: import/export preserves transactionType and creditor fields', async () => {
