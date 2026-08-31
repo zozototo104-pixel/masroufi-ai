@@ -129,8 +129,24 @@ test('CONC-12: direct and smart transaction deletion revalidate and delete atomi
 test('CONC-13: receipt lines are validated first and persisted by one atomic transaction', async () => {
   const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
   const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   assert.ok(atomicSrc.includes('export async function atomicAddTransactions'), 'multi-transaction atomic primitive must exist');
-  assert.ok(serverSrc.includes('validateOnly: true'), 'receipt must validate every line without persistence first');
+  assert.ok(toolsSrc.includes('export async function prepareAddTransaction'), 'receipt preparation helper must exist');
+  assert.ok(serverSrc.includes('await prepareAddTransaction(txArgs'), 'receipt must validate every line without passing through the idempotency wrapper');
+  assert.equal(serverSrc.includes('toolHandlers.add_transaction({ ...txArgs, validateOnly: true }'), false,
+    'validation-only receipt preparation must not record completed idempotency outcomes before persistence');
   assert.ok(serverSrc.includes('await atomicAddTransactions('), 'receipt must persist through the atomic multi-line primitive');
   assert.equal(serverSrc.includes('createdBeforeFailure'), false, 'receipt endpoint must not expose partial-success semantics');
+});
+
+test('CONC-14: receipt retry uses a Firestore receipt idempotency record in the same transaction', async () => {
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  assert.ok(serverSrc.includes('receiptId,'), 'receipt endpoint must pass the stable receiptId into the atomic primitive');
+  assert.ok(atomicSrc.includes("collection('receiptIdempotency')"), 'atomic receipt primitive must claim receipt idempotency');
+  assert.ok(atomicSrc.includes('const receiptSnap = receiptRef ? await tx.get(receiptRef) : null'),
+    'receipt idempotency record must be read inside the transaction before writes');
+  assert.ok(atomicSrc.includes("status: 'completed'"), 'successful receipt commit must persist a completed receipt result');
+  assert.ok(atomicSrc.includes('idempotentReplay: true'), 'retry must return the original receipt result instead of creating duplicate transactions');
+  assert.ok(atomicSrc.includes('RECEIPT_OPERATION_CONFLICT'), 'conflicting operationIds must fail closed');
 });
