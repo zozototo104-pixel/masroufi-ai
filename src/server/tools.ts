@@ -2493,7 +2493,7 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
   
   if (args.category) {
     const categoryExpenses = expenses.filter(t => t.category === args.category);
-    const spent = categoryExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const spent = categoryExpenses.reduce((sum, t) => sum + parsePositiveFinancialAmount(t.amount), 0);
     const limit = userBudgets[args.category] || DEFAULT_BUDGETS[args.category] || 1000;
     const percentage = Math.round((spent / limit) * 100);
     
