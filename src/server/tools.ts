@@ -2028,7 +2028,7 @@ export async function getRecentTransactions(args: any, userId: string, token: st
 }
 
 function auditLedgerFingerprint(t: any): string {
-  const amount = Math.round((Number(t.amount) || 0) * 100) / 100;
+  const amount = Math.round(parsePositiveFinancialAmount(t.amount) * 100) / 100;
   const purpose = normalizeArabicText(`${t.purchaseItem || ''} ${t.beneficiary || ''} ${t.notes || ''} ${t.category || ''} ${t.subcategory || ''}`)
     .replace(/\d+(\.\d+)?/g, ' ')
     .replace(/\s+/g, ' ')
