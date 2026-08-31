@@ -243,6 +243,7 @@ export function buildMarketComparison(results: MarketResult[], offeredPrice?: nu
     else if (pct < -15) warnings.push(`السعر المعروض أقل من السوق بحوالي ${Math.abs(pct)}%؛ تأكد من الحالة والضمان حتى لا تكون صفقة ملغومة.`);
   }
   if (!gazaRange && (palestineRange || globalRange)) warnings.push('لم أجد سعراً محلياً موثوقاً من غزة؛ استخدمت فلسطين/العالمي كمرجع فقط.');
+  if (hasUnconvertedForeignCurrency(results)) warnings.push('بعض الأسعار بعملة غير الشيكل ولم تتوفر نشرة صرف موثوقة، لذلك لم أخلطها في مقارنة الشيكل.');
   if (globalRange && reference && globalRange.median < reference.median * 0.75) warnings.push('السعر العالمي أقل بكثير من المحلي؛ راقب تكاليف الشحن والجمارك والتوفر قبل المقارنة النهائية.');
   return { gazaRange, palestineRange, globalRange, allRange, warnings };
 }
