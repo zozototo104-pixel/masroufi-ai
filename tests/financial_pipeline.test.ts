@@ -13,7 +13,13 @@ test('PIPE-01: financial writes must not pass through legacy /api/sync raw trans
     'legacy sync must reject raw transaction writes and direct them to the canonical command path');
   assert.ok(tools.includes('dispatchFinancialCommand -> toolHandlers -> runIdempotent -> validation'),
     'financial sync guard must document the canonical validated mutation path');
-  assert.ok(!tools.includes('await doc.set({ ...data, userId })'), 'raw transaction doc.set must not exist in sync path');
+  const transactionGuardStart = tools.indexOf('if (args.transactions && args.transactions.length > 0)');
+  const reportsSyncStart = tools.indexOf('if (args.reports && args.reports.length > 0)', transactionGuardStart);
+  const transactionSyncBlock = tools.slice(transactionGuardStart, reportsSyncStart);
+  assert.ok(transactionGuardStart >= 0 && reportsSyncStart > transactionGuardStart,
+    'transaction rejection block must remain distinct from allowed non-financial sync');
+  assert.ok(!transactionSyncBlock.includes('doc.set('),
+    'raw transaction doc.set must not exist in the transaction sync block');
 });
 
 test('PIPE-02: all mutating financial tools are protected by runIdempotent wrapper', async () => {
