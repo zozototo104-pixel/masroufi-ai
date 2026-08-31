@@ -63,8 +63,7 @@ test('AUTH-04: valid Firebase ID token accepted', async () => {
 });
 
 test('AUTH-05: malformed Bearer (no token after prefix) rejected', async () => {
-  const verifyBearer = makeVerifyBearerStub({});
-  const r = await verifyBearer('Bearer ');
+  const r = await verifyBearer('Bearer ', verifierFor({}));
   assert.equal(r.ok, false);
   assert.equal(r.status, 401);
 });
