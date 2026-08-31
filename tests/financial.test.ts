@@ -40,9 +40,7 @@ function tx(opts: any) {
   };
 }
 
-// Wrap so we can pass plain objects (not doc snapshots) — calculateBalancesFromDocs
-// already handles `doc.data()` being a function OR a plain object.
-const calc = (txs: any[]) => calcBalanceViaModule(txs);
+const calc = (txs: any[]) => calculateBalances(txs);
 
 test('FIN-01: income +200 cash → cash +200, income +200', () => {
   const r = calc([tx({ type: 'income', account: 'cash', amount: 200, userId: 'u1' })]);
