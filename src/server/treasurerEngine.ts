@@ -275,7 +275,8 @@ function endOfDay(d: Date) { const x = new Date(d); x.setHours(23,59,59,999); re
 
 export function filterTransactionsByDate(txs: TransactionLike[], range: { start?: Date; end?: Date }): TransactionLike[] {
   return txs.filter(t => {
-    const ts = new Date(t.date || t.createdAt || 0).getTime();
+    const rawDate = t.date || t.createdAt || 0;
+    const ts = new Date(typeof rawDate === 'number' ? rawDate : String(rawDate)).getTime();
     if (!Number.isFinite(ts)) return false;
     if (range.start && ts < range.start.getTime()) return false;
     if (range.end && ts > range.end.getTime()) return false;
