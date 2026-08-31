@@ -150,6 +150,10 @@ function looksLikeCommittedClaim(text: string): boolean {
 function buildDeterministicFinancialReply(functionResponses: Array<{ name: string; response: any }>): string | null {
   const financial = functionResponses.filter(r => isFinancialToolName(r.name));
   if (financial.length === 0) return null;
+  const thrownError = financial.find(r => r.response?.error && r.response?.success !== true);
+  if (thrownError) {
+    return `لم أسجل العملية فعلياً بسبب خطأ داخلي: ${thrownError.response.error}`;
+  }
   const hardError = financial.find(r => r.response?.success === false && !r.response?.needsClarification && !r.response?.needsConfirmation && !r.response?.retryable && !r.response?.inFlight);
   if (hardError) {
     return hardError.response?.message || hardError.response?.error || 'تعذر تنفيذ العملية المالية ولم أسجلها.';
