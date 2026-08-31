@@ -354,15 +354,6 @@ test('REP-03C: report totals ignore non-finite amounts instead of poisoning cate
   assert.equal(Number.isFinite(report.totalExpenses), true);
 });
 
-test('REP-04: monthly report contains only month — no fallback to ALL time', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/tools.ts'), 'utf8'
-  ));
-  // The fallback was: if (filtered.length === 0 && categoryQuery) → all-time. Now removed.
-  assert.ok(!src.includes("If zero transactions found due to timeframe filter, fallback to ALL time"),
-    'The ALL-time fallback for empty months must be removed (LF-18)');
-});
-
 test('REP-05: empty month does not silently fall back to all-time', () => {
   // If we filter by month='2026-08' but only have transactions in '2026-07', the result
   // should be EMPTY (status='empty'), not a back-filled all-time list.
