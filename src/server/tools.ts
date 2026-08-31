@@ -2090,7 +2090,7 @@ export async function updateTransaction(args: any, userId: string, token: string
   //    (None currently besides amount — left here for future-proofing.)
 
   const updates: any = {};
-  if (args.amount !== undefined) updates.amount = Math.abs(Number(args.amount));
+  if (args.amount !== undefined) updates.amount = parsePositiveFinancialAmount(args.amount);
   if (args.type) updates.type = String(args.type).toLowerCase();
   if (args.account) updates.account = normalizeAccount(args.account);
   if (args.fromAccount) updates.fromAccount = normalizeAccount(args.fromAccount);
