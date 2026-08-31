@@ -412,6 +412,9 @@ async function startServer() {
         status: snap.exists ? 'ok' : 'degraded',
         firestore: snap.exists ? 'read-write-ok' : 'write-not-visible',
         checkedAt,
+        service: 'masroufi-ai',
+        commit: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || null,
+        environment: process.env.NODE_ENV || null,
         diagnostics: firebaseAdminDiagnostics,
       });
     } catch (e: any) {
