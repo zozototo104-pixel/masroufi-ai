@@ -455,22 +455,23 @@ export function evaluateTreasurerRisk(params: {
   return { needsConfirmation: warnings.length > 0 && !params.riskConfirmed, severity, warnings, availableBefore: available, availableAfter: after, budgetPercentageAfter: pct, coverageDays, projected30DayBalanceAfter: round(projected) };
 }
 
-export function normalizeIncomeAllocations(args: any): Array<{ account: 'cash' | 'palPay'; amount: number; note?: string }> {
+export function normalizeIncomeAllocations(args: TreasurerReportArgs): Array<{ account: 'cash' | 'palPay'; amount: number; note?: string }> {
   const raw = Array.isArray(args?.allocations) ? args.allocations
     : Array.isArray(args?.split) ? args.split
     : Array.isArray(args?.incomeSplit) ? args.incomeSplit
     : [];
   const allocations: Array<{ account: 'cash' | 'palPay'; amount: number; note?: string }> = [];
-  for (const item of raw) {
-    const amount = Math.abs(Number(item?.amount) || 0);
-    const txt = normalizeArabicText(item?.account || item?.paymentMethod || item?.wallet || '');
+  for (const rawItem of raw) {
+    const item = asObject(rawItem);
+    const amount = Math.abs(Number(item.amount) || 0);
+    const txt = normalizeArabicText(item.account || item.paymentMethod || item.wallet || '');
     const account = txt.includes('pal') || txt.includes('بال') || txt.includes('محفظ') ? 'palPay' : 'cash';
-    if (amount > 0) allocations.push({ account, amount, note: item?.note || item?.notes || '' });
+    if (amount > 0) allocations.push({ account, amount, note: String(item.note || item.notes || '') });
   }
   return allocations;
 }
 
-export function needsIncomeAllocationQuestion(args: any, type: string, paymentWasProvided: boolean): boolean {
+export function needsIncomeAllocationQuestion(args: TreasurerReportArgs, type: string, paymentWasProvided: boolean): boolean {
   if (type !== 'income') return false;
   if (paymentWasProvided) return false;
   if (normalizeIncomeAllocations(args).length > 0) return false;
