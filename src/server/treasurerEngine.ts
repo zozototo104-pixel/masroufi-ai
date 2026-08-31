@@ -178,12 +178,12 @@ export function inferNecessityForGazaContext(input: { category?: unknown; subcat
 }
 
 export function inferCategory(input: {
-  type?: any;
-  category?: any;
-  subcategory?: any;
-  notes?: any;
-  merchant?: any;
-  item?: any;
+  type?: unknown;
+  category?: unknown;
+  subcategory?: unknown;
+  notes?: unknown;
+  merchant?: unknown;
+  item?: unknown;
 }): CategorySuggestion {
   const explicitCategory = String(input.category || '').trim();
   const explicitSubcategory = String(input.subcategory || '').trim();
