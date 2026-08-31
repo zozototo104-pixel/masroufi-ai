@@ -2469,7 +2469,7 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
   });
 
   const totalBudget = Object.values(userBudgets).reduce((a, b) => a + b, 0);
-  const totalSpent = monthExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalSpent = monthExpenses.reduce((sum, t) => sum + parsePositiveFinancialAmount(t.amount), 0);
 
   return {
     budgets,
