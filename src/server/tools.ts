@@ -1402,33 +1402,91 @@ export async function importUserData(payload: any, userId: string, token: string
     };
   }
 
-  // If mode is 'replace', clear existing collections for this user first
+  // Replace mode is all-or-nothing. Build the full mutation plan before changing
+  // user state, then commit it in one real Firestore batch.
   if (mode === 'replace') {
-    // 1. Delete existing transactions
-    const oldTx = await adminDb.collection('transactions').where('userId', '==', userId).get();
-    for (const d of oldTx.docs) {
-      await adminDb.collection('transactions').doc(d.id).delete();
+    const [oldTx, oldComm, oldRep, oldBudgets, oldMemory] = await Promise.all([
+      firebaseAdminDb.collection('transactions').where('userId', '==', userId).get(),
+      firebaseAdminDb.collection('commitments').where('userId', '==', userId).get(),
+      firebaseAdminDb.collection('reports').where('userId', '==', userId).get(),
+      firebaseAdminDb.collection('users').doc(userId).collection('budgets').get(),
+      firebaseAdminDb.collection('users').doc(userId).collection('memory').get(),
+    ]);
+
+    const validBudgets = Object.entries(budgetsToImport).filter(([category, limit]) => category && typeof limit === 'number');
+    const validCommitments = commitmentsToImport.filter((c: any) => c && c.title && typeof c.amount === 'number');
+    const validReports = reportsToImport.filter((r: any) => r && r.content);
+    const validMemory = Object.entries(memoryToImport).filter(([key, value]) => key && typeof value === 'string');
+    const deleteCount = oldTx.size + oldComm.size + oldRep.size + oldBudgets.size + oldMemory.size;
+    const writeCount = preparedTransactions.entries.length + validBudgets.length + validCommitments.length + validReports.length + validMemory.length;
+    const mutationCount = deleteCount + writeCount;
+
+    // Firestore batches support at most 500 writes. Keep safety headroom and fail
+    // before mutation rather than chunking a replace into partially committed pieces.
+    if (mutationCount > 450) {
+      return {
+        success: false,
+        retryable: false,
+        reason: 'IMPORT_REPLACE_TOO_LARGE_FOR_ATOMIC_COMMIT',
+        message: 'النسخة الاحتياطية كبيرة جداً للاستعادة الذرية الآمنة. لم يتم تغيير أي بيانات حالية.',
+        mutationCount,
+      };
     }
 
-    // 2. Delete existing commitments
-    const oldComm = await adminDb.collection('commitments').where('userId', '==', userId).get();
-    for (const d of oldComm.docs) {
-      await adminDb.collection('commitments').doc(d.id).delete();
+    const batch = firebaseAdminDb.batch();
+    oldTx.docs.forEach((d: any) => batch.delete(d.ref));
+    oldComm.docs.forEach((d: any) => batch.delete(d.ref));
+    oldRep.docs.forEach((d: any) => batch.delete(d.ref));
+    oldBudgets.docs.forEach((d: any) => batch.delete(d.ref));
+    oldMemory.docs.forEach((d: any) => batch.delete(d.ref));
+
+    for (const prepared of preparedTransactions.entries) {
+      const ref = prepared.sourceId
+        ? firebaseAdminDb.collection('transactions').doc(prepared.sourceId)
+        : firebaseAdminDb.collection('transactions').doc();
+      batch.set(ref, { ...prepared.docData, sourceId: prepared.sourceId || undefined }, { merge: true });
+    }
+    for (const [category, limit] of validBudgets) {
+      batch.set(firebaseAdminDb.collection('users').doc(userId).collection('budgets').doc(category), { category, limit }, { merge: true });
+    }
+    for (const c of validCommitments) {
+      const ref = c.id ? firebaseAdminDb.collection('commitments').doc(c.id) : firebaseAdminDb.collection('commitments').doc();
+      batch.set(ref, { ...c, userId, id: ref.id }, { merge: true });
+    }
+    for (const r of validReports) {
+      const ref = r.id ? firebaseAdminDb.collection('reports').doc(r.id) : firebaseAdminDb.collection('reports').doc();
+      batch.set(ref, { ...r, userId, id: ref.id }, { merge: true });
+    }
+    for (const [key, value] of validMemory) {
+      batch.set(firebaseAdminDb.collection('users').doc(userId).collection('memory').doc(key), { value }, { merge: true });
     }
 
-    // 3. Delete existing reports
-    const oldRep = await adminDb.collection('reports').where('userId', '==', userId).get();
-    for (const d of oldRep.docs) {
-      await adminDb.collection('reports').doc(d.id).delete();
+    try {
+      await batch.commit();
+    } catch (e: any) {
+      return {
+        success: false,
+        retryable: true,
+        reason: 'IMPORT_REPLACE_ATOMIC_COMMIT_FAILED',
+        message: 'فشلت الاستعادة الذرية ولم يتم تطبيق استعادة جزئية.',
+        error: e?.message || 'Firestore atomic restore failed',
+      };
     }
-    // 4. Replace really means replace: clear user-scoped budgets and memory too.
-    const oldBudgets = await adminDb.collection('users').doc(userId).collection('budgets').get();
-    for (const d of oldBudgets.docs) await adminDb.collection('users').doc(userId).collection('budgets').doc(d.id).delete();
-    const oldMemory = await adminDb.collection('users').doc(userId).collection('memory').get();
-    for (const d of oldMemory.docs) await adminDb.collection('users').doc(userId).collection('memory').doc(d.id).delete();
+
+    clearAllLocalUserData(userId);
+    return {
+      success: true,
+      mode,
+      atomic: true,
+      importedTransactions: preparedTransactions.entries.length,
+      importedBudgets: validBudgets.length,
+      importedCommitments: validCommitments.length,
+      importedReports: validReports.length,
+      importedMemory: validMemory.length,
+    };
   }
 
-  // 1. Write only transactions that passed the full preflight validator.
+  // Merge mode: write only transactions that passed the full preflight validator.
   let importedTxCount = 0;
   for (const prepared of preparedTransactions.entries) {
     const docRef = prepared.sourceId ? adminDb.collection('transactions').doc(prepared.sourceId) : adminDb.collection('transactions').doc();
