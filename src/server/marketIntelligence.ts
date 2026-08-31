@@ -206,12 +206,25 @@ export function classifyMarketScope(title: string = '', uri: string = '', locati
 
 export function normalizeCurrencyToIls(price: number, currency: string): number | null {
   const cur = normalizeCurrencyCode(currency || 'ILS');
-  const amount = Number(price) || 0;
+  const amount = parsePositiveFinancialAmount(price);
   if (amount <= 0) return null;
   if (cur === 'ILS' || cur === 'NIS') return Math.round(amount * 100) / 100;
   const rate = fxRatesToIlsCache?.rates?.[cur];
   if (!Number.isFinite(rate) || Number(rate) <= 0) return null;
   return Math.round(amount * Number(rate) * 100) / 100;
+}
+
+export function getFxConversionMetadata(currency: string): Pick<MarketResult, 'fxRateSource' | 'fxRateDate' | 'fxRateStale'> {
+  const cur = normalizeCurrencyCode(currency || 'ILS');
+  if (cur === 'ILS' || cur === 'NIS') return {};
+  const snapshot = fxRatesToIlsCache;
+  const rate = snapshot?.rates?.[cur];
+  if (!snapshot || !Number.isFinite(rate) || Number(rate) <= 0) return {};
+  return {
+    fxRateSource: snapshot.source,
+    fxRateDate: snapshot.rateDate,
+    fxRateStale: Boolean(snapshot.stale),
+  };
 }
 
 function hasUnconvertedForeignCurrency(results: MarketResult[]): boolean {
