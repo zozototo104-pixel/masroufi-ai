@@ -517,14 +517,6 @@ export async function getUserBudgets(userId: string, adminDb: any): Promise<Reco
   return mergedBudgets;
 }
 
-export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
-  if (!acc) return 'cash';
-  const s = String(acc).toLowerCase().trim();
-  if (s.includes('pal') || s.includes('بال') || s.includes('محفظ')) return 'palPay';
-  if (s.includes('debt') || s.includes('دين') || s.includes('آجل') || s.includes('اجل')) return 'debt';
-  return 'cash';
-}
-
 export async function addTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: addTransaction", args);
