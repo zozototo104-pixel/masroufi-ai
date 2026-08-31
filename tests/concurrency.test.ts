@@ -248,3 +248,17 @@ test('CONC-19: treasurerEngine financial report boundary avoids broad any', asyn
   assert.ok(src.includes('function buildTreasurerNotes(input: TreasurerNoteInput)'),
     'treasurer notes must use a typed summary contract');
 });
+
+test('CONC-20: tools financial amounts use the shared finite amount parser', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(toolsSrc.includes("from '../lib/amount'"),
+    'tools.ts must import the shared amount parser authority');
+  assert.ok(toolsSrc.includes('parsePositiveFinancialAmount'),
+    'positive financial fields must be parsed through the shared parser');
+  assert.ok(toolsSrc.includes('parseAbsoluteFinancialAmount'),
+    'absolute financial mutation amounts must be parsed through the shared parser');
+  assert.equal(toolsSrc.includes('Math.abs(Number'), false,
+    'tools.ts must not reintroduce local Math.abs(Number(...)) parsing that accepts Infinity');
+  assert.equal(toolsSrc.includes('isNaN(rawAmount)'), false,
+    'tools.ts must not reintroduce rawAmount/isNaN parsing');
+});
