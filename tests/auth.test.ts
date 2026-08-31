@@ -22,12 +22,11 @@ function verifierFor(validTokens: Record<string, any>): IdTokenVerifier {
 }
 
 test('AUTH-01: forged masrofi_token_ rejected', async () => {
-  const verifyBearer = makeVerifyBearerStub({});
   // Attacker forges: masrofi_token_<base64(JSON({uid:'victim_uid'}))>
   const forged = 'masrofi_token_' + Buffer.from(JSON.stringify({
     uid: 'victim_uid', email: 'victim@x.com', name: 'attacker'
   })).toString('base64');
-  const r = await verifyBearer(`Bearer ${forged}`);
+  const r = await verifyBearer(`Bearer ${forged}`, verifierFor({}));
   assert.equal(r.ok, false);
   assert.equal(r.status, 401);
   assert.match(r.error || '', /Unsigned legacy/);
