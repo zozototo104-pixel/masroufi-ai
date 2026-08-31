@@ -1976,7 +1976,7 @@ export async function payDebt(args:any,userId:string,token:string){
  }
  const debts=calculateOpenCreditorDebts(snap.docs);
  const selection=selectOpenCreditorDebt({ debts, requestedCreditor: args.creditor||args.person||args.merchant, amount });
- if(!selection.ok)return{success:false,needsClarification:true,reason:selection.reason,options:selection.options,message:selection.message};
+ if(selection.ok === false)return{success:false,needsClarification:true,reason:selection.reason,options:selection.options,message:selection.message};
  const selected=selection.selected;
  if(amount>selected.remaining+0.0001)return{success:false,needsClarification:true,reason:'OVERPAYMENT',creditor:selected.creditor,remaining:selected.remaining,message:`المتبقي لـ ${selected.creditor} هو ${selected.remaining} ₪ فقط.`};
  const beforeBalances=calculateBalancesFromDocs(snap.docs); const available=Number(beforeBalances[fromAccount]||0); if(amount>available+0.0001)return{success:false,needsClarification:true,reason:'INSUFFICIENT_FUNDS',available,message:`الرصيد المتاح في ${fromName} هو ${available} ₪ فقط. لا يمكن تنفيذ سداد ${amount} ₪.`};
