@@ -9,7 +9,6 @@ import { functionDeclarations, toolHandlers } from "./src/server/tools";
 import { adminAuth } from "./src/server/firebaseAdmin";
 import {
   authMiddleware,
-  issueDirectLoginToken,
   verifyBearer,
   type WSAuthState,
 } from "./src/server/auth";
