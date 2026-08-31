@@ -12,9 +12,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-// Import the pure functions under test.
-// tsx allows us to import .ts directly.
-import { calculateBalancesFromDocs as calcBalanceViaModule } from '../src/server/tools.ts';
+// Import the pure financial domain directly. These tests must exercise behavior,
+// not the orchestration layer or source-code strings.
+import { calculateBalances, calculateBreakdown, calculateCreditorRemaining, normalizeAccount, normalizeCreditorKey } from '../src/lib/balanceCalc.ts';
 import { buildHierarchicalReport } from '../src/lib/reportUtils.ts';
 
 // Helper: make a transaction object.
