@@ -131,7 +131,7 @@ export async function recordTransactionCommittedSideEffects(
   db: any,
   options: { preUserBudgets?: Record<string, number>; preTxSnapshot?: any } = {}
 ) {
-  const amount = Number(tx?.amount) || 0;
+  const amount = parsePositiveFinancialAmount(tx?.amount);
   const type = String(tx?.type || 'expense');
   const account = String(tx?.account || 'cash');
   const category = String(tx?.category || '');
