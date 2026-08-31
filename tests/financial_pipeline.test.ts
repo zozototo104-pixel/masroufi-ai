@@ -73,3 +73,37 @@ test('PIPE-07: income nature must be user-stated, not model-inferred from genera
   assert.ok(tools.includes('originalUserIncomeText'), 'income validation must inspect original user text');
   assert.ok(tools.includes('POSSIBLE_LOAN_NOT_INCOME'), 'possible loan must not be silently recorded as income');
 });
+
+test('VOICE-01: personal voice management endpoints are authenticated', async () => {
+  const server = await src('server.ts');
+  assert.ok(server.includes('app.get("/api/custom-voice", authMiddleware'), 'custom voice status must require auth');
+  assert.ok(server.includes('app.post("/api/custom-voice", authMiddleware'), 'custom voice creation must require auth');
+  assert.ok(server.includes('app.delete("/api/custom-voice", authMiddleware'), 'custom voice deletion must require auth');
+});
+
+test('VOICE-02: browser never receives ElevenLabs API key', async () => {
+  const app = await src('src/App.tsx');
+  const serverVoice = await src('src/server/customVoice.ts');
+  assert.equal(app.includes('ELEVENLABS_API_KEY'), false, 'frontend must not reference provider secret');
+  assert.ok(serverVoice.includes('process.env.ELEVENLABS_API_KEY'), 'provider secret must stay server-side');
+});
+
+test('VOICE-03: Puck and Zephyr remain available while Custom is additive', async () => {
+  const app = await src('src/App.tsx');
+  assert.ok(app.includes("setVoice('Puck')"), 'Puck must remain selectable');
+  assert.ok(app.includes("setVoice('Zephyr')"), 'Zephyr must remain selectable');
+  assert.ok(app.includes("setVoice('Custom')"), 'Custom must be an additional option');
+});
+
+test('VOICE-04: Custom suppresses Gemini native audio and uses cloned-voice synthesis', async () => {
+  const server = await src('server.ts');
+  assert.ok(server.includes('if (audio && !useCustomVoice)'), 'Gemini native audio must be suppressed only for Custom mode');
+  assert.ok(server.includes('outputAudioTranscription'), 'Custom mode must request Gemini output transcription');
+  assert.ok(server.includes('streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak })'), 'Custom mode must synthesize through the stored personal voice');
+});
+
+test('VOICE-05: interruption invalidates late personal-voice audio', async () => {
+  const server = await src('server.ts');
+  assert.ok(server.includes('customVoiceGeneration++'), 'custom voice generation must be invalidated on interruption');
+  assert.ok(server.includes('generation === customVoiceGeneration'), 'late TTS audio must be discarded after interruption');
+});
