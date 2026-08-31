@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { calculateBalances, calculateBreakdown } from '../src/lib/balanceCalc.ts';
+import { buildReportSnapshotRecord } from '../src/lib/reportUtils.ts';
 
 function tx(opts: any) {
   return {
