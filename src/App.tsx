@@ -882,8 +882,10 @@ export default function App() {
         category: normalized.includes('راتب') ? 'دخل' : 'دخل',
         subcategory: normalized.includes('راتب') ? 'راتب' : 'دخل عام',
         notes: text,
-        incomeDestinationConfirmed: true,
-        incomeNatureConfirmed: true,
+        // Preserve the user's original words so the server remains the authority
+        // for income nature/destination confirmation. Offline parsing may extract
+        // candidates, but it must never manufacture a business confirmation.
+        userText: text,
       };
       return {
         commandType: 'ADD_TRANSACTION',
