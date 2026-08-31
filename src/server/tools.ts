@@ -1713,11 +1713,11 @@ export async function importUserData(payload: any, userId: string, token: string
       success: true,
       mode,
       atomic: true,
-      importedTransactions: preparedTransactions.entries.length,
-      importedBudgets: validBudgets.length,
-      importedCommitments: validCommitments.length,
-      importedReports: validReports.length,
-      importedMemory: validMemory.length,
+      importedTransactions: transactionEntries.length,
+      importedBudgets: budgetEntries.length,
+      importedCommitments: commitmentEntries.length,
+      importedReports: reportEntries.length,
+      importedMemory: memoryEntries.length,
     };
   }
 
