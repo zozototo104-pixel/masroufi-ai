@@ -33,8 +33,8 @@ test('AUTH-01: forged masrofi_token_ rejected', async () => {
 });
 
 test('AUTH-02: missing Authorization header rejected', async () => {
-  const verifyBearer = makeVerifyBearerStub({});
-  const r1 = await verifyBearer(undefined);
+  const verifier = verifierFor({});
+  const r1 = await verifyBearer(undefined, verifier);
   assert.equal(r1.ok, false);
   assert.equal(r1.status, 401);
   const r2 = await verifyBearer('');
