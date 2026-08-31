@@ -139,9 +139,9 @@ export async function atomicAddTransaction(
     const balances = calculateBalances(plainTransactions(existingDocs));
 
     // Determine the new account impact.
-    const account = newTx.account || (newTx.fromAccount === 'cash' || newTx.fromAccount === 'palPay' ? newTx.fromAccount : 'cash');
-    const amount = Number(newTx.amount) || 0;
-    const type = newTx.type;
+    const account = String(newTx.account || (newTx.fromAccount === 'cash' || newTx.fromAccount === 'palPay' ? newTx.fromAccount : 'cash'));
+    const amount = parsePositiveFinancialAmount(newTx.amount);
+    const type = String(newTx.type || '');
 
     if (!opts.skipBalanceCheck && !opts.riskConfirmed) {
       // For cash/palPay expenses and outbound transfers, check available funds.
