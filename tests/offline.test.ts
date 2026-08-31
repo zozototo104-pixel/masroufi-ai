@@ -37,20 +37,20 @@ test('OFF-04: syncPendingOps attempts to sync on fetchData', async () => {
     'fetchData calls syncPendingOps at start');
 });
 
-test('OFF-05: retry does not duplicate (server-side idempotency)', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
-  assert.ok(src.includes("status: 'completed'"),
-    'idempotency records completed status');
-  assert.ok(src.includes("kind: 'cache_hit'"),
-    'cache_hit returns stored result');
+test('OFF-05: retry does not duplicate after the operation completed', () => {
+  const now = Date.now();
+  const expected = { success: true, id: 'offline-tx-1' };
+  const completed = buildCompletedIdempotencyRecord('u1', 'offline-op-1', expected, now);
+  const decision = decideIdempotencyClaim(completed, now + 1);
+  assert.equal(decision.action, 'return', 'completed retry must return instead of execute');
 });
 
-test('OFF-06: server committed but response lost — retry returns cached result', async () => {
-  // The idempotency layer stores result when status=completed. A retry that
-  // arrives after the original completed will see status=completed and return cached.
-  const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
-  assert.ok(src.includes("if (data.status === 'completed')"),
-    'completed entries return cached result on retry');
+test('OFF-06: server committed but response lost — retry returns cached result', () => {
+  const expected = { success: true, id: 'offline-tx-2' };
+  const completed = buildCompletedIdempotencyRecord('u1', 'offline-op-2', expected, 1000);
+  const decision = decideIdempotencyClaim(completed, 1001);
+  assert.equal(decision.action, 'return');
+  if (decision.action === 'return') assert.deepEqual(decision.result, expected);
 });
 
 test('OFF-06B: offline income parser cannot manufacture server business confirmations', async () => {
