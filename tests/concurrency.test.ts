@@ -218,3 +218,15 @@ test('CONC-18: disabled legacy import writer code is not retained as source text
   assert.equal(toolsSrc.includes('legacy raw transaction writer body'), false,
     'source-text tests must not be confused by commented legacy write paths');
 });
+
+test('CONC-19: treasurerEngine financial report boundary avoids broad any', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/treasurerEngine.ts'), 'utf8');
+  assert.equal(/\bany\b/.test(src), false,
+    'treasurerEngine must use explicit local types or unknown at input boundaries instead of broad any');
+  assert.ok(src.includes('type TreasurerReportArgs = Record<string, unknown>'),
+    'treasurer report arguments must be typed as unknown boundary data');
+  assert.ok(src.includes('type BalanceSnapshot = { cash?: number; palPay?: number; debt?: number; total?: number }'),
+    'treasurer risk checks must use an explicit balance snapshot shape');
+  assert.ok(src.includes('function buildTreasurerNotes(input: TreasurerNoteInput)'),
+    'treasurer notes must use a typed summary contract');
+});
