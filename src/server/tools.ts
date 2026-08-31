@@ -1433,7 +1433,7 @@ export async function importUserData(payload: any, userId: string, token: string
   /* LEGACY_IMPORT_WRITER_DISABLED
   The old raw transaction writer is retained temporarily for diff traceability only.
   It must never execute; restore semantics now come exclusively from the preflighted entries above.
-  for (const t of transactionsToImport) {
+  legacy raw transaction writer body (disabled):
     const rawAmount = typeof t.amount === 'string' ? parseFloat(t.amount) : Number(t.amount);
     const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
     if (amount <= 0 && !t.notes && !t.category) continue;
