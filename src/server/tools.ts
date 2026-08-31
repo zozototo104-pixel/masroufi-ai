@@ -2321,7 +2321,7 @@ export async function deleteTransaction(args: any, userId: string, token: string
 export async function repairDuplicateIncome(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log('TOOL CALL: repairDuplicateIncome', args);
-  const targetAmount = args.amount !== undefined ? Math.abs(Number(args.amount) || 0) : null;
+  const targetAmount = args.amount !== undefined ? parsePositiveFinancialAmount(args.amount) : null;
   const targetDate = String(args.date || '').slice(0, 10);
   const targetMonth = String(args.month || '').slice(0, 7);
   const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
