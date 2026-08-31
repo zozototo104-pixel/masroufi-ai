@@ -223,14 +223,10 @@ export function formatArabicDate(dateStr: string): { dayName: string; dateFormat
 }
 
 export function normalizeAccountLabel(account: string, paymentMethod?: string): { code: 'cash' | 'palPay' | 'debt'; label: string } {
-  const check = String(paymentMethod || account || '').toLowerCase();
-  if (check.includes('debt') || check.includes('دين') || check.includes('آجل')) {
-    return { code: 'debt', label: 'دين / ذمة' };
-  }
-  if (check.includes('palpay') || check.includes('بال باي') || check.includes('بالباي')) {
-    return { code: 'palPay', label: 'محفظة PalPay' };
-  }
-  return { code: 'cash', label: 'نقدي (كاش)' };
+  const code = normalizeAccount(paymentMethod || account);
+  if (code === 'debt') return { code, label: 'دين / ذمة' };
+  if (code === 'palPay') return { code, label: 'محفظة PalPay' };
+  return { code, label: 'نقدي (كاش)' };
 }
 
 export function normalizeNecessity(necessity?: string, type?: string): 'ضروري' | 'كمالي' {
