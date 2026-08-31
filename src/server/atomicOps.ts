@@ -379,7 +379,7 @@ export async function atomicPayDebt(
     }
     // Also check the source account has funds.
     const balances = calculateBalances(plainTransactions(docs));
-    const fromAccount = newTx.fromAccount || newTx.account;
+    const fromAccount = String(newTx.fromAccount || newTx.account || 'cash');
     const available = fromAccount === 'palPay' ? balances.palPay : balances.cash;
     if (amount > available + 0.0001) {
       return {
