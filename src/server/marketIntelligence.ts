@@ -32,6 +32,9 @@ export interface MarketResult {
   originalPrice?: number;
   originalCurrency?: string;
   normalizedPriceIls?: number;
+  fxRateSource?: string;
+  fxRateDate?: string;
+  fxRateStale?: boolean;
   marketScope?: MarketScope;
   availability?: 'in-stock' | 'out-of-stock' | 'unknown';
   source: string;       // e.g., "Google Search grounding" or seller name
