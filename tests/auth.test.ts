@@ -53,10 +53,10 @@ test('AUTH-03: no default-user fallback — invalid token stays 401', async () =
 
 test('AUTH-04: valid Firebase ID token accepted', async () => {
   const validToken = 'fake.valid.id.token';
-  const verifyBearer = makeVerifyBearerStub({
+  const verifier = verifierFor({
     [validToken]: { uid: 'real_user_uid', email: 'real@x.com' }
   });
-  const r = await verifyBearer(`Bearer ${validToken}`);
+  const r = await verifyBearer(`Bearer ${validToken}`, verifier);
   assert.equal(r.ok, true);
   assert.equal(r.uid, 'real_user_uid');
   assert.equal(r.email, 'real@x.com');
