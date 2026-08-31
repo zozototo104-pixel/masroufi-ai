@@ -442,6 +442,7 @@ export async function searchLocalMarket(args: any, userId: string, token: string
         originalPrice: p.price,
         originalCurrency: p.currency,
         normalizedPriceIls: normalized || undefined,
+        ...fxMetadata,
         marketScope: scope,
         availability: 'unknown',
         source: sources[i]?.title || 'Gemini + Google Search',
