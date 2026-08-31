@@ -315,6 +315,18 @@ test('REP-03B: report balances delegate to the canonical financial domain core',
     'reportUtils must not retain parallel balance arithmetic comments/logic');
 });
 
+test('REP-03C: report totals ignore non-finite amounts instead of poisoning category totals', () => {
+  const report = buildHierarchicalReport([
+    tx({ type: 'expense', account: 'cash', amount: Infinity, category: 'طعام', subcategory: 'غداء' }),
+    tx({ type: 'income', account: 'cash', amount: NaN, category: 'دخل' }),
+    tx({ type: 'expense', account: 'cash', amount: 12, category: 'طعام', subcategory: 'غداء' }),
+  ]);
+  assert.equal(report.totalExpenses, 12);
+  assert.equal(report.totalIncome, 0);
+  assert.equal(report.categories[0].total, 12);
+  assert.equal(Number.isFinite(report.totalExpenses), true);
+});
+
 test('REP-04: monthly report contains only month — no fallback to ALL time', async () => {
   const src = await import('node:fs/promises').then(fs => fs.readFile(
     join(process.cwd(), 'src/server/tools.ts'), 'utf8'
