@@ -63,7 +63,7 @@ jobs:
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
         run: |
-          mkdir -p .ci
+          REPORT_FILE="/tmp/ci-report-$GITHUB_SHA.md"
           {
             echo "# CI Verification Report"
             echo
@@ -95,12 +95,31 @@ jobs:
               echo '```'
               echo
             done
-          } > .ci/last-run.md
+          } > "$REPORT_FILE"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .ci/last-run.md
-          git commit -m "ci: record verification result [skip ci]" || exit 0
-          git push
+
+          # The branch may advance while tests are running. Rebase onto the latest
+          # main before publishing the report so a non-fast-forward push cannot
+          # silently leave .ci/last-run.md stale.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p .ci/runs
+            cp "$REPORT_FILE" ".ci/runs/$GITHUB_SHA.md"
+            cp "$REPORT_FILE" .ci/last-run.md
+            git add .ci/last-run.md ".ci/runs/$GITHUB_SHA.md"
+            git commit -m "ci: record verification result for $GITHUB_SHA [skip ci]" || exit 0
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "CI report push raced with another commit; retrying ($attempt/3)..."
+            sleep 2
+          done
+
+          echo "Failed to persist CI verification report after retries" >&2
+          exit 1
 
       - name: Enforce verification gates
         if: always()
