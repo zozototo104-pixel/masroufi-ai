@@ -324,10 +324,11 @@ test('REP-07: import/export preserves transactionType and creditor fields', asyn
     join(process.cwd(), 'src/server/tools.ts'), 'utf8'
   ));
   // V6 importUserData preserves transactionType/creditor/creditorKey regardless of type.
-  assert.ok(src.includes('V6 (HF-5): preserve ALL financial semantics fields on import'),
-    'importUserData must explicitly preserve financial fields');
+  assert.ok(src.includes('Restore reconstructs historical state; it must preserve semantics without'),
+    'importUserData must explicitly preserve financial fields through canonical preparation');
   assert.ok(src.includes("if (t.transactionType) docData.transactionType = String(t.transactionType)"));
-  assert.ok(src.includes("if (t.creditor) docData.creditor = String(t.creditor)"));
+  assert.ok(src.includes("if (creditor) docData.creditor = creditor"));
+  assert.ok(src.includes("if (t.creditorKey) docData.creditorKey = String(t.creditorKey)"));
 });
 
 // Helper for source-level tests.
