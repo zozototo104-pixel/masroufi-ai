@@ -1,1 +1,1 @@
-Trigger final verification after PIPE-01 regression contract update.
+Trigger verification after scoping PIPE-01 raw-write assertion to the financial transaction sync block.
