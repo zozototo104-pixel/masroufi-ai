@@ -32,11 +32,16 @@ function stableReceiptDocId(userId: string, receiptId: string): string {
 function sameReceiptTransaction(existing: any, incoming: any): boolean {
   const existingAmount = Number(existing?.amount) || 0;
   const incomingAmount = Number(incoming?.amount) || 0;
-  return String(existing?.operationId || '') === String(incoming?.operationId || '')
+  const existingReceiptId = String(existing?.receiptId || '');
+  const incomingReceiptId = String(incoming?.receiptId || '');
+  const operationId = String(existing?.operationId || '');
+  const receiptCompatible = existingReceiptId === incomingReceiptId
+    || (!existingReceiptId && incomingReceiptId && operationId.startsWith(`receipt:${incomingReceiptId}:`));
+  return operationId === String(incoming?.operationId || '')
     && Math.abs(existingAmount - incomingAmount) < 0.01
     && String(existing?.type || '') === String(incoming?.type || '')
     && String(existing?.account || '') === String(incoming?.account || '')
-    && String(existing?.receiptId || '') === String(incoming?.receiptId || '');
+    && receiptCompatible;
 }
 
 /**
