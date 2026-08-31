@@ -10,10 +10,16 @@
  */
 import { createHash } from 'crypto';
 import { adminDb } from './firebaseAdmin';
+import {
+  IDEMPOTENCY_TTL_MS,
+  buildCompletedIdempotencyRecord,
+  buildIndeterminateIdempotencyRecord,
+  buildPendingIdempotencyRecord,
+  decideIdempotencyClaim,
+  type ClaimDecision,
+} from './idempotencyCore';
 
 const IDEMPOTENCY_COLLECTION = 'idempotency_keys';
-const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
-const PENDING_STALE_MS = 2 * 60 * 1000;
 
 function idemDocId(userId: string, operationId: string): string {
   return createHash('sha256').update(`${userId}:${operationId}`).digest('hex');
