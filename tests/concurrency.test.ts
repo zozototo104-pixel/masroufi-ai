@@ -70,3 +70,21 @@ test('CONC-08: atomicOps has no circular dependency on tools.ts', async () => {
   assert.ok(src.includes("from '../lib/balanceCalc'"),
     'atomic financial operations must use the shared financial domain core');
 });
+
+test('CONC-09: stale pending idempotency keys never auto-reexecute financial mutations', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
+  assert.ok(src.includes("reason: 'IDEMPOTENT_OUTCOME_UNKNOWN'"),
+    'stale pending outcome must be surfaced as unknown');
+  assert.ok(src.includes('exactly-once safety is more important than availability'),
+    'stale pending policy must explicitly fail closed');
+});
+
+test('CONC-10: ambiguous handler failure becomes terminal indeterminate state', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
+  assert.ok(src.includes("status: 'indeterminate'"),
+    'ambiguous execution must be persisted as indeterminate');
+  assert.ok(src.includes("reason: 'IDEMPOTENT_EXECUTION_INDETERMINATE'"),
+    'caller must receive an explicit ambiguous-outcome reason');
+  assert.equal(src.includes("status: 'failed',\n      result: failure"), false,
+    'ambiguous post-execution failure must not be converted into a retryable failed state');
+});
