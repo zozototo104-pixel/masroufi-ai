@@ -235,7 +235,7 @@ export function inferCategory(input: {
   };
 }
 
-export function getDateRange(args: any, now = new Date()): { start?: Date; end?: Date; label: string; granularity: 'day' | 'month' | 'quarter' | 'year' | 'all' } {
+export function getDateRange(args: TreasurerReportArgs, now = new Date()): { start?: Date; end?: Date; label: string; granularity: 'day' | 'month' | 'quarter' | 'year' | 'all' } {
   const period = String(args?.period || args?.timeframe || 'all');
   const year = Number(args?.year) || now.getFullYear();
   const month = Number(args?.month);
