@@ -136,6 +136,17 @@ function isFinancialToolName(name: string): boolean {
   return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase'].includes(name);
 }
 
+function looksLikeFinancialIntent(text: string): boolean {
+  const t = normalizeArabicForIntent(text);
+  return /(سجل|سجلي|ضيف|ضيفي|اضف|أضف|دخل|راتب|مصروف|اشتريت|شريت|دفعت|دفع|دين|سلف|سلفة|سلفه|حول|حوّل|سدد|سداد)/.test(t);
+}
+
+function looksLikeCommittedClaim(text: string): boolean {
+  const t = normalizeArabicForIntent(text);
+  return /(تم|سجلت|سجلتها|ضفت|اضفت|حفظت|انضاف|تمت الاضافه|تمت الإضافة|صار عندك|تم تسجيل|تم حفظ|تم اضافه|تم إضافة)/.test(t)
+    && /(سجل|اضاف|إضاف|حفظ|دخل|راتب|مصروف|دين|رصيد|محفظ|كاش)/.test(t);
+}
+
 function buildDeterministicFinancialReply(functionResponses: Array<{ name: string; response: any }>): string | null {
   const financial = functionResponses.filter(r => isFinancialToolName(r.name));
   if (financial.length === 0) return null;
