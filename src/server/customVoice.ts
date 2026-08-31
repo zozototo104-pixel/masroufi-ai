@@ -211,9 +211,19 @@ export async function getCustomVoiceId(userId: string): Promise<string | null> {
 export async function* streamCustomVoiceAudio(args: {
   voiceId: string;
   text: string;
+  provider?: CustomVoiceProvider;
 }): AsyncGenerator<Uint8Array> {
-  const provider = selectedProvider();
-  const response = provider === 'fish'
+  const provider = args.provider || selectedProvider();
+  let response: Response;
+  if (provider === 'moss') {
+    const [reference] = await adminStorageBucket.file(args.voiceId).download();
+    const form = new FormData();
+    form.append('text', args.text);
+    form.append('reference_audio', new Blob([new Uint8Array(reference)], { type: 'audio/webm' }), 'reference.webm');
+    form.append('format', 'pcm');
+    form.append('sample_rate', '24000');
+    response = await fetch(`${requireMossUrl()}/v1/tts`, { method: 'POST', body: form, headers: { Accept: 'audio/pcm' } });
+  } else response = provider === 'fish'
     ? await fetch(`${FISH_AUDIO_API_BASE}/v1/tts`, {
         method: 'POST',
         headers: {
