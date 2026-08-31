@@ -125,3 +125,12 @@ test('CONC-12: direct and smart transaction deletion revalidate and delete atomi
   const calls = toolsSrc.match(/atomicDeleteTransaction\(userId,/g) || [];
   assert.ok(calls.length >= 2, 'both direct-ID and confirmed smart deletion must use atomic deletion');
 });
+
+test('CONC-13: receipt lines are validated first and persisted by one atomic transaction', async () => {
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  assert.ok(atomicSrc.includes('export async function atomicAddTransactions'), 'multi-transaction atomic primitive must exist');
+  assert.ok(serverSrc.includes('validateOnly: true'), 'receipt must validate every line without persistence first');
+  assert.ok(serverSrc.includes('await atomicAddTransactions('), 'receipt must persist through the atomic multi-line primitive');
+  assert.equal(serverSrc.includes('createdBeforeFailure'), false, 'receipt endpoint must not expose partial-success semantics');
+});
