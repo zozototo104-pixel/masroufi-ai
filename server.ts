@@ -420,31 +420,14 @@ async function startServer() {
     }
   });
 
-  // Safari & Mobile friendly direct authentication using Firebase Custom Tokens.
-  // V6: replaces unsigned masrofi_token_ bypass (CF-1). Server mints a real
-  // Firebase Custom Token via Admin SDK; client calls signInWithCustomToken.
-  app.post("/api/auth/safari-token", async (req: any, res: any) => {
-    try {
-      const { email } = req.body || {};
-      const result = await issueDirectLoginToken(email);
-      if (!result.success) {
-        return res.status(400).json({ error: result.error || 'فشل إصدار التوكن' });
-      }
-      res.json({
-        success: true,
-        // Note: this is a Firebase Custom Token, NOT a session token. Client must call
-        // signInWithCustomToken(customToken) and then use the resulting ID token as Bearer.
-        customToken: result.customToken,
-        user: {
-          uid: result.uid,
-          email: result.email,
-          displayName: result.displayName
-        }
-      });
-    } catch (error: any) {
-      console.error("Safari direct token error:", error);
-      res.status(500).json({ error: "فشل التحقق: " + (error.message || "خطأ غير معروف") });
-    }
+  // Legacy Safari email-only token minting is permanently disabled.
+  // Identity proof must happen through Firebase Auth providers (Google redirect on Safari/mobile),
+  // never by accepting an email claim and minting a trusted token for it.
+  app.post("/api/auth/safari-token", async (_req: any, res: any) => {
+    res.status(410).json({
+      error: 'EMAIL_ONLY_DIRECT_LOGIN_DISABLED',
+      message: 'استخدم تسجيل الدخول الآمن بواسطة Google.'
+    });
   });
 
   app.post("/api/scan-receipt", authMiddleware, async (req: any, res: any) => {
