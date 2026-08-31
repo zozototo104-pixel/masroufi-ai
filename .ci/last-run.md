@@ -1,7 +1,7 @@
 # CI Verification Report
 
-Source commit: 7110fda1f245fab8027e37fac0e4bb00b3495f32
-Run: 33377175044
+Source commit: b6d660f13e8dcbc98bb6af6b932b875dfee8c6a2
+Run: 33377305878
 Install: success
 Tests: failure
 TypeScript: success
@@ -11,7 +11,7 @@ Build: success
 ```text
 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-added 543 packages, and audited 544 packages in 15s
+added 543 packages, and audited 544 packages in 13s
 
 67 packages are looking for funding
   run `npm fund` for details
@@ -29,115 +29,115 @@ Run `npm audit` for details.
 
 ## tests
 ```text
-  duration_ms: 1.53052
+  duration_ms: 3.550379
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-03: transferMoney has NO direct write fallback
 ok 131 - TRANSFER-CONC-03: transferMoney has NO direct write fallback
   ---
-  duration_ms: 2.430442
+  duration_ms: 2.671651
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-01: offlineQueue stores commandType + args (not final document)
 ok 132 - OFFLINE-COMMAND-01: offlineQueue stores commandType + args (not final document)
   ---
-  duration_ms: 1.157373
+  duration_ms: 2.343766
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-02: offlineQueue sends through /api/command (NOT /api/sync)
 ok 133 - OFFLINE-COMMAND-02: offlineQueue sends through /api/command (NOT /api/sync)
   ---
-  duration_ms: 1.028643
+  duration_ms: 1.621137
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-03: /api/command endpoint exists in server.ts
 ok 134 - OFFLINE-COMMAND-03: /api/command endpoint exists in server.ts
   ---
-  duration_ms: 1.721156
+  duration_ms: 1.523788
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-04: dispatchFinancialCommand routes to tool handlers
 ok 135 - OFFLINE-COMMAND-04: dispatchFinancialCommand routes to tool handlers
   ---
-  duration_ms: 1.210943
+  duration_ms: 1.242961
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-05: /api/sync is NOT a financial backdoor (syncOfflineData does doc.set for non-financial only)
 ok 136 - OFFLINE-COMMAND-05: /api/sync is NOT a financial backdoor (syncOfflineData does doc.set for non-financial only)
   ---
-  duration_ms: 1.666895
+  duration_ms: 1.740695
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-01: V6.2 uses new queue key (masrofi_pending_ops_v6_2)
 ok 137 - UNIFIED-PENDING-01: V6.2 uses new queue key (masrofi_pending_ops_v6_2)
   ---
-  duration_ms: 1.0486
+  duration_ms: 1.095986
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-02: migrateLegacyPendingOps function exists
 ok 138 - UNIFIED-PENDING-02: migrateLegacyPendingOps function exists
   ---
-  duration_ms: 3.08232
+  duration_ms: 2.454714
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-03: App.tsx calls migrateLegacyPendingOps on fetchData
 ok 139 - UNIFIED-PENDING-03: App.tsx calls migrateLegacyPendingOps on fetchData
   ---
-  duration_ms: 4.361962
+  duration_ms: 1.614478
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-04: logout clears ALL pending keys (v6_2 + legacy)
 ok 140 - UNIFIED-PENDING-04: logout clears ALL pending keys (v6_2 + legacy)
   ---
-  duration_ms: 2.043169
+  duration_ms: 2.371238
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-01: addTransaction rejects on partial snapshot
 ok 141 - PARTIAL-STATE-01: addTransaction rejects on partial snapshot
   ---
-  duration_ms: 1.986272
+  duration_ms: 2.654359
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-02: transferMoney rejects on partial balance
 ok 142 - PARTIAL-STATE-02: transferMoney rejects on partial balance
   ---
-  duration_ms: 2.055341
+  duration_ms: 1.966318
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-03: payDebt rejects on partial snapshot
 ok 143 - PARTIAL-STATE-03: payDebt rejects on partial snapshot
   ---
-  duration_ms: 6.342703
+  duration_ms: 2.113965
   type: 'test'
   ...
 # Subtest: FIRESTORE-READS-01: atomic ops use runTransaction (O(N) acknowledged, V7 will add financialState)
 ok 144 - FIRESTORE-READS-01: atomic ops use runTransaction (O(N) acknowledged, V7 will add financialState)
   ---
-  duration_ms: 2.399635
+  duration_ms: 1.07691
   type: 'test'
   ...
 # Subtest: STATIC-SAFETY-01: no "catch + txRef.set" pattern in payDebt
 ok 145 - STATIC-SAFETY-01: no "catch + txRef.set" pattern in payDebt
   ---
-  duration_ms: 2.710195
+  duration_ms: 1.82866
   type: 'test'
   ...
 # Subtest: STATIC-SAFETY-02: no "catch + txRef.set" pattern in transferMoney
 ok 146 - STATIC-SAFETY-02: no "catch + txRef.set" pattern in transferMoney
   ---
-  duration_ms: 8.236322
+  duration_ms: 5.550474
   type: 'test'
   ...
 # Subtest: SYNC-AUTH-01: dispatchFinancialCommand overwrites client userId
 ok 147 - SYNC-AUTH-01: dispatchFinancialCommand overwrites client userId
   ---
-  duration_ms: 0.896165
+  duration_ms: 1.14594
   type: 'test'
   ...
 # Subtest: IDEM-01: dispatchFinancialCommand passes operationId through args
 ok 148 - IDEM-01: dispatchFinancialCommand passes operationId through args
   ---
-  duration_ms: 0.832325
+  duration_ms: 0.927119
   type: 'test'
   ...
 1..148
@@ -148,7 +148,7 @@ ok 148 - IDEM-01: dispatchFinancialCommand passes operationId through args
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 2136.945723
+# duration_ms 1789.514589
 ```
 
 ## lint
@@ -178,10 +178,10 @@ computing gzip size...
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
-[32m✓ built in 5.29s[39m
+[32m✓ built in 5.12s[39m
 
   dist/server.cjs      463.0kb
-  dist/server.cjs.map  721.5kb
+  dist/server.cjs.map  722.7kb
 
 ⚡ Done in 23ms
 ```
