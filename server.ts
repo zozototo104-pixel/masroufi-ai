@@ -529,7 +529,7 @@ If individual line items cannot be broken down, provide a single item in the ite
       if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
       const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${items.length}_${merchant}_${paymentMethod}_${items.map((i: any) => `${i.amount}:${i.name || i.notes || i.subcategory || ''}`).join('|')}`);
-      const created: any[] = [];
+      const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
       for (const [index, item] of items.entries()) {
         const txArgs = {
           amount: item.amount,
