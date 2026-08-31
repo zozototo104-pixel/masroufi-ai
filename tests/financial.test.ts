@@ -19,6 +19,7 @@ import { validateImportEnvelope } from '../src/lib/importEnvelope.ts';
 import { buildReportSnapshotRecord } from '../src/lib/reportUtils.ts';
 import { calculateBalances, calculateBreakdown, calculateCreditorRemaining, normalizeAccount, normalizeCreditorKey } from '../src/lib/balanceCalc.ts';
 import { buildCompletedIdempotencyRecord, decideIdempotencyClaim } from '../src/server/idempotencyCore.ts';
+import { IDEMPOTENCY_COLLECTION } from '../src/server/idempotencyConfig.ts';
 import { buildHierarchicalReport } from '../src/lib/reportUtils.ts';
 
 // Helper: make a transaction object.
