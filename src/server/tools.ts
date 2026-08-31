@@ -2167,7 +2167,7 @@ export async function updateTransaction(args: any, userId: string, token: string
       const sameCategoryThisMonth = combinedDocs
         .map((d: any) => typeof d.data === 'function' ? d.data() : d)
         .filter((t: any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth) && t.category === projected.category);
-      const spent = sameCategoryThisMonth.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+      const spent = sameCategoryThisMonth.reduce((s: number, t: any) => s + parsePositiveFinancialAmount(t.amount), 0);
       const limit = Number(userBudgets?.[projected.category] || DEFAULT_BUDGETS[projected.category] || 0);
       if (limit > 0 && spent >= limit && !args.riskConfirmed) {
         return { success: false, needsConfirmation: true, reason: 'BUDGET_WILL_BE_EXCEEDED', message: `التعديل سيرفع بند [${projected.category}] إلى ${spent} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة؟` };
