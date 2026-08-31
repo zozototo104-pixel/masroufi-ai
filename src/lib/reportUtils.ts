@@ -4,6 +4,7 @@
  * and builds high-fidelity printable / Word-exportable formats.
  */
 
+import { parseAbsoluteFinancialAmount } from './amount';
 import { calculateBalances, normalizeAccount } from './balanceCalc';
 
 export interface HierarchicalTransactionItem {
