@@ -181,12 +181,8 @@ test('FIN-14: duplicate operationId returns the completed result without re-exec
   if (decision.action === 'return') assert.deepEqual(decision.result, expected);
 });
 
-test('FIN-15: duplicate after restart executes once — persistent idempotency', async () => {
-  // Idempotency uses Firestore collection 'idempotency_keys' — survives restart.
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/idempotency.ts'), 'utf8'
-  ));
-  assert.ok(src.includes("IDEMPOTENCY_COLLECTION = 'idempotency_keys'"), 'uses persistent Firestore collection');
+test('FIN-15: duplicate after restart executes once — persistent idempotency', () => {
+  assert.equal(IDEMPOTENCY_COLLECTION, 'idempotency_keys', 'uses persistent Firestore collection');
 });
 
 test('FIN-16: PalPay malformed amounts collapse to invalid zero through the shared parser', () => {
