@@ -1378,7 +1378,7 @@ export async function importUserData(payload: any, userId: string, token: string
   // Restore is a historical-state operation, so we validate and normalize the backup
   // without replaying notifications or other financial side effects.
   const preparedTransactions = prepareImportedFinancialTransactions(transactionsToImport, userId);
-  if (!preparedTransactions.ok) {
+  if ('failures' in preparedTransactions) {
     return {
       success: false,
       reason: 'IMPORT_FINANCIAL_VALIDATION_FAILED',
