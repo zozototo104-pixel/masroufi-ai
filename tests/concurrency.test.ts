@@ -182,3 +182,16 @@ test('CONC-16: replace import writes only the validated mutation plan and never 
   assert.equal(toolsSrc.includes('Object.entries(memoryToImport).filter'), false,
     'replace import must not silently filter malformed memory entries');
 });
+
+test('CONC-17: tools.ts reuses canonical account normalization instead of duplicating ledger rules', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const balanceSrc = await readFile(join(process.cwd(), 'src/lib/balanceCalc.ts'), 'utf8');
+  assert.ok(toolsSrc.includes("import { calculateBalances, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc'"),
+    'tools.ts must import account normalization from the shared domain core');
+  assert.ok(toolsSrc.includes("export { normalizeAccount } from '../lib/balanceCalc'"),
+    'tools.ts may re-export canonical normalization for compatibility');
+  assert.equal(toolsSrc.includes('export function normalizeAccount(acc: any)'), false,
+    'tools.ts must not keep a private duplicate normalizeAccount implementation');
+  assert.ok(balanceSrc.includes('Canonical account normalization'),
+    'balanceCalc.ts must document itself as the canonical owner');
+});
