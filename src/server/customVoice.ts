@@ -31,6 +31,15 @@ function requireFishApiKey(): string {
   return key;
 }
 
+function requireFishTtsModel(): 's1' | 's2-pro' {
+  const model = process.env.FISH_MODEL_ID?.trim();
+  if (model === 's1' || model === 's2-pro') return model;
+  if (model === 's2.1-pro-free') {
+    throw new Error('FISH_FREE_MODEL_EXPIRED: انتهت صلاحية نموذج Fish المجاني. اختر FISH_MODEL_ID=s1 أو s2-pro بعد تفعيل رصيد API.');
+  }
+  throw new Error('FISH_MODEL_REQUIRED: اضبط FISH_MODEL_ID إلى s1 أو s2-pro. لا يتم اختيار نموذج مدفوع تلقائياً.');
+}
+
 function decodeAudio(base64: string): Uint8Array {
   const cleaned = String(base64 || '').replace(/^data:[^;]+;base64,/, '').trim();
   if (!cleaned) throw new Error('Missing audio sample');
