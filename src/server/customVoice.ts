@@ -176,7 +176,7 @@ export async function* streamCustomVoiceAudio(args: {
           Authorization: `Bearer ${requireFishApiKey()}`,
           'Content-Type': 'application/json',
           Accept: 'audio/pcm',
-          model: process.env.FISH_MODEL_ID?.trim() || 's2.1-pro-free',
+          model: requireFishTtsModel(),
         },
         body: JSON.stringify({
           text: args.text,
