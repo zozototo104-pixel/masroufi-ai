@@ -1,3 +1,5 @@
+import { parseFiniteAmount } from './amount';
+
 /**
  * V6.3 — Shared Financial Domain Core.
  *
