@@ -207,41 +207,45 @@ export async function getPendingCount(userId: string): Promise<number> {
  */
 export async function migrateLegacyPendingOps(userId: string): Promise<number> {
   const legacyKeys = ['masrofi_pending_ops_v6_1', 'masrofi_pending_ops'];
-  let migrated = 0;
+  let quarantined = 0;
+
   for (const legacyKey of legacyKeys) {
     const legacy = (await idbGet<any[]>(legacyKey)) || [];
-    if (!legacy || legacy.length === 0) continue;
-    // V6.2: legacy entries stored the final transaction document, not the command.
-    // We cannot reverse-engineer the command from the document reliably.
-    // Strategy: convert legacy entries to ADD_TRANSACTION commands with the document
-    // as args. This is a best-effort migration — if the original was a transfer or
-    // pay_debt, the args won't perfectly match, but the server's financial engine
-    // will re-validate and may reject. This is safer than losing data.
-    const newEntries: PendingOperation[] = legacy
-      .filter((op: any) => op.userId === userId)
-      .map((op: any) => ({
-        operationId: op.operationId || `legacy_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
-        userId,
-        commandType: 'ADD_TRANSACTION' as FinancialCommandType,
-        args: op.payload || op,
-        createdAt: op.createdAt || new Date().toISOString(),
-        retryCount: 0,
-        lastAttemptAt: null,
-        syncStatus: 'PENDING' as SyncStatus,
-      }));
-    if (newEntries.length === 0) continue;
-    // Merge into current queue (idempotent — skip existing operationIds).
-    const current = (await idbGet<PendingOperation[]>(QUEUE_KEY)) || [];
-    const existingIds = new Set(current.map(op => op.operationId));
-    const toAdd = newEntries.filter(e => !existingIds.has(e.operationId));
-    if (toAdd.length > 0) {
-      await idbSet(QUEUE_KEY, [...current, ...toAdd]);
-      migrated += toAdd.length;
+    if (!Array.isArray(legacy) || legacy.length === 0) continue;
+
+    const owned = legacy.filter((op: any) => op?.userId === userId);
+    if (owned.length === 0) continue;
+
+    // V6.3 safety rule: legacy rows are persistence documents, not typed financial
+    // commands. Their original intent cannot be reconstructed reliably. Converting
+    // every row to ADD_TRANSACTION can duplicate transfers, debt payments, updates,
+    // or deletes. Quarantine them instead of guessing financial meaning.
+    const quarantineKey = `${legacyKey}_quarantine_v6_3`;
+    const existingQuarantine = (await idbGet<any[]>(quarantineKey)) || [];
+    const existingIds = new Set(existingQuarantine.map((op: any) => String(op?.operationId || op?.id || '')));
+    const toQuarantine = owned.filter((op: any) => {
+      const id = String(op?.operationId || op?.id || '');
+      return !id || !existingIds.has(id);
+    });
+
+    if (toQuarantine.length > 0) {
+      await idbSet(quarantineKey, [
+        ...existingQuarantine,
+        ...toQuarantine.map((op: any) => ({
+          ...op,
+          quarantinedAt: new Date().toISOString(),
+          quarantineReason: 'UNSAFE_LEGACY_FINANCIAL_REPLAY_DISABLED',
+        })),
+      ]);
+      quarantined += toQuarantine.length;
     }
-    // Clear legacy key for this user.
-    const remaining = legacy.filter((op: any) => op.userId !== userId);
+
+    // Remove this user's legacy rows from active replay only after quarantine is durable.
+    const remaining = legacy.filter((op: any) => op?.userId !== userId);
     await idbSet(legacyKey, remaining);
   }
-  return migrated;
+
+  // Kept as a number for API compatibility. No legacy operation is replayed.
+  return quarantined;
 }
 
