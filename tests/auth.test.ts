@@ -119,5 +119,3 @@ test('WS-01: token not in WebSocket URL — verified via source inspection', asy
   // Must contain the new auth-message send.
   assert.ok(src.includes("type: 'auth'"), 'WS must send auth message after open');
 });
-
-rmSync(tmpDir, { recursive: true, force: true });
