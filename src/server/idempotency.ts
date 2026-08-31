@@ -20,8 +20,6 @@ import {
   type ClaimDecision,
 } from './idempotencyCore';
 
-const IDEMPOTENCY_COLLECTION = 'idempotency_keys';
-
 function idemDocId(userId: string, operationId: string): string {
   return createHash('sha256').update(`${userId}:${operationId}`).digest('hex');
 }
