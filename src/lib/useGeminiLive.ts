@@ -73,14 +73,15 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       
       // V6 (HF-4): token is NOT placed in URL anymore. URL is logged and would leak the token.
       // Non-secret settings still go in URL. Token is sent as the first WS message after open.
+      const currentSettings = settingsRef.current;
       const params = new URLSearchParams();
-      if (settings?.voice) params.append('voice', settings.voice);
-      if (settings?.persona) params.append('persona', settings.persona);
+      if (currentSettings?.voice) params.append('voice', currentSettings.voice);
+      if (currentSettings?.persona) params.append('persona', currentSettings.persona);
       // Do not put API keys in the WebSocket URL; URLs can be logged by proxies/hosts.
-      if (settings?.userName) params.append('userName', settings.userName);
-      if (settings?.aiName) params.append('aiName', settings.aiName);
-      if (settings?.relationship) params.append('relationship', settings.relationship);
-      const activeToken = overrideToken || settings?.idToken;
+      if (currentSettings?.userName) params.append('userName', currentSettings.userName);
+      if (currentSettings?.aiName) params.append('aiName', currentSettings.aiName);
+      if (currentSettings?.relationship) params.append('relationship', currentSettings.relationship);
+      const activeToken = overrideToken || currentSettings?.idToken;
       // Token deliberately NOT appended to URL.
       
       const queryString = params.toString();
