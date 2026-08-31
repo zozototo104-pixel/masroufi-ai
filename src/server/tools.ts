@@ -2329,7 +2329,7 @@ export async function repairDuplicateIncome(args: any, userId: string, token: st
   const incomes = snap.docs
     .map((d: any) => ({ id: d.id, ...d.data() }))
     .filter((t: any) => t.type === 'income')
-    .filter((t: any) => targetAmount === null || Math.abs((Number(t.amount) || 0) - targetAmount) < 0.01)
+    .filter((t: any) => targetAmount === null || Math.abs(parsePositiveFinancialAmount(t.amount) - targetAmount) < 0.01)
     .filter((t: any) => {
       const dateStr = String(t.date || t.createdAt || '');
       if (targetDate) return dateStr.startsWith(targetDate);
