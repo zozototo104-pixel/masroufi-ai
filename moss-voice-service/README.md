@@ -1,31 +1,37 @@
 # Masroufi MOSS Voice Service
 
-Private adapter between Masroufi and a self-hosted OpenMOSS/MOSS-TTS-Nano instance.
+Self-hosted OpenMOSS/MOSS-TTS-Nano ONNX voice-cloning service for Masroufi.
 
-## Contract
+The service runs the official MOSS ONNX runtime directly. Browser recordings are converted to PCM WAV locally, and generated 48 kHz audio is converted to Masroufi's PCM16 mono 24 kHz playback format. Reference recordings are not persisted by this service; Masroufi stores them privately in Firebase Storage.
 
-- `GET /health`
-- `POST /v1/tts` multipart fields: `text`, `reference_audio`, `format=pcm`, `sample_rate=24000`
-- Response: raw PCM16 mono at 24 kHz.
+## Render deployment
 
-## Environment
+Create a second Web Service from the `masroufi-ai` repository:
 
-- `MOSS_UPSTREAM_URL`: URL of the MOSS-TTS-Nano HTTP server.
+- Language: Python 3
+- Branch: `main`
+- Region: same region as Masroufi (Frankfurt)
+- Root Directory: `moss-voice-service`
+- Build Command: `bash build.sh`
+- Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+- Compute: Free may be attempted first; MOSS ONNX model memory use can still exceed a 512 MB host.
 
-Run adapter:
+Optional environment variables:
 
-```bash
-pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}
-```
+- `MOSS_THREADS=1`
+- `MOSS_MAX_NEW_FRAMES=375`
 
-Masroufi server environment:
+The first synthesis initializes the ONNX runtime and downloads official model assets from Hugging Face if they are not already present in the build filesystem.
+
+After deployment, set these on the main Masroufi service:
 
 ```text
 CUSTOM_VOICE_PROVIDER=moss
-MOSS_TTS_URL=https://<this-service-host>
+MOSS_TTS_URL=https://<voice-service>.onrender.com
 ```
 
-The user's reference recording remains private in Firebase Storage. The adapter does not persist it.
+## Endpoints
 
-The upstream MOSS-TTS-Nano process should be deployed from the official OpenMOSS/MOSS-TTS-Nano repository using its ONNX/CPU path where appropriate for the host. Keep this adapter and upstream on a private network when the platform supports it.
+- `GET /health`
+- `POST /v1/tts` multipart: `text`, `reference_audio`, `format=pcm`, `sample_rate=24000`
+- Response: raw PCM16 mono 24 kHz.
