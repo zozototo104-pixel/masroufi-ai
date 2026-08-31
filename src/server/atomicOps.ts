@@ -17,11 +17,26 @@
  * Note: this is the application-level use of runTransaction (NOT the idempotency
  * layer's transaction which protects against duplicate operationId).
  */
+import { createHash } from 'crypto';
 import { adminDb } from './firebaseAdmin';
 import { calculateBalances, calculateCreditorRemaining } from '../lib/balanceCalc';
 
 function plainTransactions(docs: any[]): any[] {
-  return (docs || []).map((doc: any) => typeof doc?.data === 'function' ? doc.data() : doc);
+  return (docs || []).map((doc: any) => typeof doc?.data === 'function' ? { id: doc.id, ...doc.data() } : doc);
+}
+
+function stableReceiptDocId(userId: string, receiptId: string): string {
+  return createHash('sha256').update(`${userId}:receipt:${receiptId}`).digest('hex');
+}
+
+function sameReceiptTransaction(existing: any, incoming: any): boolean {
+  const existingAmount = Number(existing?.amount) || 0;
+  const incomingAmount = Number(incoming?.amount) || 0;
+  return String(existing?.operationId || '') === String(incoming?.operationId || '')
+    && Math.abs(existingAmount - incomingAmount) < 0.01
+    && String(existing?.type || '') === String(incoming?.type || '')
+    && String(existing?.account || '') === String(incoming?.account || '')
+    && String(existing?.receiptId || '') === String(incoming?.receiptId || '');
 }
 
 /**
