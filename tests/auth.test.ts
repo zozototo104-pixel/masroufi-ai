@@ -37,9 +37,9 @@ test('AUTH-02: missing Authorization header rejected', async () => {
   const r1 = await verifyBearer(undefined, verifier);
   assert.equal(r1.ok, false);
   assert.equal(r1.status, 401);
-  const r2 = await verifyBearer('');
+  const r2 = await verifyBearer('', verifier);
   assert.equal(r2.ok, false);
-  const r3 = await verifyBearer('Basic abc');
+  const r3 = await verifyBearer('Basic abc', verifier);
   assert.equal(r3.ok, false);
 });
 
