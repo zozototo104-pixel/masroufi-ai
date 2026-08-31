@@ -29,10 +29,15 @@ test('CONC-02: PalPay expense uses atomic guard (same code path)', async () => {
 });
 
 test('CONC-03: payDebt uses atomicPayDebt (concurrent payment protection)', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('atomicPayDebt(userId, tx, selected.key, selected.remaining'),
-    'payDebt uses atomicPayDebt with creditor key');
-  assert.ok(src.includes('OVERPAYMENT_ATOMIC'),
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  assert.ok(toolsSrc.includes('atomicPayDebt(userId, tx, selected.key, { riskConfirmed'),
+    'payDebt uses atomicPayDebt with creditor key only, not a stale remaining snapshot');
+  assert.equal(toolsSrc.includes('atomicPayDebt(userId, tx, selected.key, selected.remaining'), false,
+    'payDebt must not pass cached remaining debt into the atomic primitive');
+  assert.equal(atomicSrc.includes('remainingDebtBeforePayment'), false,
+    'atomicPayDebt must recompute remaining debt inside the transaction instead of accepting a stale parameter');
+  assert.ok(toolsSrc.includes('OVERPAYMENT_ATOMIC'),
     'payDebt returns OVERPAYMENT_ATOMIC when concurrent payment exceeds remaining');
 });
 
