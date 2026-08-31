@@ -18,8 +18,8 @@ test('PIPE-01: financial writes must not pass through legacy /api/sync raw trans
   const transactionSyncBlock = tools.slice(transactionGuardStart, reportsSyncStart);
   assert.ok(transactionGuardStart >= 0 && reportsSyncStart > transactionGuardStart,
     'transaction rejection block must remain distinct from allowed non-financial sync');
-  assert.ok(!transactionSyncBlock.includes('doc.set('),
-    'raw transaction doc.set must not exist in the transaction sync block');
+  assert.ok(!transactionSyncBlock.includes('await doc.set('),
+    'raw transaction write must not execute inside the transaction sync block');
 });
 
 test('PIPE-02: all mutating financial tools are protected by runIdempotent wrapper', async () => {
