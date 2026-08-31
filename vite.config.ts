@@ -15,10 +15,11 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
-          if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react';
+          // Keep only the largest independent vendor families separate. Splitting
+          // React/UI from the generic vendor chunk created Rollup circular-chunk
+          // warnings because shared UI dependencies imported across both groups.
           if (id.includes('/firebase/') || id.includes('/@firebase/')) return 'vendor-firebase';
           if (id.includes('/recharts/') || id.includes('/d3')) return 'vendor-charts';
-          if (id.includes('/motion/') || id.includes('/lucide-react/')) return 'vendor-ui';
           return 'vendor';
         },
       },
