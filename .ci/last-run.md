@@ -1,7 +1,7 @@
 # CI Verification Report
 
-Source commit: 2103efdb151652b5ae9440127184febf0661b257
-Run: 33377600929
+Source commit: f8616fc8247bc31394e54b4419ba3c581c869fda
+Run: 33378069938
 Install: success
 Tests: failure
 TypeScript: success
@@ -11,7 +11,7 @@ Build: success
 ```text
 not ok 9 - AUTHZ-01/02/03 + SYNC-01: /api/sync enforces ownership via assertOwnership-style check
   ---
-  duration_ms: 22.765065
+  duration_ms: 26.870875
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/authorization.test.ts:1:135'
   failureType: 'testCodeFailure'
@@ -29,24 +29,24 @@ not ok 9 - AUTHZ-01/02/03 + SYNC-01: /api/sync enforces ownership via assertOwne
 # Subtest: AUTHZ-04: deleteReport ownership check exists
 ok 10 - AUTHZ-04: deleteReport ownership check exists
   ---
-  duration_ms: 6.484555
+  duration_ms: 42.324245
   type: 'test'
   ...
 # Subtest: AUTHZ-05: deleteCommitment ownership check exists
 ok 11 - AUTHZ-05: deleteCommitment ownership check exists
   ---
-  duration_ms: 2.646131
+  duration_ms: 8.465237
   type: 'test'
   ...
 # Subtest: AUTHZ-06: update_transaction ownership check exists
 ok 12 - AUTHZ-06: update_transaction ownership check exists
   ---
-  duration_ms: 1.96835
+  duration_ms: 12.692632
   type: 'test'
   ...
 not ok 38 - DUR-03: same operationId returns cached result on retry
   ---
-  duration_ms: 5.635143
+  duration_ms: 9.571383
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/durability.test.ts:1:1059'
   failureType: 'testCodeFailure'
@@ -64,24 +64,24 @@ not ok 38 - DUR-03: same operationId returns cached result on retry
 # Subtest: DUR-04: addTransaction response includes durability + pending flags
 ok 39 - DUR-04: addTransaction response includes durability + pending flags
   ---
-  duration_ms: 3.658198
+  duration_ms: 3.624869
   type: 'test'
   ...
 # Subtest: DUR-05: getBalance propagates partial flag from FakeDb
 ok 40 - DUR-05: getBalance propagates partial flag from FakeDb
   ---
-  duration_ms: 2.513402
+  duration_ms: 2.379924
   type: 'test'
   ...
 # Subtest: DUR-06: account switch cannot expose cache — logout clears IndexedDB
 ok 41 - DUR-06: account switch cannot expose cache — logout clears IndexedDB
   ---
-  duration_ms: 3.177216
+  duration_ms: 8.475247
   type: 'test'
   ...
 not ok 45 - DUR-10: transaction delete cannot report success when cloud durability is pending
   ---
-  duration_ms: 4.915084
+  duration_ms: 9.271063
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/durability.test.ts:1:4988'
   failureType: 'testCodeFailure'
@@ -99,24 +99,24 @@ not ok 45 - DUR-10: transaction delete cannot report success when cloud durabili
 # Subtest: DUR-11: transaction update refuses balance-sensitive decisions on partial state
 ok 46 - DUR-11: transaction update refuses balance-sensitive decisions on partial state
   ---
-  duration_ms: 2.255238
+  duration_ms: 8.824028
   type: 'test'
   ...
 # Subtest: DUR-12: restore validates the full financial ledger before replace deletes existing state
 ok 47 - DUR-12: restore validates the full financial ledger before replace deletes existing state
   ---
-  duration_ms: 2.643736
+  duration_ms: 3.869616
   type: 'test'
   ...
 # Subtest: DUR-13: restore writes only preflighted transactions and checks durability
 ok 48 - DUR-13: restore writes only preflighted transactions and checks durability
   ---
-  duration_ms: 2.313447
+  duration_ms: 2.510569
   type: 'test'
   ...
 not ok 75 - FIN-14: duplicate operationId executes once — idempotency layer
   ---
-  duration_ms: 8.859248
+  duration_ms: 8.712009
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/financial.test.ts:1:5670'
   failureType: 'testCodeFailure'
@@ -134,24 +134,24 @@ not ok 75 - FIN-14: duplicate operationId executes once — idempotency layer
 # Subtest: FIN-15: duplicate after restart executes once — persistent idempotency
 ok 76 - FIN-15: duplicate after restart executes once — persistent idempotency
   ---
-  duration_ms: 6.665923
+  duration_ms: 7.724868
   type: 'test'
   ...
 # Subtest: FIN-16: PalPay malformed amount rejected — sendPalPayPayment guards
 ok 77 - FIN-16: PalPay malformed amount rejected — sendPalPayPayment guards
   ---
-  duration_ms: 2.563456
+  duration_ms: 4.022021
   type: 'test'
   ...
 # Subtest: FIN-17: NaN rejected — calculateBalancesFromDocs uses Number() with NaN check
 ok 78 - FIN-17: NaN rejected — calculateBalancesFromDocs uses Number() with NaN check
   ---
-  duration_ms: 0.329919
+  duration_ms: 0.347599
   type: 'test'
   ...
 not ok 92 - PIPE-01: financial writes must not pass through legacy /api/sync raw transaction doc.set
   ---
-  duration_ms: 19.526898
+  duration_ms: 13.737253
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/financial_pipeline.test.ts:1:341'
   failureType: 'testCodeFailure'
@@ -169,13 +169,13 @@ not ok 92 - PIPE-01: financial writes must not pass through legacy /api/sync raw
 # Subtest: PIPE-02: all mutating financial tools are protected by runIdempotent wrapper
 ok 93 - PIPE-02: all mutating financial tools are protected by runIdempotent wrapper
   ---
-  duration_ms: 5.894772
+  duration_ms: 6.541716
   type: 'test'
   ...
 # Subtest: PIPE-03: idempotency uses hashed Firestore doc ids and fails closed
 not ok 94 - PIPE-03: idempotency uses hashed Firestore doc ids and fails closed
   ---
-  duration_ms: 1.783794
+  duration_ms: 3.273776
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/financial_pipeline.test.ts:1:1215'
   failureType: 'testCodeFailure'
@@ -193,24 +193,24 @@ not ok 94 - PIPE-03: idempotency uses hashed Firestore doc ids and fails closed
 # Subtest: PIPE-04: notifications cannot turn a committed financial write into a failure
 ok 95 - PIPE-04: notifications cannot turn a committed financial write into a failure
   ---
-  duration_ms: 9.137277
+  duration_ms: 7.993916
   type: 'test'
   ...
 # Subtest: PIPE-05: chat financial replies are deterministic from tool results, not model interpretation
 ok 96 - PIPE-05: chat financial replies are deterministic from tool results, not model interpretation
   ---
-  duration_ms: 4.128339
+  duration_ms: 2.251915
   type: 'test'
   ...
 # Subtest: PIPE-06: offline financial commands go through /api/command only
 ok 97 - PIPE-06: offline financial commands go through /api/command only
   ---
-  duration_ms: 3.263918
+  duration_ms: 3.191971
   type: 'test'
   ...
 not ok 98 - PIPE-07: income nature must be user-stated, not model-inferred from generated notes
   ---
-  duration_ms: 3.760099
+  duration_ms: 6.344658
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/financial_pipeline.test.ts:1:3115'
   failureType: 'testCodeFailure'
@@ -228,24 +228,24 @@ not ok 98 - PIPE-07: income nature must be user-stated, not model-inferred from 
 # Subtest: MARKET-01: extractPricesFromText parses "3200 ₪"
 ok 99 - MARKET-01: extractPricesFromText parses "3200 ₪"
   ---
-  duration_ms: 2.268052
+  duration_ms: 2.397397
   type: 'test'
   ...
 # Subtest: MARKET-02: extractPricesFromText handles USD/JOD
 ok 100 - MARKET-02: extractPricesFromText handles USD/JOD
   ---
-  duration_ms: 0.446176
+  duration_ms: 0.447986
   type: 'test'
   ...
 # Subtest: MARKET-03: isGazaSource detects Gaza/Palestine in title/URL
 ok 101 - MARKET-03: isGazaSource detects Gaza/Palestine in title/URL
   ---
-  duration_ms: 0.254828
+  duration_ms: 0.237744
   type: 'test'
   ...
 not ok 122 - OFF-05: retry does not duplicate (server-side idempotency)
   ---
-  duration_ms: 6.786762
+  duration_ms: 5.535317
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/offline.test.ts:1:1500'
   failureType: 'testCodeFailure'
@@ -263,19 +263,19 @@ not ok 122 - OFF-05: retry does not duplicate (server-side idempotency)
 # Subtest: OFF-06: server committed but response lost — retry returns cached result
 ok 123 - OFF-06: server committed but response lost — retry returns cached result
   ---
-  duration_ms: 5.272754
+  duration_ms: 4.684448
   type: 'test'
   ...
 # Subtest: OFF-06B: offline income parser cannot manufacture server business confirmations
 ok 124 - OFF-06B: offline income parser cannot manufacture server business confirmations
   ---
-  duration_ms: 2.462746
+  duration_ms: 2.477787
   type: 'test'
   ...
 # Subtest: OFF-07: Login A → logout → Login B cannot see/sync A queue
 ok 125 - OFF-07: Login A → logout → Login B cannot see/sync A queue
   ---
-  duration_ms: 2.107591
+  duration_ms: 2.609884
   type: 'test'
   ...
 ```
@@ -306,151 +306,151 @@ Run `npm audit` for details.
 # Subtest: OFF-07: Login A → logout → Login B cannot see/sync A queue
 ok 125 - OFF-07: Login A → logout → Login B cannot see/sync A queue
   ---
-  duration_ms: 2.107591
+  duration_ms: 2.609884
   type: 'test'
   ...
 # Subtest: OFF-08: pending ops include operationId, userId, commandType, args, createdAt, retryCount
 ok 126 - OFF-08: pending ops include operationId, userId, commandType, args, createdAt, retryCount
   ---
-  duration_ms: 1.996763
+  duration_ms: 2.188267
   type: 'test'
   ...
 # Subtest: OFF-09: pending ops carry syncStatus states (PENDING, SYNCING, COMMITTED, FAILED)
 ok 127 - OFF-09: pending ops carry syncStatus states (PENDING, SYNCING, COMMITTED, FAILED)
   ---
-  duration_ms: 1.709324
+  duration_ms: 2.262064
   type: 'test'
   ...
 # Subtest: ATOMIC-DEBT-01: payDebt no longer has txRef.set fallback after atomic failure
 ok 128 - ATOMIC-DEBT-01: payDebt no longer has txRef.set fallback after atomic failure
   ---
-  duration_ms: 15.947417
+  duration_ms: 10.210197
   type: 'test'
   ...
 # Subtest: ATOMIC-DEBT-02: payDebt returns retryable=true on contention/quota
 ok 129 - ATOMIC-DEBT-02: payDebt returns retryable=true on contention/quota
   ---
-  duration_ms: 2.255378
+  duration_ms: 2.116072
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-01: transferMoney uses atomicTransferMoney
 ok 130 - TRANSFER-CONC-01: transferMoney uses atomicTransferMoney
   ---
-  duration_ms: 3.11556
+  duration_ms: 3.842075
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-02: atomicTransferMoney exists in atomicOps
 ok 131 - TRANSFER-CONC-02: atomicTransferMoney exists in atomicOps
   ---
-  duration_ms: 1.847454
+  duration_ms: 1.229196
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-03: transferMoney has NO direct write fallback
 ok 132 - TRANSFER-CONC-03: transferMoney has NO direct write fallback
   ---
-  duration_ms: 2.436607
+  duration_ms: 2.122092
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-01: offlineQueue stores commandType + args (not final document)
 ok 133 - OFFLINE-COMMAND-01: offlineQueue stores commandType + args (not final document)
   ---
-  duration_ms: 1.582467
+  duration_ms: 1.24777
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-02: offlineQueue sends through /api/command (NOT /api/sync)
 ok 134 - OFFLINE-COMMAND-02: offlineQueue sends through /api/command (NOT /api/sync)
   ---
-  duration_ms: 1.307468
+  duration_ms: 1.03871
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-03: /api/command endpoint exists in server.ts
 ok 135 - OFFLINE-COMMAND-03: /api/command endpoint exists in server.ts
   ---
-  duration_ms: 1.854336
+  duration_ms: 1.607882
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-04: dispatchFinancialCommand routes to tool handlers
 ok 136 - OFFLINE-COMMAND-04: dispatchFinancialCommand routes to tool handlers
   ---
-  duration_ms: 1.513246
+  duration_ms: 1.308955
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-05: /api/sync is NOT a financial backdoor (syncOfflineData does doc.set for non-financial only)
 ok 137 - OFFLINE-COMMAND-05: /api/sync is NOT a financial backdoor (syncOfflineData does doc.set for non-financial only)
   ---
-  duration_ms: 5.857252
+  duration_ms: 2.189057
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-01: V6.2 uses new queue key (masrofi_pending_ops_v6_2)
 ok 138 - UNIFIED-PENDING-01: V6.2 uses new queue key (masrofi_pending_ops_v6_2)
   ---
-  duration_ms: 1.560235
+  duration_ms: 1.674046
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-02: migrateLegacyPendingOps function exists
 ok 139 - UNIFIED-PENDING-02: migrateLegacyPendingOps function exists
   ---
-  duration_ms: 3.633431
+  duration_ms: 2.921716
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-03: App.tsx calls migrateLegacyPendingOps on fetchData
 ok 140 - UNIFIED-PENDING-03: App.tsx calls migrateLegacyPendingOps on fetchData
   ---
-  duration_ms: 3.058147
+  duration_ms: 1.412037
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-04: logout clears ALL pending keys (v6_2 + legacy)
 ok 141 - UNIFIED-PENDING-04: logout clears ALL pending keys (v6_2 + legacy)
   ---
-  duration_ms: 9.958934
+  duration_ms: 2.421251
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-01: addTransaction rejects on partial snapshot
 ok 142 - PARTIAL-STATE-01: addTransaction rejects on partial snapshot
   ---
-  duration_ms: 2.283992
+  duration_ms: 1.779804
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-02: transferMoney rejects on partial balance
 ok 143 - PARTIAL-STATE-02: transferMoney rejects on partial balance
   ---
-  duration_ms: 2.262521
+  duration_ms: 1.628301
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-03: payDebt rejects on partial snapshot
 ok 144 - PARTIAL-STATE-03: payDebt rejects on partial snapshot
   ---
-  duration_ms: 2.562173
+  duration_ms: 1.607963
   type: 'test'
   ...
 # Subtest: FIRESTORE-READS-01: atomic ops use runTransaction (O(N) acknowledged, V7 will add financialState)
 ok 145 - FIRESTORE-READS-01: atomic ops use runTransaction (O(N) acknowledged, V7 will add financialState)
   ---
-  duration_ms: 5.94014
+  duration_ms: 0.918034
   type: 'test'
   ...
 # Subtest: STATIC-SAFETY-01: no "catch + txRef.set" pattern in payDebt
 ok 146 - STATIC-SAFETY-01: no "catch + txRef.set" pattern in payDebt
   ---
-  duration_ms: 2.376595
+  duration_ms: 1.917531
   type: 'test'
   ...
 # Subtest: STATIC-SAFETY-02: no "catch + txRef.set" pattern in transferMoney
 ok 147 - STATIC-SAFETY-02: no "catch + txRef.set" pattern in transferMoney
   ---
-  duration_ms: 6.916869
+  duration_ms: 5.523745
   type: 'test'
   ...
 # Subtest: SYNC-AUTH-01: dispatchFinancialCommand overwrites client userId
 ok 148 - SYNC-AUTH-01: dispatchFinancialCommand overwrites client userId
   ---
-  duration_ms: 5.190931
+  duration_ms: 1.282956
   type: 'test'
   ...
 # Subtest: IDEM-01: dispatchFinancialCommand passes operationId through args
 ok 149 - IDEM-01: dispatchFinancialCommand passes operationId through args
   ---
-  duration_ms: 0.946304
+  duration_ms: 0.970633
   type: 'test'
   ...
 1..149
@@ -461,7 +461,7 @@ ok 149 - IDEM-01: dispatchFinancialCommand passes operationId through args
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1850.053911
+# duration_ms 1718.244167
 ```
 
 ## lint
@@ -491,7 +491,7 @@ computing gzip size...
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
-[32m✓ built in 5.17s[39m
+[32m✓ built in 5.05s[39m
 
   dist/server.cjs      465.2kb
   dist/server.cjs.map  725.7kb
