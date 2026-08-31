@@ -1867,7 +1867,17 @@ export async function deleteTransaction(args: any, userId: string, token: string
 
   if (userTxs.length === 1 && (args.id || args.confirmed)) {
     const toDelete = userTxs[0];
-    await adminDb.collection('transactions').doc(toDelete.id).delete();
+    const deleteResult = await adminDb.collection('transactions').doc(toDelete.id).delete();
+    if (deleteResult?.pending || deleteResult?.synced === false) {
+      return {
+        success: false,
+        retryable: true,
+        pending: true,
+        reason: 'DELETE_NOT_DURABLY_COMMITTED',
+        message: 'لم أؤكد حذف العملية لأن الحذف لم يُحفظ في السحابة. أعد المحاولة عند استقرار الاتصال.',
+        error: deleteResult?.error,
+      };
+    }
     
     const accName = toDelete.account === 'palPay' ? 'PalPay' : toDelete.account === 'debt' ? 'الديون' : 'النقدي';
     await addNotification(userId, `تم حذف عملية (${toDelete.notes || toDelete.category || ''} بقيمة ${toDelete.amount} ₪ من حساب ${accName}) بنجاح.`, 'success', adminDb);
