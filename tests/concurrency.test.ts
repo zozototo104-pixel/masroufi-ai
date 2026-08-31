@@ -136,6 +136,10 @@ test('CONC-13: receipt lines are validated first and persisted by one atomic tra
   assert.equal(serverSrc.includes('toolHandlers.add_transaction({ ...txArgs, validateOnly: true }'), false,
     'validation-only receipt preparation must not record completed idempotency outcomes before persistence');
   assert.ok(serverSrc.includes('await atomicAddTransactions('), 'receipt must persist through the atomic multi-line primitive');
+  assert.ok(toolsSrc.includes('export async function recordTransactionCommittedSideEffects'),
+    'transaction success notifications and budget warnings must live in one shared side-effect helper');
+  assert.ok(serverSrc.includes('recordTransactionCommittedSideEffects('),
+    'receipt commits must preserve add_transaction post-commit side effects');
   assert.equal(serverSrc.includes('createdBeforeFailure'), false, 'receipt endpoint must not expose partial-success semantics');
 });
 
