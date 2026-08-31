@@ -494,13 +494,24 @@ export async function addTransaction(args: any, userId: string, token: string) {
   }
   const originalExpenseText = String(args.userText || '').trim();
   const expenseIdentitySource = originalExpenseText || `${explicitPurchaseItem} ${beneficiary} ${notes}`;
-  const cleanedExpenseIdentity = normalizeArabicText(expenseIdentitySource)
+  const normalizedExpenseIdentitySource = normalizeArabicText(expenseIdentitySource);
+  const beneficiaryPurposeRegex = /(للاولاد|للأولاد|للابناء|للأبناء|للعيال|للاطفال|للأطفال|للبنات|للبيت|للدار|للمنزل|للعيله|للعيلة|للعائله|للعائلة|للزوجة|لزوجتي|للزوج|لزوجي|للام|للأم|لامي|لأمي|للاب|للأب|لابوي|لأبوي|للعمل|للمدرسه|للمدرسة|للجامعه|للجامعة|للعلاج|للدواء|للضيافه|للضيافة|للضيف|للضيوف|للزياره|للزيارة|لنفسى|لنفسي|الي|إلي|الاولاد|الأولاد|الابناء|الأبناء|العيال|الاطفال|الأطفال|البنات|البيت|الدار|المنزل|العيله|العيلة|العائله|العائلة|زوجتي|زوجي|امي|أمي|ابوي|أبوي|العمل|المدرسه|المدرسة|الجامعه|الجامعة|العلاج|الدواء|الضيافه|الضيافة|الضيف|الضيوف|الزياره|الزيارة)/;
+  const cleanedExpenseIdentity = normalizedExpenseIdentitySource
     .replace(normalizeArabicText(merchant), ' ')
     .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|مصروف|دفعت|دفع|سجل|سجلي|تسجيل|قيد|مبلغ|قيمه|قيمة|شيكل|ش|₪|كاش|نقد|محفظه|محفظة|بال باي|palpay|pal pay|دين|بالدين|من|عند|على|ب|بـ/g, ' ')
     .replace(/\d+(\.\d+)?/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  const purchaseItemForRecord = explicitPurchaseItem || cleanedExpenseIdentity;
+  const cleanedPurchaseItemIdentity = normalizedExpenseIdentitySource
+    .replace(normalizeArabicText(merchant), ' ')
+    .replace(beneficiaryPurposeRegex, ' ')
+    .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|مصروف|دفعت|دفع|سجل|سجلي|تسجيل|قيد|مبلغ|قيمه|قيمة|شيكل|ش|₪|كاش|نقد|محفظه|محفظة|بال باي|palpay|pal pay|دين|بالدين|من|عند|على|ب|بـ|لأجل|لاجل|عشان|علشان/g, ' ')
+    .replace(/\d+(\.\d+)?/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const userProvidedBeneficiaryPurpose = beneficiaryPurposeRegex.test(normalizedExpenseIdentitySource);
+  const purchaseItemForRecord = explicitPurchaseItem || cleanedPurchaseItemIdentity || cleanedExpenseIdentity;
+  const beneficiaryForRecord = beneficiary || (userProvidedBeneficiaryPurpose ? (normalizedExpenseIdentitySource.match(beneficiaryPurposeRegex)?.[0] || '') : '');
 
   const necessitySuggestion = type === 'expense'
     ? inferNecessityForGazaContext({ category, subcategory, notes, merchant, item: purchaseItemForRecord, amount })
