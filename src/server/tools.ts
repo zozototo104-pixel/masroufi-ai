@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { getDb, clearAllLocalUserData, type WriteResult } from './fakeDb';
 import { matchesArabicCategory } from '../lib/reportUtils';
+import { calculateBalances, normalizeCreditorKey } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
 import { runIdempotent } from './idempotency';
 import { atomicAddTransaction, atomicPayDebt, atomicTransferMoney } from './atomicOps';
