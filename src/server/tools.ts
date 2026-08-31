@@ -13,6 +13,7 @@ import {
   isGazaSource,
   classifyMarketScope,
   normalizeCurrencyToIls,
+  refreshExchangeRatesToIls,
   computeNormalizedPriceRange,
   buildMarketComparison,
   extractPricesFromText,
