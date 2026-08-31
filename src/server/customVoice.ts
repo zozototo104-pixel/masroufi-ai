@@ -92,6 +92,34 @@ export async function createCustomVoiceClone(args: {
   const existing = await getCustomVoiceProfile(args.userId);
   const form = new FormData();
 
+  if (provider === 'moss') {
+    const referencePath = voiceReferencePath(args.userId);
+    await adminStorageBucket.file(referencePath).save(Buffer.from(bytes), {
+      resumable: false,
+      metadata: {
+        contentType: mimeType,
+        cacheControl: 'private, no-store',
+        metadata: { ownerUid: args.userId, purpose: 'custom-voice-reference' },
+      },
+    });
+    const now = new Date().toISOString();
+    await profileRef(args.userId).set({
+      voiceId: referencePath,
+      provider: 'moss',
+      referenceMimeType: mimeType,
+      consentConfirmed: true,
+      consentConfirmedAt: now,
+      createdAt: existing.createdAt || now,
+      updatedAt: now,
+    }, { merge: true });
+    if (existing.voiceId && existing.provider && existing.provider !== 'moss') {
+      await deleteProviderVoice(existing.provider, existing.voiceId).catch((err) => {
+        console.warn('[custom-voice] failed to delete replaced provider voice', err);
+      });
+    }
+    return { configured: true, voiceId: referencePath, provider: 'moss', createdAt: existing.createdAt || now, updatedAt: now };
+  }
+
   let response: Response;
   if (provider === 'fish') {
     form.append('title', `Masroufi-${args.userId.slice(0, 8)}`);
