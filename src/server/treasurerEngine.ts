@@ -242,8 +242,8 @@ export function getDateRange(args: TreasurerReportArgs, now = new Date()): { sta
   const quarter = Number(args?.quarter);
   if (args?.startDate || args?.endDate) {
     return {
-      start: args.startDate ? startOfDay(new Date(args.startDate)) : undefined,
-      end: args.endDate ? endOfDay(new Date(args.endDate)) : undefined,
+      start: args.startDate ? startOfDay(new Date(String(args.startDate))) : undefined,
+      end: args.endDate ? endOfDay(new Date(String(args.endDate))) : undefined,
       label: `من ${args.startDate || 'البداية'} إلى ${args.endDate || 'اليوم'}`,
       granularity: 'day'
     };
