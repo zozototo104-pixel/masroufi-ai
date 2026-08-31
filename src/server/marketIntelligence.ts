@@ -65,7 +65,76 @@ export interface MarketSearchResponse {
 }
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const FX_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // Representative rates usually publish daily; refresh twice a day.
+const BOI_EXCHANGE_RATES_URL = 'https://www.boi.org.il/PublicApi/GetExchangeRates';
 const marketCache = new Map<string, { response: MarketSearchResponse; cachedAt: number }>();
+
+type FxRatesToIlsSnapshot = {
+  rates: Record<string, number>;
+  fetchedAt: number;
+  source: string;
+  rateDate?: string;
+  stale?: boolean;
+};
+
+let fxRatesToIlsCache: FxRatesToIlsSnapshot | null = null;
+let fxRatesRefreshPromise: Promise<FxRatesToIlsSnapshot | null> | null = null;
+
+function normalizeCurrencyCode(currency: string): string {
+  const cur = String(currency || 'ILS').trim().toUpperCase();
+  if (cur === '₪' || cur === 'NIS' || cur === 'ILS') return 'ILS';
+  return cur;
+}
+
+function parseBankOfIsraelRates(payload: any): FxRatesToIlsSnapshot | null {
+  const rows = Array.isArray(payload?.exchangeRates) ? payload.exchangeRates : [];
+  const rates: Record<string, number> = { ILS: 1, NIS: 1 };
+  let rateDate = '';
+  for (const row of rows) {
+    const key = normalizeCurrencyCode(row?.key);
+    const value = Number(row?.currentExchangeRate);
+    const unit = Number(row?.unit || 1) || 1;
+    if (!key || !Number.isFinite(value) || value <= 0 || unit <= 0) continue;
+    rates[key] = Math.round((value / unit) * 1000000) / 1000000;
+    if (!rateDate && row?.lastUpdate) rateDate = String(row.lastUpdate);
+  }
+  return Object.keys(rates).length > 2
+    ? { rates, fetchedAt: Date.now(), source: 'Bank of Israel representative exchange rates', rateDate: rateDate || undefined }
+    : null;
+}
+
+export function getExchangeRateSnapshot(): FxRatesToIlsSnapshot | null {
+  return fxRatesToIlsCache ? { ...fxRatesToIlsCache, rates: { ...fxRatesToIlsCache.rates } } : null;
+}
+
+export function setExchangeRateSnapshotForTests(snapshot: FxRatesToIlsSnapshot | null): void {
+  fxRatesToIlsCache = snapshot ? { ...snapshot, rates: { ...snapshot.rates } } : null;
+  fxRatesRefreshPromise = null;
+}
+
+export async function refreshExchangeRatesToIls(fetcher: typeof fetch = fetch): Promise<FxRatesToIlsSnapshot | null> {
+  const now = Date.now();
+  if (fxRatesToIlsCache && now - fxRatesToIlsCache.fetchedAt <= FX_CACHE_TTL_MS) return fxRatesToIlsCache;
+  if (fxRatesRefreshPromise) return fxRatesRefreshPromise;
+  fxRatesRefreshPromise = (async () => {
+    try {
+      if (typeof fetcher !== 'function') return fxRatesToIlsCache ? { ...fxRatesToIlsCache, stale: true } : null;
+      const response = await fetcher(BOI_EXCHANGE_RATES_URL, { headers: { Accept: 'application/json' } } as any);
+      if (!response?.ok) return fxRatesToIlsCache ? { ...fxRatesToIlsCache, stale: true } : null;
+      const parsed = parseBankOfIsraelRates(await response.json());
+      if (parsed) {
+        fxRatesToIlsCache = parsed;
+        return parsed;
+      }
+      return fxRatesToIlsCache ? { ...fxRatesToIlsCache, stale: true } : null;
+    } catch {
+      return fxRatesToIlsCache ? { ...fxRatesToIlsCache, stale: true } : null;
+    } finally {
+      fxRatesRefreshPromise = null;
+    }
+  })();
+  return fxRatesRefreshPromise;
+}
 
 interface CacheKey {
   product: string;
