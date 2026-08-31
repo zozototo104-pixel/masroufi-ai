@@ -1522,11 +1522,12 @@ function prepareImportedReports(rawReports: unknown, userId: string): {
   const entries: PreparedImportedNamedRecord[] = [];
   const failures: ImportSectionValidationFailure[] = [];
   const seenIds = new Set<string>();
-  for (const [index, r] of rawReports.entries()) {
-    if (!r || typeof r !== 'object' || Array.isArray(r)) {
+  for (const [index, rawReport] of rawReports.entries()) {
+    if (!rawReport || typeof rawReport !== 'object' || Array.isArray(rawReport)) {
       failures.push({ section: 'reports', index, code: 'INVALID_REPORT_OBJECT', message: 'سجل التقرير ليس كائناً صالحاً.' });
       continue;
     }
+    const r = rawReport as Record<string, unknown>;
     const sourceId = String(r.id || '').trim();
     if (sourceId) {
       if (!isSafeBackupDocId(sourceId)) {
