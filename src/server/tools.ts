@@ -2087,18 +2087,13 @@ export async function updateTransaction(args: any, userId: string, token: string
   // V6 (CF-4): re-validate financial invariants on update.
   // Build the projected post-update document and run addTransaction-style guards.
 
-  // 1. Reject NaN / Infinity / negative / zero amounts.
+  const updates: any = {};
   if (args.amount !== undefined) {
-    const n = Number(args.amount);
-    if (!Number.isFinite(n) || n <= 0) {
+    updates.amount = parsePositiveFinancialAmount(args.amount);
+    if (updates.amount <= 0) {
       return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'المبلغ الجديد غير صالح (يجب أن يكون رقماً محدداً موجباً).' };
     }
   }
-  // 2. Reject NaN / Infinity / negative on other numeric fields (defensive).
-  //    (None currently besides amount — left here for future-proofing.)
-
-  const updates: any = {};
-  if (args.amount !== undefined) updates.amount = parsePositiveFinancialAmount(args.amount);
   if (args.type) updates.type = String(args.type).toLowerCase();
   if (args.account) updates.account = normalizeAccount(args.account);
   if (args.fromAccount) updates.fromAccount = normalizeAccount(args.fromAccount);
