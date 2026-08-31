@@ -259,6 +259,7 @@ function normalizeMarketSearchText(value: any): string {
 function marketOfferToResult(offer: any, item: string): MarketResult {
   const scope = classifyMarketScope(offer.seller || '', offer.sourceUrl || '', `${offer.location || ''} ${offer.address || ''}`);
   const normalized = normalizeCurrencyToIls(Number(offer.price || 0), offer.currency || 'ILS');
+  const fxMetadata = normalized ? getFxConversionMetadata(offer.currency || 'ILS') : {};
   return {
     product: offer.product || item,
     brand: offer.brand || undefined,
