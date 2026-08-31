@@ -1507,7 +1507,7 @@ function prepareImportedCommitments(rawCommitments: unknown, userId: string): {
   return { ok: true, entries };
 }
 
-function prepareImportedReports(rawReports: any[], userId: string): {
+function prepareImportedReports(rawReports: unknown, userId: string): {
   ok: true;
   entries: PreparedImportedNamedRecord[];
 } | {
