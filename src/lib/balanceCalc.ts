@@ -44,7 +44,7 @@ export interface BalanceBreakdown {
 export function calculateBalances(transactions: any[]): Balances {
   let cash = 0, palPay = 0, debt = 0;
   for (const tx of transactions || []) {
-    const amount = finiteAmount(tx?.amount);
+    const amount = parseFiniteAmount(tx?.amount);
     const account = normalizeAccount(tx?.account);
     if (tx?.type === 'expense') {
       if (account === 'palPay') palPay -= amount;
