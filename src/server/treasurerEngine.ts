@@ -135,7 +135,7 @@ const CATEGORY_RULES: Array<{ category: string; subcategory: string; keywords: s
   { category: 'سداد ديون والتزامات', subcategory: 'سداد دين', keywords: ['سداد دين', 'سديت دين', 'دفعت دين', 'دين'] }
 ];
 
-export function normalizeArabicText(value: any): string {
+export function normalizeArabicText(value: unknown): string {
   return String(value || '')
     .toLowerCase()
     .replace(/[أإآ]/g, 'ا')
