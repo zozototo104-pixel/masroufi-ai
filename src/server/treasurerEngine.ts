@@ -48,6 +48,42 @@ type SummaryRow = Record<string, unknown> & {
   count: number;
 };
 
+type MonthRow = SummaryRow & {
+  month: string;
+  income: number;
+  expense: number;
+  transfer: number;
+  debtPurchases: number;
+  netCashFlow: number;
+};
+
+type CategoryRow = SummaryRow & {
+  category: string;
+  budgetLimit: number;
+  remaining: number;
+  percentage: number | null;
+};
+
+type SubcategoryRow = SummaryRow & { category: string; subcategory: string };
+type MerchantRow = SummaryRow & { merchant: string };
+type NecessityRow = SummaryRow & { necessity: string };
+
+type BalanceSnapshot = { cash?: number; palPay?: number; debt?: number; total?: number };
+
+type TreasurerNoteInput = {
+  totalIncome: number;
+  totalExpense: number;
+  net: number;
+  savingsRate: number | null;
+  overspending: CategoryRow[];
+  nearLimits: CategoryRow[];
+  categoryRows: CategoryRow[];
+};
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 export type CategorySuggestion = {
   category: string;
   subcategory: string;
