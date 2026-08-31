@@ -310,6 +310,7 @@ export async function saveMarketOffer(args: any, userId: string, token: string) 
   const seller = String(args.seller || args.store || args.shop || '').trim();
   if (!product) return { success: false, needsClarification: true, reason: 'MISSING_MARKET_PRODUCT', message: 'ما اسم السلعة التي تريد حفظ سعرها في دفتر السوق؟' };
   if (price <= 0) return { success: false, needsClarification: true, reason: 'INVALID_MARKET_PRICE', message: 'ما السعر الذي تريد حفظه؟' };
+  await refreshExchangeRatesToIls();
   const now = new Date().toISOString();
   const scope = classifyMarketScope(seller, args.sourceUrl || '', `${args.location || ''} ${args.address || ''}`);
   const doc = {
