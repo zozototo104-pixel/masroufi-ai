@@ -393,7 +393,12 @@ async function startServer() {
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({
+      status: "ok",
+      service: 'masroufi-ai',
+      commit: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || null,
+      environment: process.env.NODE_ENV || null,
+    });
   });
 
   app.get("/api/cloud-health", async (req, res) => {
