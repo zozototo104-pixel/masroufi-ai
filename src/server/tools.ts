@@ -1975,7 +1975,7 @@ export async function deleteTransaction(args: any, userId: string, token: string
     const doc = await txRef.get();
     if (doc.exists && doc.data()?.userId === userId) {
       const atomicResult = await atomicDeleteTransaction(userId, args.id, { riskConfirmed: !!args.riskConfirmed });
-      if (!atomicResult.ok) {
+      if ('reason' in atomicResult) {
         if (atomicResult.reason === 'NEGATIVE_CASH_RESULT' || atomicResult.reason === 'NEGATIVE_PALPAY_RESULT') {
           return {
             success: false,
