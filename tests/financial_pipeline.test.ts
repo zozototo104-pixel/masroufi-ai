@@ -121,3 +121,11 @@ test('VOICE-06: personal voice TTS is streamed and mobile barge-in resists speak
   assert.ok(live.includes('rms > 0.07'), 'barge-in must reject low-level speaker echo');
   assert.ok(live.includes('userSpeechCounter >= 4'), 'barge-in must require sustained speech');
 });
+
+test('VOICE-07: websocket connect reads the latest selected voice', async () => {
+  const live = await src('src/lib/useGeminiLive.ts');
+  assert.ok(live.includes('const settingsRef = useRef(settings)'), 'live hook must retain current settings outside stale callbacks');
+  assert.ok(live.includes('const currentSettings = settingsRef.current'), 'connect must read settings at invocation time');
+  assert.ok(live.includes("params.append('voice', currentSettings.voice)"), 'websocket URL must use the currently selected voice');
+  assert.equal(live.includes("params.append('voice', settings.voice)"), false, 'connect must not capture a stale voice value');
+});
