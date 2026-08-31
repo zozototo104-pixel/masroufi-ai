@@ -796,7 +796,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     category,
     subcategory,
     purchaseItem: type === 'expense' ? purchaseItemForRecord : explicitPurchaseItem,
-    beneficiary: type === 'expense' ? (beneficiary || (category === 'طعام ومشتريات منزل' ? 'البيت' : '')) : beneficiary,
+    beneficiary: type === 'expense' ? beneficiaryForRecord : beneficiary,
     merchant,
     notes,
     necessity: type === 'expense' ? necessity : '',
