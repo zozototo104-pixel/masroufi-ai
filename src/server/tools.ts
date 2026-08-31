@@ -2454,7 +2454,7 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
   const budgets = categories.map(cat => {
     const limit = userBudgets[cat];
     const catExpenses = monthExpenses.filter(t => t.category === cat);
-    const spent = catExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const spent = catExpenses.reduce((sum, t) => sum + parsePositiveFinancialAmount(t.amount), 0);
     const ratio = limit > 0 ? spent / limit : 0;
     const percentage = Math.round(ratio * 100);
     const status = ratio >= 1.0 ? 'exceeded' : ratio >= 0.8 ? 'warning' : 'safe';
