@@ -78,22 +78,33 @@ test('CONC-08: atomicOps has no circular dependency on tools.ts', async () => {
     'atomic financial operations must use the shared financial domain core');
 });
 
-test('CONC-09: stale pending idempotency keys never auto-reexecute financial mutations', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
-  assert.ok(src.includes("reason: 'IDEMPOTENT_OUTCOME_UNKNOWN'"),
-    'stale pending outcome must be surfaced as unknown');
-  assert.ok(src.includes('exactly-once safety is more important than availability'),
-    'stale pending policy must explicitly fail closed');
+test('CONC-09: stale pending idempotency keys never auto-reexecute financial mutations', () => {
+  const now = 1_000_000;
+  const fresh = buildPendingIdempotencyRecord('u1', 'operation-123', now - 1_000);
+  assert.equal(decideIdempotencyClaim(fresh, now).action, 'wait',
+    'fresh concurrent duplicate must wait, not execute');
+
+  const stale = buildPendingIdempotencyRecord('u1', 'operation-123', now - PENDING_STALE_MS - 1);
+  const decision = decideIdempotencyClaim(stale, now);
+  assert.equal(decision.action, 'return');
+  assert.equal((decision as any).result.reason, 'IDEMPOTENT_OUTCOME_UNKNOWN');
+  assert.equal((decision as any).result.retryable, false);
+  assert.equal((decision as any).result.indeterminate, true);
 });
 
-test('CONC-10: ambiguous handler failure becomes terminal indeterminate state', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
-  assert.ok(src.includes("status: 'indeterminate'"),
-    'ambiguous execution must be persisted as indeterminate');
-  assert.ok(src.includes("reason: 'IDEMPOTENT_EXECUTION_INDETERMINATE'"),
-    'caller must receive an explicit ambiguous-outcome reason');
-  assert.equal(src.includes("status: 'failed',\n      result: failure"), false,
-    'ambiguous post-execution failure must not be converted into a retryable failed state');
+test('CONC-10: completed and indeterminate outcomes are terminal behavioral states', () => {
+  const now = 2_000_000;
+  const completed = buildCompletedIdempotencyRecord('u1', 'operation-456', { success: true, transactionId: 't1' }, now);
+  const cached = decideIdempotencyClaim(completed, now + 10);
+  assert.equal(cached.action, 'return');
+  assert.deepEqual((cached as any).result, { success: true, transactionId: 't1' });
+
+  const indeterminate = buildIndeterminateIdempotencyRecord('u1', 'operation-789', new Error('commit acknowledgement lost'), now);
+  assert.equal(indeterminate.status, 'indeterminate');
+  assert.equal(indeterminate.result.reason, 'IDEMPOTENT_EXECUTION_INDETERMINATE');
+  const blocked = decideIdempotencyClaim(indeterminate, now + 10_000);
+  assert.equal(blocked.action, 'return');
+  assert.equal((blocked as any).result.retryable, false);
 });
 
 test('CONC-11: transaction updates revalidate balances and write inside one Firestore transaction', async () => {
