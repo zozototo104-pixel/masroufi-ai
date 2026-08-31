@@ -799,7 +799,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
         const projectedDebt = Number(balances.debt || 0) + amount;
         const monthlyIncome90d = existing
           .filter((t:any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING')
-          .reduce((s:number, t:any) => s + (Number(t.amount) || 0), 0);
+          .reduce((s:number, t:any) => s + parsePositiveFinancialAmount(t.amount), 0);
         const debtToIncomeRatio = monthlyIncome90d > 0 ? projectedDebt / monthlyIncome90d : Infinity;
         if (!args.riskConfirmed && (debtToIncomeRatio > 1.0 || amount > 5000)) {
           return {
