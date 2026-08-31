@@ -2568,7 +2568,7 @@ export async function createCommitment(args: any, userId: string, token: string)
   const commitment = {
     userId,
     title: args.title || 'التزام مجدول',
-    amount: Math.abs(Number(args.amount) || 0),
+    amount: parsePositiveFinancialAmount(args.amount),
     dueDate: args.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     category: args.category || 'أقساط والتزامات',
     notes: args.notes || '',
