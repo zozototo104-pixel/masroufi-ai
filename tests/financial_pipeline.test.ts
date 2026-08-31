@@ -28,7 +28,12 @@ test('PIPE-03: idempotency uses hashed Firestore doc ids and fails closed', asyn
   assert.ok(idem.includes("createHash('sha256')"), 'operationId must be hashed before Firestore doc id');
   assert.ok(idem.includes('MISSING_OPERATION_ID'), 'financial writes without operationId must be rejected');
   assert.ok(idem.includes('IDEMPOTENCY_LOCK_FAILED'), 'lock failure must fail closed');
-  assert.ok(!idem.includes("await waitForCompletedResult(ref) }"), 'must not await long polling inside Firestore transaction');
+  const transactionStart = idem.indexOf('adminDb.runTransaction');
+  const transactionEnd = idem.indexOf("if (claim.action === 'return')", transactionStart);
+  const claimTransaction = idem.slice(transactionStart, transactionEnd);
+  assert.ok(!claimTransaction.includes('waitForCompletedResult('), 'must not await long polling inside Firestore transaction');
+  assert.ok(idem.includes("if (claim.action === 'wait') return { kind: 'cache_hit', cachedResult: await waitForCompletedResult(ref) }"),
+    'pending duplicates may wait only after the claim transaction has completed');
 });
 
 test('PIPE-04: notifications cannot turn a committed financial write into a failure', async () => {
