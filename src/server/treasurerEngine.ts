@@ -165,7 +165,7 @@ const GAZA_NECESSITY_RULES: Array<{ necessity: 'ضروري' | 'كمالي' | 'م
   { necessity: 'كمالي', confidence: 'high', keywords: ['ايفون','آيفون','iphone','بلايستيشن','playstation','ساعة ذكية','تابلت للترفيه'], reason: 'مشتريات كبيرة/ترفيهية غالباً كمالية ما لم يثبت أنها للعمل أو الأمان أو ضرورة تواصل.' }
 ];
 
-export function inferNecessityForGazaContext(input: { category?: any; subcategory?: any; notes?: any; merchant?: any; item?: any; amount?: any }): NecessitySuggestion {
+export function inferNecessityForGazaContext(input: { category?: unknown; subcategory?: unknown; notes?: unknown; merchant?: unknown; item?: unknown; amount?: unknown }): NecessitySuggestion {
   const text = normalizeArabicText(`${input.category || ''} ${input.subcategory || ''} ${input.notes || ''} ${input.merchant || ''} ${input.item || ''}`);
   for (const rule of GAZA_NECESSITY_RULES) {
     if (rule.keywords.some(k => text.includes(normalizeArabicText(k)))) {
