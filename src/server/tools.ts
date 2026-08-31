@@ -1709,17 +1709,14 @@ export async function transferMoney(args: any, userId: string, token: string) {
 }
 
 function normalizeCreditorName(value: any): string {
-  return String(value || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/[ـًٌٍَُِّْ]/g, '').replace(/\s+/g, ' ');
+  return normalizeCreditorKey(value);
 }
 
-// V6: exported so that regression tests can verify financial invariants directly.
+// Compatibility export for existing callers/tests. The financial rule itself now
+// lives in the shared domain core; this adapter only unwraps Firestore snapshots.
 export function calculateBalancesFromDocs(docs: any[]) {
-  let cash=0, palPay=0, debt=0;
-  for (const doc of docs) { const tx=typeof doc?.data==='function'?doc.data():doc; const amount=Number(tx?.amount)||0; const account=normalizeAccount(tx?.account);
-    if(tx?.type==='expense'){ if(account==='palPay') palPay-=amount; else if(account==='debt') debt+=amount; else cash-=amount; }
-    else if(tx?.type==='income'){ if(account==='palPay') palPay+=amount; else if(account==='debt') debt-=amount; else cash+=amount; }
-    else if(tx?.type==='transfer'){ const f=normalizeAccount(tx?.fromAccount||tx?.account), t=normalizeAccount(tx?.toAccount); if(f==='palPay')palPay-=amount;else if(f==='debt')debt+=amount;else cash-=amount; if(t==='palPay')palPay+=amount;else if(t==='debt')debt-=amount;else cash+=amount; }
-  } return {cash,palPay,debt,total:cash+palPay};
+  const transactions = (docs || []).map((doc: any) => typeof doc?.data === 'function' ? doc.data() : doc);
+  return calculateBalances(transactions);
 }
 
 function calculateOpenCreditorDebts(docs:any[]){ const m=new Map<string,{creditor:string;remaining:number}>(); for(const doc of docs){const tx=typeof doc?.data==='function'?doc.data():doc;const amount=Number(tx?.amount)||0;if(amount<=0)continue;const merchant=String(tx?.creditor||tx?.merchant||'').trim(),key=normalizeCreditorName(merchant);if(!key||key===normalizeCreditorName('سداد دين')||key===normalizeCreditorName('تحويل بين المحافظ'))continue;let d=0;if(tx?.type==='expense'&&normalizeAccount(tx?.account)==='debt')d=amount;if(tx?.type==='income'&&normalizeAccount(tx?.account)==='debt')d=-amount;if(tx?.type==='transfer'&&normalizeAccount(tx?.toAccount)==='debt')d=-amount;if(tx?.type==='transfer'&&normalizeAccount(tx?.fromAccount||tx?.account)==='debt')d=amount;if(!d)continue;const c=m.get(key)||{creditor:merchant,remaining:0};c.remaining+=d;m.set(key,c);}return Array.from(m.entries()).filter(([,d])=>d.remaining>0.0001).map(([key,d])=>({key,creditor:d.creditor,remaining:Math.round(d.remaining*100)/100}));}
