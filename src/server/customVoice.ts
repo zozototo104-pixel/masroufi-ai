@@ -1,11 +1,11 @@
-import { adminDb } from './firebaseAdmin';
+import { adminDb, adminStorageBucket } from './firebaseAdmin';
 
 const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io/v1';
 const FISH_AUDIO_API_BASE = 'https://api.fish.audio';
 const SETTINGS_PATH = 'settings';
 const CUSTOM_VOICE_DOC = 'customVoice';
 
-export type CustomVoiceProvider = 'fish' | 'elevenlabs';
+export type CustomVoiceProvider = 'moss' | 'fish' | 'elevenlabs';
 
 export type CustomVoiceProfile = {
   configured: boolean;
