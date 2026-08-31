@@ -36,7 +36,7 @@ function decodeAudio(base64: string): Uint8Array {
   if (!cleaned) throw new Error('Missing audio sample');
   const buffer = Buffer.from(cleaned, 'base64');
   if (buffer.length < 16_000) throw new Error('Audio sample is too short');
-  if (buffer.length > 9 * 1024 * 1024) throw new Error('Audio sample exceeds 9 MB limit');
+  if (buffer.length > 6 * 1024 * 1024) throw new Error('Audio sample exceeds 6 MB limit');
   return new Uint8Array(buffer);
 }
 
