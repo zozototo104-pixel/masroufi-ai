@@ -1357,8 +1357,12 @@ ${relationshipContext}
           responseModalities: [Modality.AUDIO],
           systemInstruction,
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+            // Gemini still needs a valid prebuilt voice for AUDIO modality. In
+            // Custom mode its native audio is suppressed below and only its
+            // output transcription is synthesized with the user's cloned voice.
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: useCustomVoice ? "Zephyr" : voice } },
           },
+          ...(useCustomVoice ? { outputAudioTranscription: {} } : {}),
           tools: [{ functionDeclarations: functionDeclarations as any }]
         },
         callbacks: {
