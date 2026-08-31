@@ -961,9 +961,16 @@ ${relationshipContext}
         }
       }
 
+      const financialToolResults = executedFunctionResponses
+        .filter((r: any) => isFinancialToolName(r.name))
+        .map((r: any) => r.response)
+        .filter(Boolean);
+      const committedTransactions = financialToolResults
+        .filter((r: any) => r?.success === true && r?.transaction)
+        .map((r: any) => r.transaction);
       const { getPendingOps } = await import('./src/server/fakeDb');
       const pendingOps = getPendingOps(req.user.uid);
-      res.json({ success: true, text: replyText, pendingOps });
+      res.json({ success: true, text: replyText, pendingOps, financialToolResults, committedTransactions });
     } catch (error: any) {
       console.error("Text chat error:", error);
       if (error.message && error.message.includes("resource_exhausted")) {
