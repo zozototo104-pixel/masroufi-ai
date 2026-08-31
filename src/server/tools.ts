@@ -1298,8 +1298,8 @@ function prepareImportedFinancialTransactions(transactions: any[], userId: strin
       continue;
     }
 
-    const amount = typeof t.amount === 'string' ? Number(t.amount.trim()) : Number(t.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const amount = parsePositiveFinancialAmount(t.amount);
+    if (amount <= 0) {
       failures.push({ index, code: 'INVALID_AMOUNT', message: 'كل عملية مستوردة يجب أن تحتوي مبلغاً موجباً صالحاً.' });
       continue;
     }
