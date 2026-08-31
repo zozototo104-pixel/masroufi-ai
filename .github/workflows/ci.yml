@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         id: install
         continue-on-error: true
-        run: npm ci 2>&1 | tee /tmp/install.log
+        run: set -o pipefail; npm ci 2>&1 | tee /tmp/install.log
 
       - name: Run test suite
         id: tests
