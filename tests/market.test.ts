@@ -15,6 +15,8 @@ import {
   shouldSearchMarket,
   getCachedMarketResult,
   cacheMarketResult,
+  normalizeCurrencyToIls,
+  setExchangeRateSnapshotForTests,
 } from '../src/server/marketIntelligence.ts';
 
 test('MARKET-01: extractPricesFromText parses "3200 ₪"', () => {
