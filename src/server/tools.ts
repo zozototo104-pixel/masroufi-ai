@@ -2045,7 +2045,7 @@ export async function deleteTransaction(args: any, userId: string, token: string
     // Revalidate ownership, ledger balances, and delete atomically. The smart-search
     // candidate may be stale by the time the user confirms it.
     const atomicResult = await atomicDeleteTransaction(userId, toDelete.id, { riskConfirmed: !!args.riskConfirmed });
-    if (!atomicResult.ok) {
+    if ('reason' in atomicResult) {
       if (atomicResult.reason === 'NEGATIVE_CASH_RESULT' || atomicResult.reason === 'NEGATIVE_PALPAY_RESULT') {
         return {
           success: false,
