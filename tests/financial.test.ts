@@ -214,6 +214,50 @@ test('FIN-19: negative amount rejected — amount <= 0 returns INVALID_AMOUNT', 
   assert.ok(src.includes("amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT'"));
 });
 
+test('DOMAIN-01: account aliases normalize identically for every caller', () => {
+  assert.equal(normalizeAccount('cash'), 'cash');
+  assert.equal(normalizeAccount('نقد'), 'cash');
+  assert.equal(normalizeAccount('PalPay'), 'palPay');
+  assert.equal(normalizeAccount('محفظة بال باي'), 'palPay');
+  assert.equal(normalizeAccount('دين'), 'debt');
+  assert.equal(normalizeAccount('آجل'), 'debt');
+});
+
+test('DOMAIN-02: creditor identity normalization collapses Arabic spelling/diacritic variants', () => {
+  assert.equal(normalizeCreditorKey('  أحمــد  '), normalizeCreditorKey('احمد'));
+  assert.equal(normalizeCreditorKey('عَلِيّ'), normalizeCreditorKey('علي'));
+  assert.equal(normalizeCreditorKey('شركة الهدى'), normalizeCreditorKey('شركه الهدي'));
+});
+
+test('DOMAIN-03: creditor remaining is reconstructed behaviorally from purchases and repayments', () => {
+  const ledger = [
+    tx({ type: 'expense', account: 'debt', amount: 300, creditor: 'أحمد', transactionType: 'CREDIT_PURCHASE' }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', amount: 80, creditor: 'احمد', transactionType: 'DEBT_PAYMENT' }),
+    tx({ type: 'expense', account: 'debt', amount: 20, creditor: 'أحمد', transactionType: 'CREDIT_PURCHASE' }),
+  ];
+  assert.equal(calculateCreditorRemaining(ledger, 'احمد'), 240);
+  assert.equal(calculateBreakdown(ledger).creditorDebts[normalizeCreditorKey('أحمد')], 240);
+});
+
+test('DOMAIN-04: debt overpayment never exposes negative creditor remaining', () => {
+  const ledger = [
+    tx({ type: 'expense', account: 'debt', amount: 100, creditor: 'سامي' }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', amount: 150, creditor: 'سامي', transactionType: 'DEBT_PAYMENT' }),
+  ];
+  assert.equal(calculateCreditorRemaining(ledger, 'سامي'), 0);
+  assert.equal(calculateBreakdown(ledger).creditorDebts[normalizeCreditorKey('سامي')], undefined);
+});
+
+test('DOMAIN-05: balance arithmetic rounds currency to two decimals deterministically', () => {
+  const r = calculateBalances([
+    tx({ type: 'income', account: 'cash', amount: 0.1 }),
+    tx({ type: 'income', account: 'cash', amount: 0.2 }),
+    tx({ type: 'expense', account: 'cash', amount: 0.1 }),
+  ]);
+  assert.equal(r.cash, 0.2);
+  assert.equal(r.total, 0.2);
+});
+
 test('REP-01 + REP-02: dashboard cash == report cash, dashboard PalPay == report PalPay (CF-3)', () => {
   // Same dataset goes to both calculateBalancesFromDocs and buildHierarchicalReport.
   // They MUST produce the same totalCash and totalPalPay.
