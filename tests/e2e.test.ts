@@ -220,6 +220,12 @@ test('AI-DURABILITY: prompt instructs AI to be honest about pending durability',
     'V6.1 durability prompt rule present');
   assert.ok(src.includes('لا تقل "تم" أو "حفظت" أو "سجلتها"'),
     'prompt forbids claiming success on pending');
+  assert.ok(src.includes('لم تُسجّل العملية في السحابة'),
+    'pending durability must be described as not registered in cloud');
+  assert.equal(src.includes('ستصل السحابة عند عودة الاتصال'), false,
+    'prompt must not describe pending financial writes as queued successful cloud sync');
+  assert.equal(src.includes('معلّقة للمزامنة'), false,
+    'prompt must not imply a local pending write is a successful addition');
 });
 
 // AI PROMPT — PURCHASE INTENT VS COMPLETED
