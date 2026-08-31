@@ -345,7 +345,7 @@ export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions:
     }
   }
 
-  const categoryRows = Array.from(byCategory.values()).map((r: any) => {
+  const categoryRows: CategoryRow[] = Array.from(byCategory.values()).map((r) => {
     const limit = Number(r.budgetLimit || 0);
     return { ...r, remaining: round(limit - r.total), percentage: limit > 0 ? Math.round(r.total / limit * 100) : null };
   }).sort((a, b) => b.total - a.total);
