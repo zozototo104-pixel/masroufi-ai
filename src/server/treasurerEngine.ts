@@ -405,12 +405,12 @@ export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions:
   };
 }
 
-function buildTreasurerNotes(input: any): string[] {
+function buildTreasurerNotes(input: TreasurerNoteInput): string[] {
   const notes: string[] = [];
   if (input.totalIncome > 0 && input.net < 0) notes.push(`أنت صرفت أكثر من دخلك في هذه الفترة بفارق ${Math.abs(input.net)} ₪. هذا يحتاج فرملة فورية يا كبير.`);
   if (input.savingsRate !== null && input.savingsRate < 10) notes.push(`نسبة الادخار الظاهرة ${input.savingsRate}% فقط. الأفضل رفعها تدريجياً إلى 10%-20% حسب ظروفك.`);
-  if (input.overspending?.length) notes.push(`فيه تجاوزات صريحة في: ${input.overspending.map((r: any) => `${r.category} (${r.percentage}%)`).join('، ')}.`);
-  if (input.nearLimits?.length) notes.push(`بنود قريبة من السقف: ${input.nearLimits.map((r: any) => `${r.category} (${r.percentage}%)`).join('، ')}.`);
+  if (input.overspending?.length) notes.push(`فيه تجاوزات صريحة في: ${input.overspending.map((r) => `${r.category} (${r.percentage}%)`).join('، ')}.`);
+  if (input.nearLimits?.length) notes.push(`بنود قريبة من السقف: ${input.nearLimits.map((r) => `${r.category} (${r.percentage}%)`).join('، ')}.`);
   const top = input.categoryRows?.[0];
   if (top) notes.push(`أعلى بند صرف هو ${top.category} بمبلغ ${top.total} ₪.`);
   if (!notes.length) notes.push('الوضع منضبط نسبياً في هذه الفترة، لكن راقب الكماليات والالتزامات القادمة.');
