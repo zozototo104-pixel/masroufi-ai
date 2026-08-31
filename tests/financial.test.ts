@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 // not the orchestration layer or source-code strings.
 import { parseAbsoluteFinancialAmount, parseFiniteAmount, parsePositiveFinancialAmount } from '../src/lib/amount.ts';
 import { validateImportEnvelope } from '../src/lib/importEnvelope.ts';
+import { buildReportSnapshotRecord } from '../src/lib/reportUtils.ts';
 import { calculateBalances, calculateBreakdown, calculateCreditorRemaining, normalizeAccount, normalizeCreditorKey } from '../src/lib/balanceCalc.ts';
 import { buildCompletedIdempotencyRecord, decideIdempotencyClaim } from '../src/server/idempotencyCore.ts';
 import { buildHierarchicalReport } from '../src/lib/reportUtils.ts';
