@@ -9,7 +9,7 @@
  * atomicOps.ts should duplicate these pure ledger rules.
  */
 
-// Mirrors backend normalizeAccount (tools.ts).
+// Canonical account normalization shared by server tools, atomic operations, and reports.
 export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
   if (!acc) return 'cash';
   const s = String(acc).toLowerCase().trim();
