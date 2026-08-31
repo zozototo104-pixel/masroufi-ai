@@ -107,7 +107,7 @@ export function calculateBreakdown(transactions: any[]): BalanceBreakdown {
   return { income, expense, transferCount, creditorDebts: positiveDebts };
 }
 
-/** Mirror backend normalizeCreditorName. */
+/** Canonical creditor identity normalization shared by client and server. */
 export function normalizeCreditorKey(value: any): string {
   return String(value || '').trim().toLowerCase()
     .replace(/[أإآ]/g, 'ا')
@@ -115,4 +115,12 @@ export function normalizeCreditorKey(value: any): string {
     .replace(/ة/g, 'ه')
     .replace(/[ـًٌٍَُِّْ]/g, '')
     .replace(/\s+/g, ' ');
+}
+
+/** Canonical remaining debt for one creditor, derived from ledger semantics. */
+export function calculateCreditorRemaining(transactions: any[], creditor: string): number {
+  const targetKey = normalizeCreditorKey(creditor);
+  if (!targetKey) return 0;
+  const debts = calculateBreakdown(transactions).creditorDebts;
+  return Math.round(Math.max(0, Number(debts[targetKey] || 0)) * 100) / 100;
 }
