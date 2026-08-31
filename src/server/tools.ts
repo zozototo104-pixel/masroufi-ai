@@ -3,6 +3,7 @@ import { getDb, clearAllLocalUserData, type WriteResult } from './fakeDb';
 import { adminDb as firebaseAdminDb } from './firebaseAdmin';
 import { buildReportSnapshotRecord, matchesArabicCategory } from '../lib/reportUtils';
 import { validateImportEnvelope } from '../lib/importEnvelope';
+import { prepareImportedFinancialTransactions } from '../lib/importFinancialTransactions';
 import { selectOpenCreditorDebt } from '../lib/debtSelection';
 import { parseAbsoluteFinancialAmount, parsePositiveFinancialAmount } from '../lib/amount';
 import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc';
