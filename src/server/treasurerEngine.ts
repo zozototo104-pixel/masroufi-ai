@@ -360,8 +360,8 @@ export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions:
     .slice(0, 15)
     .map(t => ({ id: t.id, date: t.date, amount: t.amount, category: t.category, subcategory: t.subcategory, merchant: t.merchant, necessity: t.necessity, paymentMethod: t.account, notes: t.notes }));
 
-  const overspending = categoryRows.filter((r: any) => r.percentage !== null && r.percentage >= 100);
-  const nearLimits = categoryRows.filter((r: any) => r.percentage !== null && r.percentage >= 80 && r.percentage < 100);
+  const overspending = categoryRows.filter((r) => r.percentage !== null && r.percentage >= 100);
+  const nearLimits = categoryRows.filter((r) => r.percentage !== null && r.percentage >= 80 && r.percentage < 100);
   const monthlyRows = Array.from(byMonth.values()).sort((a, b) => String(a.month).localeCompare(String(b.month)));
 
   return {
