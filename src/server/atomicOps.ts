@@ -163,7 +163,7 @@ export async function atomicPayDebt(
       };
     }
     // Also check the source account has funds.
-    const balances = calculateBalancesFromDocs(docs);
+    const balances = calculateBalances(plainTransactions(docs));
     const fromAccount = newTx.fromAccount || newTx.account;
     const available = fromAccount === 'palPay' ? balances.palPay : balances.cash;
     if (amount > available + 0.0001) {
