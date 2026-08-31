@@ -19,6 +19,7 @@ import {
   buildPendingIdempotencyRecord,
   decideIdempotencyClaim,
 } from '../src/server/idempotencyCore.ts';
+import { IDEMPOTENCY_COLLECTION } from '../src/server/idempotencyConfig.ts';
 
 test('DUR-01: FakeDb.WriteResult exposes durability flag — V6 type definition present', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/fakeDb.ts'), 'utf8');
