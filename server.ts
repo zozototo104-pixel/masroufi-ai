@@ -1386,7 +1386,7 @@ ${relationshipContext}
                   customVoiceTurnText = '';
                   const generation = ++customVoiceGeneration;
                   try {
-                    for await (const pcmChunk of streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak })) {
+                    for await (const pcmChunk of streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak, provider: customVoiceProvider || undefined })) {
                       if (generation !== customVoiceGeneration || !isActive) break;
                       safeSend({ audio: Buffer.from(pcmChunk).toString('base64') });
                     }
