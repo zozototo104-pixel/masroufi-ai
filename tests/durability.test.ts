@@ -113,3 +113,23 @@ test('DUR-11: transaction update refuses balance-sensitive decisions on partial 
   assert.ok(src.includes("message: 'لا يمكن تعديل العملية الآن لأن قراءة السحابة جزئية، ولا أستطيع ضمان الرصيد الناتج بأمان.'"),
     'updateTransaction must refuse partial-state balance computation');
 });
+
+test('DUR-12: restore validates the full financial ledger before replace deletes existing state', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const preflight = src.indexOf('prepareImportedFinancialTransactions(transactionsToImport, userId)');
+  const destructiveReplace = src.indexOf("if (mode === 'replace')", preflight);
+  assert.ok(preflight >= 0, 'restore must have a financial preflight');
+  assert.ok(destructiveReplace > preflight, 'financial preflight must happen before replace-mode deletion');
+  assert.ok(src.includes("reason: 'IMPORT_FINANCIAL_VALIDATION_FAILED'"),
+    'invalid backup must fail before modifying current data');
+});
+
+test('DUR-13: restore writes only preflighted transactions and checks durability', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(src.includes('for (const prepared of preparedTransactions.entries)'),
+    'restore must write the validated canonical representation');
+  assert.ok(src.includes("reason: 'IMPORT_NOT_DURABLY_COMMITTED'"),
+    'restore must stop when a transaction is not durably committed');
+  assert.equal(src.includes('for (const t of transactionsToImport)'), false,
+    'raw backup transactions must not be written directly after preflight');
+});
