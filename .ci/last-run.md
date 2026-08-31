@@ -1,7 +1,7 @@
 # CI Verification Report
 
-Source commit: b30fe2a30f6c728ce142e069c3c408dcba743539
-Run: 33379600710
+Source commit: 0bbe34fc261e4fcac5500f46cca21f8338b9751e
+Run: 33379672767
 Install: success
 Tests: failure
 TypeScript: success
@@ -11,7 +11,7 @@ Build: success
 ```text
 not ok 93 - PIPE-01: financial writes must not pass through legacy /api/sync raw transaction doc.set
   ---
-  duration_ms: 17.477098
+  duration_ms: 20.700208
   type: 'test'
   location: '/home/runner/work/masroufi-ai/masroufi-ai/tests/financial_pipeline.test.ts:1:341'
   failureType: 'testCodeFailure'
@@ -29,19 +29,19 @@ not ok 93 - PIPE-01: financial writes must not pass through legacy /api/sync raw
 # Subtest: PIPE-02: all mutating financial tools are protected by runIdempotent wrapper
 ok 94 - PIPE-02: all mutating financial tools are protected by runIdempotent wrapper
   ---
-  duration_ms: 6.969032
+  duration_ms: 6.896705
   type: 'test'
   ...
 # Subtest: PIPE-03: idempotency uses hashed Firestore doc ids and fails closed
 ok 95 - PIPE-03: idempotency uses hashed Firestore doc ids and fails closed
   ---
-  duration_ms: 4.860206
+  duration_ms: 3.16335
   type: 'test'
   ...
 # Subtest: PIPE-04: notifications cannot turn a committed financial write into a failure
 ok 96 - PIPE-04: notifications cannot turn a committed financial write into a failure
   ---
-  duration_ms: 9.540779
+  duration_ms: 6.182632
   type: 'test'
   ...
 ```
@@ -50,7 +50,7 @@ ok 96 - PIPE-04: notifications cannot turn a committed financial write into a fa
 ```text
 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-added 543 packages, and audited 544 packages in 14s
+added 543 packages, and audited 544 packages in 11s
 
 67 packages are looking for funding
   run `npm fund` for details
@@ -72,151 +72,151 @@ Run `npm audit` for details.
 # Subtest: OFF-07: Login A → logout → Login B cannot see/sync A queue
 ok 126 - OFF-07: Login A → logout → Login B cannot see/sync A queue
   ---
-  duration_ms: 7.350341
+  duration_ms: 1.943784
   type: 'test'
   ...
 # Subtest: OFF-08: pending ops include operationId, userId, commandType, args, createdAt, retryCount
 ok 127 - OFF-08: pending ops include operationId, userId, commandType, args, createdAt, retryCount
   ---
-  duration_ms: 5.258318
+  duration_ms: 1.30236
   type: 'test'
   ...
 # Subtest: OFF-09: pending ops carry syncStatus states (PENDING, SYNCING, COMMITTED, FAILED)
 ok 128 - OFF-09: pending ops carry syncStatus states (PENDING, SYNCING, COMMITTED, FAILED)
   ---
-  duration_ms: 1.957634
+  duration_ms: 1.184953
   type: 'test'
   ...
 # Subtest: ATOMIC-DEBT-01: payDebt no longer has txRef.set fallback after atomic failure
 ok 129 - ATOMIC-DEBT-01: payDebt no longer has txRef.set fallback after atomic failure
   ---
-  duration_ms: 17.312334
+  duration_ms: 12.666306
   type: 'test'
   ...
 # Subtest: ATOMIC-DEBT-02: payDebt returns retryable=true on contention/quota
 ok 130 - ATOMIC-DEBT-02: payDebt returns retryable=true on contention/quota
   ---
-  duration_ms: 2.86916
+  duration_ms: 1.854981
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-01: transferMoney uses atomicTransferMoney
 ok 131 - TRANSFER-CONC-01: transferMoney uses atomicTransferMoney
   ---
-  duration_ms: 2.435002
+  duration_ms: 1.898807
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-02: atomicTransferMoney exists in atomicOps
 ok 132 - TRANSFER-CONC-02: atomicTransferMoney exists in atomicOps
   ---
-  duration_ms: 2.124595
+  duration_ms: 1.259074
   type: 'test'
   ...
 # Subtest: TRANSFER-CONC-03: transferMoney has NO direct write fallback
 ok 133 - TRANSFER-CONC-03: transferMoney has NO direct write fallback
   ---
-  duration_ms: 2.972713
+  duration_ms: 2.325293
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-01: offlineQueue stores commandType + args (not final document)
 ok 134 - OFFLINE-COMMAND-01: offlineQueue stores commandType + args (not final document)
   ---
-  duration_ms: 1.713259
+  duration_ms: 0.814044
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-02: offlineQueue sends through /api/command (NOT /api/sync)
 ok 135 - OFFLINE-COMMAND-02: offlineQueue sends through /api/command (NOT /api/sync)
   ---
-  duration_ms: 1.327251
+  duration_ms: 1.19652
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-03: /api/command endpoint exists in server.ts
 ok 136 - OFFLINE-COMMAND-03: /api/command endpoint exists in server.ts
   ---
-  duration_ms: 2.232075
+  duration_ms: 1.600819
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-04: dispatchFinancialCommand routes to tool handlers
 ok 137 - OFFLINE-COMMAND-04: dispatchFinancialCommand routes to tool handlers
   ---
-  duration_ms: 1.73521
+  duration_ms: 0.866353
   type: 'test'
   ...
 # Subtest: OFFLINE-COMMAND-05: /api/sync is NOT a financial backdoor (syncOfflineData does doc.set for non-financial only)
 ok 138 - OFFLINE-COMMAND-05: /api/sync is NOT a financial backdoor (syncOfflineData does doc.set for non-financial only)
   ---
-  duration_ms: 1.871915
+  duration_ms: 2.036139
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-01: V6.2 uses new queue key (masrofi_pending_ops_v6_2)
 ok 139 - UNIFIED-PENDING-01: V6.2 uses new queue key (masrofi_pending_ops_v6_2)
   ---
-  duration_ms: 1.250257
+  duration_ms: 0.963159
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-02: migrateLegacyPendingOps function exists
 ok 140 - UNIFIED-PENDING-02: migrateLegacyPendingOps function exists
   ---
-  duration_ms: 3.290495
+  duration_ms: 2.438308
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-03: App.tsx calls migrateLegacyPendingOps on fetchData
 ok 141 - UNIFIED-PENDING-03: App.tsx calls migrateLegacyPendingOps on fetchData
   ---
-  duration_ms: 2.329777
+  duration_ms: 1.38264
   type: 'test'
   ...
 # Subtest: UNIFIED-PENDING-04: logout clears ALL pending keys (v6_2 + legacy)
 ok 142 - UNIFIED-PENDING-04: logout clears ALL pending keys (v6_2 + legacy)
   ---
-  duration_ms: 2.043574
+  duration_ms: 1.686978
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-01: addTransaction rejects on partial snapshot
 ok 143 - PARTIAL-STATE-01: addTransaction rejects on partial snapshot
   ---
-  duration_ms: 3.780647
+  duration_ms: 2.001662
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-02: transferMoney rejects on partial balance
 ok 144 - PARTIAL-STATE-02: transferMoney rejects on partial balance
   ---
-  duration_ms: 1.719761
+  duration_ms: 1.425395
   type: 'test'
   ...
 # Subtest: PARTIAL-STATE-03: payDebt rejects on partial snapshot
 ok 145 - PARTIAL-STATE-03: payDebt rejects on partial snapshot
   ---
-  duration_ms: 1.787758
+  duration_ms: 1.384583
   type: 'test'
   ...
 # Subtest: FIRESTORE-READS-01: atomic ops use runTransaction (O(N) acknowledged, V7 will add financialState)
 ok 146 - FIRESTORE-READS-01: atomic ops use runTransaction (O(N) acknowledged, V7 will add financialState)
   ---
-  duration_ms: 1.770064
+  duration_ms: 0.759943
   type: 'test'
   ...
 # Subtest: STATIC-SAFETY-01: no "catch + txRef.set" pattern in payDebt
 ok 147 - STATIC-SAFETY-01: no "catch + txRef.set" pattern in payDebt
   ---
-  duration_ms: 1.747352
+  duration_ms: 1.692166
   type: 'test'
   ...
 # Subtest: STATIC-SAFETY-02: no "catch + txRef.set" pattern in transferMoney
 ok 148 - STATIC-SAFETY-02: no "catch + txRef.set" pattern in transferMoney
   ---
-  duration_ms: 5.688127
+  duration_ms: 3.344662
   type: 'test'
   ...
 # Subtest: SYNC-AUTH-01: dispatchFinancialCommand overwrites client userId
 ok 149 - SYNC-AUTH-01: dispatchFinancialCommand overwrites client userId
   ---
-  duration_ms: 1.6764
+  duration_ms: 1.244256
   type: 'test'
   ...
 # Subtest: IDEM-01: dispatchFinancialCommand passes operationId through args
 ok 150 - IDEM-01: dispatchFinancialCommand passes operationId through args
   ---
-  duration_ms: 1.391009
+  duration_ms: 0.648566
   type: 'test'
   ...
 1..150
@@ -227,7 +227,7 @@ ok 150 - IDEM-01: dispatchFinancialCommand passes operationId through args
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 2127.998686
+# duration_ms 1432.630338
 ```
 
 ## lint
@@ -257,11 +257,11 @@ computing gzip size...
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
-[32m✓ built in 5.52s[39m
+[32m✓ built in 4.25s[39m
 
   dist/server.cjs      468.2kb
   dist/server.cjs.map  730.8kb
 
-⚡ Done in 31ms
+⚡ Done in 19ms
 ```
 
