@@ -31,7 +31,7 @@ test('DUR-01: FakeDb.WriteResult exposes durability flag — V6 type definition 
 
 test('DUR-02: idempotency_keys collection persists across restart (Firestore-backed)', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
-  assert.ok(src.includes("IDEMPOTENCY_COLLECTION = 'idempotency_keys'"),
+  assert.equal(IDEMPOTENCY_COLLECTION, 'idempotency_keys',
     'idempotency uses Firestore collection (persists across restart)');
   assert.ok(src.includes('adminDb.runTransaction'),
     'claim uses Firestore transaction (atomic across instances)');
