@@ -1,1 +1,1 @@
-Trigger CI for current HEAD including scoped PIPE-01 regression guard.
+Force CI verification for current HEAD with scoped PIPE-01 financial sync guard.
