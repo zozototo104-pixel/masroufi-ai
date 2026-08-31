@@ -929,58 +929,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
     writeResult = await txRef.set(tx);
   }
   
-  let notificationMsg = `تم تسجيل ${type === 'expense' ? 'مصروف' : 'دخل'} بقيمة ${amount} ₪`;
-  if (account === 'debt') {
-    notificationMsg += " (دين)";
-  } else if (account === 'palPay') {
-    notificationMsg += " (PalPay)";
-  }
-  if (category && category !== 'غير مصنف') {
-    notificationMsg += ` [${category}]`;
-  }
-  if (tx.necessity) {
-    notificationMsg += ` - ${tx.necessity}`;
-  }
-  
-  await addNotification(userId, notificationMsg, 'success', adminDb, {
-    idempotencyKey: `transaction-success:${operationId}`,
-    transactionId: actualTxId,
-    operationId,
-    metadata: { amount, type, account, category, subcategory, merchant, transactionType: tx.transactionType }
+  await recordTransactionCommittedSideEffects(userId, actualTxId, tx, adminDb, {
+    preUserBudgets,
+    preTxSnapshot,
   });
-
-  // Budget threshold warning check (80% / 100%)
-  if (type === 'expense' && category && category !== 'غير مصنف') {
-    try {
-      const userBudgets = preUserBudgets || await getUserBudgets(userId, adminDb);
-      const budgetLimit = userBudgets[category] || DEFAULT_BUDGETS[category] || 1000;
-      
-      const thisMonth = new Date().toISOString().slice(0, 7);
-      const txSnapshot = preTxSnapshot || await adminDb.collection('transactions').where('userId', '==', userId).get();
-      const monthExpenses = txSnapshot.docs
-        .map((d: any) => d.data())
-        .filter((t: any) => t.type === 'expense' && (t.date || '').startsWith(thisMonth) && t.category === category);
-      
-      const totalSpentForCat = monthExpenses.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
-      const ratio = totalSpentForCat / budgetLimit;
-
-      if (ratio >= 1.0) {
-        await addNotification(
-          userId, 
-          `⚠️ تنبيه ميزانية: تجاوزت سقف ميزانية [${category}] لهذا الشهر (${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
-          'warning', adminDb
-        );
-      } else if (ratio >= 0.8) {
-        await addNotification(
-          userId, 
-          `⚠️ تنبيه ميزانية: اقتربت من سقف ميزانية [${category}] لهذا الشهر (وصلت ${Math.round(ratio * 100)}% - ${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
-          'warning', adminDb
-        );
-      }
-    } catch (budgetErr) {
-      console.error("Budget check error:", budgetErr);
-    }
-  }
   
   const balances = await getBalance({}, userId, token);
   return {
