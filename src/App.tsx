@@ -122,6 +122,16 @@ export default function App() {
   const [newMemoryKey, setNewMemoryKey] = useState('');
   const [newMemoryValue, setNewMemoryValue] = useState('');
   const [isMemoryLoading, setIsMemoryLoading] = useState(false);
+
+  // Personal voice cloning state. The raw recording stays in memory only until upload.
+  const [customVoiceConfigured, setCustomVoiceConfigured] = useState(false);
+  const [customVoiceBusy, setCustomVoiceBusy] = useState(false);
+  const [customVoiceRecording, setCustomVoiceRecording] = useState(false);
+  const [customVoiceConsent, setCustomVoiceConsent] = useState(false);
+  const [customVoiceMessage, setCustomVoiceMessage] = useState('');
+  const customVoiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const customVoiceStreamRef = useRef<MediaStream | null>(null);
+  const customVoiceChunksRef = useRef<Blob[]>([]);
   
   const [isScanning, setIsScanning] = useState(false);
 
