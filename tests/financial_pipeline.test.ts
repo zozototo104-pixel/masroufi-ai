@@ -129,3 +129,14 @@ test('VOICE-07: websocket connect reads the latest selected voice', async () => 
   assert.ok(live.includes("params.append('voice', currentSettings.voice)"), 'websocket URL must use the currently selected voice');
   assert.equal(live.includes("params.append('voice', settings.voice)"), false, 'connect must not capture a stale voice value');
 });
+
+test('VOICE-08: MOSS custom voices use private durable references and stored provider identity', async () => {
+  const voice = await src('src/server/customVoice.ts');
+  const server = await src('server.ts');
+  assert.ok(voice.includes("return 'moss'"), 'self-hosted MOSS must be the default custom voice provider');
+  assert.ok(voice.includes('adminStorageBucket.file(referencePath).save'), 'MOSS reference audio must be persisted in private server storage');
+  assert.ok(voice.includes("cacheControl: 'private, no-store'"), 'reference audio must not be publicly cacheable');
+  assert.ok(voice.includes('getCustomVoiceRuntime'), 'runtime must return voice id together with its provider');
+  assert.ok(server.includes('customVoiceRuntime?.provider'), 'live sessions must bind to the provider that created the voice');
+  assert.ok(voice.includes("`${requireMossUrl()}/v1/tts`"), 'MOSS synthesis must go through the isolated service');
+});
