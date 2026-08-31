@@ -2707,8 +2707,8 @@ export async function updateSavingsGoal(args: any, userId: string, token: string
   if (!snap.exists) return { success: false, error: 'هدف الادخار غير موجود.' };
   const patch: any = { updatedAt: new Date().toISOString() };
   if (args.name || args.title) patch.name = String(args.name || args.title).trim();
-  if (args.targetAmount !== undefined || args.amount !== undefined) patch.targetAmount = Math.abs(Number(args.targetAmount || args.amount) || 0);
-  if (args.savedAmount !== undefined) patch.savedAmount = Math.abs(Number(args.savedAmount) || 0);
+  if (args.targetAmount !== undefined || args.amount !== undefined) patch.targetAmount = parsePositiveFinancialAmount(args.targetAmount || args.amount);
+  if (args.savedAmount !== undefined) patch.savedAmount = parsePositiveFinancialAmount(args.savedAmount);
   if (args.dueDate !== undefined) patch.dueDate = args.dueDate || '';
   if (args.priority !== undefined) patch.priority = args.priority;
   if (args.notes !== undefined) patch.notes = args.notes;
