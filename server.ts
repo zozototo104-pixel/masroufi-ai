@@ -1071,6 +1071,26 @@ ${relationshipContext}
         }
       }
 
+      if (!executedFunctionResponses.some((r: any) => isFinancialToolName(r.name)) && looksLikeFinancialIntent(recentUserConversationText)) {
+        const fallbackCall = buildFallbackFinancialToolCall(recentUserConversationText, String(clientMessageId || ''));
+        if (fallbackCall && toolHandlers[fallbackCall.name]) {
+          try {
+            const authToken = req.headers.authorization.split('Bearer ')[1];
+            const stableOperationId = buildStableOperationIdForToolCall(fallbackCall, String(clientMessageId || ''));
+            const toolArgs = stableOperationId
+              ? { ...(fallbackCall.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
+              : { ...(fallbackCall.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
+            const fallbackResult = await toolHandlers[fallbackCall.name](toolArgs, req.user.uid, authToken);
+            executedFunctionResponses.push({ id: 'server_fallback', name: fallbackCall.name, response: fallbackResult });
+            const deterministicFallbackReply = buildDeterministicFinancialReply(executedFunctionResponses as any);
+            if (deterministicFallbackReply) replyText = deterministicFallbackReply;
+          } catch (e: any) {
+            executedFunctionResponses.push({ id: 'server_fallback', name: fallbackCall.name, response: { error: e.message } });
+            replyText = `لم أسجل العملية فعلياً بسبب خطأ داخلي: ${e.message}`;
+          }
+        }
+      }
+
       const financialToolResults = executedFunctionResponses
         .filter((r: any) => isFinancialToolName(r.name))
         .map((r: any) => r.response)
