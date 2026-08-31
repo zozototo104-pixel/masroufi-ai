@@ -864,7 +864,6 @@ export async function addTransaction(args: any, userId: string, token: string) {
     }
   }
 
-  const txRef = adminDb.collection('transactions').doc();
   const operationId = String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
   const tx = {
     userId,
