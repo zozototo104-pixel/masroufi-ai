@@ -1492,8 +1492,10 @@ ${relationshipContext}
           userToken = result.token;
 
           if (useCustomVoice) {
-            customVoiceId = await getCustomVoiceId(userId);
-            if (!customVoiceId) {
+            const customVoiceRuntime = await getCustomVoiceRuntime(userId);
+            customVoiceId = customVoiceRuntime?.voiceId || null;
+            customVoiceProvider = customVoiceRuntime?.provider || null;
+            if (!customVoiceId || !customVoiceProvider) {
               safeSend({ error: "سجّل صوتك من الإعدادات قبل اختيار «صوتي»." });
               try { clientWs.close(4003, "custom voice not configured"); } catch (e) { /* ignore */ }
               return;
