@@ -78,17 +78,19 @@ test('DUR-06: account switch cannot expose cache — logout clears IndexedDB', a
 
 test('DUR-07: import/export round-trip preserves financial state — HF-5 fix', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('V6 (HF-5): preserve ALL financial semantics fields on import'),
-    'importUserData must preserve financial fields');
+  assert.ok(src.includes('Restore reconstructs historical state; it must preserve semantics without'),
+    'importUserData must preserve financial fields through the canonical restore preparer');
   // Verify the preservation happens for ALL types, not just transfer.
   assert.ok(src.includes("if (t.transactionType) docData.transactionType = String(t.transactionType)"),
     'transactionType preserved regardless of type');
-  assert.ok(src.includes("if (t.creditor) docData.creditor = String(t.creditor)"),
-    'creditor preserved regardless of type');
+  assert.ok(src.includes("const creditor = String(t.creditor || merchant).trim()"),
+    'creditor is derived from explicit creditor or merchant during canonical preparation');
+  assert.ok(src.includes("if (creditor) docData.creditor = creditor"),
+    'creditor preserved regardless of type when present');
   assert.ok(src.includes("if (t.creditorKey) docData.creditorKey = String(t.creditorKey)"),
     'creditorKey preserved regardless of type');
-  assert.ok(src.includes("if (docData.account === 'debt' && !docData.creditor && docData.merchant)"),
-    'creditor derived from merchant when missing on debt transactions');
+  assert.ok(src.includes('MISSING_CREDITOR'),
+    'debt-affecting imported transactions must not invent missing creditor facts');
 });
 
 test('DUR-08: chat cannot export server-local FakeDb pending operations to legacy client queue', async () => {
