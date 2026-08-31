@@ -137,6 +137,64 @@ export async function atomicAddTransaction(
  * Reads all transactions, computes per-creditor remaining debt, then rejects
  * if the payment would exceed it.
  */
+export async function atomicUpdateTransaction(
+  userId: string,
+  transactionId: string,
+  finalUpdates: any,
+  opts: { riskConfirmed?: boolean } = {}
+): Promise<{ ok: true; balances: { cash: number; palPay: number; debt: number; total: number } } | { ok: false; reason: string; balances?: any }> {
+  return adminDb.runTransaction(async (tx: any) => {
+    const ref = adminDb.collection('transactions').doc(transactionId);
+    const targetSnap = await tx.get(ref);
+    if (!targetSnap.exists || targetSnap.data()?.userId !== userId) {
+      return { ok: false, reason: 'TRANSACTION_NOT_FOUND' };
+    }
+
+    const ledgerSnap = await tx.get(adminDb.collection('transactions').where('userId', '==', userId));
+    const projected = { ...targetSnap.data(), ...finalUpdates, userId };
+    const transactions = ledgerSnap.docs.map((doc: any) => doc.id === transactionId ? projected : doc.data());
+    const balances = calculateBalances(transactions);
+
+    if (!opts.riskConfirmed && balances.cash < -0.0001) {
+      return { ok: false, reason: 'NEGATIVE_CASH_RESULT', balances };
+    }
+    if (!opts.riskConfirmed && balances.palPay < -0.0001) {
+      return { ok: false, reason: 'NEGATIVE_PALPAY_RESULT', balances };
+    }
+
+    tx.update(ref, finalUpdates);
+    return { ok: true, balances };
+  });
+}
+
+export async function atomicDeleteTransaction(
+  userId: string,
+  transactionId: string,
+  opts: { riskConfirmed?: boolean } = {}
+): Promise<{ ok: true; deleted: any; balances: { cash: number; palPay: number; debt: number; total: number } } | { ok: false; reason: string; balances?: any }> {
+  return adminDb.runTransaction(async (tx: any) => {
+    const ref = adminDb.collection('transactions').doc(transactionId);
+    const targetSnap = await tx.get(ref);
+    if (!targetSnap.exists || targetSnap.data()?.userId !== userId) {
+      return { ok: false, reason: 'TRANSACTION_NOT_FOUND' };
+    }
+
+    const ledgerSnap = await tx.get(adminDb.collection('transactions').where('userId', '==', userId));
+    const remaining = ledgerSnap.docs.filter((doc: any) => doc.id !== transactionId).map((doc: any) => doc.data());
+    const balances = calculateBalances(remaining);
+
+    if (!opts.riskConfirmed && balances.cash < -0.0001) {
+      return { ok: false, reason: 'NEGATIVE_CASH_RESULT', balances };
+    }
+    if (!opts.riskConfirmed && balances.palPay < -0.0001) {
+      return { ok: false, reason: 'NEGATIVE_PALPAY_RESULT', balances };
+    }
+
+    tx.delete(ref);
+    return { ok: true, deleted: targetSnap.data(), balances };
+  });
+}
+
 export async function atomicPayDebt(
   userId: string,
   newTx: any,
