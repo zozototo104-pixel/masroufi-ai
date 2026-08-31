@@ -14,6 +14,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import {
+  buildCompletedIdempotencyRecord,
+  buildPendingIdempotencyRecord,
+  decideIdempotencyClaim,
+} from '../src/server/idempotencyCore.ts';
 
 test('DUR-01: FakeDb.WriteResult exposes durability flag — V6 type definition present', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/fakeDb.ts'), 'utf8');
