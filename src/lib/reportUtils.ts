@@ -245,9 +245,6 @@ export function buildHierarchicalReport(transactions: any[]): HierarchicalReport
 
   let totalExpenses = 0;
   let totalIncome = 0;
-  let totalDebt = 0;
-  let totalCash = 0;
-  let totalPalPay = 0;
   let necessaryTotal = 0;
   let luxuryTotal = 0;
 
