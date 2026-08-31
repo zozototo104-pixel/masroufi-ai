@@ -129,7 +129,24 @@ test('DUR-13: restore writes only preflighted transactions and checks durability
   assert.ok(src.includes('for (const prepared of preparedTransactions.entries)'),
     'restore must write the validated canonical representation');
   assert.ok(src.includes("reason: 'IMPORT_NOT_DURABLY_COMMITTED'"),
-    'restore must stop when a transaction is not durably committed');
+    'merge restore must stop when a transaction is not durably committed');
   assert.equal(src.includes('for (const t of transactionsToImport)'), false,
     'raw backup transactions must not be written directly after preflight');
+});
+
+test('DUR-14: replace restore is one atomic batch and oversized backups fail before mutation', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const replaceStart = src.indexOf("if (mode === 'replace')");
+  const mergeStart = src.indexOf('// Merge mode:', replaceStart);
+  const replaceBlock = src.slice(replaceStart, mergeStart);
+  assert.ok(replaceBlock.includes('const batch = firebaseAdminDb.batch()'),
+    'replace restore must use a real Firestore atomic batch');
+  assert.ok(replaceBlock.includes('await batch.commit()'),
+    'replace restore must commit its mutation plan once');
+  assert.ok(replaceBlock.includes("reason: 'IMPORT_REPLACE_TOO_LARGE_FOR_ATOMIC_COMMIT'"),
+    'oversized replace must fail closed before mutation');
+  assert.ok(replaceBlock.includes("reason: 'IMPORT_REPLACE_ATOMIC_COMMIT_FAILED'"),
+    'failed atomic commit must be reported explicitly');
+  assert.equal(replaceBlock.includes('await adminDb.collection('), false,
+    'replace must not delete or write documents individually');
 });
