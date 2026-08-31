@@ -262,3 +262,15 @@ test('CONC-20: tools financial amounts use the shared finite amount parser', asy
   assert.equal(toolsSrc.includes('isNaN(rawAmount)'), false,
     'tools.ts must not reintroduce rawAmount/isNaN parsing');
 });
+
+test('CONC-21: atomic financial guards parse amounts through the shared finite parser', async () => {
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  assert.ok(atomicSrc.includes("import { parsePositiveFinancialAmount } from '../lib/amount'"),
+    'atomic financial operations must use the shared amount parser authority');
+  assert.ok(atomicSrc.includes('type FinancialTransactionInput = Record<string, unknown>'),
+    'atomic financial operation inputs must have an explicit unknown boundary type');
+  assert.equal(atomicSrc.includes('Number(newTx.amount) || 0'), false,
+    'atomic financial guards must not accept Infinity through Number(... ) || 0');
+  assert.ok(atomicSrc.includes('const amount = parsePositiveFinancialAmount(newTx.amount)'),
+    'atomic transfer/add/debt guards must sanitize non-finite amounts consistently');
+});
