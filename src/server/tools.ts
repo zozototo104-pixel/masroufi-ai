@@ -477,7 +477,7 @@ export async function searchLocalMarket(args: any, userId: string, token: string
 }
 
 export async function assessPurchase(args: any, userId: string, token: string) {
-  const price = Math.abs(Number(args?.price) || 0);
+  const price = parsePositiveFinancialAmount(args?.price);
   if (!price) return { success:false, needsClarification:true, message:'كم السعر المعروض عليك؟' };
   const ctx:any = await getFinancialDecisionContext({}, userId, token);
   const account = normalizeAccount(args?.paymentMethod || 'cash');
