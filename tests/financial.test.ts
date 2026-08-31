@@ -210,12 +210,15 @@ test('FIN-17: non-finite amounts cannot poison canonical balances or breakdowns'
   assert.equal(breakdown.creditorDebts[normalizeCreditorKey('أحمد')], undefined);
 });
 
-test('FIN-18: Infinity rejected — addTransaction uses Math.abs(Number(amount))', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/tools.ts'), 'utf8'
-  ));
-  // addTransaction: const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
-  assert.ok(src.includes('isNaN(rawAmount) ? 0 : Math.abs(rawAmount)'), 'addTransaction sanitizes NaN to 0');
+test('FIN-18: shared amount parser rejects NaN and Infinity before financial mutation paths', () => {
+  assert.equal(parseFiniteAmount(NaN), 0);
+  assert.equal(parseFiniteAmount(Infinity), 0);
+  assert.equal(parseFiniteAmount(-Infinity), 0);
+  assert.equal(parsePositiveFinancialAmount(Infinity), 0);
+  assert.equal(parsePositiveFinancialAmount(-10), 0);
+  assert.equal(parsePositiveFinancialAmount('42.5'), 42.5);
+  assert.equal(parseAbsoluteFinancialAmount(-10), 10);
+  assert.equal(parseAbsoluteFinancialAmount(Infinity), 0);
 });
 
 test('FIN-19: negative amount rejected — amount <= 0 returns INVALID_AMOUNT', async () => {
