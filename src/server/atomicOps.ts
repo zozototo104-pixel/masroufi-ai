@@ -44,7 +44,7 @@ export async function atomicTransferMoney(
     const snap = await tx.get(
       adminDb.collection('transactions').where('userId', '==', userId)
     );
-    const balances = calculateBalancesFromDocs(snap.docs);
+    const balances = calculateBalances(plainTransactions(snap.docs));
     const amount = Number(newTx.amount) || 0;
     const fromAccount = newTx.fromAccount;
     // Debt source (borrowing) doesn't need balance check (creates new debt).
