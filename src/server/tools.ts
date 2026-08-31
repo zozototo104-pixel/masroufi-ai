@@ -2635,9 +2635,9 @@ export async function updateTreasurerProfile(args: any, userId: string, token: s
   const adminDb = getDb(token);
   const ref = adminDb.collection('users').doc(userId).collection('treasurer').doc('profile');
   const patch: any = { updatedAt: new Date().toISOString() };
-  if (args.monthlySalary !== undefined) patch.monthlySalary = Math.abs(Number(args.monthlySalary) || 0);
+  if (args.monthlySalary !== undefined) patch.monthlySalary = parsePositiveFinancialAmount(args.monthlySalary);
   if (args.salaryDay !== undefined) patch.salaryDay = args.salaryDay ? Number(args.salaryDay) : null;
-  if (args.cashReserveTarget !== undefined || args.reserveTarget !== undefined) patch.cashReserveTarget = Math.abs(Number(args.cashReserveTarget ?? args.reserveTarget) || 0);
+  if (args.cashReserveTarget !== undefined || args.reserveTarget !== undefined) patch.cashReserveTarget = parsePositiveFinancialAmount(args.cashReserveTarget ?? args.reserveTarget);
   if (args.savingsRateTarget !== undefined) patch.savingsRateTarget = Math.max(0, Math.min(80, Number(args.savingsRateTarget) || 0));
   if (args.strictness !== undefined) patch.strictness = String(args.strictness || 'balanced');
   if (args.locale !== undefined) patch.locale = String(args.locale || 'Gaza/Palestine');
