@@ -160,12 +160,21 @@ function normalizeCreditorKeyLocal(value: any): string {
 }
 
 // REPORT SNAPSHOT CLARITY
-test('REPORT-SNAPSHOT: generated reports marked isSnapshot + generatedAt', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('isSnapshot: true'),
-    'report includes isSnapshot: true');
-  assert.ok(src.includes('generatedAt:'),
-    'report includes generatedAt timestamp');
+test('REPORT-SNAPSHOT: generated reports marked isSnapshot + generatedAt', () => {
+  const generatedAt = new Date('2026-08-31T12:00:00.000Z');
+  const rows = [{ id: 'tx-1', amount: 10, type: 'expense' }];
+  const report = buildReportSnapshotRecord({
+    userId: 'user-1',
+    title: 'تقرير تجريبي',
+    timeframe: 'month',
+    category: 'طعام',
+    transactions: rows,
+    now: generatedAt,
+  });
+  assert.equal(report.isSnapshot, true, 'report includes isSnapshot: true');
+  assert.equal(report.generatedAt, '2026-08-31T12:00:00.000Z', 'report includes generatedAt timestamp');
+  assert.equal(report.createdAt, report.generatedAt, 'report timestamps are snapshot generation timestamps');
+  assert.deepEqual(report.transactions, rows, 'report freezes filtered transactions at generation time');
 });
 
 // CANONICAL BALANCE: Dashboard == Report
