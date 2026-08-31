@@ -219,8 +219,8 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   const incomeTxs = recent.filter((t: any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING');
   const firstTs = recent.length ? Math.min(...recent.map((t: any) => new Date(t.date || t.createdAt).getTime()).filter(Number.isFinite)) : now.getTime();
   const historyDays = recent.length ? Math.max(7, Math.min(90, Math.ceil((now.getTime() - firstTs) / 86400000) + 1)) : 7;
-  const expenseTotal = realExpenseTxs.reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
-  const incomeTotal = incomeTxs.reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+  const expenseTotal = realExpenseTxs.reduce((a: number, t: any) => a + parsePositiveFinancialAmount(t.amount), 0);
+  const incomeTotal = incomeTxs.reduce((a: number, t: any) => a + parsePositiveFinancialAmount(t.amount), 0);
   const dailyExpense = expenseTotal / historyDays;
   const dailyIncome = incomeTotal / historyDays;
   const next30 = now.getTime() + 30 * 86400000;
