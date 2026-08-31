@@ -546,15 +546,19 @@ If individual line items cannot be broken down, provide a single item in the ite
           riskConfirmed: Boolean(riskConfirmed),
           operationId: `receipt:${receiptId}:item:${index}:${paymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
         };
-        const validation = await toolHandlers.add_transaction({ ...txArgs, validateOnly: true }, req.user.uid, token);
+        const validation = await prepareAddTransaction(txArgs, req.user.uid, token);
         if (!validation?.success || !validation?.preparedTransaction) return res.json(validation);
         prepared.push({ item, operationId: txArgs.operationId, transaction: validation.preparedTransaction });
       }
 
       const committed = await atomicAddTransactions(
         req.user.uid,
-        prepared.map((row) => row.transaction),
-        { riskConfirmed: Boolean(riskConfirmed) },
+        prepared.map((row) => ({ ...row.transaction, receiptId })),
+        {
+          riskConfirmed: Boolean(riskConfirmed),
+          receiptId,
+          receiptMeta: { merchant, paymentMethod, itemCount: prepared.length },
+        },
       );
       if ('reason' in committed) {
         return res.json({
