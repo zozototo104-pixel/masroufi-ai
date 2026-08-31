@@ -2514,7 +2514,7 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
     };
   }
   
-  const totalSpent = expenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalSpent = expenses.reduce((sum, t) => sum + parsePositiveFinancialAmount(t.amount), 0);
   const totalLimit = Object.values(userBudgets).reduce((a, b) => a + b, 0);
   const totalPercentage = Math.round((totalSpent / (totalLimit || 1)) * 100);
   
