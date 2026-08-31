@@ -10,42 +10,14 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { verifyBearer, type IdTokenVerifier } from '../src/server/auth.ts';
 
-// We need to construct authMiddleware with a mockable adminAuth.
-// auth.ts imports adminAuth directly from firebaseAdmin.ts.
-// To make this testable without modifying auth.ts, we create a temporary
-// firebaseAdmin module via Node's module loader hooks.
-
-const tmpDir = mkdtempSync(join(tmpdir(), 'v6-auth-test-'));
-
-// We can't easily override the import graph for firebaseAdmin from a test
-// without loaders. Instead, we test the LOGIC of verifyBearer's public contract:
-// we replicate the verifyBearer flow inline with stubbed adminAuth.
-
-function makeVerifyBearerStub(validTokens: Record<string, any>) {
-  return async (authHeader: string | undefined) => {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return { ok: false, status: 401, error: 'Missing or malformed Authorization header' };
-    }
-    const token = authHeader.split('Bearer ')[1]?.trim();
-    if (!token) {
-      return { ok: false, status: 401, error: 'Empty bearer token' };
-    }
-    if (token.startsWith('masrofi_token_')) {
-      return { ok: false, status: 401, error: 'Unsigned legacy tokens are no longer accepted' };
-    }
-    try {
-      // Mimic adminAuth.verifyIdToken(token).
-      const decoded = validTokens[token];
-      if (!decoded) throw new Error('Invalid token');
-      if (!decoded.uid) return { ok: false, status: 401, error: 'Token has no uid' };
-      return { ok: true, status: 200, uid: decoded.uid, email: decoded.email, token };
-    } catch (err: any) {
-      return { ok: false, status: 401, error: `Authentication failed: ${err.message}` };
-    }
+function verifierFor(validTokens: Record<string, any>): IdTokenVerifier {
+  return async (token: string) => {
+    const decoded = validTokens[token];
+    if (!decoded) throw new Error('Invalid token');
+    return decoded;
   };
 }
 
