@@ -1371,11 +1371,34 @@ ${relationshipContext}
 
             try {
               const audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-              if (audio) {
+              if (audio && !useCustomVoice) {
                 safeSend({ audio });
               }
 
+              if (useCustomVoice) {
+                const transcript = (message.serverContent as any)?.outputTranscription?.text;
+                if (typeof transcript === 'string' && transcript) {
+                  customVoiceTurnText += transcript;
+                }
+                if ((message.serverContent as any)?.turnComplete && customVoiceTurnText.trim() && customVoiceId) {
+                  const textToSpeak = customVoiceTurnText.trim();
+                  customVoiceTurnText = '';
+                  const generation = ++customVoiceGeneration;
+                  try {
+                    const pcm = await streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak });
+                    if (generation === customVoiceGeneration && isActive) {
+                      safeSend({ audio: Buffer.from(pcm).toString('base64') });
+                    }
+                  } catch (voiceErr) {
+                    console.error('[custom-voice] synthesis failed', voiceErr);
+                    safeSend({ error: 'تعذر تشغيل صوتك الشخصي. جرّب مرة أخرى أو اختر أحد الأصوات الجاهزة.' });
+                  }
+                }
+              }
+
               if (message.serverContent?.interrupted) {
+                customVoiceTurnText = '';
+                customVoiceGeneration++;
                 safeSend({ interrupted: true });
               }
 
