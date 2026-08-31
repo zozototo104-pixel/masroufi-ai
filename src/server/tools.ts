@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { getDb, clearAllLocalUserData, type WriteResult } from './fakeDb';
 import { adminDb as firebaseAdminDb } from './firebaseAdmin';
 import { matchesArabicCategory } from '../lib/reportUtils';
-import { parseAbsoluteFinancialAmount } from '../lib/amount';
+import { parseAbsoluteFinancialAmount, parsePositiveFinancialAmount } from '../lib/amount';
 import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc';
 export { normalizeAccount } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
