@@ -294,7 +294,8 @@ async function searchSavedMarketOffers(adminDb: any, userId: string, item: strin
       .filter((r: MarketResult) => Number(r.price) > 0)
       .sort((a: MarketResult, b: MarketResult) => {
         const scopeScore = (r: MarketResult) => r.marketScope === 'gaza' ? 0 : r.marketScope === 'palestine' ? 1 : r.marketScope === 'global' ? 2 : 3;
-        return scopeScore(a) - scopeScore(b) || Number(a.normalizedPriceIls || a.price) - Number(b.normalizedPriceIls || b.price);
+        const comparableIls = (r: MarketResult) => Number(r.normalizedPriceIls || (String(r.currency || 'ILS').toUpperCase() === 'ILS' ? r.price : Number.POSITIVE_INFINITY));
+        return scopeScore(a) - scopeScore(b) || comparableIls(a) - comparableIls(b);
       })
       .slice(0, 20);
   } catch (e) {
