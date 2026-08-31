@@ -1,4 +1,50 @@
-export type TransactionLike = Record<string, any>;
+export type TransactionLike = Record<string, unknown> & {
+  id?: unknown;
+  amount?: unknown;
+  type?: unknown;
+  account?: unknown;
+  fromAccount?: unknown;
+  toAccount?: unknown;
+  transactionType?: unknown;
+  date?: unknown;
+  createdAt?: unknown;
+  category?: unknown;
+  subcategory?: unknown;
+  merchant?: unknown;
+  necessity?: unknown;
+  notes?: unknown;
+};
+
+type TreasurerReportArgs = Record<string, unknown> & {
+  period?: unknown;
+  timeframe?: unknown;
+  year?: unknown;
+  month?: unknown;
+  quarter?: unknown;
+  startDate?: unknown;
+  endDate?: unknown;
+  category?: unknown;
+  type?: unknown;
+  necessity?: unknown;
+  title?: unknown;
+  allocations?: unknown;
+  split?: unknown;
+  incomeSplit?: unknown;
+};
+
+type SavingsGoalLike = Record<string, unknown> & {
+  id?: unknown;
+  name?: unknown;
+  targetAmount?: unknown;
+  savedAmount?: unknown;
+  dueDate?: unknown;
+  status?: unknown;
+};
+
+type SummaryRow = Record<string, unknown> & {
+  total: number;
+  count: number;
+};
 
 export type CategorySuggestion = {
   category: string;
