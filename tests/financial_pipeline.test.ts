@@ -9,7 +9,8 @@ async function src(path: string) {
 
 test('PIPE-01: financial writes must not pass through legacy /api/sync raw transaction doc.set', async () => {
   const tools = await src('src/server/tools.ts');
-  assert.ok(tools.includes('transactions must sync through /api/command'), 'legacy sync must reject raw transaction writes');
+  assert.ok(tools.includes('Raw transaction sync is disabled'), 'legacy sync must reject raw transaction writes');
+  assert.ok(tools.includes('Use /api/command for financial mutations'), 'rejected clients must be directed to the canonical financial command path');
   assert.ok(!tools.includes('await doc.set({ ...data, userId })'), 'raw transaction doc.set must not exist in sync path');
 });
 
