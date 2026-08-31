@@ -153,7 +153,8 @@ export async function atomicPayDebt(
     // if they're not in the same transaction. With runTransaction, the second payment
     // sees the first payment's write.
     const docs = snap.docs;
-    const recomputedRemaining = recomputeCreditorRemaining(docs, creditorKey);
+    const transactions = plainTransactions(docs);
+    const recomputedRemaining = calculateCreditorRemaining(transactions, creditorKey);
     const amount = Number(newTx.amount) || 0;
     if (amount > recomputedRemaining + 0.0001) {
       return {
