@@ -153,6 +153,10 @@ test('CONC-13: receipt lines are validated first and persisted by one atomic tra
   assert.ok(serverSrc.includes('await atomicAddTransactions('), 'receipt must persist through the atomic multi-line primitive');
   assert.ok(toolsSrc.includes('export async function recordTransactionCommittedSideEffects'),
     'transaction success notifications and budget warnings must live in one shared side-effect helper');
+  assert.ok(toolsSrc.includes('const amount = parsePositiveFinancialAmount(tx?.amount)'),
+    'shared transaction side effects must sanitize amounts through the shared finite amount parser');
+  assert.equal(toolsSrc.includes('const amount = Number(tx?.amount) || 0'), false,
+    'shared transaction side effects must not reintroduce Number(... ) || 0 amount parsing');
   assert.ok(serverSrc.includes('recordTransactionCommittedSideEffects('),
     'receipt commits must preserve add_transaction post-commit side effects');
   assert.equal(serverSrc.includes('createdBeforeFailure'), false, 'receipt endpoint must not expose partial-success semantics');
