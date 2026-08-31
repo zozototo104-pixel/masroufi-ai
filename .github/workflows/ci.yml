@@ -41,7 +41,7 @@ jobs:
         id: tests
         if: steps.install.outcome == 'success'
         continue-on-error: true
-        run: npm test 2>&1 | tee /tmp/tests.log
+        run: set -o pipefail; npm test 2>&1 | tee /tmp/tests.log
 
       - name: TypeScript check
         id: lint
