@@ -78,21 +78,45 @@ test('DUR-06: account switch cannot expose cache — logout clears IndexedDB', a
     'logout must clear lkgs_reports');
 });
 
-test('DUR-07: import/export round-trip preserves financial state — HF-5 fix', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('Restore reconstructs historical state; it must preserve semantics without'),
-    'importUserData must preserve financial fields through the canonical restore preparer');
-  // Verify the preservation happens for ALL types, not just transfer.
-  assert.ok(src.includes("if (t.transactionType) docData.transactionType = String(t.transactionType)"),
-    'transactionType preserved regardless of type');
-  assert.ok(src.includes("const creditor = String(t.creditor || merchant).trim()"),
-    'creditor is derived from explicit creditor or merchant during canonical preparation');
-  assert.ok(src.includes("if (creditor) docData.creditor = creditor"),
-    'creditor preserved regardless of type when present');
-  assert.ok(src.includes("if (t.creditorKey) docData.creditorKey = String(t.creditorKey)"),
-    'creditorKey preserved regardless of type');
-  assert.ok(src.includes('MISSING_CREDITOR'),
-    'debt-affecting imported transactions must not invent missing creditor facts');
+test('DUR-07: import/export round-trip preserves financial state — HF-5 fix', () => {
+  const prepared = prepareImportedFinancialTransactions([
+    {
+      id: 'debt-purchase-1',
+      type: 'expense',
+      account: 'debt',
+      amount: 120,
+      merchant: 'محل أحمد',
+      creditor: 'أحمد',
+      creditorKey: 'ahmad-custom-key',
+      transactionType: 'CREDIT_PURCHASE',
+    },
+    {
+      id: 'debt-transfer-1',
+      type: 'transfer',
+      amount: 50,
+      fromAccount: 'cash',
+      toAccount: 'debt',
+      creditor: 'محمد',
+    },
+  ], 'user-1', () => '2026-08-31T10:00:00.000Z');
+
+  assert.equal(prepared.ok, true);
+  if (prepared.ok) {
+    assert.equal(prepared.entries[0].docData.transactionType, 'CREDIT_PURCHASE');
+    assert.equal(prepared.entries[0].docData.creditor, 'أحمد');
+    assert.equal(prepared.entries[0].docData.creditorKey, 'ahmad-custom-key');
+    assert.equal(prepared.entries[0].docData.importedAt, '2026-08-31T10:00:00.000Z');
+    assert.equal(prepared.entries[1].docData.creditor, 'محمد');
+    assert.equal(typeof prepared.entries[1].docData.creditorKey, 'string');
+    assert.equal(prepared.entries[1].docData.fromAccount, 'cash');
+    assert.equal(prepared.entries[1].docData.toAccount, 'debt');
+  }
+
+  const invalid = prepareImportedFinancialTransactions([
+    { id: 'bad-debt', type: 'expense', account: 'debt', amount: 10, merchant: '' },
+  ], 'user-1');
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.equal(invalid.failures[0].code, 'MISSING_CREDITOR');
 });
 
 test('DUR-08: chat cannot export server-local FakeDb pending operations to legacy client queue', async () => {
