@@ -1589,24 +1589,43 @@ function prepareImportedMemory(rawMemory: any): {
 }
 
 export async function importUserData(payload: any, userId: string, token: string, mode: 'merge' | 'replace' = 'merge') {
-  const adminDb = getDb(token);
   console.log(`TOOL CALL: importUserData for ${userId} with mode=${mode}`);
 
   if (!payload || typeof payload !== 'object') {
-    throw new Error("Invalid backup payload provided.");
+    return {
+      success: false,
+      reason: 'IMPORT_BACKUP_VALIDATION_FAILED',
+      message: 'لم يتم استيراد النسخة لأن ملف النسخة الاحتياطية غير صالح. لم يتم حذف أو تغيير البيانات الحالية.',
+      validationFailures: [{ section: 'backup', index: '*', code: 'INVALID_BACKUP_PAYLOAD', message: 'ملف النسخة الاحتياطية يجب أن يكون كائناً أو مصفوفة عمليات.' }],
+    };
   }
 
+  const isTransactionArrayImport = Array.isArray(payload);
+  const backupObject = !isTransactionArrayImport && isPlainBackupObject(payload) ? payload : {};
+  const hasRecognizedBackupSection = isTransactionArrayImport
+    || ['transactions', 'budgets', 'commitments', 'reports', 'memory'].some((section) => Object.prototype.hasOwnProperty.call(backupObject, section));
+  if (!hasRecognizedBackupSection) {
+    return {
+      success: false,
+      reason: 'IMPORT_BACKUP_VALIDATION_FAILED',
+      message: 'لم يتم استيراد النسخة لأنها لا تحتوي أي قسم معروف للاستعادة. لم يتم حذف أو تغيير البيانات الحالية.',
+      validationFailures: [{ section: 'backup', index: '*', code: 'EMPTY_OR_UNRECOGNIZED_BACKUP', message: 'النسخة الاحتياطية يجب أن تحتوي transactions أو budgets أو commitments أو reports أو memory.' }],
+    };
+  }
+
+  const adminDb = getDb(token);
+
   // Handle case where user directly imports an array of transactions or full backup object
-  const transactionsToImport: any[] = Array.isArray(payload) 
-    ? payload 
-    : Array.isArray(payload.transactions) 
-      ? payload.transactions 
+  const transactionsToImport: any[] = isTransactionArrayImport
+    ? payload
+    : Array.isArray(backupObject.transactions)
+      ? backupObject.transactions
       : [];
 
-  const rawBudgetsToImport = Array.isArray(payload) ? undefined : payload.budgets;
-  const rawCommitmentsToImport = Array.isArray(payload) ? undefined : payload.commitments;
-  const rawReportsToImport = Array.isArray(payload) ? undefined : payload.reports;
-  const rawMemoryToImport = Array.isArray(payload) ? undefined : payload.memory;
+  const rawBudgetsToImport = isTransactionArrayImport ? undefined : backupObject.budgets;
+  const rawCommitmentsToImport = isTransactionArrayImport ? undefined : backupObject.commitments;
+  const rawReportsToImport = isTransactionArrayImport ? undefined : backupObject.reports;
+  const rawMemoryToImport = isTransactionArrayImport ? undefined : backupObject.memory;
 
   // Preflight the entire backup BEFORE any import mutation. Restore/import is a
   // historical-state operation, so we validate and normalize without replaying
