@@ -887,10 +887,11 @@ export async function addTransaction(args: any, userId: string, token: string) {
     createdAt: new Date().toISOString()
   };
 
-  // V6.1 (CONC-01..CONC-05): use atomic Firestore transaction for balance-sensitive ops.
-  // Cash expense, PalPay expense, and outbound transfers go through atomicAddTransaction
-  // to prevent TOCTOU races where two concurrent requests both pass the preflight check.
-  // Debt purchases and income do not need atomicity (they don't deduct cash/palPay).
+  // V6.1+ (CONC-01..CONC-05): every real add_transaction write goes through
+  // atomicAddTransaction. Balance-sensitive ops keep projected-balance checks;
+  // non-sensitive adds skip the balance check but still require a confirmed
+  // Firestore transaction commit, so FakeDb/local pending fallback cannot create
+  // an apparent success that never appears in the client.
   const isBalanceSensitive = (type === 'expense' && (account === 'cash' || account === 'palPay'))
                           || (type === 'transfer' && (account === 'cash' || account === 'palPay'));
 
