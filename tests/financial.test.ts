@@ -289,6 +289,18 @@ test('REP-03: debt totals match — calculateBalancesFromDocs vs buildHierarchic
   assert.equal(report.totalDebt, 600);
 });
 
+test('REP-03B: report balances delegate to the canonical financial domain core', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(
+    join(process.cwd(), 'src/lib/reportUtils.ts'), 'utf8'
+  ));
+  assert.ok(src.includes("import { calculateBalances, normalizeAccount } from './balanceCalc'"),
+    'reportUtils must import canonical balance/account rules');
+  assert.ok(src.includes('const ledgerBalances = calculateBalances(transactions || [])'),
+    'buildHierarchicalReport must delegate cash/palPay/debt totals to calculateBalances');
+  assert.equal(src.includes('mirror calculateBalancesFromDocs exactly'), false,
+    'reportUtils must not retain parallel balance arithmetic comments/logic');
+});
+
 test('REP-04: monthly report contains only month — no fallback to ALL time', async () => {
   const src = await import('node:fs/promises').then(fs => fs.readFile(
     join(process.cwd(), 'src/server/tools.ts'), 'utf8'
