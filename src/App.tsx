@@ -292,6 +292,116 @@ export default function App() {
   }, [apiKey, voice, persona, userName, aiName, aiRelationship]);
 
   useEffect(() => {
+    if (!idToken) {
+      setCustomVoiceConfigured(false);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/custom-voice', { headers: { Authorization: `Bearer ${idToken}` } })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('تعذر قراءة حالة صوتك.');
+        return res.json();
+      })
+      .then((data) => { if (!cancelled) setCustomVoiceConfigured(Boolean(data?.configured)); })
+      .catch((err) => { if (!cancelled) console.warn('[custom-voice] status', err); });
+    return () => { cancelled = true; };
+  }, [idToken]);
+
+  const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error('تعذر قراءة التسجيل.'));
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.readAsDataURL(blob);
+  });
+
+  const stopCustomVoiceCapture = () => {
+    customVoiceStreamRef.current?.getTracks().forEach(track => track.stop());
+    customVoiceStreamRef.current = null;
+    customVoiceRecorderRef.current = null;
+    setCustomVoiceRecording(false);
+  };
+
+  const startCustomVoiceRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setCustomVoiceMessage('هذا المتصفح لا يدعم تسجيل الصوت المطلوب.');
+      return;
+    }
+    try {
+      setCustomVoiceMessage('');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(type => MediaRecorder.isTypeSupported(type));
+      const recorder = preferred ? new MediaRecorder(stream, { mimeType: preferred }) : new MediaRecorder(stream);
+      customVoiceStreamRef.current = stream;
+      customVoiceRecorderRef.current = recorder;
+      customVoiceChunksRef.current = [];
+      recorder.ondataavailable = event => { if (event.data.size > 0) customVoiceChunksRef.current.push(event.data); };
+      recorder.onstop = async () => {
+        const blob = new Blob(customVoiceChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        stopCustomVoiceCapture();
+        if (!customVoiceConsent) {
+          setCustomVoiceMessage('أكد أن التسجيل لصوتك وأنك توافق على إنشاء نسخة صوتية منه.');
+          return;
+        }
+        try {
+          setCustomVoiceBusy(true);
+          setCustomVoiceMessage('جارٍ إنشاء صوتك...');
+          const audioBase64 = await blobToBase64(blob);
+          const token = user && typeof user.getIdToken === 'function' ? await user.getIdToken(true) : idToken;
+          const res = await fetch('/api/custom-voice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ audioBase64, mimeType: blob.type, consent: true }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.error || 'تعذر إنشاء الصوت.');
+          setCustomVoiceConfigured(true);
+          setVoice('Custom');
+          setCustomVoiceMessage('تم إنشاء صوتك. أصبح خيار «صوتي» جاهزًا.');
+        } catch (err: any) {
+          setCustomVoiceMessage(err?.message || 'تعذر إنشاء الصوت.');
+        } finally {
+          setCustomVoiceBusy(false);
+          customVoiceChunksRef.current = [];
+        }
+      };
+      recorder.start(1000);
+      setCustomVoiceRecording(true);
+      setCustomVoiceMessage('تحدث بصوت طبيعي لمدة دقيقة إلى دقيقتين، ثم اضغط إيقاف.');
+    } catch (err: any) {
+      stopCustomVoiceCapture();
+      setCustomVoiceMessage(err?.message || 'تعذر الوصول إلى الميكروفون.');
+    }
+  };
+
+  const finishCustomVoiceRecording = () => {
+    const recorder = customVoiceRecorderRef.current;
+    if (recorder?.state === 'recording') recorder.stop();
+  };
+
+  const removeCustomVoice = async () => {
+    if (!idToken || customVoiceBusy) return;
+    try {
+      setCustomVoiceBusy(true);
+      const token = user && typeof user.getIdToken === 'function' ? await user.getIdToken(true) : idToken;
+      const res = await fetch('/api/custom-voice', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'تعذر حذف الصوت.');
+      setCustomVoiceConfigured(false);
+      if (voice === 'Custom') setVoice('Zephyr');
+      setCustomVoiceMessage('تم حذف صوتك الشخصي.');
+    } catch (err: any) {
+      setCustomVoiceMessage(err?.message || 'تعذر حذف الصوت.');
+    } finally {
+      setCustomVoiceBusy(false);
+    }
+  };
+
+  useEffect(() => () => {
+    try { customVoiceRecorderRef.current?.stop(); } catch { /* ignore */ }
+    customVoiceStreamRef.current?.getTracks().forEach(track => track.stop());
+  }, []);
+
+  useEffect(() => {
     if (!idToken) return;
 
     const fetchData = async () => {
