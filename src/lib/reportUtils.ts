@@ -62,6 +62,42 @@ export interface HierarchicalReportData {
   recommendations: string[];
 }
 
+export type ReportSnapshotRecord = {
+  userId: string;
+  title: string;
+  timeframe: string;
+  category: string;
+  status: 'empty' | 'completed';
+  date: string;
+  isSnapshot: true;
+  generatedAt: string;
+  transactions: Record<string, unknown>[];
+  createdAt: string;
+};
+
+export function buildReportSnapshotRecord(input: {
+  userId: string;
+  title: string;
+  timeframe: string;
+  category: string;
+  transactions: Record<string, unknown>[];
+  now?: Date;
+}): ReportSnapshotRecord {
+  const generatedAt = (input.now || new Date()).toISOString();
+  return {
+    userId: input.userId,
+    title: input.title,
+    timeframe: input.timeframe,
+    category: input.category,
+    status: input.transactions.length === 0 ? 'empty' : 'completed',
+    date: generatedAt,
+    isSnapshot: true,
+    generatedAt,
+    transactions: input.transactions,
+    createdAt: generatedAt,
+  };
+}
+
 export function normalizeArabic(text: string): string {
   if (!text) return '';
   return text
