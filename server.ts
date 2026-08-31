@@ -1385,9 +1385,9 @@ ${relationshipContext}
                   customVoiceTurnText = '';
                   const generation = ++customVoiceGeneration;
                   try {
-                    const pcm = await streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak });
-                    if (generation === customVoiceGeneration && isActive) {
-                      safeSend({ audio: Buffer.from(pcm).toString('base64') });
+                    for await (const pcmChunk of streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak })) {
+                      if (generation !== customVoiceGeneration || !isActive) break;
+                      safeSend({ audio: Buffer.from(pcmChunk).toString('base64') });
                     }
                   } catch (voiceErr) {
                     console.error('[custom-voice] synthesis failed', voiceErr);
