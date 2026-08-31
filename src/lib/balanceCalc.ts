@@ -83,7 +83,7 @@ export function calculateBreakdown(transactions: any[]): BalanceBreakdown {
   let income = 0, expense = 0, transferCount = 0;
   const creditorDebts: Record<string, number> = {};
   for (const tx of transactions || []) {
-    const amount = Number(tx?.amount) || 0;
+    const amount = finiteAmount(tx?.amount);
     if (tx?.type === 'income' && tx?.transactionType !== 'DEBT_BORROWING') {
       income += amount;
     } else if (tx?.type === 'expense') {
