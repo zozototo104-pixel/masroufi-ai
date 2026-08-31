@@ -265,6 +265,8 @@ test('CONC-20: tools financial amounts use the shared finite amount parser', asy
     'tools.ts must not reintroduce local Math.abs(Number(...)) parsing that accepts Infinity');
   assert.equal(toolsSrc.includes('isNaN(rawAmount)'), false,
     'tools.ts must not reintroduce rawAmount/isNaN parsing');
+  assert.equal(toolsSrc.includes('Number(t.amount'), false,
+    'tools.ts read/report paths must not reintroduce local Number(t.amount) parsing that accepts Infinity');
 });
 
 test('CONC-21: atomic financial guards parse amounts through the shared finite parser', async () => {
