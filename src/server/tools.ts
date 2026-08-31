@@ -2372,7 +2372,7 @@ export async function repairDuplicateIncome(args: any, userId: string, token: st
 export async function repairDuplicateCreditPurchase(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log('TOOL CALL: repairDuplicateCreditPurchase', args);
-  const targetAmount = args.amount !== undefined ? Math.abs(Number(args.amount) || 0) : null;
+  const targetAmount = args.amount !== undefined ? parsePositiveFinancialAmount(args.amount) : null;
   const targetCreditor = normalizeCreditorName(args.creditor || args.merchant || args.seller || '');
   const targetDate = String(args.date || '').slice(0, 10);
   const targetMonth = String(args.month || '').slice(0, 7);
