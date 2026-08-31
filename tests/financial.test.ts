@@ -230,6 +230,32 @@ test('FIN-19: positive amount parser rejects zero and negative values before INV
   assert.equal(parsePositiveFinancialAmount('22'), 22);
 });
 
+test('IMP-01: import envelope rejects invalid and unrecognized backups before Firestore access', () => {
+  const invalid = validateImportEnvelope(null);
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) {
+    assert.equal(invalid.reason, 'IMPORT_BACKUP_VALIDATION_FAILED');
+    assert.equal(invalid.validationFailures[0].code, 'INVALID_BACKUP_PAYLOAD');
+  }
+
+  const empty = validateImportEnvelope({});
+  assert.equal(empty.ok, false);
+  if (!empty.ok) {
+    assert.equal(empty.validationFailures[0].code, 'EMPTY_OR_UNRECOGNIZED_BACKUP');
+  }
+
+  const recognized = validateImportEnvelope({ transactions: [] });
+  assert.equal(recognized.ok, true);
+  if (recognized.ok) {
+    assert.equal(recognized.isTransactionArrayImport, false);
+    assert.deepEqual(recognized.backupObject, { transactions: [] });
+  }
+
+  const arrayImport = validateImportEnvelope([]);
+  assert.equal(arrayImport.ok, true);
+  if (arrayImport.ok) assert.equal(arrayImport.isTransactionArrayImport, true);
+});
+
 test('DOMAIN-01: account aliases normalize identically for every caller', () => {
   assert.equal(normalizeAccount('cash'), 'cash');
   assert.equal(normalizeAccount('نقد'), 'cash');
