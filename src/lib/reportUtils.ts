@@ -270,33 +270,18 @@ export function buildHierarchicalReport(transactions: any[]): HierarchicalReport
 
     if (isExpense) {
       expenseItems.push(item); totalExpenses += amount;
-      if (accInfo.code === 'debt') totalDebt += amount;
-      else if (accInfo.code === 'palPay') totalPalPay -= amount;
-      else totalCash -= amount;
+      if (accInfo.code === 'debt') debtItems.push(item);
       if (necessity === 'ضروري') necessaryTotal += amount; else luxuryTotal += amount;
     } else if (isIncome) {
       incomeItems.push(item); totalIncome += amount;
-      // Legacy debt-income records represent debt reduction, not real income.
-      if (accInfo.code === 'debt') totalDebt -= amount;
-      else if (accInfo.code === 'palPay') totalPalPay += amount;
-      else totalCash += amount;
     } else if (isTransfer) {
-      const from = normalizeAccountLabel(t.fromAccount || t.account).code;
-      const to = normalizeAccountLabel(t.toAccount).code;
-      // V6 (CF-3): mirror calculateBalancesFromDocs exactly.
-      // Borrowing increases liability; repayment decreases it.
-      // Internal cash<->PalPay transfers move balances between wallets.
-      if (from === 'palPay') totalPalPay -= amount;
-      else if (from === 'debt') totalDebt += amount;
-      else totalCash -= amount;
-      if (to === 'palPay') totalPalPay += amount;
-      else if (to === 'debt') totalDebt -= amount;
-      else totalCash += amount;
+      // Transfers affect canonical balances but are not category expenses/incomes in this report.
     }
   });
-  totalDebt = Math.max(0, Math.round(totalDebt * 100) / 100);
-  totalCash = Math.round(totalCash * 100) / 100;
-  totalPalPay = Math.round(totalPalPay * 100) / 100;
+  const ledgerBalances = calculateBalances(transactions || []);
+  const totalDebt = Math.max(0, ledgerBalances.debt);
+  const totalCash = ledgerBalances.cash;
+  const totalPalPay = ledgerBalances.palPay;
 
   // Group Expenses by Main Category -> Subcategory
   const categoryMap = new Map<string, Map<string, HierarchicalTransactionItem[]>>();
