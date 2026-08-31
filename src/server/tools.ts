@@ -1943,14 +1943,25 @@ export async function updateTransaction(args: any, userId: string, token: string
     finalUpdates.creditorKey = projected.creditorKey;
   }
 
-  const writeResult = await txRef.update(finalUpdates);
-  const balances = await getBalance({}, userId, token);
+  // Re-run the balance-sensitive invariant and the write in one Firestore transaction.
+  // The earlier projection remains useful for clarification/budget UX, but it is not
+  // trusted as the final concurrency guard.
+  const atomicResult = await atomicUpdateTransaction(userId, args.id, finalUpdates, { riskConfirmed: !!args.riskConfirmed });
+  if (!atomicResult.ok) {
+    if (atomicResult.reason === 'NEGATIVE_CASH_RESULT') {
+      return { success: false, needsConfirmation: true, reason: atomicResult.reason, message: `هذا التعديل سيجعل رصيد الكاش سالباً (${atomicResult.balances?.cash} ₪). هل تريد المتابعة؟`, financialImpact: { cashAfter: atomicResult.balances?.cash } };
+    }
+    if (atomicResult.reason === 'NEGATIVE_PALPAY_RESULT') {
+      return { success: false, needsConfirmation: true, reason: atomicResult.reason, message: `هذا التعديل سيجعل رصيد PalPay سالباً (${atomicResult.balances?.palPay} ₪). هل تريد المتابعة؟`, financialImpact: { palPayAfter: atomicResult.balances?.palPay } };
+    }
+    return { success: false, reason: atomicResult.reason, message: 'تعذر تعديل العملية بأمان لأنها تغيرت أو لم تعد موجودة.' };
+  }
   return {
     success: true,
-    currentBalances: balances.balances,
-    durability: writeResult.durability,
-    pending: writeResult.pending,
-    partial: balances.partial || writeResult.pending,
+    currentBalances: atomicResult.balances,
+    durability: 'cloud',
+    pending: false,
+    partial: false,
   };
 }
 
