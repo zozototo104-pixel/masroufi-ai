@@ -51,7 +51,7 @@ export async function getCustomVoiceProfile(userId: string): Promise<CustomVoice
   return {
     configured: Boolean(data.voiceId),
     voiceId: data.voiceId || undefined,
-    provider: data.provider === 'elevenlabs' ? 'elevenlabs' : undefined,
+    provider: data.provider === 'fish' || data.provider === 'elevenlabs' ? data.provider : undefined,
     createdAt: data.createdAt || undefined,
     updatedAt: data.updatedAt || undefined,
   };
