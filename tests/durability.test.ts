@@ -36,17 +36,18 @@ test('DUR-02: idempotency_keys collection persists across restart (Firestore-bac
     'claim uses Firestore transaction (atomic across instances)');
 });
 
-test('DUR-03: same operationId returns cached result on retry', async () => {
-  // The cache-hit short-circuit lives in wrapWithDeduplication (tools.ts), which calls
-  // runIdempotent and returns cachedResult instead of re-executing.
-  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(toolsSrc.includes("if (outcome.kind === 'cache_hit') return outcome.cachedResult"),
-    'wrapWithDeduplication returns cached result on cache_hit (does NOT re-execute)');
-  // The idempotency layer records pending/completed status for cross-restart persistence.
-  const idemSrc = await readFile(join(process.cwd(), 'src/server/idempotency.ts'), 'utf8');
-  assert.ok(idemSrc.includes("status: 'pending'"), 'pending state recorded');
-  assert.ok(idemSrc.includes("status: 'completed'"), 'completed state recorded');
-  assert.ok(idemSrc.includes("kind: 'cache_hit'"), 'cache_hit branch exists');
+test('DUR-03: same operationId returns the completed cached result instead of executing again', () => {
+  const now = Date.now();
+  const pending = buildPendingIdempotencyRecord('u1', 'op-1', now);
+  assert.equal(pending.status, 'pending', 'claim state must be persisted as pending before execution');
+
+  const expected = { success: true, transactionId: 'tx-1' };
+  const completed = buildCompletedIdempotencyRecord(pending, expected, now + 1);
+  assert.equal(completed.status, 'completed', 'successful execution must become completed');
+
+  const decision = decideIdempotencyClaim(completed, now + 2);
+  assert.equal(decision.action, 'return', 'retry of a completed operation must return, not execute');
+  if (decision.action === 'return') assert.deepEqual(decision.result, expected);
 });
 
 test('DUR-04: addTransaction response includes durability + pending flags', async () => {
