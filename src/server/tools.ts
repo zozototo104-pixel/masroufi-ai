@@ -312,7 +312,7 @@ async function searchSavedMarketOffers(adminDb: any, userId: string, item: strin
 export async function saveMarketOffer(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const product = String(args.product || args.item || '').trim();
-  const price = Math.abs(Number(args.price) || 0);
+  const price = parsePositiveFinancialAmount(args.price);
   const seller = String(args.seller || args.store || args.shop || '').trim();
   if (!product) return { success: false, needsClarification: true, reason: 'MISSING_MARKET_PRODUCT', message: 'ما اسم السلعة التي تريد حفظ سعرها في دفتر السوق؟' };
   if (price <= 0) return { success: false, needsClarification: true, reason: 'INVALID_MARKET_PRICE', message: 'ما السعر الذي تريد حفظه؟' };
