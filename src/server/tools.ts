@@ -1448,7 +1448,7 @@ function prepareImportedBudgets(rawBudgets: any): {
   return { ok: true, entries };
 }
 
-function prepareImportedCommitments(rawCommitments: any[], userId: string): {
+function prepareImportedCommitments(rawCommitments: unknown, userId: string): {
   ok: true;
   entries: PreparedImportedNamedRecord[];
 } | {
