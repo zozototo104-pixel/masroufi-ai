@@ -1649,9 +1649,9 @@ export async function importUserData(payload: any, userId: string, token: string
     const writeCount = transactionEntries.length + budgetEntries.length + commitmentEntries.length + reportEntries.length + memoryEntries.length;
     const mutationCount = deleteCount + writeCount;
 
-    // Firestore batches support at most 500 writes. Keep safety headroom and fail
-    // before mutation rather than chunking a replace into partially committed pieces.
-    if (mutationCount > 450) {
+    // Firestore WriteBatch commits are atomic but capped. Keep explicit headroom
+    // and fail before mutation rather than chunking a replace into partially committed pieces.
+    if (mutationCount > IMPORT_REPLACE_ATOMIC_MUTATION_LIMIT) {
       return {
         success: false,
         retryable: false,
