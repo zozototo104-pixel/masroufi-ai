@@ -987,17 +987,6 @@ export default function App() {
             return merged.sort((a: any, b: any) => String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || '')));
           });
         }
-        if (data.pendingOps && data.pendingOps.length > 0) {
-          let cachedOps = (await idbGet<any[]>('masrofi_pending_ops')) || [];
-          if (!Array.isArray(cachedOps)) cachedOps = [];
-          const newOps = [...cachedOps];
-          for (const op of data.pendingOps) {
-             const idx = newOps.findIndex((o: any) => o.id === op.id && o.collectionPath === op.collectionPath);
-             if (idx >= 0) newOps[idx] = op;
-             else newOps.push(op);
-          }
-          await idbSet('masrofi_pending_ops', newOps);
-        }
         window.dispatchEvent(new CustomEvent('masrofi:refresh'));
       } else {
         if (!res.ok) {
