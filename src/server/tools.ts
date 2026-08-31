@@ -2761,7 +2761,7 @@ export async function queryTransactions(args: any, userId: string, token: string
   // Sort descending by date
   filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
 
-  const total = filtered.reduce((sum, t: any) => sum + (Number(t.amount) || 0), 0);
+  const total = filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0);
   
   return { 
     success: true, 
