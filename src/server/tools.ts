@@ -1479,6 +1479,7 @@ export async function importUserData(payload: any, userId: string, token: string
     await docRef.set(docData);
     importedTxCount++;
   }
+  */
 
   // 2. Write custom budgets
   let importedBudgetsCount = 0;
