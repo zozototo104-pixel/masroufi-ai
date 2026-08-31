@@ -1944,7 +1944,25 @@ export function calculateBalancesFromDocs(docs: any[]) {
   return calculateBalances(transactions);
 }
 
-function calculateOpenCreditorDebts(docs:any[]){ const m=new Map<string,{creditor:string;remaining:number}>(); for(const doc of docs){const tx=typeof doc?.data==='function'?doc.data():doc;const amount=Number(tx?.amount)||0;if(amount<=0)continue;const merchant=String(tx?.creditor||tx?.merchant||'').trim(),key=normalizeCreditorName(merchant);if(!key||key===normalizeCreditorName('سداد دين')||key===normalizeCreditorName('تحويل بين المحافظ'))continue;let d=0;if(tx?.type==='expense'&&normalizeAccount(tx?.account)==='debt')d=amount;if(tx?.type==='income'&&normalizeAccount(tx?.account)==='debt')d=-amount;if(tx?.type==='transfer'&&normalizeAccount(tx?.toAccount)==='debt')d=-amount;if(tx?.type==='transfer'&&normalizeAccount(tx?.fromAccount||tx?.account)==='debt')d=amount;if(!d)continue;const c=m.get(key)||{creditor:merchant,remaining:0};c.remaining+=d;m.set(key,c);}return Array.from(m.entries()).filter(([,d])=>d.remaining>0.0001).map(([key,d])=>({key,creditor:d.creditor,remaining:Math.round(d.remaining*100)/100}));}
+function calculateOpenCreditorDebts(docs: any[]) {
+  const transactions = (docs || []).map((doc: any) => typeof doc?.data === 'function' ? doc.data() : doc);
+  const creditorDebts = calculateBreakdown(transactions).creditorDebts;
+  const ignoredKeys = new Set([normalizeCreditorName('سداد دين'), normalizeCreditorName('تحويل بين المحافظ')]);
+  const creditorNames = new Map<string, string>();
+  for (const tx of transactions) {
+    const creditor = String(tx?.creditor || tx?.merchant || '').trim();
+    const key = normalizeCreditorName(creditor);
+    if (!key || ignoredKeys.has(key) || creditorNames.has(key)) continue;
+    creditorNames.set(key, creditor);
+  }
+  return Object.entries(creditorDebts)
+    .filter(([key, remaining]) => !ignoredKeys.has(key) && Number(remaining) > 0.0001)
+    .map(([key, remaining]) => ({
+      key,
+      creditor: creditorNames.get(key) || key,
+      remaining: Math.round(Number(remaining) * 100) / 100,
+    }));
+}
 
 export async function payDebt(args:any,userId:string,token:string){
  const adminDb=getDb(token), amount=Math.abs(Number(args.amount)||0); if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'}; let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');if(fromAccount==='debt')fromAccount='cash';const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
