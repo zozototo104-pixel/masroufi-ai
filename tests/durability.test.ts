@@ -127,19 +127,27 @@ test('DUR-11: transaction update refuses balance-sensitive decisions on partial 
     'updateTransaction must refuse partial-state balance computation');
 });
 
-test('DUR-12: restore validates the full financial ledger before replace deletes existing state', async () => {
+test('DUR-12: restore validates the full backup before replace deletes existing state', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  const preflight = src.indexOf('prepareImportedFinancialTransactions(transactionsToImport, userId)');
-  const destructiveReplace = src.indexOf("if (mode === 'replace')", preflight);
-  assert.ok(preflight >= 0, 'restore must have a financial preflight');
-  assert.ok(destructiveReplace > preflight, 'financial preflight must happen before replace-mode deletion');
-  assert.ok(src.includes("reason: 'IMPORT_FINANCIAL_VALIDATION_FAILED'"),
+  const financialPreflight = src.indexOf('prepareImportedFinancialTransactions(transactionsToImport, userId)');
+  const budgetPreflight = src.indexOf('prepareImportedBudgets(rawBudgetsToImport)', financialPreflight);
+  const commitmentPreflight = src.indexOf('prepareImportedCommitments(rawCommitmentsToImport, userId)', financialPreflight);
+  const reportPreflight = src.indexOf('prepareImportedReports(rawReportsToImport, userId)', financialPreflight);
+  const memoryPreflight = src.indexOf('prepareImportedMemory(rawMemoryToImport)', financialPreflight);
+  const destructiveReplace = src.indexOf("if (mode === 'replace')", financialPreflight);
+  assert.ok(financialPreflight >= 0, 'restore must have a financial preflight');
+  assert.ok(budgetPreflight > financialPreflight, 'restore must validate budgets before replace-mode deletion');
+  assert.ok(commitmentPreflight > financialPreflight, 'restore must validate commitments before replace-mode deletion');
+  assert.ok(reportPreflight > financialPreflight, 'restore must validate reports before replace-mode deletion');
+  assert.ok(memoryPreflight > financialPreflight, 'restore must validate memory before replace-mode deletion');
+  assert.ok(destructiveReplace > memoryPreflight, 'all import preflight must happen before replace-mode deletion');
+  assert.ok(src.includes("reason: 'IMPORT_BACKUP_VALIDATION_FAILED'"),
     'invalid backup must fail before modifying current data');
 });
 
 test('DUR-13: restore writes only preflighted transactions and checks durability', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('for (const prepared of preparedTransactions.entries)'),
+  assert.ok(src.includes('for (const prepared of transactionEntries)'),
     'restore must write the validated canonical representation');
   assert.ok(src.includes("reason: 'IMPORT_NOT_DURABLY_COMMITTED'"),
     'merge restore must stop when a transaction is not durably committed');
