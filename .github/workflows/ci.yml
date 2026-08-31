@@ -74,12 +74,24 @@ jobs:
             echo "TypeScript: $LINT_OUTCOME"
             echo "Build: $BUILD_OUTCOME"
             echo
+            if [ -f /tmp/tests.log ]; then
+              echo "## failing tests"
+              echo '```text'
+              awk '
+                /^not ok / {capture=1; blocks++; lines=0}
+                capture {print; lines++}
+                capture && lines >= 35 {capture=0}
+                END {if (blocks == 0) print "none"}
+              ' /tmp/tests.log
+              echo '```'
+              echo
+            fi
             for pair in install:/tmp/install.log tests:/tmp/tests.log lint:/tmp/lint.log build:/tmp/build.log; do
               name="${pair%%:*}"
               file="${pair#*:}"
               echo "## $name"
               echo '```text'
-              if [ -f "$file" ]; then tail -n 120 "$file"; else echo "not run"; fi
+              if [ -f "$file" ]; then tail -n 160 "$file"; else echo "not run"; fi
               echo '```'
               echo
             done
