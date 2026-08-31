@@ -181,36 +181,3 @@ export async function atomicPayDebt(
   });
 }
 
-/**
- * Recompute remaining debt for a creditor from the document set.
- * Mirrors calculateOpenCreditorDebts logic (tools.ts).
- */
-function recomputeCreditorRemaining(docs: any[], creditorKey: string): number {
-  let total = 0;
-  for (const doc of docs) {
-    const tx = typeof doc?.data === 'function' ? doc.data() : doc;
-    const amount = Number(tx?.amount) || 0;
-    if (amount <= 0) continue;
-    const creditor = String(tx?.creditor || tx?.merchant || '').trim();
-    if (!creditor) continue;
-    const key = normalizeCreditorKeyLocal(creditor);
-    if (key !== creditorKey) continue;
-    let delta = 0;
-    if (tx?.type === 'expense' && (tx?.account === 'debt')) delta = amount;
-    if (tx?.type === 'income' && (tx?.account === 'debt')) delta = -amount;
-    if (tx?.type === 'transfer' && tx?.toAccount === 'debt') delta = -amount;
-    if (tx?.type === 'transfer' && (tx?.fromAccount || tx?.account) === 'debt') delta = amount;
-    if (delta === 0) continue;
-    total += delta;
-  }
-  return Math.max(0, total);
-}
-
-function normalizeCreditorKeyLocal(value: any): string {
-  return String(value || '').trim().toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ة/g, 'ه')
-    .replace(/[ـًٌٍَُِّْ]/g, '')
-    .replace(/\s+/g, ' ');
-}
