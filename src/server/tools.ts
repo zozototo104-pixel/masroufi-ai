@@ -1373,6 +1373,19 @@ export async function importUserData(payload: any, userId: string, token: string
   const reportsToImport: any[] = Array.isArray(payload.reports) ? payload.reports : [];
   const memoryToImport: Record<string, string> = (payload.memory && typeof payload.memory === 'object') ? payload.memory : {};
 
+  // Preflight the entire financial ledger BEFORE replace mode deletes anything.
+  // Restore is a historical-state operation, so we validate and normalize the backup
+  // without replaying notifications or other financial side effects.
+  const preparedTransactions = prepareImportedFinancialTransactions(transactionsToImport, userId);
+  if (!preparedTransactions.ok) {
+    return {
+      success: false,
+      reason: 'IMPORT_FINANCIAL_VALIDATION_FAILED',
+      message: 'لم يتم استيراد النسخة لأن بعض العمليات المالية غير صالحة. لم يتم حذف أو تغيير البيانات الحالية.',
+      validationFailures: preparedTransactions.failures,
+    };
+  }
+
   // If mode is 'replace', clear existing collections for this user first
   if (mode === 'replace') {
     // 1. Delete existing transactions
