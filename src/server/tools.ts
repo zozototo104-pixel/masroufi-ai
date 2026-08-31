@@ -2242,7 +2242,7 @@ export async function deleteTransaction(args: any, userId: string, token: string
 
   // 2. Smart deletion by criteria (account, amount, category, or most recent)
   const targetAccount = (args.account || args.fromAccount) ? normalizeAccount(args.account || args.fromAccount) : null;
-  const targetAmount = args.amount ? Math.abs(Number(args.amount)) : null;
+  const targetAmount = args.amount ? parsePositiveFinancialAmount(args.amount) : null;
 
   const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
   let userTxs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
