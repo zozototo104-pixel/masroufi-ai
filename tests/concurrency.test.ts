@@ -88,3 +88,22 @@ test('CONC-10: ambiguous handler failure becomes terminal indeterminate state', 
   assert.equal(src.includes("status: 'failed',\n      result: failure"), false,
     'ambiguous post-execution failure must not be converted into a retryable failed state');
 });
+
+test('CONC-11: transaction updates revalidate balances and write inside one Firestore transaction', async () => {
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(atomicSrc.includes('export async function atomicUpdateTransaction'), 'atomic update primitive must exist');
+  assert.ok(atomicSrc.includes('tx.update(ref, finalUpdates)'), 'update write must occur inside Firestore transaction');
+  assert.ok(toolsSrc.includes('atomicUpdateTransaction(userId, args.id, finalUpdates'), 'updateTransaction must use atomic primitive');
+  assert.equal(toolsSrc.includes('const writeResult = await txRef.update(finalUpdates)'), false,
+    'updateTransaction must not perform the final write outside the atomic guard');
+});
+
+test('CONC-12: direct and smart transaction deletion revalidate and delete atomically', async () => {
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(atomicSrc.includes('export async function atomicDeleteTransaction'), 'atomic delete primitive must exist');
+  assert.ok(atomicSrc.includes('tx.delete(ref)'), 'delete must occur inside Firestore transaction');
+  const calls = toolsSrc.match(/atomicDeleteTransaction\(userId,/g) || [];
+  assert.ok(calls.length >= 2, 'both direct-ID and confirmed smart deletion must use atomic deletion');
+});
