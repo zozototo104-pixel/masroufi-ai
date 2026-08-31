@@ -2340,7 +2340,7 @@ export async function repairDuplicateIncome(args: any, userId: string, token: st
   const groups = new Map<string, any[]>();
   for (const t of incomes) {
     const day = String(t.date || t.createdAt || '').slice(0, 10);
-    const key = [day, Number(t.amount || 0).toFixed(2), t.account || 'cash', t.category || '', t.subcategory || ''].join('|');
+    const key = [day, parsePositiveFinancialAmount(t.amount).toFixed(2), t.account || 'cash', t.category || '', t.subcategory || ''].join('|');
     const arr = groups.get(key) || [];
     arr.push(t);
     groups.set(key, arr);
