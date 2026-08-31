@@ -2659,11 +2659,11 @@ export async function getSavingsGoals(args: any, userId: string, token: string) 
 export async function createSavingsGoal(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const name = String(args.name || args.title || '').trim();
-  const targetAmount = Math.abs(Number(args.targetAmount || args.amount) || 0);
+  const targetAmount = parsePositiveFinancialAmount(args.targetAmount || args.amount);
   if (!name) return { success: false, needsClarification: true, reason: 'MISSING_SAVINGS_GOAL_NAME', message: 'ما اسم هدف الادخار؟ مثال: احتياطي طوارئ، آيفون، تعليم الأبناء.' };
   if (targetAmount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_TARGET_AMOUNT', message: 'كم مبلغ هدف الادخار؟' };
   const docRef = adminDb.collection('users').doc(userId).collection('savingsGoals').doc();
-  const savedAmount = Math.abs(Number(args.savedAmount || args.initialAmount) || 0);
+  const savedAmount = parsePositiveFinancialAmount(args.savedAmount || args.initialAmount);
   const goal = {
     userId,
     name,
