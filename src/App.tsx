@@ -1807,7 +1807,39 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button onClick={() => setVoice('Puck')} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Puck' ? 'border-emerald-500 bg-emerald-900/30 text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>رجل (Puck)</button>
                   <button onClick={() => setVoice('Zephyr')} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Zephyr' ? 'border-emerald-500 bg-emerald-900/30 text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>امرأة (Zephyr)</button>
-                  <button onClick={() => setVoice('Custom')} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Custom' ? 'border-amber-400 bg-amber-900/30 text-amber-300 font-bold shadow-[0_0_10px_rgba(251,191,36,0.18)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>صوتي</button>
+                  <button onClick={() => { if (customVoiceConfigured) setVoice('Custom'); else setCustomVoiceMessage('سجّل صوتك أولًا من القسم أدناه.'); }} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Custom' ? 'border-amber-400 bg-amber-900/30 text-amber-300 font-bold shadow-[0_0_10px_rgba(251,191,36,0.18)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>صوتي{customVoiceConfigured ? ' ✓' : ''}</button>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium text-slate-200">صوتي الشخصي</div>
+                      <div className="text-xs text-slate-400 mt-1">سجّل صوتك داخل مصروفي ليستخدمه الخبير بدل الصوت الجاهز عند اختيار «صوتي».</div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${customVoiceConfigured ? 'bg-emerald-900/40 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>{customVoiceConfigured ? 'جاهز' : 'غير مُنشأ'}</span>
+                  </div>
+
+                  {!customVoiceConfigured && (
+                    <label className="flex items-start gap-2 text-xs text-slate-300 leading-5">
+                      <input type="checkbox" checked={customVoiceConsent} onChange={e => setCustomVoiceConsent(e.target.checked)} className="mt-1" />
+                      <span>أؤكد أن هذا التسجيل لصوتي وأن لدي الحق في استخدامه، وأوافق على إرسال العينة إلى مزود الصوت لإنشاء نسخة صوتية شخصية.</span>
+                    </label>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    {!customVoiceConfigured && !customVoiceRecording && (
+                      <button type="button" disabled={!customVoiceConsent || customVoiceBusy} onClick={startCustomVoiceRecording} className="px-3 py-2 rounded-lg bg-amber-500 text-slate-950 font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"><Mic size={16} /> بدء التسجيل</button>
+                    )}
+                    {customVoiceRecording && (
+                      <button type="button" onClick={finishCustomVoiceRecording} className="px-3 py-2 rounded-lg bg-red-500 text-white font-bold flex items-center gap-2"><MicOff size={16} /> إيقاف وإنشاء صوتي</button>
+                    )}
+                    {customVoiceConfigured && (
+                      <button type="button" disabled={customVoiceBusy} onClick={removeCustomVoice} className="px-3 py-2 rounded-lg border border-red-800 text-red-300 disabled:opacity-40 flex items-center gap-2"><Trash2 size={16} /> حذف صوتي</button>
+                    )}
+                  </div>
+
+                  {!customVoiceConfigured && <p className="text-xs text-slate-500">لأفضل نتيجة: تحدث بصوت طبيعي وواضح لمدة دقيقة إلى دقيقتين في مكان هادئ.</p>}
+                  {customVoiceMessage && <p className="text-xs text-amber-300">{customVoiceBusy && <Loader2 size={13} className="inline animate-spin ml-1" />}{customVoiceMessage}</p>}
                 </div>
               </div>
 
