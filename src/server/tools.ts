@@ -2427,7 +2427,7 @@ export async function setCategoryBudget(args: any, userId: string, token: string
   const adminDb = getDb(token);
   console.log("TOOL CALL: setCategoryBudget", args);
   const category = args.category;
-  const limit = Math.abs(Number(args.limit) || 500);
+  const limit = parsePositiveFinancialAmount(args.limit) || 500;
   
   if (!category) return { error: "Category is required" };
   
