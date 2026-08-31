@@ -91,7 +91,7 @@ function normalizeCurrencyCode(currency: string): string {
   return cur;
 }
 
-function parseBankOfIsraelRates(payload: any): FxRatesToIlsSnapshot | null {
+export function parseBankOfIsraelRates(payload: unknown): FxRatesToIlsSnapshot | null {
   const rows = Array.isArray(payload?.exchangeRates) ? payload.exchangeRates : [];
   const rates: Record<string, number> = { ILS: 1, NIS: 1 };
   let rateDate = '';
