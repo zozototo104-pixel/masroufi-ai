@@ -273,6 +273,7 @@ function marketOfferToResult(offer: any, item: string): MarketResult {
     originalPrice: Number(offer.price || 0),
     originalCurrency: offer.currency || 'ILS',
     normalizedPriceIls: normalized || undefined,
+    ...fxMetadata,
     marketScope: scope,
     availability: offer.availability || 'unknown',
     source: offer.source || offer.seller || 'دفتر سوق مصروفي',
