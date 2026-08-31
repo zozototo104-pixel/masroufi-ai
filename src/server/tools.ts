@@ -1462,11 +1462,12 @@ function prepareImportedCommitments(rawCommitments: unknown, userId: string): {
   const entries: PreparedImportedNamedRecord[] = [];
   const failures: ImportSectionValidationFailure[] = [];
   const seenIds = new Set<string>();
-  for (const [index, c] of rawCommitments.entries()) {
-    if (!c || typeof c !== 'object' || Array.isArray(c)) {
+  for (const [index, rawCommitment] of rawCommitments.entries()) {
+    if (!rawCommitment || typeof rawCommitment !== 'object' || Array.isArray(rawCommitment)) {
       failures.push({ section: 'commitments', index, code: 'INVALID_COMMITMENT_OBJECT', message: 'سجل الالتزام ليس كائناً صالحاً.' });
       continue;
     }
+    const c = rawCommitment as Record<string, unknown>;
     const sourceId = String(c.id || '').trim();
     if (sourceId) {
       if (!isSafeBackupDocId(sourceId)) {
