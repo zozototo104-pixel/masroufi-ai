@@ -250,8 +250,7 @@ export function buildHierarchicalReport(transactions: any[]): HierarchicalReport
   let luxuryTotal = 0;
 
   (transactions || []).forEach((t) => {
-    const rawAmount = typeof t.amount === 'string' ? parseFloat(t.amount) : Number(t.amount);
-    const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+    const amount = parseAbsoluteFinancialAmount(t.amount);
     const txType = String(t.type || 'expense').toLowerCase();
     const isExpense = txType === 'expense';
     const isIncome = txType === 'income';
