@@ -34,6 +34,10 @@ import {
   TREASURER_CATEGORY_TAXONOMY,
 } from './treasurerEngine';
 
+const FIRESTORE_WRITE_BATCH_LIMIT = 500;
+const IMPORT_REPLACE_ATOMIC_HEADROOM = 50;
+const IMPORT_REPLACE_ATOMIC_MUTATION_LIMIT = FIRESTORE_WRITE_BATCH_LIMIT - IMPORT_REPLACE_ATOMIC_HEADROOM;
+
 // Persistent notification center. Notifications are stored per-user so Cloud Run restarts do not erase them.
 // The UI still renders short-lived toasts, but persistence is the source of truth.
 export async function getNotifications(userId: string, token: string, limit: number = 50) {
