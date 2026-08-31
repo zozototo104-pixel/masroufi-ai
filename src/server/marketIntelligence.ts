@@ -92,13 +92,19 @@ function normalizeCurrencyCode(currency: string): string {
 }
 
 export function parseBankOfIsraelRates(payload: unknown): FxRatesToIlsSnapshot | null {
-  const rows = Array.isArray(payload?.exchangeRates) ? payload.exchangeRates : [];
+  const body = payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload as { exchangeRates?: unknown }
+    : {};
+  const rows = Array.isArray(body.exchangeRates) ? body.exchangeRates : [];
   const rates: Record<string, number> = { ILS: 1, NIS: 1 };
   let rateDate = '';
-  for (const row of rows) {
-    const key = normalizeCurrencyCode(row?.key);
-    const value = Number(row?.currentExchangeRate);
-    const unit = Number(row?.unit || 1) || 1;
+  for (const rawRow of rows) {
+    const row = rawRow && typeof rawRow === 'object' && !Array.isArray(rawRow)
+      ? rawRow as { key?: unknown; currentExchangeRate?: unknown; unit?: unknown; lastUpdate?: unknown }
+      : {};
+    const key = normalizeCurrencyCode(String(row.key || ''));
+    const value = Number(row.currentExchangeRate);
+    const unit = Number(row.unit || 1) || 1;
     if (!key || !Number.isFinite(value) || value <= 0 || unit <= 0) continue;
     rates[key] = Math.round((value / unit) * 1000000) / 1000000;
     if (!rateDate && row?.lastUpdate) rateDate = String(row.lastUpdate);
