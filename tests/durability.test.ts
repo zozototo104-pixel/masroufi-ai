@@ -42,7 +42,7 @@ test('DUR-03: same operationId returns the completed cached result instead of ex
   assert.equal(pending.status, 'pending', 'claim state must be persisted as pending before execution');
 
   const expected = { success: true, transactionId: 'tx-1' };
-  const completed = buildCompletedIdempotencyRecord(pending, expected, now + 1);
+  const completed = buildCompletedIdempotencyRecord('u1', 'op-1', expected, now + 1);
   assert.equal(completed.status, 'completed', 'successful execution must become completed');
 
   const decision = decideIdempotencyClaim(completed, now + 2);
