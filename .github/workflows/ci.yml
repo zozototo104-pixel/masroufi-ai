@@ -47,7 +47,7 @@ jobs:
         id: lint
         if: steps.install.outcome == 'success'
         continue-on-error: true
-        run: npm run lint 2>&1 | tee /tmp/lint.log
+        run: set -o pipefail; npm run lint 2>&1 | tee /tmp/lint.log
 
       - name: Build application
         id: build
