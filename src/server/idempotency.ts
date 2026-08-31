@@ -103,16 +103,8 @@ export async function runIdempotent(
 
   try {
     const result = await fn();
-    await ref.set({
-      userId,
-      operationId,
-      operationIdPreview: operationId.slice(0, 300),
-      status: 'completed',
-      result,
-      completedAt: Date.now(),
-      updatedAt: Date.now(),
-      expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
-    }, { merge: true });
+    const completedAt = Date.now();
+    await ref.set(buildCompletedIdempotencyRecord(userId, operationId, result, completedAt), { merge: true });
     return { kind: 'cache_miss', result };
   } catch (err: any) {
     // Once fn() has started, an exception does NOT prove that its financial side
