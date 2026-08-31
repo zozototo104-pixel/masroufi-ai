@@ -1,14 +1,12 @@
 /**
- * V6.1 — Canonical client-side financial balance calculator.
+ * V6.3 — Shared Financial Domain Core.
  *
- * This mirrors src/server/tools.ts::calculateBalancesFromDocs EXACTLY.
- * Both the Dashboard and the AI tool layer must use this same canonical
- * algorithm to ensure UI == Backend == Report == Forecast == Export.
+ * This module is the canonical owner of pure financial interpretation shared by
+ * client and server: account normalization, balance reconstruction, creditor-key
+ * normalization, and creditor remaining-debt reconstruction.
  *
- * Single Source of Truth rule (PHASE 2 of V6.1):
- * - The backend (tools.ts) exports calculateBalancesFromDocs.
- * - The frontend imports and uses this shared module instead of duplicating logic.
- * - If the backend algorithm changes, this module MUST be updated to match.
+ * Server mutation orchestration stays in src/server, but neither tools.ts nor
+ * atomicOps.ts should duplicate these pure ledger rules.
  */
 
 // Mirrors backend normalizeAccount (tools.ts).
