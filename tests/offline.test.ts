@@ -52,6 +52,16 @@ test('OFF-06: server committed but response lost — retry returns cached result
     'completed entries return cached result on retry');
 });
 
+test('OFF-06B: offline income parser cannot manufacture server business confirmations', async () => {
+  const src = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
+  assert.equal(src.includes('incomeNatureConfirmed: true'), false,
+    'offline client must not assert income nature on behalf of the user');
+  assert.equal(src.includes('incomeDestinationConfirmed: true'), false,
+    'offline client must not assert income destination on behalf of the user');
+  assert.ok(src.includes('userText: text'),
+    'offline command must preserve original user words for server validation');
+});
+
 test('OFF-07: Login A → logout → Login B cannot see/sync A queue', async () => {
   const src = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
   assert.ok(src.includes('V6.1 (OFF-07): clear the per-user offline pending queue on logout'),
