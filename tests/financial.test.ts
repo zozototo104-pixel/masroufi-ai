@@ -192,12 +192,21 @@ test('FIN-16: PalPay malformed amount rejected — sendPalPayPayment guards', as
   assert.ok(src.includes("Number.isFinite(amount) || amount <= 0"), 'sendPalPayPayment rejects NaN/Infinity/negative/zero');
 });
 
-test('FIN-17: NaN rejected — calculateBalancesFromDocs uses Number() with NaN check', () => {
-  // Pass a transaction with non-numeric amount. calculateBalancesFromDocs must not throw.
-  const r = calc([tx({ type: 'expense', amount: NaN as any })]);
-  // Number(NaN) === NaN, so amount becomes NaN. The function would produce NaN.
-  // Verify it doesn't throw. (Math.abs(NaN) = NaN.)
-  assert.ok(Number.isNaN(r.cash) || Number.isFinite(r.cash));
+test('FIN-17: non-finite amounts cannot poison canonical balances or breakdowns', () => {
+  const r = calc([
+    tx({ type: 'expense', account: 'cash', amount: NaN as any }),
+    tx({ type: 'income', account: 'palPay', amount: Infinity as any }),
+    tx({ type: 'transfer', fromAccount: 'debt', toAccount: 'cash', amount: -Infinity as any }),
+    tx({ type: 'income', account: 'cash', amount: 25 }),
+  ]);
+  assert.deepEqual(r, { cash: 25, palPay: 0, debt: 0, total: 25 });
+
+  const breakdown = calculateBreakdown([
+    tx({ type: 'expense', account: 'debt', amount: Infinity as any, creditor: 'أحمد' }),
+    tx({ type: 'expense', account: 'cash', amount: 10 }),
+  ]);
+  assert.equal(breakdown.expense, 10);
+  assert.equal(breakdown.creditorDebts[normalizeCreditorKey('أحمد')], undefined);
 });
 
 test('FIN-18: Infinity rejected — addTransaction uses Math.abs(Number(amount))', async () => {
