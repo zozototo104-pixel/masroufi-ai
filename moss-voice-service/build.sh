@@ -41,3 +41,15 @@ replacement = '''    def _load_reference_audio(self, reference_audio_path: str |
 s = s[:start] + replacement + s[end:]
 p.write_text(s)
 PY
+
+# Download the official ONNX model assets during the Render build so the first
+# user request does not pay the model-download cost after a free-instance wakeup.
+python - <<'PY'
+import sys
+from pathlib import Path
+repo = Path('vendor/MOSS-TTS-Nano').resolve()
+sys.path.insert(0, str(repo))
+from onnx_tts_runtime import ensure_browser_onnx_model_dir
+path = ensure_browser_onnx_model_dir()
+print(f'MOSS ONNX assets ready at: {path}')
+PY
