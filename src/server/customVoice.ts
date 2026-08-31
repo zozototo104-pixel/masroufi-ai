@@ -64,68 +64,89 @@ export async function createCustomVoiceClone(args: {
   consent: boolean;
 }): Promise<CustomVoiceProfile> {
   if (args.consent !== true) throw new Error('VOICE_CONSENT_REQUIRED');
-  const apiKey = requireApiKey();
+  const provider = selectedProvider();
   const bytes = decodeAudio(args.audioBase64);
   const mimeType = String(args.mimeType || 'audio/webm');
   const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('mpeg') ? 'mp3' : mimeType.includes('wav') ? 'wav' : 'webm';
   const existing = await getCustomVoiceProfile(args.userId);
-
   const form = new FormData();
-  form.append('name', `Masroufi-${args.userId.slice(0, 8)}`);
-  form.append('description', 'User-created personal voice for Masroufi AI');
-  form.append('remove_background_noise', 'false');
-  form.append('files', new Blob([bytes], { type: mimeType }), `voice-sample.${extension}`);
 
-  const response = await fetch(`${ELEVENLABS_API_BASE}/voices/add`, {
-    method: 'POST',
-    headers: { 'xi-api-key': apiKey },
-    body: form,
-  });
+  let response: Response;
+  if (provider === 'fish') {
+    form.append('title', `Masroufi-${args.userId.slice(0, 8)}`);
+    form.append('description', 'User-created personal voice for Masroufi AI');
+    form.append('visibility', 'private');
+    form.append('type', 'tts');
+    form.append('train_mode', 'fast');
+    form.append('enhance_audio_quality', 'true');
+    form.append('voices', new Blob([bytes], { type: mimeType }), `voice-sample.${extension}`);
+    response = await fetch(`${FISH_AUDIO_API_BASE}/model`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${requireFishApiKey()}` },
+      body: form,
+    });
+  } else {
+    form.append('name', `Masroufi-${args.userId.slice(0, 8)}`);
+    form.append('description', 'User-created personal voice for Masroufi AI');
+    form.append('remove_background_noise', 'false');
+    form.append('files', new Blob([bytes], { type: mimeType }), `voice-sample.${extension}`);
+    response = await fetch(`${ELEVENLABS_API_BASE}/voices/add`, {
+      method: 'POST',
+      headers: { 'xi-api-key': requireElevenLabsApiKey() },
+      body: form,
+    });
+  }
+
   const payload: any = await response.json().catch(() => ({}));
-  if (!response.ok || !payload.voice_id) {
+  const newVoiceId = provider === 'fish' ? payload?._id : payload?.voice_id;
+  if (!response.ok || !newVoiceId) {
     throw new Error(payload?.detail?.message || payload?.detail || payload?.message || `VOICE_CLONE_FAILED_${response.status}`);
   }
 
-  const newVoiceId = String(payload.voice_id);
+  const voiceId = String(newVoiceId);
   const now = new Date().toISOString();
   try {
     await profileRef(args.userId).set({
-      voiceId: newVoiceId,
-      provider: 'elevenlabs',
+      voiceId,
+      provider,
       consentConfirmed: true,
       consentConfirmedAt: now,
       createdAt: existing.createdAt || now,
       updatedAt: now,
     }, { merge: true });
   } catch (err) {
-    await deleteElevenLabsVoice(newVoiceId).catch(() => undefined);
+    await deleteProviderVoice(provider, voiceId).catch(() => undefined);
     throw err;
   }
 
-  if (existing.voiceId && existing.voiceId !== newVoiceId) {
-    await deleteElevenLabsVoice(existing.voiceId).catch((err) => {
+  if (existing.voiceId && existing.voiceId !== voiceId && existing.provider) {
+    await deleteProviderVoice(existing.provider, existing.voiceId).catch((err) => {
       console.warn('[custom-voice] failed to delete replaced voice', err);
     });
   }
 
-  return { configured: true, voiceId: newVoiceId, provider: 'elevenlabs', createdAt: existing.createdAt || now, updatedAt: now };
+  return { configured: true, voiceId, provider, createdAt: existing.createdAt || now, updatedAt: now };
 }
 
-async function deleteElevenLabsVoice(voiceId: string): Promise<void> {
-  const apiKey = requireApiKey();
-  const response = await fetch(`${ELEVENLABS_API_BASE}/voices/${encodeURIComponent(voiceId)}`, {
-    method: 'DELETE',
-    headers: { 'xi-api-key': apiKey },
-  });
+async function deleteProviderVoice(provider: CustomVoiceProvider, voiceId: string): Promise<void> {
+  const response = provider === 'fish'
+    ? await fetch(`${FISH_AUDIO_API_BASE}/model/${encodeURIComponent(voiceId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${requireFishApiKey()}` },
+      })
+    : await fetch(`${ELEVENLABS_API_BASE}/voices/${encodeURIComponent(voiceId)}`, {
+        method: 'DELETE',
+        headers: { 'xi-api-key': requireElevenLabsApiKey() },
+      });
   if (!response.ok && response.status !== 404) {
-    const payload: any = await response.json().catch(() => ({}));
-    throw new Error(payload?.detail?.message || payload?.detail || payload?.message || `VOICE_DELETE_FAILED_${response.status}`);
+    const body = await response.text().catch(() => '');
+    throw new Error(`VOICE_DELETE_FAILED_${response.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
   }
 }
 
 export async function deleteCustomVoice(userId: string): Promise<void> {
   const existing = await getCustomVoiceProfile(userId);
-  if (existing.voiceId) await deleteElevenLabsVoice(existing.voiceId);
+  if (existing.voiceId && existing.provider) await deleteProviderVoice(existing.provider, existing.voiceId);
   await profileRef(userId).delete();
 }
 
@@ -138,24 +159,38 @@ export async function streamCustomVoiceAudio(args: {
   voiceId: string;
   text: string;
 }): Promise<ArrayBuffer> {
-  const apiKey = requireApiKey();
-  const response = await fetch(`${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(args.voiceId)}/stream?output_format=pcm_24000`, {
-    method: 'POST',
-    headers: {
-      'xi-api-key': apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'audio/pcm',
-    },
-    body: JSON.stringify({
-      text: args.text,
-      model_id: process.env.ELEVENLABS_MODEL_ID?.trim() || 'eleven_flash_v2_5',
-      voice_settings: {
-        stability: 0.45,
-        similarity_boost: 0.9,
-        use_speaker_boost: true,
-      },
-    }),
-  });
+  const provider = selectedProvider();
+  const response = provider === 'fish'
+    ? await fetch(`${FISH_AUDIO_API_BASE}/v1/tts`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${requireFishApiKey()}`,
+          'Content-Type': 'application/json',
+          Accept: 'audio/pcm',
+          model: process.env.FISH_MODEL_ID?.trim() || 's2.1-pro-free',
+        },
+        body: JSON.stringify({
+          text: args.text,
+          reference_id: args.voiceId,
+          format: 'pcm',
+          sample_rate: 24000,
+          latency: 'balanced',
+        }),
+      })
+    : await fetch(`${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(args.voiceId)}/stream?output_format=pcm_24000`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': requireElevenLabsApiKey(),
+          'Content-Type': 'application/json',
+          Accept: 'audio/pcm',
+        },
+        body: JSON.stringify({
+          text: args.text,
+          model_id: process.env.ELEVENLABS_MODEL_ID?.trim() || 'eleven_flash_v2_5',
+          voice_settings: { stability: 0.45, similarity_boost: 0.9, use_speaker_boost: true },
+        }),
+      });
+
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     throw new Error(`CUSTOM_VOICE_TTS_FAILED_${response.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
