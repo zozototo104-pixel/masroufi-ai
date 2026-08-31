@@ -1,20 +1,33 @@
 import { adminDb } from './firebaseAdmin';
 
 const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io/v1';
+const FISH_AUDIO_API_BASE = 'https://api.fish.audio';
 const SETTINGS_PATH = 'settings';
 const CUSTOM_VOICE_DOC = 'customVoice';
+
+export type CustomVoiceProvider = 'fish' | 'elevenlabs';
 
 export type CustomVoiceProfile = {
   configured: boolean;
   voiceId?: string;
-  provider?: 'elevenlabs';
+  provider?: CustomVoiceProvider;
   createdAt?: string;
   updatedAt?: string;
 };
 
-function requireApiKey(): string {
+function selectedProvider(): CustomVoiceProvider {
+  return process.env.CUSTOM_VOICE_PROVIDER?.trim().toLowerCase() === 'elevenlabs' ? 'elevenlabs' : 'fish';
+}
+
+function requireElevenLabsApiKey(): string {
   const key = process.env.ELEVENLABS_API_KEY?.trim();
   if (!key) throw new Error('ELEVENLABS_API_KEY is not configured');
+  return key;
+}
+
+function requireFishApiKey(): string {
+  const key = process.env.FISH_API_KEY?.trim();
+  if (!key) throw new Error('FISH_API_KEY is not configured');
   return key;
 }
 
