@@ -1,1 +1,45 @@
-bmFtZTogQ0kKCm9uOgogIHB1c2g6CiAgICBicmFuY2hlczoKICAgICAgLSBtYWluCiAgcHVsbF9yZXF1ZXN0OgogICAgYnJhbmNoZXM6CiAgICAgIC0gbWFpbgogIHdvcmtmbG93X2Rpc3BhdGNoOgoKcGVybWlzc2lvbnM6CiAgY29udGVudHM6IHJlYWQKCmNvbmN1cnJlbmN5OgogIGdyb3VwOiBjaS0ke3sgZ2l0aHViLndvcmtmbG93IH19LSR7eyBnaXRodWIucmVmIH19CiAgY2FuY2VsLWluLXByb2dyZXNzOiB0cnVlCgpqb2JzOgogIHZlcmlmeToKICAgIG5hbWU6IFRlc3QsIHR5cGVjaGVjaywgYW5kIGJ1aWxkCiAgICBydW5zLW9uOiB1YnVudHUtbGF0ZXN0CiAgICB0aW1lb3V0LW1pbnV0ZXM6IDIwCgogICAgc3RlcHM6CiAgICAgIC0gbmFtZTogQ2hlY2tvdXQgcmVwb3NpdG9yeQogICAgICAgIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXQAdjQKCiAgICAgIC0gbmFtZTogVXNlIE5vZGUuanMgMjAKICAgICAgICB1c2VzOiBhY3Rpb25zL3NldHVwLW5vZGVAdjQKICAgICAgICB3aXRoOgogICAgICAgICAgbm9kZS12ZXJzaW9uOiAyMAogICAgICAgICAgY2FjaGU6IG5wbQoKICAgICAgLSBuYW1lOiBJbnN0YWxsIGRlcGVuZGVuY2llcwogICAgICAgIHJ1bjogbnBtIGNpCgogICAgICAtIG5hbWU6IFJ1biB0ZXN0IHN1aXRlCiAgICAgICAgcnVuOiBucG0gdGVzdAoKICAgICAgLSBuYW1lOiBUeXBlU2NyaXB0IGNoZWNrCiAgICAgICAgcnVuOiBucG0gcnVuIGxpbnQKCiAgICAgIC0gbmFtZTogQnVpbGQgYXBwbGljYXRpb24KICAgICAgICBydW46IG5wbSBydW4gYnVpbGQK
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test, typecheck, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: TypeScript check
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
