@@ -5,3 +5,4 @@ numpy>=1.24
 sentencepiece>=0.1.99
 onnxruntime>=1.20.0
 huggingface_hub>=0.28.0
+imageio-ffmpeg>=0.6.0
