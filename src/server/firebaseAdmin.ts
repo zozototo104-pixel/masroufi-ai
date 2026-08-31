@@ -75,3 +75,4 @@ export const adminDb = firebaseConfig.firestoreDatabaseId
   ? getFirestore(firebaseConfig.firestoreDatabaseId)
   : getFirestore();
 export const adminAuth = getAuth();
+export const adminStorage = getStorage();
