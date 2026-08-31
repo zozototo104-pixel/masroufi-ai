@@ -20,12 +20,14 @@ test('AUTHZ-01/02/03 + SYNC-01: /api/sync enforces ownership via assertOwnership
   // 3. Reject with cross-user ownership violation message.
   assert.ok(src.includes('V6 (CF-2): NEVER trust client-supplied userId or document IDs'),
     'syncOfflineData must explicitly reject client-supplied ownership');
-  assert.ok(src.includes('Force userId to the authenticated user'),
-    'syncOfflineData must overwrite client userId');
+  assert.ok(src.includes('transactions must sync through /api/command, not /api/sync'),
+    'generic sync must reject raw financial transactions entirely');
   assert.ok(src.includes('cross-user ownership violation'),
     'syncOfflineData must reject cross-user writes');
-  assert.ok(src.includes('const { _unsynced, userId: _dropUid, ...data } = tx'),
-    'syncOfflineData must strip client-supplied userId');
+  assert.ok(src.includes('const { _unsynced, userId: _dropUid, ...data } = rep'),
+    'non-financial report sync must strip client-supplied userId');
+  assert.ok(src.includes('const { _unsynced, userId: _dropUid, ...data } = com'),
+    'non-financial commitment sync must strip client-supplied userId');
   assert.ok(src.includes('rejected: { id: string; reason: string }[]'),
     'syncOfflineData returns rejected list');
   // Server-side handler must map OwnershipError to 403.
