@@ -336,7 +336,6 @@ export async function atomicPayDebt(
   userId: string,
   newTx: any,
   creditorKey: string,
-  remainingDebtBeforePayment: number,
   opts: { riskConfirmed?: boolean } = {}
 ): Promise<{ ok: true; docId: string } | { ok: false; reason: string; remaining?: number }> {
   return adminDb.runTransaction(async (tx: any) => {
