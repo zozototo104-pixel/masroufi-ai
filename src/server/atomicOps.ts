@@ -354,10 +354,10 @@ export async function atomicAddTransactions(
 
 export async function atomicPayDebt(
   userId: string,
-  newTx: any,
+  newTx: FinancialTransactionInput,
   creditorKey: string,
   opts: { riskConfirmed?: boolean } = {}
-): Promise<{ ok: true; docId: string } | { ok: false; reason: string; remaining?: number }> {
+): Promise<{ ok: true; docId: string } | { ok: false; reason: string; remaining?: number; available?: number }> {
   return adminDb.runTransaction(async (tx: any) => {
     const snap = await tx.get(
       adminDb.collection('transactions').where('userId', '==', userId)
