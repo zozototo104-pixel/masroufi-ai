@@ -1738,6 +1738,14 @@ export async function updateTransaction(args: any, userId: string, token: string
 
   // 5. Snapshot all transactions (excluding the doc being updated) to compute resulting balance.
   const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  if ((snap as any).partial === true) {
+    return {
+      success: false,
+      retryable: true,
+      reason: 'PARTIAL_STATE_UNSAFE',
+      message: 'لا يمكن تعديل العملية الآن لأن قراءة السحابة جزئية، ولا أستطيع ضمان الرصيد الناتج بأمان.'
+    };
+  }
   const otherDocs = snap.docs.filter((d: any) => d.id !== args.id);
   // Apply projected doc to the set.
   const projectedDoc = { id: args.id, data: () => projected };
