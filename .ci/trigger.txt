@@ -1,1 +1,1 @@
-Trigger CI after PIPE-01 guard was narrowed to executable raw transaction writes.
+Final CI verification after PIPE-01 executable-write guard fix.
