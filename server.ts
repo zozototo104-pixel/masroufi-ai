@@ -14,6 +14,7 @@ import {
   type WSAuthState,
 } from "./src/server/auth";
 import { dispatchFinancialCommand, isValidFinancialCommandType } from "./src/server/financialEngine";
+import { createCustomVoiceClone, deleteCustomVoice, getCustomVoiceProfile } from "./src/server/customVoice";
 
 dotenv.config();
 
