@@ -87,13 +87,32 @@ export async function runIdempotent(
         if (age < PENDING_STALE_MS) {
           return { action: 'wait' as const };
         }
+        // A stale pending operation has an UNKNOWN outcome. The financial mutation
+        // may have committed while persisting the idempotency result failed. Never
+        // re-execute automatically: exactly-once safety is more important than availability.
+        return {
+          action: 'return' as const,
+          result: {
+            success: false,
+            retryable: false,
+            indeterminate: true,
+            reason: 'IDEMPOTENT_OUTCOME_UNKNOWN',
+            message: 'تعذر تأكيد نتيجة العملية السابقة بأمان. لن أعيد تنفيذها تلقائياً حتى لا يتكرر القيد المالي.',
+          }
+        };
       }
 
-      if (data?.status === 'failed') {
-        const age = now - Number(data.updatedAt || data.createdAt || 0);
-        if (age < 60_000) {
-          return { action: 'return' as const, result: data.result || { success: false, error: 'previous attempt failed' } };
-        }
+      if (data?.status === 'failed' || data?.status === 'indeterminate') {
+        return {
+          action: 'return' as const,
+          result: data.result || {
+            success: false,
+            retryable: false,
+            indeterminate: true,
+            reason: 'IDEMPOTENT_OUTCOME_UNKNOWN',
+            message: 'نتيجة العملية السابقة غير محسومة، لذلك لن أعيد تنفيذها تلقائياً.'
+          }
+        };
       }
 
       tx.set(ref, {
