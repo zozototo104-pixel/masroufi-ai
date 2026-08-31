@@ -2042,19 +2042,23 @@ export async function deleteTransaction(args: any, userId: string, token: string
 
   if (userTxs.length === 1 && (args.id || args.confirmed)) {
     const toDelete = userTxs[0];
-    const deleteResult = await adminDb.collection('transactions').doc(toDelete.id).delete();
-    if (deleteResult?.pending || deleteResult?.synced === false) {
-      return {
-        success: false,
-        retryable: true,
-        pending: true,
-        reason: 'DELETE_NOT_DURABLY_COMMITTED',
-        message: 'لم أؤكد حذف العملية لأن الحذف لم يُحفظ في السحابة. أعد المحاولة عند استقرار الاتصال.',
-        error: deleteResult?.error,
-      };
+    // Revalidate ownership, ledger balances, and delete atomically. The smart-search
+    // candidate may be stale by the time the user confirms it.
+    const atomicResult = await atomicDeleteTransaction(userId, toDelete.id, { riskConfirmed: !!args.riskConfirmed });
+    if (!atomicResult.ok) {
+      if (atomicResult.reason === 'NEGATIVE_CASH_RESULT' || atomicResult.reason === 'NEGATIVE_PALPAY_RESULT') {
+        return {
+          success: false,
+          needsConfirmation: true,
+          reason: atomicResult.reason,
+          message: 'حذف هذه العملية سيجعل أحد الأرصدة سالباً. هل تريد المتابعة رغم الأثر المالي؟',
+          financialImpact: atomicResult.balances,
+        };
+      }
+      return { success: false, reason: atomicResult.reason, message: 'تعذر حذف العملية بأمان لأنها تغيرت أو لم تعد موجودة.' };
     }
-    
-    const accName = toDelete.account === 'palPay' ? 'PalPay' : toDelete.account === 'debt' ? 'الديون' : 'النقدي';
+    const deletedData = atomicResult.deleted;
+    const accName = deletedData.account === 'palPay' ? 'PalPay' : deletedData.account === 'debt' ? 'الديون' : 'النقدي';
     await addNotification(userId, `تم حذف عملية (${toDelete.notes || toDelete.category || ''} بقيمة ${toDelete.amount} ₪ من حساب ${accName}) بنجاح.`, 'success', adminDb);
     
     const balances = await getBalance({}, userId, token);
