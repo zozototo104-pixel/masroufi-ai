@@ -52,11 +52,6 @@ export interface IdempotencyOutcome {
   result?: any;
 }
 
-type ClaimResult =
-  | { action: 'execute' }
-  | { action: 'return'; result: any }
-  | { action: 'wait' };
-
 export async function runIdempotent(
   userId: string,
   operationId: string | undefined,
