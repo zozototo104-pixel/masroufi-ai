@@ -72,61 +72,17 @@ export async function runIdempotent(
   const docId = idemDocId(userId, operationId);
   const ref = adminDb.collection(IDEMPOTENCY_COLLECTION).doc(docId);
   const now = Date.now();
-  let claim: ClaimResult;
+  let claim: ClaimDecision;
 
   try {
     claim = await adminDb.runTransaction(async (tx: any) => {
       const snap = await tx.get(ref);
       const data = snap.exists ? (snap.data() as any) : null;
+      const decision = decideIdempotencyClaim(data, now);
+      if (decision.action !== 'execute') return decision;
 
-      if (data?.status === 'completed') {
-        return { action: 'return' as const, result: data.result };
-      }
-
-      if (data?.status === 'pending') {
-        const age = now - Number(data.updatedAt || data.createdAt || 0);
-        if (age < PENDING_STALE_MS) {
-          return { action: 'wait' as const };
-        }
-        // A stale pending operation has an UNKNOWN outcome. The financial mutation
-        // may have committed while persisting the idempotency result failed. Never
-        // re-execute automatically: exactly-once safety is more important than availability.
-        return {
-          action: 'return' as const,
-          result: {
-            success: false,
-            retryable: false,
-            indeterminate: true,
-            reason: 'IDEMPOTENT_OUTCOME_UNKNOWN',
-            message: 'تعذر تأكيد نتيجة العملية السابقة بأمان. لن أعيد تنفيذها تلقائياً حتى لا يتكرر القيد المالي.',
-          }
-        };
-      }
-
-      if (data?.status === 'failed' || data?.status === 'indeterminate') {
-        return {
-          action: 'return' as const,
-          result: data.result || {
-            success: false,
-            retryable: false,
-            indeterminate: true,
-            reason: 'IDEMPOTENT_OUTCOME_UNKNOWN',
-            message: 'نتيجة العملية السابقة غير محسومة، لذلك لن أعيد تنفيذها تلقائياً.'
-          }
-        };
-      }
-
-      tx.set(ref, {
-        userId,
-        operationId,
-        operationIdPreview: operationId.slice(0, 300),
-        status: 'pending',
-        createdAt: data?.createdAt || now,
-        updatedAt: now,
-        expiresAt: now + IDEMPOTENCY_TTL_MS,
-      }, { merge: false });
-
-      return { action: 'execute' as const };
+      tx.set(ref, buildPendingIdempotencyRecord(userId, operationId, now, data?.createdAt), { merge: false });
+      return decision;
     });
   } catch (err: any) {
     console.error('[idempotency] failed to claim financial operation; refusing unsafe write:', err?.message);
