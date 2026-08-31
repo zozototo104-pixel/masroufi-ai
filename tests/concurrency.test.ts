@@ -195,3 +195,11 @@ test('CONC-17: tools.ts reuses canonical account normalization instead of duplic
   assert.ok(balanceSrc.includes('Canonical account normalization'),
     'balanceCalc.ts must document itself as the canonical owner');
 });
+
+test('CONC-18: disabled legacy import writer code is not retained as source text', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.equal(toolsSrc.includes('LEGACY_IMPORT_WRITER_DISABLED'), false,
+    'dead import writer source text must be removed, not retained in comments');
+  assert.equal(toolsSrc.includes('legacy raw transaction writer body'), false,
+    'source-text tests must not be confused by commented legacy write paths');
+});
