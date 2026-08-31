@@ -181,3 +181,38 @@ test('MARKET-19: market prompt-injection protection (market is read-only, no mut
   assert.ok(!fnBody.includes('addTransaction('),
     'searchLocalMarket must NOT call addTransaction');
 });
+
+test('MARKET-20: FX conversion refuses hardcoded USD/JOD fallback when official rates are unavailable', () => {
+  setExchangeRateSnapshotForTests(null);
+  assert.equal(normalizeCurrencyToIls(100, 'ILS'), 100);
+  assert.equal(normalizeCurrencyToIls(100, 'USD'), null,
+    'USD must not be converted using hardcoded fallback rates');
+  assert.equal(normalizeCurrencyToIls(50, 'JOD'), null,
+    'JOD must not be converted using hardcoded fallback rates');
+});
+
+test('MARKET-21: FX conversion uses an injected official-rate snapshot when available', () => {
+  setExchangeRateSnapshotForTests({
+    rates: { ILS: 1, NIS: 1, USD: 3.61, JOD: 5.09 },
+    fetchedAt: Date.now(),
+    source: 'test official snapshot',
+  });
+  assert.equal(normalizeCurrencyToIls(100, 'USD'), 361);
+  assert.equal(normalizeCurrencyToIls(50, 'JOD'), 254.5);
+  setExchangeRateSnapshotForTests(null);
+});
+
+test('MARKET-22: market comparison code does not retain hardcoded FX rates or treat failed conversion as ILS', async () => {
+  const marketSrc = await readFile(join(process.cwd(), 'src/server/marketIntelligence.ts'), 'utf8');
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.equal(marketSrc.includes('USD: 3.7'), false,
+    'market FX must not contain stale hardcoded USD rate');
+  assert.equal(marketSrc.includes('JOD: 5.2'), false,
+    'market FX must not contain stale hardcoded JOD rate');
+  assert.ok(marketSrc.includes('BOI_EXCHANGE_RATES_URL'),
+    'market FX must fetch/cache an official exchange-rate source');
+  assert.ok(toolsSrc.includes('await refreshExchangeRatesToIls()'),
+    'market paths must refresh FX rates before comparison');
+  assert.equal(toolsSrc.includes("normalizedPriceIls: normalizeCurrencyToIls(price, args.currency || 'ILS') || price"), false,
+    'saving a foreign-currency offer must not fall back to interpreting original price as ILS');
+});
