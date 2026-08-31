@@ -155,10 +155,10 @@ export async function getCustomVoiceId(userId: string): Promise<string | null> {
   return profile.voiceId || null;
 }
 
-export async function streamCustomVoiceAudio(args: {
+export async function* streamCustomVoiceAudio(args: {
   voiceId: string;
   text: string;
-}): Promise<ArrayBuffer> {
+}): AsyncGenerator<Uint8Array> {
   const provider = selectedProvider();
   const response = provider === 'fish'
     ? await fetch(`${FISH_AUDIO_API_BASE}/v1/tts`, {
@@ -195,5 +195,39 @@ export async function streamCustomVoiceAudio(args: {
     const body = await response.text().catch(() => '');
     throw new Error(`CUSTOM_VOICE_TTS_FAILED_${response.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
   }
-  return response.arrayBuffer();
+
+  if (!response.body) {
+    const all = new Uint8Array(await response.arrayBuffer());
+    if (all.byteLength > 0) yield all;
+    return;
+  }
+
+  // Stream provider PCM as it arrives instead of buffering the whole utterance.
+  // PCM16 samples are two bytes, so keep an odd trailing byte for the next chunk.
+  const reader = response.body.getReader();
+  let carry: number | null = null;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+
+      let chunk = value;
+      if (carry !== null) {
+        const merged = new Uint8Array(chunk.byteLength + 1);
+        merged[0] = carry;
+        merged.set(chunk, 1);
+        chunk = merged;
+        carry = null;
+      }
+
+      if (chunk.byteLength % 2 === 1) {
+        carry = chunk[chunk.byteLength - 1];
+        chunk = chunk.subarray(0, chunk.byteLength - 1);
+      }
+      if (chunk.byteLength > 0) yield chunk;
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
