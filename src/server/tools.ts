@@ -1732,57 +1732,6 @@ export async function importUserData(payload: any, userId: string, token: string
     importedTxCount++;
   }
 
-  /* LEGACY_IMPORT_WRITER_DISABLED
-  The old raw transaction writer is retained temporarily for diff traceability only.
-  It must never execute; restore semantics now come exclusively from the preflighted entries above.
-  legacy raw transaction writer body (disabled):
-    const rawAmount = typeof t.amount === 'string' ? parseFloat(t.amount) : Number(t.amount);
-    const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
-    if (amount <= 0 && !t.notes && !t.category) continue;
-
-    // Preserve financial semantics exactly. In particular, never convert transfers/debt payments into expenses.
-    const originalType = ['income','expense','transfer'].includes(String(t.type)) ? String(t.type) : 'expense';
-    const sourceId = String(t.id || t.legacyId || '').trim();
-    const docRef = sourceId ? adminDb.collection('transactions').doc(sourceId) : adminDb.collection('transactions').doc();
-    const docData:any = {
-      userId,
-      amount,
-      type: originalType,
-      account: normalizeAccount(t.account),
-      category: String(t.category || 'عام'),
-      subcategory: String(t.subcategory || ''),
-      notes: String(t.notes || t.name || ''),
-      merchant: String(t.merchant || ''),
-      necessity: String(t.necessity || (originalType === 'expense' ? 'ضروري' : '')),
-      date: t.date || t.createdAt || new Date().toISOString(),
-      createdAt: t.createdAt || new Date().toISOString(),
-      importedAt: new Date().toISOString()
-    };
-    // V6 (HF-5): preserve ALL financial semantics fields on import, regardless of type.
-    // Round-trip export -> import must not lose transactionType/creditor/creditorKey/operationId.
-    if (t.transactionType) docData.transactionType = String(t.transactionType);
-    if (t.creditor) docData.creditor = String(t.creditor);
-    if (t.creditorKey) docData.creditorKey = String(t.creditorKey);
-    // Derive creditorKey from creditor if missing but creditor is present.
-    if (!docData.creditorKey && docData.creditor) {
-      docData.creditorKey = normalizeCreditorName(docData.creditor);
-    }
-    // If account is debt and creditor is missing but merchant is set, derive creditor from merchant.
-    if (docData.account === 'debt' && !docData.creditor && docData.merchant) {
-      docData.creditor = docData.merchant;
-      docData.creditorKey = normalizeCreditorName(docData.merchant);
-    }
-    // Preserve transfer-specific fields.
-    if (originalType === 'transfer') {
-      docData.fromAccount = normalizeAccount(t.fromAccount || t.account);
-      docData.toAccount = normalizeAccount(t.toAccount);
-    }
-    if (t.operationId) docData.operationId = String(t.operationId);
-    await docRef.set(docData);
-    importedTxCount++;
-  }
-  */
-
   // 2. Write custom budgets
   let importedBudgetsCount = 0;
   for (const prepared of budgetEntries) {
