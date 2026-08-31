@@ -1592,41 +1592,22 @@ function prepareImportedMemory(rawMemory: any): {
 export async function importUserData(payload: any, userId: string, token: string, mode: 'merge' | 'replace' = 'merge') {
   console.log(`TOOL CALL: importUserData for ${userId} with mode=${mode}`);
 
-  if (!payload || typeof payload !== 'object') {
-    return {
-      success: false,
-      reason: 'IMPORT_BACKUP_VALIDATION_FAILED',
-      message: 'لم يتم استيراد النسخة لأن ملف النسخة الاحتياطية غير صالح. لم يتم حذف أو تغيير البيانات الحالية.',
-      validationFailures: [{ section: 'backup', index: '*', code: 'INVALID_BACKUP_PAYLOAD', message: 'ملف النسخة الاحتياطية يجب أن يكون كائناً أو مصفوفة عمليات.' }],
-    };
-  }
-
-  const isTransactionArrayImport = Array.isArray(payload);
-  const backupObject = !isTransactionArrayImport && isPlainBackupObject(payload) ? payload : {};
-  const hasRecognizedBackupSection = isTransactionArrayImport
-    || ['transactions', 'budgets', 'commitments', 'reports', 'memory'].some((section) => Object.prototype.hasOwnProperty.call(backupObject, section));
-  if (!hasRecognizedBackupSection) {
-    return {
-      success: false,
-      reason: 'IMPORT_BACKUP_VALIDATION_FAILED',
-      message: 'لم يتم استيراد النسخة لأنها لا تحتوي أي قسم معروف للاستعادة. لم يتم حذف أو تغيير البيانات الحالية.',
-      validationFailures: [{ section: 'backup', index: '*', code: 'EMPTY_OR_UNRECOGNIZED_BACKUP', message: 'النسخة الاحتياطية يجب أن تحتوي transactions أو budgets أو commitments أو reports أو memory.' }],
-    };
-  }
+  const envelope = validateImportEnvelope(payload);
+  if (!envelope.ok) return { success: false, ...envelope };
 
   const adminDb = getDb(token);
 
   // Handle case where user directly imports an array of transactions or full backup object
-  const transactionsToImport: any[] = isTransactionArrayImport
+  const transactionsToImport: any[] = envelope.isTransactionArrayImport
     ? payload
-    : Array.isArray(backupObject.transactions)
-      ? backupObject.transactions
+    : Array.isArray(envelope.backupObject.transactions)
+      ? envelope.backupObject.transactions
       : [];
 
-  const rawBudgetsToImport = isTransactionArrayImport ? undefined : backupObject.budgets;
-  const rawCommitmentsToImport = isTransactionArrayImport ? undefined : backupObject.commitments;
-  const rawReportsToImport = isTransactionArrayImport ? undefined : backupObject.reports;
-  const rawMemoryToImport = isTransactionArrayImport ? undefined : backupObject.memory;
+  const rawBudgetsToImport = envelope.isTransactionArrayImport ? undefined : envelope.backupObject.budgets;
+  const rawCommitmentsToImport = envelope.isTransactionArrayImport ? undefined : envelope.backupObject.commitments;
+  const rawReportsToImport = envelope.isTransactionArrayImport ? undefined : envelope.backupObject.reports;
+  const rawMemoryToImport = envelope.isTransactionArrayImport ? undefined : envelope.backupObject.memory;
 
   // Preflight the entire backup BEFORE any import mutation. Restore/import is a
   // historical-state operation, so we validate and normalize without replaying
