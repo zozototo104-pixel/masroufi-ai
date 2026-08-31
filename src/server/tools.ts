@@ -4,7 +4,7 @@ import { matchesArabicCategory } from '../lib/reportUtils';
 import { calculateBalances, normalizeCreditorKey } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
 import { runIdempotent } from './idempotency';
-import { atomicAddTransaction, atomicPayDebt, atomicTransferMoney } from './atomicOps';
+import { atomicAddTransaction, atomicDeleteTransaction, atomicPayDebt, atomicTransferMoney, atomicUpdateTransaction } from './atomicOps';
 import {
   getCachedMarketResult,
   cacheMarketResult,
