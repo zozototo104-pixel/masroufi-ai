@@ -102,7 +102,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         // V6: send the auth message FIRST. Server will not process audio until auth_ok arrives.
         if (activeToken) {
           try {
-            ws.send(JSON.stringify({ type: 'auth', token: activeToken, apiKey: settings?.apiKey || undefined }));
+            ws.send(JSON.stringify({ type: 'auth', token: activeToken, apiKey: currentSettings?.apiKey || undefined }));
           } catch (e) {
             console.warn('Failed to send WS auth message:', e);
           }
