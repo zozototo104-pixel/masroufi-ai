@@ -1792,61 +1792,32 @@ export async function importUserData(payload: any, userId: string, token: string
 
   // 2. Write custom budgets
   let importedBudgetsCount = 0;
-  for (const [category, limit] of Object.entries(budgetsToImport)) {
-    if (category && typeof limit === 'number') {
-      await adminDb.collection('users').doc(userId).collection('budgets').doc(category).set({
-        limit: Number(limit),
-        updatedAt: new Date().toISOString()
-      });
-      importedBudgetsCount++;
-    }
+  for (const prepared of budgetEntries) {
+    await adminDb.collection('users').doc(userId).collection('budgets').doc(prepared.sourceId).set(prepared.docData);
+    importedBudgetsCount++;
   }
 
   // 3. Write commitments
   let importedCommitmentsCount = 0;
-  for (const c of commitmentsToImport) {
-    if (c.title && c.amount) {
-      const docRef = adminDb.collection('commitments').doc();
-      await docRef.set({
-        userId,
-        title: String(c.title),
-        amount: Math.abs(Number(c.amount) || 0),
-        dueDate: c.dueDate || new Date().toISOString(),
-        category: c.category || 'أقساط والتزامات',
-        notes: c.notes || '',
-        createdAt: c.createdAt || new Date().toISOString()
-      });
-      importedCommitmentsCount++;
-    }
+  for (const prepared of commitmentEntries) {
+    const docRef = prepared.sourceId ? adminDb.collection('commitments').doc(prepared.sourceId) : adminDb.collection('commitments').doc();
+    await docRef.set({ ...prepared.docData, id: docRef.id });
+    importedCommitmentsCount++;
   }
 
   // 4. Write reports
   let importedReportsCount = 0;
-  for (const r of reportsToImport) {
-    if (r.title) {
-      const docRef = adminDb.collection('reports').doc();
-      await docRef.set({
-        userId,
-        title: String(r.title),
-        category: r.category || 'all',
-        date: r.date || new Date().toISOString(),
-        createdAt: r.createdAt || new Date().toISOString(),
-        transactions: Array.isArray(r.transactions) ? r.transactions : []
-      });
-      importedReportsCount++;
-    }
+  for (const prepared of reportEntries) {
+    const docRef = prepared.sourceId ? adminDb.collection('reports').doc(prepared.sourceId) : adminDb.collection('reports').doc();
+    await docRef.set({ ...prepared.docData, id: docRef.id });
+    importedReportsCount++;
   }
 
   // 5. Write memory
   let importedMemoryCount = 0;
-  for (const [key, val] of Object.entries(memoryToImport)) {
-    if (key && val) {
-      await adminDb.collection('users').doc(userId).collection('memory').doc(key).set({
-        value: String(val),
-        updatedAt: new Date().toISOString()
-      });
-      importedMemoryCount++;
-    }
+  for (const prepared of memoryEntries) {
+    await adminDb.collection('users').doc(userId).collection('memory').doc(prepared.sourceId).set(prepared.docData);
+    importedMemoryCount++;
   }
 
   await addNotification(userId, `تم استيراد ${importedTxCount} عملية مالية و ${importedBudgetsCount} موازنة بنجاح.`, 'success', adminDb);
