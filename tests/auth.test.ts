@@ -69,10 +69,10 @@ test('AUTH-05: malformed Bearer (no token after prefix) rejected', async () => {
 });
 
 test('AUTH-06: token with empty uid rejected', async () => {
-  const verifyBearer = makeVerifyBearerStub({
+  const verifier = verifierFor({
     'token.no.uid': { email: 'x@y.com' }, // no uid
   });
-  const r = await verifyBearer('Bearer token.no.uid');
+  const r = await verifyBearer('Bearer token.no.uid', verifier);
   assert.equal(r.ok, false);
   assert.equal(r.status, 401);
   assert.match(r.error || '', /no uid/);
