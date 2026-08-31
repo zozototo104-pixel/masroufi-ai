@@ -429,6 +429,7 @@ export async function searchLocalMarket(args: any, userId: string, token: string
     const liveResults: MarketResult[] = extractedPrices.map((p, i) => {
       const scope = (sources[i] as any)?.marketScope || classifyMarketScope(sources[i]?.title || '', sources[i]?.uri || '', '');
       const normalized = normalizeCurrencyToIls(p.price, p.currency);
+      const fxMetadata = normalized ? getFxConversionMetadata(p.currency) : {};
       return {
         product: item,
         model: model || undefined,
