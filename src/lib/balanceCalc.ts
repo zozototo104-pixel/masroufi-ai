@@ -34,11 +34,6 @@ export interface BalanceBreakdown {
   creditorDebts: Record<string, number>;
 }
 
-function finiteAmount(value: any): number {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? amount : 0;
-}
-
 /**
  * Canonical balance calculator. Accepts transaction objects (with .account, .type,
  * .amount, .fromAccount, .toAccount, .creditor, .merchant, .transactionType).
