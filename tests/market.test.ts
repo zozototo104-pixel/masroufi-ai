@@ -218,3 +218,48 @@ test('MARKET-22: market comparison code does not retain hardcoded FX rates or tr
   assert.equal(toolsSrc.includes("normalizedPriceIls: normalizeCurrencyToIls(price, args.currency || 'ILS') || price"), false,
     'saving a foreign-currency offer must not fall back to interpreting original price as ILS');
 });
+
+test('MARKET-23: Bank of Israel FX payload parser preserves representative source date', () => {
+  const parsed = parseBankOfIsraelRates({
+    exchangeRates: [
+      { key: 'USD', currentExchangeRate: 3.61, unit: 1, lastUpdate: '2026-08-31' },
+      { key: 'JOD', currentExchangeRate: 5.09, unit: 1, lastUpdate: '2026-08-31' },
+      { key: 'BAD', currentExchangeRate: Infinity, unit: 1, lastUpdate: '2026-08-31' },
+    ],
+  });
+  assert.ok(parsed);
+  assert.equal(parsed.rates.USD, 3.61);
+  assert.equal(parsed.rates.JOD, 5.09);
+  assert.equal(parsed.rates.BAD, undefined);
+  assert.equal(parsed.rateDate, '2026-08-31');
+  assert.equal(parsed.source, 'Bank of Israel representative exchange rates');
+});
+
+test('MARKET-24: converted FX market results expose source/date metadata and reject Infinity', () => {
+  setExchangeRateSnapshotForTests({
+    rates: { ILS: 1, NIS: 1, USD: 3.61 },
+    fetchedAt: Date.now(),
+    source: 'test official snapshot',
+    rateDate: '2026-08-31',
+  });
+  assert.equal(normalizeCurrencyToIls(100, 'USD'), 361);
+  assert.equal(normalizeCurrencyToIls(Infinity, 'USD'), null,
+    'non-finite foreign prices must not be converted');
+  assert.deepEqual(getFxConversionMetadata('USD'), {
+    fxRateSource: 'test official snapshot',
+    fxRateDate: '2026-08-31',
+    fxRateStale: false,
+  });
+  assert.deepEqual(getFxConversionMetadata('ILS'), {});
+  setExchangeRateSnapshotForTests(null);
+});
+
+test('MARKET-25: saved and live market results spread FX metadata when conversion succeeds', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(toolsSrc.includes('const fxMetadata = normalized ? getFxConversionMetadata(offer.currency || \'ILS\') : {}'),
+    'saved market results must attach FX provenance after conversion');
+  assert.ok(toolsSrc.includes('const fxMetadata = normalized ? getFxConversionMetadata(p.currency) : {}'),
+    'live market results must attach FX provenance after conversion');
+  assert.ok(toolsSrc.includes('...fxMetadata'),
+    'market result payloads must include FX metadata fields when available');
+});
