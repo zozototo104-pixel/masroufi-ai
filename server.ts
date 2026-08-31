@@ -918,6 +918,7 @@ ${relationshipContext}
       const response = await chat.sendMessage({ message });
       
       let replyText = response.text;
+      let executedFunctionResponses: any[] = [];
       
       // If there are function calls
       if (response.functionCalls && response.functionCalls.length > 0) {
