@@ -218,22 +218,115 @@ export async function atomicDeleteTransaction(
 export async function atomicAddTransactions(
   userId: string,
   newTransactions: any[],
-  opts: { riskConfirmed?: boolean } = {}
-): Promise<{ ok: true; docIds: string[]; balances: { cash: number; palPay: number; debt: number; total: number } } | { ok: false; reason: string; balances?: any }> {
+  opts: { riskConfirmed?: boolean; receiptId?: string; receiptMeta?: any } = {}
+): Promise<
+  | { ok: true; docIds: string[]; balances: { cash: number; palPay: number; debt: number; total: number }; idempotentReplay?: boolean }
+  | { ok: false; reason: string; balances?: any; conflictingTransactionIds?: string[] }
+> {
   return adminDb.runTransaction(async (tx: any) => {
+    const receiptId = opts.receiptId ? String(opts.receiptId) : '';
+    const receiptRef = receiptId
+      ? adminDb.collection('receiptIdempotency').doc(stableReceiptDocId(userId, receiptId))
+      : null;
+    const receiptSnap = receiptRef ? await tx.get(receiptRef) : null;
+    if (receiptSnap?.exists) {
+      const record = receiptSnap.data() || {};
+      if (record.userId !== userId || record.receiptId !== receiptId) {
+        return { ok: false, reason: 'RECEIPT_ID_CONFLICT' };
+      }
+      if (record.status === 'completed' && Array.isArray(record.docIds)) {
+        return {
+          ok: true,
+          docIds: record.docIds,
+          balances: record.balances || { cash: 0, palPay: 0, debt: 0, total: 0 },
+          idempotentReplay: true,
+        };
+      }
+      return { ok: false, reason: 'RECEIPT_OUTCOME_INDETERMINATE' };
+    }
+
+    const normalizedNewTransactions = newTransactions.map((item: any) => receiptId ? { ...item, receiptId } : item);
+    if (receiptId) {
+      const operationIds = normalizedNewTransactions.map((item: any) => String(item?.operationId || ''));
+      if (operationIds.some((operationId: string) => !operationId)) {
+        return { ok: false, reason: 'MISSING_RECEIPT_OPERATION_ID' };
+      }
+      if (new Set(operationIds).size !== operationIds.length) {
+        return { ok: false, reason: 'DUPLICATE_RECEIPT_OPERATION_ID' };
+      }
+    }
+
     const snap = await tx.get(adminDb.collection('transactions').where('userId', '==', userId));
     const existing = plainTransactions(snap.docs);
-    const projected = [...existing, ...newTransactions.map((item: any) => ({ ...item, userId }))];
+
+    if (receiptId) {
+      const existingByOperationId = new Map<string, any>();
+      for (const item of existing) {
+        const operationId = String(item?.operationId || '');
+        if (operationId) existingByOperationId.set(operationId, item);
+      }
+      const overlapping = normalizedNewTransactions
+        .map((item: any) => existingByOperationId.get(String(item?.operationId || '')))
+        .filter(Boolean);
+      if (overlapping.length > 0) {
+        const allRowsAlreadyCommitted = overlapping.length === normalizedNewTransactions.length
+          && normalizedNewTransactions.every((item: any) => {
+            const existingItem = existingByOperationId.get(String(item?.operationId || ''));
+            return existingItem && sameReceiptTransaction(existingItem, item);
+          });
+        if (allRowsAlreadyCommitted) {
+          const balances = calculateBalances(existing);
+          const docIds = normalizedNewTransactions.map((item: any) => existingByOperationId.get(String(item?.operationId || ''))?.id).filter(Boolean);
+          if (receiptRef) {
+            tx.set(receiptRef, {
+              userId,
+              receiptId,
+              status: 'completed',
+              docIds,
+              operationIds: normalizedNewTransactions.map((item: any) => item.operationId),
+              itemCount: normalizedNewTransactions.length,
+              balances,
+              receiptMeta: opts.receiptMeta || null,
+              recoveredFromExistingTransactions: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          return { ok: true, docIds, balances, idempotentReplay: true };
+        }
+        return {
+          ok: false,
+          reason: 'RECEIPT_OPERATION_CONFLICT',
+          conflictingTransactionIds: overlapping.map((item: any) => item.id).filter(Boolean),
+        };
+      }
+    }
+
+    const projected = [...existing, ...normalizedNewTransactions.map((item: any) => ({ ...item, userId }))];
     const balances = calculateBalances(projected);
 
     if (!opts.riskConfirmed && balances.cash < -0.0001) return { ok: false, reason: 'NEGATIVE_CASH_RESULT', balances };
     if (!opts.riskConfirmed && balances.palPay < -0.0001) return { ok: false, reason: 'NEGATIVE_PALPAY_RESULT', balances };
 
     const docIds: string[] = [];
-    for (const item of newTransactions) {
+    for (const item of normalizedNewTransactions) {
       const ref = adminDb.collection('transactions').doc();
       docIds.push(ref.id);
       tx.set(ref, { ...item, userId, id: ref.id });
+    }
+    if (receiptRef) {
+      tx.set(receiptRef, {
+        userId,
+        receiptId,
+        status: 'completed',
+        docIds,
+        operationIds: normalizedNewTransactions.map((item: any) => item.operationId),
+        itemCount: normalizedNewTransactions.length,
+        balances,
+        receiptMeta: opts.receiptMeta || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
     return { ok: true, docIds, balances };
   });
