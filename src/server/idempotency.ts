@@ -10,6 +10,7 @@
  */
 import { createHash } from 'crypto';
 import { adminDb } from './firebaseAdmin';
+import { IDEMPOTENCY_COLLECTION } from './idempotencyConfig';
 import {
   IDEMPOTENCY_TTL_MS,
   buildCompletedIdempotencyRecord,
