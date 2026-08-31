@@ -1667,25 +1667,33 @@ export async function importUserData(payload: any, userId: string, token: string
     oldBudgets.docs.forEach((d: any) => batch.delete(d.ref));
     oldMemory.docs.forEach((d: any) => batch.delete(d.ref));
 
-    for (const prepared of preparedTransactions.entries) {
+    for (const prepared of transactionEntries) {
       const ref = prepared.sourceId
         ? firebaseAdminDb.collection('transactions').doc(prepared.sourceId)
         : firebaseAdminDb.collection('transactions').doc();
       batch.set(ref, { ...prepared.docData, sourceId: prepared.sourceId || undefined }, { merge: true });
     }
-    for (const [category, limit] of validBudgets) {
-      batch.set(firebaseAdminDb.collection('users').doc(userId).collection('budgets').doc(category), { category, limit }, { merge: true });
+    for (const prepared of budgetEntries) {
+      batch.set(
+        firebaseAdminDb.collection('users').doc(userId).collection('budgets').doc(prepared.sourceId),
+        prepared.docData,
+        { merge: true }
+      );
     }
-    for (const c of validCommitments) {
-      const ref = c.id ? firebaseAdminDb.collection('commitments').doc(c.id) : firebaseAdminDb.collection('commitments').doc();
-      batch.set(ref, { ...c, userId, id: ref.id }, { merge: true });
+    for (const prepared of commitmentEntries) {
+      const ref = prepared.sourceId ? firebaseAdminDb.collection('commitments').doc(prepared.sourceId) : firebaseAdminDb.collection('commitments').doc();
+      batch.set(ref, { ...prepared.docData, id: ref.id }, { merge: true });
     }
-    for (const r of validReports) {
-      const ref = r.id ? firebaseAdminDb.collection('reports').doc(r.id) : firebaseAdminDb.collection('reports').doc();
-      batch.set(ref, { ...r, userId, id: ref.id }, { merge: true });
+    for (const prepared of reportEntries) {
+      const ref = prepared.sourceId ? firebaseAdminDb.collection('reports').doc(prepared.sourceId) : firebaseAdminDb.collection('reports').doc();
+      batch.set(ref, { ...prepared.docData, id: ref.id }, { merge: true });
     }
-    for (const [key, value] of validMemory) {
-      batch.set(firebaseAdminDb.collection('users').doc(userId).collection('memory').doc(key), { value }, { merge: true });
+    for (const prepared of memoryEntries) {
+      batch.set(
+        firebaseAdminDb.collection('users').doc(userId).collection('memory').doc(prepared.sourceId),
+        prepared.docData,
+        { merge: true }
+      );
     }
 
     try {
