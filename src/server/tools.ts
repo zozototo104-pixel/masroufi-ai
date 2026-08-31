@@ -1947,7 +1947,7 @@ export async function updateTransaction(args: any, userId: string, token: string
   // The earlier projection remains useful for clarification/budget UX, but it is not
   // trusted as the final concurrency guard.
   const atomicResult = await atomicUpdateTransaction(userId, args.id, finalUpdates, { riskConfirmed: !!args.riskConfirmed });
-  if (!atomicResult.ok) {
+  if ('reason' in atomicResult) {
     if (atomicResult.reason === 'NEGATIVE_CASH_RESULT') {
       return { success: false, needsConfirmation: true, reason: atomicResult.reason, message: `هذا التعديل سيجعل رصيد الكاش سالباً (${atomicResult.balances?.cash} ₪). هل تريد المتابعة؟`, financialImpact: { cashAfter: atomicResult.balances?.cash } };
     }
