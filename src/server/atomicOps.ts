@@ -77,7 +77,7 @@ function sameReceiptTransaction(existing: FinancialTransactionInput, incoming: F
  */
 export async function atomicTransferMoney(
   userId: string,
-  newTx: any,
+  newTx: FinancialTransactionInput,
   opts: { riskConfirmed?: boolean } = {}
 ): Promise<{ ok: true; docId: string } | { ok: false; reason: string; available?: number }> {
   return adminDb.runTransaction(async (tx: any) => {
