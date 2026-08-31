@@ -589,14 +589,24 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
   if (type === 'expense') {
     const hasOriginalUserContext = Boolean(originalExpenseText);
-    const userProvidedPurchaseIdentity = cleanedExpenseIdentity.length >= 3;
-    const voiceOrApiProvidedIdentity = !hasOriginalUserContext && Boolean(explicitPurchaseItem || beneficiary || notes);
+    const userProvidedPurchaseIdentity = cleanedPurchaseItemIdentity.length >= 3;
+    const userProvidedPurposeIdentity = userProvidedBeneficiaryPurpose || Boolean(beneficiary);
+    const voiceOrApiProvidedIdentity = !hasOriginalUserContext && Boolean(explicitPurchaseItem || notes);
+    const voiceOrApiProvidedPurpose = !hasOriginalUserContext && Boolean(beneficiary);
     if (!userProvidedPurchaseIdentity && !voiceOrApiProvidedIdentity) {
       return {
         success: false,
         needsClarification: true,
         reason: 'MISSING_PURCHASE_ITEM',
-        message: 'قبل تسجيل أي مصروف لازم أعرف شو اشتريت بالضبط. قل لي مثلاً: خبز، دواء، ملابس للأولاد، تموين للبيت... بعدها أحدد أنا البند وهل هو ضروري أو كمالي وفق واقع غزة.'
+        message: 'قبل تسجيل أي مصروف لازم أعرف شو اشتريت بالضبط. قل لي مثلاً: خبز، دواء، ملابس، تموين... بعدها أحدد أنا البند وهل هو ضروري أو كمالي وفق واقع غزة.'
+      };
+    }
+    if (!userProvidedPurposeIdentity && !voiceOrApiProvidedPurpose) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_PURCHASE_BENEFICIARY_OR_PURPOSE',
+        message: 'ولمين أو لأي غرض هذا المصروف؟ للبيت، للأولاد، لزوجتك، للعلاج، للضيافة، للعمل، أو لنفسك؟ لا أسجل القيد بدون الغرض.'
       };
     }
   }
