@@ -149,7 +149,7 @@ export async function atomicAddTransaction(
       if (type === 'expense' && (account === 'cash' || account === 'palPay')) {
         affectedAccount = account;
       } else if (type === 'transfer' && newTx.fromAccount && newTx.fromAccount !== 'debt') {
-        affectedAccount = newTx.fromAccount;
+        affectedAccount = newTx.fromAccount === 'palPay' ? 'palPay' : 'cash';
       }
       if (affectedAccount) {
         const available = affectedAccount === 'cash' ? balances.cash : balances.palPay;
