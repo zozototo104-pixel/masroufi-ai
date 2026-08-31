@@ -546,11 +546,32 @@ If individual line items cannot be broken down, provide a single item in the ite
           riskConfirmed: Boolean(riskConfirmed),
           operationId: `receipt:${receiptId}:item:${index}:${paymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
         };
-        const result = await toolHandlers.add_transaction(txArgs, req.user.uid, token);
-        if (!result?.success) return res.json({ ...result, createdBeforeFailure: created });
-        created.push({ ...item, transactionId: result.transactionId, operationId: txArgs.operationId });
+        const validation = await toolHandlers.add_transaction({ ...txArgs, validateOnly: true }, req.user.uid, token);
+        if (!validation?.success || !validation?.preparedTransaction) return res.json(validation);
+        prepared.push({ item, operationId: txArgs.operationId, transaction: validation.preparedTransaction });
       }
-      res.json({ success: true, createdCount: created.length, created });
+
+      const committed = await atomicAddTransactions(
+        req.user.uid,
+        prepared.map((row) => row.transaction),
+        { riskConfirmed: Boolean(riskConfirmed) },
+      );
+      if ('reason' in committed) {
+        return res.json({
+          success: false,
+          needsConfirmation: committed.reason === 'NEGATIVE_CASH_RESULT' || committed.reason === 'NEGATIVE_PALPAY_RESULT',
+          reason: committed.reason,
+          balances: committed.balances,
+          message: 'لم يتم تسجيل أي بند من الفاتورة لأن العملية كاملة لم تجتز فحص الرصيد بأمان.',
+        });
+      }
+
+      const created = prepared.map((row, index) => ({
+        ...row.item,
+        transactionId: committed.docIds[index],
+        operationId: row.operationId,
+      }));
+      res.json({ success: true, createdCount: created.length, created, atomic: true });
     } catch (e: any) {
       console.error('Record scanned receipt error:', e.message);
       res.status(500).json({ success: false, error: e.message });
