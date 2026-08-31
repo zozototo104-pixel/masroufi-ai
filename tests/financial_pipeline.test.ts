@@ -54,7 +54,8 @@ test('PIPE-06: offline financial commands go through /api/command only', async (
 test('PIPE-07: income nature must be user-stated, not model-inferred from generated notes', async () => {
   const server = await src('server.ts');
   const tools = await src('src/server/tools.ts');
-  assert.ok(server.includes('userText: message'), 'original user message must be passed into tool validation');
+  assert.ok(server.includes('currentUserText: message'), 'current user message must be preserved in financial context');
+  assert.ok(server.includes('userText: recentUserConversationText'), 'conversation-aware user text must be passed into tool validation');
   assert.ok(tools.includes('originalUserIncomeText'), 'income validation must inspect original user text');
   assert.ok(tools.includes('POSSIBLE_LOAN_NOT_INCOME'), 'possible loan must not be silently recorded as income');
 });
