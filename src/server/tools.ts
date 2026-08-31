@@ -1967,7 +1967,7 @@ function calculateOpenCreditorDebts(docs: any[]) {
 }
 
 export async function payDebt(args:any,userId:string,token:string){
- const adminDb=getDb(token), amount=Math.abs(Number(args.amount)||0); if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'}; let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');if(fromAccount==='debt')fromAccount='cash';const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
+ const adminDb=getDb(token), amount=parsePositiveFinancialAmount(args.amount); if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'}; let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');if(fromAccount==='debt')fromAccount='cash';const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
  const snap=await adminDb.collection('transactions').where('userId','==',userId).get();
  // V6.2 (FINDING-07): refuse debt payment on partial state — could produce wrong creditor/debt math.
  if ((snap as any).partial === true) {
