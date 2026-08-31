@@ -109,5 +109,15 @@ test('VOICE-04: Custom suppresses Gemini native audio and uses cloned-voice synt
 test('VOICE-05: interruption invalidates late personal-voice audio', async () => {
   const server = await src('server.ts');
   assert.ok(server.includes('customVoiceGeneration++'), 'custom voice generation must be invalidated on interruption');
-  assert.ok(server.includes('generation === customVoiceGeneration'), 'late TTS audio must be discarded after interruption');
+  assert.ok(server.includes('generation !== customVoiceGeneration || !isActive'), 'streaming TTS must stop relaying after interruption');
+});
+
+test('VOICE-06: personal voice TTS is streamed and mobile barge-in resists speaker echo', async () => {
+  const server = await src('server.ts');
+  const voice = await src('src/server/customVoice.ts');
+  const live = await src('src/lib/useGeminiLive.ts');
+  assert.ok(voice.includes('AsyncGenerator<Uint8Array>'), 'provider audio must be exposed as a stream');
+  assert.ok(server.includes('for await (const pcmChunk of streamCustomVoiceAudio'), 'server must relay provider PCM incrementally');
+  assert.ok(live.includes('rms > 0.07'), 'barge-in must reject low-level speaker echo');
+  assert.ok(live.includes('userSpeechCounter >= 4'), 'barge-in must require sustained speech');
 });
