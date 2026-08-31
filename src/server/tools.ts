@@ -326,7 +326,7 @@ export async function saveMarketOffer(args: any, userId: string, token: string) 
     phone: args.phone || args.whatsapp || '',
     price,
     currency: args.currency || 'ILS',
-    normalizedPriceIls: normalizeCurrencyToIls(price, args.currency || 'ILS') || price,
+    normalizedPriceIls: normalizeCurrencyToIls(price, args.currency || 'ILS') || undefined,
     availability: args.availability || 'unknown',
     source: args.source || 'إدخال المستخدم',
     sourceUrl: args.sourceUrl || '',
