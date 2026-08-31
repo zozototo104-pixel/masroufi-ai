@@ -530,8 +530,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: addTransaction", args);
   
-  const rawAmount = typeof args.amount === 'string' ? parseFloat(args.amount) : Number(args.amount);
-  const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+  const amount = parseAbsoluteFinancialAmount(args.amount);
 
   const textToCheck = `${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''}`.toLowerCase();
 
