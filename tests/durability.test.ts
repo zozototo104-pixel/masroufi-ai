@@ -84,3 +84,32 @@ test('DUR-07: import/export round-trip preserves financial state — HF-5 fix', 
   assert.ok(src.includes("if (docData.account === 'debt' && !docData.creditor && docData.merchant)"),
     'creditor derived from merchant when missing on debt transactions');
 });
+
+test('DUR-08: chat cannot export server-local FakeDb pending operations to legacy client queue', async () => {
+  const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  const appSrc = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
+  assert.equal(serverSrc.includes("const { getPendingOps } = await import('./src/server/fakeDb')"), false,
+    'chat response must not bridge FakeDb pending state to the browser');
+  assert.equal(appSrc.includes('data.pendingOps && data.pendingOps.length > 0'), false,
+    'client chat path must not ingest server pending state into a legacy queue');
+});
+
+test('DUR-09: legacy pending financial documents are quarantined, never guessed as ADD_TRANSACTION', async () => {
+  const queueSrc = await readFile(join(process.cwd(), 'src/lib/offlineQueue.ts'), 'utf8');
+  assert.ok(queueSrc.includes('UNSAFE_LEGACY_FINANCIAL_REPLAY_DISABLED'),
+    'legacy financial rows must be quarantined');
+  assert.equal(queueSrc.includes("commandType: 'ADD_TRANSACTION' as FinancialCommandType"), false,
+    'migration must not guess the original financial command');
+});
+
+test('DUR-10: transaction delete cannot report success when cloud durability is pending', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(src.includes("reason: 'DELETE_NOT_DURABLY_COMMITTED'"),
+    'deleteTransaction must fail closed when FakeDb reports pending durability');
+});
+
+test('DUR-11: transaction update refuses balance-sensitive decisions on partial state', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(src.includes("message: 'لا يمكن تعديل العملية الآن لأن قراءة السحابة جزئية، ولا أستطيع ضمان الرصيد الناتج بأمان.'"),
+    'updateTransaction must refuse partial-state balance computation');
+});
