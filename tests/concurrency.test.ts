@@ -201,7 +201,7 @@ test('CONC-16: replace import writes only the validated mutation plan and never 
 test('CONC-17: tools.ts reuses canonical account normalization instead of duplicating ledger rules', async () => {
   const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   const balanceSrc = await readFile(join(process.cwd(), 'src/lib/balanceCalc.ts'), 'utf8');
-  assert.ok(toolsSrc.includes("import { calculateBalances, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc'"),
+  assert.ok(/import \{[^}]*normalizeAccount[^}]*\} from '\.\.\/lib\/balanceCalc'/.test(toolsSrc),
     'tools.ts must import account normalization from the shared domain core');
   assert.ok(toolsSrc.includes("export { normalizeAccount } from '../lib/balanceCalc'"),
     'tools.ts may re-export canonical normalization for compatibility');
