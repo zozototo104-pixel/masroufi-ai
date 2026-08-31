@@ -89,12 +89,22 @@ test('TOOL-02/03: addTransaction debt guard present (HF-7)', async () => {
     'debt guard triggers when ratio > 1.0 OR amount > 5000');
 });
 
-test('TOOL-04: ambiguous creditor asks clarification (payDebt)', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('AMBIGUOUS_CREDITOR'),
-    'payDebt must return AMBIGUOUS_CREDITOR when multiple creditors exist and none specified');
-  assert.ok(src.includes('options:debts.map'),
-    'payDebt must return options list for user to choose');
+test('TOOL-04: ambiguous creditor asks clarification (payDebt)', () => {
+  const selection = selectOpenCreditorDebt({
+    amount: 200,
+    debts: [
+      { key: 'ahmed', creditor: 'Ahmed', remaining: 1000 },
+      { key: 'mohammed', creditor: 'Mohammed', remaining: 500 },
+    ],
+  });
+  assert.equal(selection.ok, false);
+  if (!selection.ok) {
+    assert.equal(selection.reason, 'AMBIGUOUS_CREDITOR');
+    assert.deepEqual(selection.options, [
+      { creditor: 'Ahmed', remaining: 1000 },
+      { creditor: 'Mohammed', remaining: 500 },
+    ]);
+  }
 });
 
 test('TOOL-05: smart delete asks confirmation even with single match (MF-6)', async () => {
