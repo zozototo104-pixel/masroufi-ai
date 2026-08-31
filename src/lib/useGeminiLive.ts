@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { pcmToBase64, base64ToPcm, createAudioBuffer } from './audioUtils';
 
 export function useGeminiLive(settings?: { voice: string; persona: string; apiKey: string; idToken: string | null; userName: string; aiName: string; relationship?: string }) {
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
