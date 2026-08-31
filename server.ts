@@ -946,6 +946,7 @@ ${relationshipContext}
             return { id: call.id, name: call.name, response: responseData };
           })
         );
+        executedFunctionResponses = functionResponses as any[];
         
         const deterministicFinancialReply = buildDeterministicFinancialReply(functionResponses as any);
         if (deterministicFinancialReply) {
