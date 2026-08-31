@@ -478,21 +478,16 @@ export class FakeBatch {
   constructor(token: string) { this.token = token; }
   set(doc: FakeDoc, data: any) {
     queryCache.clear();
-    const memKey = getDocKey(doc.collectionPath, doc.id);
-    memoryStore.set(memKey, { collectionPath: doc.collectionPath, id: doc.id, data, updatedAt: Date.now() });
     this.writes.push({ type: 'set', doc, data });
     return this;
   }
   delete(doc: FakeDoc) {
     queryCache.clear();
-    const memKey = getDocKey(doc.collectionPath, doc.id);
-    memoryStore.set(memKey, { collectionPath: doc.collectionPath, id: doc.id, data: { deleted: true }, updatedAt: Date.now(), syncedToCloud: false });
     this.writes.push({ type: 'delete', doc });
     return this;
   }
-  async commit() {
+  async commit(): Promise<WriteResult> {
     queryCache.clear();
-    saveMemoryStoreToDisk();
     try {
       const batch = adminDb.batch();
       for (const w of this.writes) {
@@ -501,8 +496,31 @@ export class FakeBatch {
         if (w.type === 'delete') batch.delete(ref);
       }
       await batch.commit();
-    } catch (e) {
-      console.warn("Admin batch commit fallback:", e);
+
+      // Only mutate the local mirror after Firestore has atomically committed.
+      for (const w of this.writes) {
+        const memKey = getDocKey(w.doc.collectionPath, w.doc.id);
+        if (w.type === 'delete') {
+          memoryStore.delete(memKey);
+        } else {
+          const existing = memoryStore.get(memKey);
+          memoryStore.set(memKey, {
+            collectionPath: w.doc.collectionPath,
+            id: w.doc.id,
+            data: { ...(existing?.data || {}), ...w.data },
+            updatedAt: Date.now(),
+            syncedToCloud: true,
+          });
+        }
+      }
+      saveMemoryStoreToDisk();
+      return { durability: 'committed', synced: true, pending: false };
+    } catch (e: any) {
+      const error = e?.message || 'Firestore batch commit failed';
+      console.warn('Admin batch commit failed:', e);
+      // A batch is atomic in Firestore. Do not manufacture a local "success"
+      // or replay individual financial writes after an unknown/failed commit.
+      return { durability: 'failed', synced: false, pending: false, error };
     }
   }
 }
