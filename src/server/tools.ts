@@ -1721,9 +1721,9 @@ export async function importUserData(payload: any, userId: string, token: string
     };
   }
 
-  // Merge mode: write only transactions that passed the full preflight validator.
+  // Merge mode: write only records that passed the full preflight validator.
   let importedTxCount = 0;
-  for (const prepared of preparedTransactions.entries) {
+  for (const prepared of transactionEntries) {
     const docRef = prepared.sourceId ? adminDb.collection('transactions').doc(prepared.sourceId) : adminDb.collection('transactions').doc();
     const writeResult = await docRef.set({ ...prepared.docData, sourceId: prepared.sourceId || undefined });
     if (writeResult?.pending || writeResult?.synced === false) {
