@@ -19,10 +19,30 @@
  */
 import { createHash } from 'crypto';
 import { adminDb } from './firebaseAdmin';
+import { parsePositiveFinancialAmount } from '../lib/amount';
 import { calculateBalances, calculateCreditorRemaining } from '../lib/balanceCalc';
 
-function plainTransactions(docs: any[]): any[] {
-  return (docs || []).map((doc: any) => typeof doc?.data === 'function' ? { id: doc.id, ...doc.data() } : doc);
+type FinancialTransactionInput = Record<string, unknown> & {
+  id?: unknown;
+  userId?: unknown;
+  amount?: unknown;
+  type?: unknown;
+  account?: unknown;
+  fromAccount?: unknown;
+  toAccount?: unknown;
+  operationId?: unknown;
+  receiptId?: unknown;
+};
+
+type BalanceSnapshot = { cash: number; palPay: number; debt: number; total: number };
+
+type FirestoreDocLike = {
+  id?: string;
+  data?: () => Record<string, unknown>;
+};
+
+function plainTransactions(docs: FirestoreDocLike[]): FinancialTransactionInput[] {
+  return (docs || []).map((doc) => typeof doc?.data === 'function' ? { id: doc.id, ...doc.data() } : doc as FinancialTransactionInput);
 }
 
 function stableReceiptDocId(userId: string, receiptId: string): string {
