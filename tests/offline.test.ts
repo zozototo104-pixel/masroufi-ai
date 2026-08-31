@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { buildCompletedIdempotencyRecord, decideIdempotencyClaim } from '../src/server/idempotencyCore.ts';
 
 test('OFF-01: FakeDb.set returns durability=pending on Firestore failure', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/fakeDb.ts'), 'utf8');
