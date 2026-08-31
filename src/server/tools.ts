@@ -904,6 +904,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     success: true,
     transactionId: actualTxId,
     operationId,
+    transaction: { id: actualTxId, ...tx },
     currentBalances: balances.balances,
     // V6: explicit durability flag. UI/AI MUST inspect this.
     // Important: do NOT conflate a partial balance read with a pending write.
