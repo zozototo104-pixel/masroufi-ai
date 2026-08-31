@@ -25,11 +25,19 @@ export interface AuthResult {
   error?: string;
 }
 
+export type IdTokenVerifier = (token: string) => Promise<{ uid?: string; email?: string }>;
+
 /**
  * Verify a Bearer token. Returns AuthResult.ok=false on any failure.
  * Never falls back to a default user.
+ *
+ * The verifier dependency is injectable for behavioral tests; production callers
+ * use Firebase Admin verifyIdToken by default.
  */
-export async function verifyBearer(authHeader: string | undefined): Promise<AuthResult> {
+export async function verifyBearer(
+  authHeader: string | undefined,
+  verifyIdToken: IdTokenVerifier = (token) => adminAuth.verifyIdToken(token),
+): Promise<AuthResult> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return { ok: false, status: 401, error: 'Missing or malformed Authorization header' };
   }
