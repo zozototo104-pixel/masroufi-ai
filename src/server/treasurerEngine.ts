@@ -1,18 +1,20 @@
+type InputScalar = string | number | boolean | null | undefined;
+
 export type TransactionLike = Record<string, unknown> & {
-  id?: unknown;
-  amount?: unknown;
-  type?: unknown;
-  account?: unknown;
-  fromAccount?: unknown;
-  toAccount?: unknown;
-  transactionType?: unknown;
-  date?: unknown;
-  createdAt?: unknown;
-  category?: unknown;
-  subcategory?: unknown;
-  merchant?: unknown;
-  necessity?: unknown;
-  notes?: unknown;
+  id?: InputScalar;
+  amount?: InputScalar;
+  type?: InputScalar;
+  account?: InputScalar;
+  fromAccount?: InputScalar;
+  toAccount?: InputScalar;
+  transactionType?: InputScalar;
+  date?: InputScalar;
+  createdAt?: InputScalar;
+  category?: InputScalar;
+  subcategory?: InputScalar;
+  merchant?: InputScalar;
+  necessity?: InputScalar;
+  notes?: InputScalar;
 };
 
 type TreasurerReportArgs = Record<string, unknown> & {
