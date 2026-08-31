@@ -2684,7 +2684,7 @@ export async function createSavingsGoal(args: any, userId: string, token: string
 export async function addSavingsContribution(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const id = String(args.id || args.goalId || '').trim();
-  const amount = Math.abs(Number(args.amount) || 0);
+  const amount = parsePositiveFinancialAmount(args.amount);
   if (!id) return { success: false, needsClarification: true, reason: 'MISSING_SAVINGS_GOAL_ID', message: 'لأي هدف ادخار أضيف هذا المبلغ؟' };
   if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_SAVINGS_AMOUNT', message: 'كم المبلغ الذي تريد ادخاره؟' };
   const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
