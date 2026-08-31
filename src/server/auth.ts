@@ -50,7 +50,7 @@ export async function verifyBearer(
     return { ok: false, status: 401, error: 'Unsigned legacy tokens are no longer accepted' };
   }
   try {
-    const decoded = await adminAuth.verifyIdToken(token);
+    const decoded = await verifyIdToken(token);
     if (!decoded?.uid) {
       return { ok: false, status: 401, error: 'Token has no uid' };
     }
