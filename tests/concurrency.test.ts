@@ -7,6 +7,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  PENDING_STALE_MS,
+  buildCompletedIdempotencyRecord,
+  buildIndeterminateIdempotencyRecord,
+  buildPendingIdempotencyRecord,
+  decideIdempotencyClaim,
+} from '../src/server/idempotencyCore.ts';
 
 test('CONC-01: cash expense uses atomicAddTransaction (atomic guard present)', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
