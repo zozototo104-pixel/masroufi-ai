@@ -315,11 +315,11 @@ export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions:
   const paidByPalPay = expenses.filter(t => t.account === 'palPay').reduce((s, t) => s + (Number(t.amount) || 0), 0);
   const onDebt = debtPurchases.reduce((s, t) => s + (Number(t.amount) || 0), 0);
 
-  const byMonth = new Map<string, any>();
-  const byCategory = new Map<string, any>();
-  const bySubcategory = new Map<string, any>();
-  const byMerchant = new Map<string, any>();
-  const byNecessity = new Map<string, any>();
+  const byMonth = new Map<string, MonthRow>();
+  const byCategory = new Map<string, CategoryRow>();
+  const bySubcategory = new Map<string, SubcategoryRow>();
+  const byMerchant = new Map<string, MerchantRow>();
+  const byNecessity = new Map<string, NecessityRow>();
 
   for (const t of txs) {
     const amount = Number(t.amount) || 0;
