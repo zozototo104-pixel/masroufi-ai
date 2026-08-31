@@ -200,14 +200,20 @@ export function classifyMarketScope(title: string = '', uri: string = '', locati
 }
 
 export function normalizeCurrencyToIls(price: number, currency: string): number | null {
-  const cur = String(currency || 'ILS').toUpperCase();
+  const cur = normalizeCurrencyCode(currency || 'ILS');
   const amount = Number(price) || 0;
   if (amount <= 0) return null;
-  // Approximate reference rates for market comparison only. Live local search is still the source of truth.
-  const fx: Record<string, number> = { ILS: 1, NIS: 1, USD: 3.7, JOD: 5.2 };
-  const rate = fx[cur];
-  if (!rate) return null;
-  return Math.round(amount * rate * 100) / 100;
+  if (cur === 'ILS' || cur === 'NIS') return Math.round(amount * 100) / 100;
+  const rate = fxRatesToIlsCache?.rates?.[cur];
+  if (!Number.isFinite(rate) || Number(rate) <= 0) return null;
+  return Math.round(amount * Number(rate) * 100) / 100;
+}
+
+function hasUnconvertedForeignCurrency(results: MarketResult[]): boolean {
+  return results.some((r) => {
+    const cur = normalizeCurrencyCode(r.currency || 'ILS');
+    return cur !== 'ILS' && cur !== 'NIS' && !Number(r.normalizedPriceIls || 0);
+  });
 }
 
 export function computeNormalizedPriceRange(results: MarketResult[]): { min: number; max: number; median: number; currency: string } | null {
