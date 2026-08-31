@@ -2254,8 +2254,8 @@ export async function deleteTransaction(args: any, userId: string, token: string
     userTxs = userTxs.filter((t: any) => normalizeAccount(t.account) === targetAccount || normalizeAccount(t.fromAccount) === targetAccount || normalizeAccount(t.toAccount) === targetAccount);
   }
 
-  if (targetAmount && !isNaN(targetAmount)) {
-    userTxs = userTxs.filter((t: any) => Math.abs(Number(t.amount) - targetAmount) < 0.01);
+  if (targetAmount) {
+    userTxs = userTxs.filter((t: any) => Math.abs(parsePositiveFinancialAmount(t.amount) - targetAmount) < 0.01);
   }
 
   if (args.category) {
