@@ -396,10 +396,10 @@ export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions:
       status: g.status || 'active'
     })),
     charts: {
-      categoryPie: categoryRows.map((r: any) => ({ label: r.category, value: r.total })),
-      monthlyCashflow: monthlyRows.map((r: any) => ({ month: r.month, income: r.income, expense: r.expense, net: r.netCashFlow })),
-      subcategoryBar: Array.from(bySubcategory.values()).sort((a, b) => b.total - a.total).slice(0, 20).map((r: any) => ({ label: `${r.category}/${r.subcategory}`, value: r.total })),
-      merchantBar: Array.from(byMerchant.values()).sort((a, b) => b.total - a.total).slice(0, 15).map((r: any) => ({ label: r.merchant, value: r.total }))
+      categoryPie: categoryRows.map((r) => ({ label: r.category, value: r.total })),
+      monthlyCashflow: monthlyRows.map((r) => ({ month: r.month, income: r.income, expense: r.expense, net: r.netCashFlow })),
+      subcategoryBar: Array.from(bySubcategory.values()).sort((a, b) => b.total - a.total).slice(0, 20).map((r) => ({ label: `${r.category}/${r.subcategory}`, value: r.total })),
+      merchantBar: Array.from(byMerchant.values()).sort((a, b) => b.total - a.total).slice(0, 15).map((r) => ({ label: r.merchant, value: r.total }))
     },
     treasurerNotes: buildTreasurerNotes({ totalIncome, totalExpense, net, savingsRate, overspending, nearLimits, categoryRows })
   };
