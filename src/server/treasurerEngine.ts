@@ -48,13 +48,14 @@ type SummaryRow = Record<string, unknown> & {
   count: number;
 };
 
-type MonthRow = SummaryRow & {
+type MonthRow = {
   month: string;
   income: number;
   expense: number;
   transfer: number;
   debtPurchases: number;
   netCashFlow: number;
+  count: number;
 };
 
 type CategoryRow = SummaryRow & {
