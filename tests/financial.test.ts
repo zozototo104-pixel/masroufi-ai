@@ -167,13 +167,13 @@ test('FIN-13: concurrent transfer cannot overspend — Firestore transaction usa
   assert.ok(src.includes('runTransaction'), 'idempotency layer must use runTransaction');
 });
 
-test('FIN-14: duplicate operationId executes once — idempotency layer', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/idempotency.ts'), 'utf8'
-  ));
-  assert.ok(src.includes("status: 'pending'"), 'idempotency records pending status');
-  assert.ok(src.includes("status: 'completed'"), 'idempotency records completed status');
-  assert.ok(src.includes("kind === 'cache_hit'"), 'cache_hit branch returns cached result');
+test('FIN-14: duplicate operationId returns the completed result without re-execution', () => {
+  const now = Date.now();
+  const expected = { success: true, id: 'tx-1' };
+  const completed = buildCompletedIdempotencyRecord('u1', 'op-fin-14', expected, now);
+  const decision = decideIdempotencyClaim(completed, now + 1);
+  assert.equal(decision.action, 'return');
+  if (decision.action === 'return') assert.deepEqual(decision.result, expected);
 });
 
 test('FIN-15: duplicate after restart executes once — persistent idempotency', async () => {
