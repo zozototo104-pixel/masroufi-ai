@@ -83,6 +83,16 @@ test('CONC-08: atomicOps has no circular dependency on tools.ts', async () => {
     'atomic financial operations must use the shared financial domain core');
 });
 
+test('CONC-08B: payDebt open-creditor list delegates debt math to the shared domain core', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(src.includes('calculateBreakdown(transactions).creditorDebts'),
+    'calculateOpenCreditorDebts must derive creditor debt amounts from the shared domain core');
+  assert.equal(src.includes("if(tx?.type==='expense'&&normalizeAccount(tx?.account)==='debt')d=amount"), false,
+    'tools.ts must not keep compressed duplicate creditor delta rules');
+  assert.equal(src.includes("if(tx?.type==='transfer'&&normalizeAccount(tx?.toAccount)==='debt')d=-amount"), false,
+    'tools.ts must not duplicate transfer debt-payment math');
+});
+
 test('CONC-09: stale pending idempotency keys never auto-reexecute financial mutations', () => {
   const now = 1_000_000;
   const fresh = buildPendingIdempotencyRecord('u1', 'operation-123', now - 1_000);
