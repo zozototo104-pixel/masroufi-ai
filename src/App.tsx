@@ -975,6 +975,18 @@ export default function App() {
       
       if (data.success && data.text) {
         setChatMessages(prev => [...prev, { role: 'ai', text: data.text }]);
+        if (Array.isArray(data.committedTransactions) && data.committedTransactions.length > 0) {
+          setIsOfflineMode(false);
+          setTransactions(prev => {
+            const byId = new Map((Array.isArray(prev) ? prev : []).map((t: any) => [t.id, t]));
+            for (const tx of data.committedTransactions) {
+              if (tx?.id) byId.set(tx.id, tx);
+            }
+            const merged = Array.from(byId.values()).filter((t: any) => !t.deleted);
+            idbSet('lkgs_transactions', merged).catch(() => {});
+            return merged.sort((a: any, b: any) => String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || '')));
+          });
+        }
         if (data.pendingOps && data.pendingOps.length > 0) {
           let cachedOps = (await idbGet<any[]>('masrofi_pending_ops')) || [];
           if (!Array.isArray(cachedOps)) cachedOps = [];
