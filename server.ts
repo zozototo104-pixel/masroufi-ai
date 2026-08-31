@@ -575,7 +575,21 @@ If individual line items cannot be broken down, provide a single item in the ite
         transactionId: committed.docIds[index],
         operationId: row.operationId,
       }));
-      res.json({ success: true, createdCount: created.length, created, atomic: true });
+      if (!(committed as any).idempotentReplay) {
+        await Promise.all(prepared.map((row, index) => recordTransactionCommittedSideEffects(
+          req.user.uid,
+          committed.docIds[index],
+          { ...row.transaction, receiptId },
+          adminDb,
+        )));
+      }
+      res.json({
+        success: true,
+        createdCount: created.length,
+        created,
+        atomic: true,
+        idempotentReplay: Boolean((committed as any).idempotentReplay),
+      });
     } catch (e: any) {
       console.error('Record scanned receipt error:', e.message);
       res.status(500).json({ success: false, error: e.message });
