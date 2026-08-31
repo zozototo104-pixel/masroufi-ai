@@ -1395,6 +1395,194 @@ function prepareImportedFinancialTransactions(transactions: any[], userId: strin
   return { ok: true, entries };
 }
 
+type PreparedImportedNamedRecord = { sourceId: string; docData: any };
+
+type ImportSectionValidationFailure = {
+  section: string;
+  index: string | number;
+  code: string;
+  message: string;
+};
+
+function isPlainBackupObject(value: any): boolean {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function isSafeBackupDocId(value: string): boolean {
+  return Boolean(value && !value.includes('/'));
+}
+
+function prepareImportedBudgets(rawBudgets: any): {
+  ok: true;
+  entries: PreparedImportedNamedRecord[];
+} | {
+  ok: false;
+  failures: ImportSectionValidationFailure[];
+} {
+  if (rawBudgets === undefined || rawBudgets === null) return { ok: true, entries: [] };
+  if (!isPlainBackupObject(rawBudgets)) {
+    return { ok: false, failures: [{ section: 'budgets', index: '*', code: 'INVALID_BUDGETS_SECTION', message: 'قسم الموازنات في النسخة الاحتياطية يجب أن يكون كائناً.' }] };
+  }
+  const entries: PreparedImportedNamedRecord[] = [];
+  const failures: ImportSectionValidationFailure[] = [];
+  for (const [rawCategory, rawLimit] of Object.entries(rawBudgets)) {
+    const category = String(rawCategory || '').trim();
+    const limit = typeof rawLimit === 'string' ? Number(rawLimit.trim()) : Number(rawLimit);
+    if (!isSafeBackupDocId(category)) {
+      failures.push({ section: 'budgets', index: rawCategory, code: 'INVALID_BUDGET_CATEGORY', message: 'اسم بند الموازنة غير صالح للاستعادة.' });
+      continue;
+    }
+    if (!Number.isFinite(limit) || limit <= 0) {
+      failures.push({ section: 'budgets', index: rawCategory, code: 'INVALID_BUDGET_LIMIT', message: 'حد الموازنة المستورد يجب أن يكون رقماً موجباً.' });
+      continue;
+    }
+    entries.push({ sourceId: category, docData: { category, limit, updatedAt: new Date().toISOString() } });
+  }
+  if (failures.length > 0) return { ok: false, failures };
+  return { ok: true, entries };
+}
+
+function prepareImportedCommitments(rawCommitments: any[], userId: string): {
+  ok: true;
+  entries: PreparedImportedNamedRecord[];
+} | {
+  ok: false;
+  failures: ImportSectionValidationFailure[];
+} {
+  if (rawCommitments === undefined || rawCommitments === null) return { ok: true, entries: [] };
+  if (!Array.isArray(rawCommitments)) {
+    return { ok: false, failures: [{ section: 'commitments', index: '*', code: 'INVALID_COMMITMENTS_SECTION', message: 'قسم الالتزامات في النسخة الاحتياطية يجب أن يكون مصفوفة.' }] };
+  }
+  const entries: PreparedImportedNamedRecord[] = [];
+  const failures: ImportSectionValidationFailure[] = [];
+  const seenIds = new Set<string>();
+  for (const [index, c] of rawCommitments.entries()) {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) {
+      failures.push({ section: 'commitments', index, code: 'INVALID_COMMITMENT_OBJECT', message: 'سجل الالتزام ليس كائناً صالحاً.' });
+      continue;
+    }
+    const sourceId = String(c.id || '').trim();
+    if (sourceId) {
+      if (!isSafeBackupDocId(sourceId)) {
+        failures.push({ section: 'commitments', index, code: 'INVALID_COMMITMENT_ID', message: 'معرف الالتزام غير صالح للاستعادة.' });
+        continue;
+      }
+      if (seenIds.has(sourceId)) {
+        failures.push({ section: 'commitments', index, code: 'DUPLICATE_COMMITMENT_ID', message: `معرف الالتزام مكرر داخل النسخة الاحتياطية: ${sourceId}` });
+        continue;
+      }
+      seenIds.add(sourceId);
+    }
+    const title = String(c.title || '').trim();
+    const amount = typeof c.amount === 'string' ? Number(c.amount.trim()) : Number(c.amount);
+    if (!title) {
+      failures.push({ section: 'commitments', index, code: 'MISSING_COMMITMENT_TITLE', message: 'كل التزام مستورد يجب أن يحتوي عنواناً.' });
+      continue;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      failures.push({ section: 'commitments', index, code: 'INVALID_COMMITMENT_AMOUNT', message: 'كل التزام مستورد يجب أن يحتوي مبلغاً موجباً صالحاً.' });
+      continue;
+    }
+    entries.push({
+      sourceId,
+      docData: {
+        ...c,
+        userId,
+        title,
+        amount: Math.abs(amount),
+        dueDate: c.dueDate || new Date().toISOString(),
+        category: c.category || 'أقساط والتزامات',
+        notes: c.notes || '',
+        createdAt: c.createdAt || new Date().toISOString(),
+      }
+    });
+  }
+  if (failures.length > 0) return { ok: false, failures };
+  return { ok: true, entries };
+}
+
+function prepareImportedReports(rawReports: any[], userId: string): {
+  ok: true;
+  entries: PreparedImportedNamedRecord[];
+} | {
+  ok: false;
+  failures: ImportSectionValidationFailure[];
+} {
+  if (rawReports === undefined || rawReports === null) return { ok: true, entries: [] };
+  if (!Array.isArray(rawReports)) {
+    return { ok: false, failures: [{ section: 'reports', index: '*', code: 'INVALID_REPORTS_SECTION', message: 'قسم التقارير في النسخة الاحتياطية يجب أن يكون مصفوفة.' }] };
+  }
+  const entries: PreparedImportedNamedRecord[] = [];
+  const failures: ImportSectionValidationFailure[] = [];
+  const seenIds = new Set<string>();
+  for (const [index, r] of rawReports.entries()) {
+    if (!r || typeof r !== 'object' || Array.isArray(r)) {
+      failures.push({ section: 'reports', index, code: 'INVALID_REPORT_OBJECT', message: 'سجل التقرير ليس كائناً صالحاً.' });
+      continue;
+    }
+    const sourceId = String(r.id || '').trim();
+    if (sourceId) {
+      if (!isSafeBackupDocId(sourceId)) {
+        failures.push({ section: 'reports', index, code: 'INVALID_REPORT_ID', message: 'معرف التقرير غير صالح للاستعادة.' });
+        continue;
+      }
+      if (seenIds.has(sourceId)) {
+        failures.push({ section: 'reports', index, code: 'DUPLICATE_REPORT_ID', message: `معرف التقرير مكرر داخل النسخة الاحتياطية: ${sourceId}` });
+        continue;
+      }
+      seenIds.add(sourceId);
+    }
+    const title = String(r.title || '').trim();
+    if (!title) {
+      failures.push({ section: 'reports', index, code: 'MISSING_REPORT_TITLE', message: 'كل تقرير مستورد يجب أن يحتوي عنواناً.' });
+      continue;
+    }
+    entries.push({
+      sourceId,
+      docData: {
+        ...r,
+        userId,
+        title,
+        category: r.category || 'all',
+        date: r.date || r.generatedAt || new Date().toISOString(),
+        createdAt: r.createdAt || new Date().toISOString(),
+        transactions: Array.isArray(r.transactions) ? r.transactions : [],
+      }
+    });
+  }
+  if (failures.length > 0) return { ok: false, failures };
+  return { ok: true, entries };
+}
+
+function prepareImportedMemory(rawMemory: any): {
+  ok: true;
+  entries: PreparedImportedNamedRecord[];
+} | {
+  ok: false;
+  failures: ImportSectionValidationFailure[];
+} {
+  if (rawMemory === undefined || rawMemory === null) return { ok: true, entries: [] };
+  if (!isPlainBackupObject(rawMemory)) {
+    return { ok: false, failures: [{ section: 'memory', index: '*', code: 'INVALID_MEMORY_SECTION', message: 'قسم الذاكرة في النسخة الاحتياطية يجب أن يكون كائناً.' }] };
+  }
+  const entries: PreparedImportedNamedRecord[] = [];
+  const failures: ImportSectionValidationFailure[] = [];
+  for (const [rawKey, rawValue] of Object.entries(rawMemory)) {
+    const key = String(rawKey || '').trim();
+    if (!isSafeBackupDocId(key)) {
+      failures.push({ section: 'memory', index: rawKey, code: 'INVALID_MEMORY_KEY', message: 'مفتاح الذاكرة غير صالح للاستعادة.' });
+      continue;
+    }
+    if (typeof rawValue !== 'string' || !rawValue.trim()) {
+      failures.push({ section: 'memory', index: rawKey, code: 'INVALID_MEMORY_VALUE', message: 'قيمة الذاكرة المستوردة يجب أن تكون نصاً غير فارغ.' });
+      continue;
+    }
+    entries.push({ sourceId: key, docData: { value: rawValue, updatedAt: new Date().toISOString() } });
+  }
+  if (failures.length > 0) return { ok: false, failures };
+  return { ok: true, entries };
+}
+
 export async function importUserData(payload: any, userId: string, token: string, mode: 'merge' | 'replace' = 'merge') {
   const adminDb = getDb(token);
   console.log(`TOOL CALL: importUserData for ${userId} with mode=${mode}`);
