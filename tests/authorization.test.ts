@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { selectOpenCreditorDebt } from '../src/lib/debtSelection.ts';
 
 test('AUTHZ-01/02/03 + SYNC-01: /api/sync enforces ownership via assertOwnership-style check', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
