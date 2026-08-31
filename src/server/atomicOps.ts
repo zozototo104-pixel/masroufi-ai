@@ -195,6 +195,30 @@ export async function atomicDeleteTransaction(
   });
 }
 
+export async function atomicAddTransactions(
+  userId: string,
+  newTransactions: any[],
+  opts: { riskConfirmed?: boolean } = {}
+): Promise<{ ok: true; docIds: string[]; balances: { cash: number; palPay: number; debt: number; total: number } } | { ok: false; reason: string; balances?: any }> {
+  return adminDb.runTransaction(async (tx: any) => {
+    const snap = await tx.get(adminDb.collection('transactions').where('userId', '==', userId));
+    const existing = plainTransactions(snap.docs);
+    const projected = [...existing, ...newTransactions.map((item: any) => ({ ...item, userId }))];
+    const balances = calculateBalances(projected);
+
+    if (!opts.riskConfirmed && balances.cash < -0.0001) return { ok: false, reason: 'NEGATIVE_CASH_RESULT', balances };
+    if (!opts.riskConfirmed && balances.palPay < -0.0001) return { ok: false, reason: 'NEGATIVE_PALPAY_RESULT', balances };
+
+    const docIds: string[] = [];
+    for (const item of newTransactions) {
+      const ref = adminDb.collection('transactions').doc();
+      docIds.push(ref.id);
+      tx.set(ref, { ...item, userId, id: ref.id });
+    }
+    return { ok: true, docIds, balances };
+  });
+}
+
 export async function atomicPayDebt(
   userId: string,
   newTx: any,
