@@ -1103,21 +1103,13 @@ export async function generateReport(args: any, userId: string, token: string) {
   );
 
   const reportRef = adminDb.collection('reports').doc();
-  const report = {
+  const report = buildReportSnapshotRecord({
     userId,
     title: defaultTitle,
     timeframe,
     category: categoryQuery || 'كافة البنود',
-    status: filtered.length === 0 ? 'empty' : 'completed',
-    date: new Date().toISOString(),
-    // V6 (CF-26): explicitly mark this report as a SNAPSHOT, not a live view.
-    // The transactions array is frozen at generation time and will NOT auto-update.
-    // UI MUST surface generatedAt and the snapshot nature.
-    isSnapshot: true,
-    generatedAt: new Date().toISOString(),
     transactions: filtered,
-    createdAt: new Date().toISOString()
-  };
+  });
   
   await reportRef.set(report);
 
