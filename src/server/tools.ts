@@ -2381,7 +2381,7 @@ export async function repairDuplicateCreditPurchase(args: any, userId: string, t
   const purchases = snap.docs
     .map((d: any) => ({ id: d.id, ...d.data() }))
     .filter((t: any) => t.type === 'expense' && (t.account === 'debt' || t.transactionType === 'CREDIT_PURCHASE'))
-    .filter((t: any) => targetAmount === null || Math.abs((Number(t.amount) || 0) - targetAmount) < 0.01)
+    .filter((t: any) => targetAmount === null || Math.abs(parsePositiveFinancialAmount(t.amount) - targetAmount) < 0.01)
     .filter((t: any) => !targetCreditor || normalizeCreditorName(t.creditor || t.merchant || '') === targetCreditor)
     .filter((t: any) => {
       const dateStr = String(t.date || t.createdAt || '');
