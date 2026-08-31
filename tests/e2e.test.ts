@@ -68,10 +68,23 @@ test('DEBT-E2E-B: "اشتريت ملابس للعيال بـ100 دين من أح
 });
 
 // CASE D — MULTIPLE CREDITORS, AMBIGUOUS SELECTION
-test('DEBT-E2E-D: Ahmed=1000 + Mohammed=500 → "سدد 200" without creditor → NO MUTATION (backend asks)', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('AMBIGUOUS_CREDITOR'),
-    'payDebt returns AMBIGUOUS_CREDITOR when multiple creditors exist');
+test('DEBT-E2E-D: Ahmed=1000 + Mohammed=500 → "سدد 200" without creditor → NO MUTATION (backend asks)', () => {
+  const selection = selectOpenCreditorDebt({
+    amount: 200,
+    debts: [
+      { key: 'ahmed', creditor: 'Ahmed', remaining: 1000 },
+      { key: 'mohammed', creditor: 'Mohammed', remaining: 500 },
+    ],
+  });
+  assert.equal(selection.ok, false);
+  if (!selection.ok) {
+    assert.equal(selection.reason, 'AMBIGUOUS_CREDITOR');
+    assert.deepEqual(selection.options, [
+      { creditor: 'Ahmed', remaining: 1000 },
+      { creditor: 'Mohammed', remaining: 500 },
+    ]);
+    assert.match(selection.message, /لمن تريد سداد 200/);
+  }
 });
 
 // CASE F — OVERPAYMENT
