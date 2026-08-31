@@ -74,7 +74,7 @@ const FX_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // Representative rates usually pub
 const BOI_EXCHANGE_RATES_URL = 'https://www.boi.org.il/PublicApi/GetExchangeRates';
 const marketCache = new Map<string, { response: MarketSearchResponse; cachedAt: number }>();
 
-type FxRatesToIlsSnapshot = {
+export type FxRatesToIlsSnapshot = {
   rates: Record<string, number>;
   fetchedAt: number;
   source: string;
