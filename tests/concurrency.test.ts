@@ -198,6 +198,24 @@ test('CONC-16: replace import writes only the validated mutation plan and never 
     'replace import must not silently filter malformed memory entries');
 });
 
+test('CONC-16B: replace import uses a named Firestore batch limit and rejects chunking semantics', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(toolsSrc.includes('const FIRESTORE_WRITE_BATCH_LIMIT = 500'),
+    'replace import must document the Firestore WriteBatch write cap as a named constant');
+  assert.ok(toolsSrc.includes('const IMPORT_REPLACE_ATOMIC_HEADROOM = 50'),
+    'replace import must keep explicit headroom below the Firestore cap');
+  assert.ok(toolsSrc.includes('const IMPORT_REPLACE_ATOMIC_MUTATION_LIMIT = FIRESTORE_WRITE_BATCH_LIMIT - IMPORT_REPLACE_ATOMIC_HEADROOM'),
+    'replace import mutation guard must derive from named Firestore limits');
+  assert.ok(toolsSrc.includes('mutationCount > IMPORT_REPLACE_ATOMIC_MUTATION_LIMIT'),
+    'replace import must fail closed before exceeding the atomic mutation budget');
+  assert.equal(toolsSrc.includes('mutationCount > 450'), false,
+    'replace import must not rely on an unexplained magic mutation threshold');
+  assert.equal(toolsSrc.includes('BulkWriter'), false,
+    'replace import must not use BulkWriter because restore must remain all-or-nothing');
+  assert.equal(toolsSrc.includes('for (let i = 0; i <'), false,
+    'replace import must not chunk destructive restore writes into partial commits');
+});
+
 test('CONC-17: tools.ts reuses canonical account normalization instead of duplicating ledger rules', async () => {
   const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   const balanceSrc = await readFile(join(process.cwd(), 'src/lib/balanceCalc.ts'), 'utf8');
