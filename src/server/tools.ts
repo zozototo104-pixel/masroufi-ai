@@ -977,9 +977,8 @@ export async function sendPalPayPayment(args: any, userId: string, token: string
   console.log("TOOL CALL: sendPalPayPayment", args);
 
   // V6 (HF-3): full validation mirroring addTransaction guards.
-  const rawAmount = typeof args.amount === 'string' ? parseFloat(args.amount) : Number(args.amount);
-  const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amount = parseAbsoluteFinancialAmount(args.amount);
+  if (amount <= 0) {
     return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'المبلغ يجب أن يكون رقماً موجباً.' };
   }
   const recipientName = String(args.recipientName || '').trim();
