@@ -1463,6 +1463,15 @@ ${relationshipContext}
           userEmail = result.email;
           userToken = result.token;
 
+          if (useCustomVoice) {
+            customVoiceId = await getCustomVoiceId(userId);
+            if (!customVoiceId) {
+              safeSend({ error: "سجّل صوتك من الإعدادات قبل اختيار «صوتي»." });
+              try { clientWs.close(4003, "custom voice not configured"); } catch (e) { /* ignore */ }
+              return;
+            }
+          }
+
           if (authTimeout) {
             clearTimeout(authTimeout);
             authTimeout = null;
