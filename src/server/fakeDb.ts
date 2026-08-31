@@ -310,21 +310,44 @@ export class FakeDoc {
   }
   async get() {
     const memKey = getDocKey(this.collectionPath, this.id);
-    
-    // Try Admin SDK
+
+    // Firestore is authoritative whenever the cloud read succeeds, including
+    // the "document does not exist" case. Never resurrect a stale memory copy.
     try {
       const snap = await adminDb.collection(this.collectionPath).doc(this.id).get();
       if (snap.exists) {
         const data = snap.data();
-        memoryStore.set(memKey, { collectionPath: this.collectionPath, id: this.id, data, updatedAt: Date.now() });
+        memoryStore.set(memKey, {
+          collectionPath: this.collectionPath,
+          id: this.id,
+          data,
+          updatedAt: Date.now(),
+          syncedToCloud: true,
+        });
         saveMemoryStoreToDisk();
-        return { exists: true, data: () => data };
+        return { exists: true, data: () => data, partial: false };
       }
-    } catch (e) {}
 
-    const mem = memoryStore.get(memKey);
-    if (mem) return { exists: true, data: () => mem.data };
-    return { exists: false, data: () => null };
+      memoryStore.delete(memKey);
+      saveMemoryStoreToDisk();
+      return { exists: false, data: () => null, partial: false };
+    } catch (e: any) {
+      const mem = memoryStore.get(memKey);
+      if (mem && !mem.deleted) {
+        return {
+          exists: true,
+          data: () => mem.data,
+          partial: true,
+          error: e?.message || 'cloud document read failed',
+        };
+      }
+      return {
+        exists: false,
+        data: () => null,
+        partial: true,
+        error: e?.message || 'cloud document read failed',
+      };
+    }
   }
   async set(data: any): Promise<WriteResult> {
     queryCache.clear();
