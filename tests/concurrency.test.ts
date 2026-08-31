@@ -53,10 +53,20 @@ test('CONC-06: atomicAddTransaction exists in atomicOps.ts', async () => {
     'returns INSUFFICIENT_FUNDS_ATOMIC on overspend');
 });
 
-test('CONC-07: atomicPayDebt recomputes creditor remaining (not cached)', async () => {
+test('CONC-07: atomicPayDebt recomputes creditor remaining through the shared domain core', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
-  assert.ok(src.includes('recomputeCreditorRemaining'),
-    'atomicPayDebt recomputes creditor remaining at transaction time (not cached value)');
+  assert.ok(src.includes('calculateCreditorRemaining(transactions, creditorKey)'),
+    'atomicPayDebt recomputes creditor remaining at transaction time through the shared core');
+  assert.equal(src.includes('function recomputeCreditorRemaining'), false,
+    'atomicOps must not keep a private duplicate creditor algorithm');
   assert.ok(src.includes('OVERPAYMENT_ATOMIC'),
     'returns OVERPAYMENT_ATOMIC when concurrent payment exceeds remaining');
+});
+
+test('CONC-08: atomicOps has no circular dependency on tools.ts', async () => {
+  const src = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  assert.equal(src.includes("from './tools'"), false,
+    'atomic financial operations must depend on the shared domain core, not the orchestration layer');
+  assert.ok(src.includes("from '../lib/balanceCalc'"),
+    'atomic financial operations must use the shared financial domain core');
 });
