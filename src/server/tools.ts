@@ -1412,8 +1412,27 @@ export async function importUserData(payload: any, userId: string, token: string
     for (const d of oldMemory.docs) await adminDb.collection('users').doc(userId).collection('memory').doc(d.id).delete();
   }
 
-  // 1. Write transactions
+  // 1. Write only transactions that passed the full preflight validator.
   let importedTxCount = 0;
+  for (const prepared of preparedTransactions.entries) {
+    const docRef = prepared.sourceId ? adminDb.collection('transactions').doc(prepared.sourceId) : adminDb.collection('transactions').doc();
+    const writeResult = await docRef.set({ ...prepared.docData, sourceId: prepared.sourceId || undefined });
+    if (writeResult?.pending || writeResult?.synced === false) {
+      return {
+        success: false,
+        retryable: true,
+        reason: 'IMPORT_NOT_DURABLY_COMMITTED',
+        message: 'توقف الاستيراد لأن إحدى العمليات لم تُحفظ في السحابة بشكل مؤكد.',
+        importedBeforeFailure: importedTxCount,
+        error: writeResult?.error,
+      };
+    }
+    importedTxCount++;
+  }
+
+  /* LEGACY_IMPORT_WRITER_DISABLED
+  The old raw transaction writer is retained temporarily for diff traceability only.
+  It must never execute; restore semantics now come exclusively from the preflighted entries above.
   for (const t of transactionsToImport) {
     const rawAmount = typeof t.amount === 'string' ? parseFloat(t.amount) : Number(t.amount);
     const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
