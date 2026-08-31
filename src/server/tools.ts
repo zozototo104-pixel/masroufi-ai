@@ -2765,7 +2765,7 @@ export const functionDeclarations = [
         necessity: { type: "string", description: "اختياري. تصنيف الأهمية: 'ضروري' أو 'كمالي'. لا تطلبه من المستخدم إذا كان وصف الشراء واضحاً؛ اتركه فارغاً ليصنفه النظام وفق واقع غزة." },
         riskConfirmed: { type: "boolean", description: "true فقط إذا حذر النظام المستخدم من تجاوز/خطر مالي ووافق صراحة على المتابعة." }
       },
-      required: ["amount", "type", "category", "subcategory", "purchaseItem", "paymentMethod"]
+      required: ["amount", "type", "category", "subcategory", "paymentMethod"]
     }
   },
   {
