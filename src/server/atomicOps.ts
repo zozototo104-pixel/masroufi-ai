@@ -18,7 +18,11 @@
  * layer's transaction which protects against duplicate operationId).
  */
 import { adminDb } from './firebaseAdmin';
-import { calculateBalancesFromDocs } from './tools';
+import { calculateBalances, calculateCreditorRemaining } from '../lib/balanceCalc';
+
+function plainTransactions(docs: any[]): any[] {
+  return (docs || []).map((doc: any) => typeof doc?.data === 'function' ? doc.data() : doc);
+}
 
 /**
  * V6.2 (FINDING-02): Atomic balance-sensitive transfer.
