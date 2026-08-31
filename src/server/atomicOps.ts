@@ -369,7 +369,7 @@ export async function atomicPayDebt(
     const docs = snap.docs;
     const transactions = plainTransactions(docs);
     const recomputedRemaining = calculateCreditorRemaining(transactions, creditorKey);
-    const amount = Number(newTx.amount) || 0;
+    const amount = parsePositiveFinancialAmount(newTx.amount);
     if (amount > recomputedRemaining + 0.0001) {
       return {
         ok: false,
