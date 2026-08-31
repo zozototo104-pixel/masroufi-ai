@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { getDb, clearAllLocalUserData, type WriteResult } from './fakeDb';
+import { adminDb as firebaseAdminDb } from './firebaseAdmin';
 import { matchesArabicCategory } from '../lib/reportUtils';
 import { calculateBalances, normalizeCreditorKey } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
