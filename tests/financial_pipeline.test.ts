@@ -81,11 +81,15 @@ test('VOICE-01: personal voice management endpoints are authenticated', async ()
   assert.ok(server.includes('app.delete("/api/custom-voice", authMiddleware'), 'custom voice deletion must require auth');
 });
 
-test('VOICE-02: browser never receives ElevenLabs API key', async () => {
+test('VOICE-02: browser never receives custom voice provider API keys', async () => {
   const app = await src('src/App.tsx');
   const serverVoice = await src('src/server/customVoice.ts');
-  assert.equal(app.includes('ELEVENLABS_API_KEY'), false, 'frontend must not reference provider secret');
-  assert.ok(serverVoice.includes('process.env.ELEVENLABS_API_KEY'), 'provider secret must stay server-side');
+  assert.equal(app.includes('ELEVENLABS_API_KEY'), false, 'frontend must not reference ElevenLabs secret');
+  assert.equal(app.includes('FISH_API_KEY'), false, 'frontend must not reference Fish Audio secret');
+  assert.ok(serverVoice.includes('process.env.ELEVENLABS_API_KEY'), 'ElevenLabs secret must stay server-side');
+  assert.ok(serverVoice.includes('process.env.FISH_API_KEY'), 'Fish Audio secret must stay server-side');
+  assert.ok(serverVoice.includes("form.append('visibility', 'private')"), 'Fish Audio clones must be private');
+  assert.ok(serverVoice.includes("'s2.1-pro-free'"), 'Fish Audio free TTS model must be configured');
 });
 
 test('VOICE-03: Puck and Zephyr remain available while Custom is additive', async () => {
