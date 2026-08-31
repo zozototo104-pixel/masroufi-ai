@@ -53,7 +53,7 @@ jobs:
         id: build
         if: steps.install.outcome == 'success'
         continue-on-error: true
-        run: npm run build 2>&1 | tee /tmp/build.log
+        run: set -o pipefail; npm run build 2>&1 | tee /tmp/build.log
 
       - name: Persist CI verification report
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
