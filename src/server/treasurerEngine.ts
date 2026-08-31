@@ -205,8 +205,8 @@ function txMonth(t: TransactionLike): string {
 
 function round(n: number) { return Math.round((Number(n) || 0) * 100) / 100; }
 
-function addToMap<T extends Record<string, any>>(map: Map<string, T>, key: string, seed: T, amount: number, field = 'total') {
-  const current = map.get(key) || { ...seed };
+function addToMap(map: Map<string, any>, key: string, seed: Record<string, any>, amount: number, field = 'total') {
+  const current: Record<string, any> = map.get(key) || { ...seed };
   current[field] = round((Number(current[field]) || 0) + amount);
   current.count = (Number(current.count) || 0) + 1;
   map.set(key, current);
