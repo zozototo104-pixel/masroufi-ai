@@ -208,6 +208,12 @@ export async function getCustomVoiceId(userId: string): Promise<string | null> {
   return profile.voiceId || null;
 }
 
+export async function getCustomVoiceRuntime(userId: string): Promise<{ voiceId: string; provider: CustomVoiceProvider } | null> {
+  const profile = await getCustomVoiceProfile(userId);
+  if (!profile.voiceId || !profile.provider) return null;
+  return { voiceId: profile.voiceId, provider: profile.provider };
+}
+
 export async function* streamCustomVoiceAudio(args: {
   voiceId: string;
   text: string;
