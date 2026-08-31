@@ -383,16 +383,39 @@ test('REP-06: saved report payload is an immutable snapshot with generatedAt tim
   assert.equal(emptyReport.status, 'empty');
 });
 
-test('REP-07: import/export preserves transactionType and creditor fields', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/tools.ts'), 'utf8'
-  ));
-  // V6 importUserData preserves transactionType/creditor/creditorKey regardless of type.
-  assert.ok(src.includes('Restore reconstructs historical state; it must preserve semantics without'),
-    'importUserData must explicitly preserve financial fields through canonical preparation');
-  assert.ok(src.includes("if (t.transactionType) docData.transactionType = String(t.transactionType)"));
-  assert.ok(src.includes("if (creditor) docData.creditor = creditor"));
-  assert.ok(src.includes("if (t.creditorKey) docData.creditorKey = String(t.creditorKey)"));
+test('REP-07: import/export preserves transactionType and creditor fields', () => {
+  const prepared = prepareImportedFinancialTransactions([
+    tx({
+      id: 'tx-import-1',
+      type: 'expense',
+      account: 'debt',
+      amount: 55,
+      transactionType: 'CREDIT_PURCHASE',
+      creditor: 'أحمد',
+      creditorKey: 'custom-creditor-key',
+      merchant: 'محل أحمد',
+    }),
+    tx({
+      id: 'tx-import-2',
+      type: 'transfer',
+      amount: 10,
+      fromAccount: 'cash',
+      toAccount: 'debt',
+      creditor: 'محمد',
+    }),
+  ], 'user-1', () => '2026-08-31T10:00:00.000Z');
+
+  assert.equal(prepared.ok, true);
+  if (prepared.ok) {
+    assert.equal(prepared.entries[0].docData.transactionType, 'CREDIT_PURCHASE');
+    assert.equal(prepared.entries[0].docData.creditor, 'أحمد');
+    assert.equal(prepared.entries[0].docData.creditorKey, 'custom-creditor-key');
+    assert.equal(prepared.entries[0].docData.importedAt, '2026-08-31T10:00:00.000Z');
+    assert.equal(prepared.entries[1].docData.creditor, 'محمد');
+    assert.equal(typeof prepared.entries[1].docData.creditorKey, 'string');
+    assert.equal(prepared.entries[1].docData.fromAccount, 'cash');
+    assert.equal(prepared.entries[1].docData.toAccount, 'debt');
+  }
 });
 
 // Helper for source-level tests.
