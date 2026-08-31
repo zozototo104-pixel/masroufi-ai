@@ -122,7 +122,7 @@ export async function atomicTransferMoney(
  */
 export async function atomicAddTransaction(
   userId: string,
-  newTx: any,
+  newTx: FinancialTransactionInput,
   opts: {
     /** Skip the cash/palPay negative-balance check (e.g., for debt purchases). */
     skipBalanceCheck?: boolean;
