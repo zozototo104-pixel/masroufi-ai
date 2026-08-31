@@ -1627,6 +1627,12 @@ export async function importUserData(payload: any, userId: string, token: string
     };
   }
 
+  const transactionEntries = (preparedTransactions as { ok: true; entries: Array<{ sourceId: string; docData: any }> }).entries;
+  const budgetEntries = (preparedBudgets as { ok: true; entries: PreparedImportedNamedRecord[] }).entries;
+  const commitmentEntries = (preparedCommitments as { ok: true; entries: PreparedImportedNamedRecord[] }).entries;
+  const reportEntries = (preparedReports as { ok: true; entries: PreparedImportedNamedRecord[] }).entries;
+  const memoryEntries = (preparedMemory as { ok: true; entries: PreparedImportedNamedRecord[] }).entries;
+
   // Replace mode is all-or-nothing. Build the full mutation plan before changing
   // user state, then commit it in one real Firestore batch.
   if (mode === 'replace') {
