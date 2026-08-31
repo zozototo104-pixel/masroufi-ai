@@ -108,10 +108,15 @@ test('DUR-09: legacy pending financial documents are quarantined, never guessed 
     'migration must not guess the original financial command');
 });
 
-test('DUR-10: transaction delete cannot report success when cloud durability is pending', async () => {
-  const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes("reason: 'DELETE_NOT_DURABLY_COMMITTED'"),
-    'deleteTransaction must fail closed when FakeDb reports pending durability');
+test('DUR-10: transaction delete is durability-safe through atomic Firestore deletion', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  assert.ok(toolsSrc.includes('atomicDeleteTransaction(userId,'),
+    'deleteTransaction must delegate final deletion to the atomic Firestore primitive');
+  assert.ok(atomicSrc.includes('tx.delete(ref)'),
+    'the final delete must occur inside a Firestore transaction');
+  assert.equal(toolsSrc.includes("reason: 'DELETE_NOT_DURABLY_COMMITTED'"), false,
+    'legacy FakeDb pending-delete semantics must not be the final deletion path');
 });
 
 test('DUR-11: transaction update refuses balance-sensitive decisions on partial state', async () => {
