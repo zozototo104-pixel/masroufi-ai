@@ -2394,7 +2394,7 @@ export async function repairDuplicateCreditPurchase(args: any, userId: string, t
   for (const t of purchases) {
     const day = String(t.date || t.createdAt || '').slice(0, 10);
     const creditor = normalizeCreditorName(t.creditor || t.merchant || 'غير محدد');
-    const key = [day, Number(t.amount || 0).toFixed(2), creditor, t.category || '', t.subcategory || ''].join('|');
+    const key = [day, parsePositiveFinancialAmount(t.amount).toFixed(2), creditor, t.category || '', t.subcategory || ''].join('|');
     const arr = groups.get(key) || [];
     arr.push(t);
     groups.set(key, arr);
