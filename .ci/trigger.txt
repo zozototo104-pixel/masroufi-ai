@@ -1,1 +1,1 @@
-Trigger latest verification after regression guard updates.
+Trigger final verification after PIPE-01 regression contract update.
