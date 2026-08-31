@@ -15,10 +15,14 @@ import {
   decideIdempotencyClaim,
 } from '../src/server/idempotencyCore.ts';
 
-test('CONC-01: cash expense uses atomicAddTransaction (atomic guard present)', async () => {
+test('CONC-01: add_transaction commits through Firestore atomic path, not FakeDb pending fallback', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('atomicAddTransaction(userId, tx'), 'addTransaction uses atomicAddTransaction for balance-sensitive ops');
+  assert.ok(src.includes('atomicAddTransaction(userId, tx'), 'addTransaction uses atomicAddTransaction for real writes');
+  assert.ok(src.includes('skipBalanceCheck: !isBalanceSensitive'),
+    'non-balance-sensitive adds still use the atomic commit path while skipping balance checks');
   assert.ok(src.includes('isBalanceSensitive'), 'balance-sensitivity check present');
+  assert.equal(src.includes('await txRef.set(tx)'), false,
+    'addTransaction must not use FakeDb.set fallback that can create local-only pending writes');
 });
 
 test('CONC-02: PalPay expense uses atomic guard (same code path)', async () => {
