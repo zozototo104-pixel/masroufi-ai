@@ -818,6 +818,20 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const isBalanceSensitive = (type === 'expense' && (account === 'cash' || account === 'palPay'))
                           || (type === 'transfer' && (account === 'cash' || account === 'palPay'));
 
+  // Validation-only mode is used by multi-line receipt recording. It executes the
+  // exact same domain validation and transaction construction as addTransaction,
+  // but deliberately stops before any persistence or side effect. The caller then
+  // commits all prepared rows atomically as one receipt operation.
+  if (args.validateOnly === true) {
+    return {
+      success: true,
+      validationOnly: true,
+      preparedTransaction: tx,
+      operationId,
+      isBalanceSensitive,
+    };
+  }
+
   let writeResult: WriteResult | null = null;
   let actualTxId = txRef.id;
   if (isBalanceSensitive) {
