@@ -1,48 +1,62 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response
-import httpx
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import os
-import io
-import wave
-import base64
-from array import array
+import sys
+import subprocess
+import threading
+import numpy as np
+import imageio_ffmpeg
+
+VENDOR = Path(__file__).resolve().parent / "vendor" / "MOSS-TTS-Nano"
+sys.path.insert(0, str(VENDOR))
+from onnx_tts_runtime import OnnxTtsRuntime  # noqa: E402
 
 app = FastAPI(title="Masroufi MOSS Voice Service")
-MOSS_UPSTREAM_URL = os.environ.get("MOSS_UPSTREAM_URL", "http://127.0.0.1:18083").rstrip("/")
+_runtime = None
+_runtime_lock = threading.Lock()
+
+
+def get_runtime():
+    global _runtime
+    if _runtime is None:
+        with _runtime_lock:
+            if _runtime is None:
+                _runtime = OnnxTtsRuntime(
+                    thread_count=max(1, int(os.environ.get("MOSS_THREADS", "1"))),
+                    max_new_frames=int(os.environ.get("MOSS_MAX_NEW_FRAMES", "375")),
+                )
+    return _runtime
+
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "provider": "moss-tts-nano", "upstream": MOSS_UPSTREAM_URL}
+    return {"ok": True, "provider": "moss-tts-nano-onnx", "loaded": _runtime is not None}
 
 
-def wav_to_pcm24k_mono(wav_bytes: bytes) -> bytes:
-    with wave.open(io.BytesIO(wav_bytes), "rb") as wav:
-        channels = wav.getnchannels()
-        sample_width = wav.getsampwidth()
-        sample_rate = wav.getframerate()
-        frames = wav.readframes(wav.getnframes())
+def browser_audio_to_wav(source: Path, target: Path) -> None:
+    command = [
+        imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-i", str(source),
+        "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", str(target),
+    ]
+    result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=45)
+    if result.returncode != 0:
+        raise ValueError(result.stderr.decode("utf-8", errors="replace")[-500:])
 
-    if sample_width != 2:
-        raise ValueError(f"Unsupported WAV sample width: {sample_width}")
-    if channels not in (1, 2):
-        raise ValueError(f"Unsupported WAV channel count: {channels}")
-    if sample_rate not in (24000, 48000):
-        raise ValueError(f"Unsupported WAV sample rate: {sample_rate}")
 
-    samples = array("h")
-    samples.frombytes(frames)
-
-    if channels == 2:
-        mono = array("h")
-        for i in range(0, len(samples) - 1, 2):
-            mixed = int((int(samples[i]) + int(samples[i + 1])) / 2)
-            mono.append(max(-32768, min(32767, mixed)))
-        samples = mono
-
-    if sample_rate == 48000:
-        samples = array("h", samples[::2])
-
-    return samples.tobytes()
+def waveform_to_pcm24k_mono(waveform: np.ndarray, source_rate: int) -> bytes:
+    audio = np.asarray(waveform, dtype=np.float32)
+    if audio.ndim == 2:
+        audio = audio.mean(axis=1)
+    if source_rate == 48000:
+        audio = audio[::2]
+    elif source_rate != 24000:
+        old_x = np.arange(audio.shape[0], dtype=np.float64)
+        new_length = max(1, int(round(audio.shape[0] * 24000 / source_rate)))
+        new_x = np.linspace(0, max(0, audio.shape[0] - 1), new_length)
+        audio = np.interp(new_x, old_x, audio).astype(np.float32)
+    return np.round(np.clip(audio, -1.0, 1.0) * 32767.0).astype(np.int16).tobytes()
 
 
 @app.post("/v1/tts")
@@ -56,38 +70,30 @@ async def tts(
         raise HTTPException(status_code=400, detail="text is required")
     if format != "pcm" or sample_rate != 24000:
         raise HTTPException(status_code=400, detail="only pcm/24000 is supported")
-
     reference = await reference_audio.read()
     if not reference:
         raise HTTPException(status_code=400, detail="reference audio is required")
 
-    files = {
-        "prompt_audio": (
-            reference_audio.filename or "reference.webm",
-            reference,
-            reference_audio.content_type or "audio/webm",
-        )
-    }
-    data = {
-        "text": text,
-        "max_new_frames": "375",
-        "voice_clone_max_text_tokens": "75",
-    }
-
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(f"{MOSS_UPSTREAM_URL}/api/generate", data=data, files=files)
-
-    if response.status_code >= 400:
-        raise HTTPException(status_code=502, detail=f"MOSS upstream failed: {response.text[:300]}")
-
     try:
-        payload = response.json()
-        encoded = payload.get("audio_base64")
-        if not encoded:
-            raise ValueError("missing audio_base64")
-        wav_bytes = base64.b64decode(encoded)
-        pcm = wav_to_pcm24k_mono(wav_bytes)
+        with TemporaryDirectory(prefix="masroufi-voice-") as tmp:
+            source = Path(tmp) / "reference.input"
+            prompt_wav = Path(tmp) / "reference.wav"
+            output_wav = Path(tmp) / "generated.wav"
+            source.write_bytes(reference)
+            browser_audio_to_wav(source, prompt_wav)
+            runtime = get_runtime()
+            result = runtime.synthesize(
+                text=text.strip(),
+                prompt_audio_path=prompt_wav,
+                output_audio_path=output_wav,
+                streaming=False,
+                max_new_frames=int(os.environ.get("MOSS_MAX_NEW_FRAMES", "375")),
+                voice_clone_max_text_tokens=75,
+                enable_wetext=False,
+                enable_normalize_tts_text=False,
+            )
+            pcm = waveform_to_pcm24k_mono(result["waveform"], int(result["sample_rate"]))
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Invalid MOSS audio response: {exc}") from exc
+        raise HTTPException(status_code=500, detail=f"MOSS synthesis failed: {str(exc)[:500]}") from exc
 
     return Response(content=pcm, media_type="audio/pcm")
