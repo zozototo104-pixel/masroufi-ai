@@ -116,7 +116,74 @@ async function addNotification(
   }
 }
 
+export async function recordTransactionCommittedSideEffects(
+  userId: string,
+  transactionId: string,
+  tx: any,
+  db: any,
+  options: { preUserBudgets?: Record<string, number>; preTxSnapshot?: any } = {}
+) {
+  const amount = Number(tx?.amount) || 0;
+  const type = String(tx?.type || 'expense');
+  const account = String(tx?.account || 'cash');
+  const category = String(tx?.category || '');
+  const subcategory = String(tx?.subcategory || '');
+  const merchant = String(tx?.merchant || '');
+  const operationId = String(tx?.operationId || transactionId);
 
+  let notificationMsg = `تم تسجيل ${type === 'expense' ? 'مصروف' : 'دخل'} بقيمة ${amount} ₪`;
+  if (account === 'debt') {
+    notificationMsg += " (دين)";
+  } else if (account === 'palPay') {
+    notificationMsg += " (PalPay)";
+  }
+  if (category && category !== 'غير مصنف') {
+    notificationMsg += ` [${category}]`;
+  }
+  if (tx?.necessity) {
+    notificationMsg += ` - ${tx.necessity}`;
+  }
+
+  await addNotification(userId, notificationMsg, 'success', db, {
+    idempotencyKey: `transaction-success:${operationId}`,
+    transactionId,
+    operationId,
+    metadata: { amount, type, account, category, subcategory, merchant, transactionType: tx?.transactionType }
+  });
+
+  // Budget threshold warning check (80% / 100%)
+  if (type === 'expense' && category && category !== 'غير مصنف') {
+    try {
+      const userBudgets = options.preUserBudgets || await getUserBudgets(userId, db);
+      const budgetLimit = userBudgets[category] || DEFAULT_BUDGETS[category] || 1000;
+
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      const txSnapshot = options.preTxSnapshot || await db.collection('transactions').where('userId', '==', userId).get();
+      const monthExpenses = txSnapshot.docs
+        .map((d: any) => d.data())
+        .filter((item: any) => item.type === 'expense' && (item.date || '').startsWith(thisMonth) && item.category === category);
+
+      const totalSpentForCat = monthExpenses.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+      const ratio = totalSpentForCat / budgetLimit;
+
+      if (ratio >= 1.0) {
+        await addNotification(
+          userId,
+          `⚠️ تنبيه ميزانية: تجاوزت سقف ميزانية [${category}] لهذا الشهر (${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
+          'warning', db
+        );
+      } else if (ratio >= 0.8) {
+        await addNotification(
+          userId,
+          `⚠️ تنبيه ميزانية: اقتربت من سقف ميزانية [${category}] لهذا الشهر (وصلت ${Math.round(ratio * 100)}% - ${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
+          'warning', db
+        );
+      }
+    } catch (budgetErr) {
+      console.error("Budget check error:", budgetErr);
+    }
+  }
+}
 
 // V5: unified financial context used by the assistant before consequential decisions.
 // It is on-demand only: no timers/polling. The transaction snapshot is reused for all calculations.
