@@ -222,11 +222,11 @@ test('FIN-18: shared amount parser rejects NaN and Infinity before financial mut
   assert.equal(parseAbsoluteFinancialAmount(Infinity), 0);
 });
 
-test('FIN-19: negative amount rejected — amount <= 0 returns INVALID_AMOUNT', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/tools.ts'), 'utf8'
-  ));
-  assert.ok(src.includes("amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT'"));
+test('FIN-19: positive amount parser rejects zero and negative values before INVALID_AMOUNT guards', () => {
+  assert.equal(parsePositiveFinancialAmount(0), 0);
+  assert.equal(parsePositiveFinancialAmount(-1), 0);
+  assert.equal(parsePositiveFinancialAmount('-22'), 0);
+  assert.equal(parsePositiveFinancialAmount('22'), 22);
 });
 
 test('DOMAIN-01: account aliases normalize identically for every caller', () => {
