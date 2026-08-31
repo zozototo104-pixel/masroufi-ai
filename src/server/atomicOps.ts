@@ -85,8 +85,8 @@ export async function atomicTransferMoney(
       adminDb.collection('transactions').where('userId', '==', userId)
     );
     const balances = calculateBalances(plainTransactions(snap.docs));
-    const amount = Number(newTx.amount) || 0;
-    const fromAccount = newTx.fromAccount;
+    const amount = parsePositiveFinancialAmount(newTx.amount);
+    const fromAccount = String(newTx.fromAccount || 'cash');
     // Debt source (borrowing) doesn't need balance check (creates new debt).
     if (fromAccount !== 'debt') {
       const available = fromAccount === 'palPay' ? balances.palPay : balances.cash;
