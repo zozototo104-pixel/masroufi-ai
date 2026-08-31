@@ -910,33 +910,37 @@ export async function addTransaction(args: any, userId: string, token: string) {
   }
 
   let writeResult: WriteResult | null = null;
-  let actualTxId = txRef.id;
-  if (isBalanceSensitive) {
-    const atomicResult = await atomicAddTransaction(userId, tx, {
-      skipBalanceCheck: false,
+  let actualTxId = '';
+  let atomicResult: Awaited<ReturnType<typeof atomicAddTransaction>>;
+  try {
+    atomicResult = await atomicAddTransaction(userId, tx, {
+      skipBalanceCheck: !isBalanceSensitive,
       riskConfirmed: Boolean(args.riskConfirmed),
     });
-    if (!atomicResult.ok) {
-      const failReason = (atomicResult as any).reason as string;
-      const failAvailable = (atomicResult as any).available as number | undefined;
-      if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
-        return {
-          success: false,
-          needsClarification: true,
-          reason: 'INSUFFICIENT_FUNDS',
-          message: `المبلغ ${amount} ₪ أكبر من الرصيد المتاح (${failAvailable} ₪). العملية مرفوضة لمنع تجاوز الرصيد.`,
-        };
-      }
-      return { success: false, error: failReason };
-    }
-    actualTxId = atomicResult.docId;
-    // Synthesize a WriteResult equivalent (atomic write succeeded = committed).
-    writeResult = { durability: 'committed', synced: true, pending: false };
-  } else {
-    // V6 (CF-5): writeResult is checked. If the write is only 'pending' (not durable),
-    // the response includes `durability:'pending'` so the AI/UI can warn the user.
-    writeResult = await txRef.set(tx);
+  } catch (e: any) {
+    return {
+      success: false,
+      retryable: true,
+      reason: 'CLOUD_WRITE_FAILED',
+      message: `لم يتم حفظ العملية في Firestore. لم أسجل أي قيد. السبب: ${e?.message || 'فشل غير معروف في التخزين السحابي'}`,
+      error: e?.message || String(e),
+    };
   }
+  if (!atomicResult.ok) {
+    const failReason = (atomicResult as any).reason as string;
+    const failAvailable = (atomicResult as any).available as number | undefined;
+    if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'INSUFFICIENT_FUNDS',
+        message: `المبلغ ${amount} ₪ أكبر من الرصيد المتاح (${failAvailable} ₪). العملية مرفوضة لمنع تجاوز الرصيد.`,
+      };
+    }
+    return { success: false, error: failReason };
+  }
+  actualTxId = atomicResult.docId;
+  writeResult = { durability: 'committed', synced: true, pending: false };
   
   await recordTransactionCommittedSideEffects(userId, actualTxId, tx, adminDb, {
     preUserBudgets,
