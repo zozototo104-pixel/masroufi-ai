@@ -1813,8 +1813,7 @@ export async function transferMoney(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: transferMoney", args);
   
-  const rawAmount = typeof args.amount === 'string' ? parseFloat(args.amount) : Number(args.amount);
-  const amount = isNaN(rawAmount) ? 0 : Math.abs(rawAmount);
+  const amount = parseAbsoluteFinancialAmount(args.amount);
   if (amount <= 0) {
     return { error: "Amount must be greater than 0" };
   }
