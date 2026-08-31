@@ -76,3 +76,4 @@ export const adminDb = firebaseConfig.firestoreDatabaseId
   : getFirestore();
 export const adminAuth = getAuth();
 export const adminStorage = getStorage();
+export const adminStorageBucket = adminStorage.bucket(firebaseConfig.storageBucket);
