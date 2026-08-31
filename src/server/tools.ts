@@ -945,6 +945,13 @@ export async function addTransaction(args: any, userId: string, token: string) {
   };
 }
 
+export async function prepareAddTransaction(args: any, userId: string, token: string) {
+  // Receipt recording needs the canonical add_transaction validation/preparation
+  // authority, but must not pass validateOnly through toolHandlers because that
+  // wrapper records idempotency outcomes for operations that have not written yet.
+  return addTransaction({ ...args, validateOnly: true }, userId, token);
+}
+
 export async function sendPalPayPayment(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: sendPalPayPayment", args);
