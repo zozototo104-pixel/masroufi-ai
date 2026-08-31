@@ -110,24 +110,9 @@ export async function runIdempotent(
     // Once fn() has started, an exception does NOT prove that its financial side
     // effects rolled back. Persist an indeterminate terminal state and fail closed;
     // a retry with the same operationId must never execute fn() again automatically.
-    const failure = {
-      success: false,
-      retryable: false,
-      indeterminate: true,
-      reason: 'IDEMPOTENT_EXECUTION_INDETERMINATE',
-      error: err?.message || 'execution outcome unknown',
-      message: 'تعذر تأكيد نتيجة العملية المالية بأمان، لذلك لن تتم إعادة تنفيذها تلقائياً.'
-    };
+    const indeterminate = buildIndeterminateIdempotencyRecord(userId, operationId, err, Date.now());
     try {
-      await ref.set({
-        userId,
-        operationId,
-        operationIdPreview: operationId.slice(0, 300),
-        status: 'indeterminate',
-        result: failure,
-        updatedAt: Date.now(),
-        expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
-      }, { merge: true });
+      await ref.set(indeterminate, { merge: true });
     } catch (persistErr: any) {
       console.error('[IDEMPOTENCY] Failed to persist indeterminate outcome', {
         operationIdPreview: operationId.slice(0, 80),
