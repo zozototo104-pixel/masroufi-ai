@@ -14,6 +14,7 @@ import {
   isGazaSource,
   classifyMarketScope,
   normalizeCurrencyToIls,
+  getFxConversionMetadata,
   refreshExchangeRatesToIls,
   computeNormalizedPriceRange,
   buildMarketComparison,
