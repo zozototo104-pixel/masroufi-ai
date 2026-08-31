@@ -1962,7 +1962,7 @@ export async function payDebt(args:any,userId:string,token:string){
  // engine and could create a debt that exceeds the creditor's remaining balance.
  let atomicResult: { ok: true; docId: string } | { ok: false; reason: string; remaining?: number; available?: number };
  try {
-   atomicResult = await atomicPayDebt(userId, tx, selected.key, selected.remaining, { riskConfirmed: Boolean(args.riskConfirmed) });
+   atomicResult = await atomicPayDebt(userId, tx, selected.key, { riskConfirmed: Boolean(args.riskConfirmed) });
  } catch (atomicErr: any) {
    // V6.2: NO direct write fallback. Surface as FAILED with retryable status.
    console.error('[payDebt] atomic transaction FAILED — refusing direct write fallback:', atomicErr?.message);
