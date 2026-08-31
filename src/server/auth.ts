@@ -65,39 +65,21 @@ export const authMiddleware = async (req: any, res: any, next: any) => {
 };
 
 /**
- * Mint a Firebase Custom Token for Safari/Mobile direct login.
- * Server-side only — uses Admin SDK credentials, NOT unsigned base64.
+ * Legacy Safari/Mobile email-only direct login is intentionally disabled.
  *
- * Flow:
- *   Client -> POST /api/auth/safari-token { email }
- *   Server -> adminAuth.createCustomToken(safeUid)
- *   Client -> firebase/auth.signInWithCustomToken(token)
- *   Client -> user.getIdToken() -> used as Bearer for all API calls
- *
- * This eliminates the masrofi_token_ bypass entirely.
+ * Security invariant: possession of an email address is NOT proof of identity.
+ * The server must never mint a Firebase Custom Token from an unverified email claim.
+ * Safari/mobile authentication now uses Firebase's provider-controlled redirect flow
+ * on the client, where Google/Firebase performs the identity proof.
  */
-export async function issueDirectLoginToken(email: string): Promise<{
+export async function issueDirectLoginToken(_email: string): Promise<{
   success: boolean;
-  customToken?: string;
-  uid?: string;
-  email?: string;
-  displayName?: string;
   error?: string;
 }> {
-  const cleanEmail = (email || '').trim().toLowerCase();
-  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-    return { success: false, error: 'Valid email is required' };
-  }
-  // Deterministic UID derived from email — but minted via Admin SDK, not unsigned base64.
-  // This is the same scheme Firebase uses for email-link auth.
-  const safeUid = 'usr_' + Buffer.from(cleanEmail).toString('hex').slice(0, 28);
-  const displayName = cleanEmail.split('@')[0];
-  try {
-    const customToken = await adminAuth.createCustomToken(safeUid, { email: cleanEmail, displayName });
-    return { success: true, customToken, uid: safeUid, email: cleanEmail, displayName };
-  } catch (err: any) {
-    return { success: false, error: 'Failed to mint custom token: ' + (err?.message || 'unknown') };
-  }
+  return {
+    success: false,
+    error: 'EMAIL_ONLY_DIRECT_LOGIN_DISABLED',
+  };
 }
 
 /**
