@@ -4,6 +4,8 @@
  * and builds high-fidelity printable / Word-exportable formats.
  */
 
+import { calculateBalances, normalizeAccount } from './balanceCalc';
+
 export interface HierarchicalTransactionItem {
   id: string;
   amount: number;
