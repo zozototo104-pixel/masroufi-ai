@@ -154,3 +154,31 @@ test('CONC-14: receipt retry uses a Firestore receipt idempotency record in the 
   assert.ok(atomicSrc.includes('idempotentReplay: true'), 'retry must return the original receipt result instead of creating duplicate transactions');
   assert.ok(atomicSrc.includes('RECEIPT_OPERATION_CONFLICT'), 'conflicting operationIds must fail closed');
 });
+
+test('CONC-15: import preflights all backup sections before any restore mutation', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(toolsSrc.includes('const preparedBudgets = prepareImportedBudgets(rawBudgetsToImport)'),
+    'budgets must be validated before import mutation');
+  assert.ok(toolsSrc.includes('const preparedCommitments = prepareImportedCommitments(rawCommitmentsToImport, userId)'),
+    'commitments must be validated before import mutation');
+  assert.ok(toolsSrc.includes('const preparedReports = prepareImportedReports(rawReportsToImport, userId)'),
+    'reports must be validated before import mutation');
+  assert.ok(toolsSrc.includes('const preparedMemory = prepareImportedMemory(rawMemoryToImport)'),
+    'memory must be validated before import mutation');
+  assert.ok(toolsSrc.includes("reason: 'IMPORT_BACKUP_VALIDATION_FAILED'"),
+    'any malformed backup section must fail closed before deletion/writes');
+});
+
+test('CONC-16: replace import writes only the validated mutation plan and never silently filters malformed records', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(toolsSrc.includes('const writeCount = transactionEntries.length + budgetEntries.length + commitmentEntries.length + reportEntries.length + memoryEntries.length'),
+    'replace mutation count must come from the preflighted plan');
+  assert.ok(toolsSrc.includes('for (const prepared of budgetEntries)'), 'replace budgets must come from validated entries');
+  assert.ok(toolsSrc.includes('for (const prepared of commitmentEntries)'), 'replace commitments must come from validated entries');
+  assert.ok(toolsSrc.includes('for (const prepared of reportEntries)'), 'replace reports must come from validated entries');
+  assert.ok(toolsSrc.includes('for (const prepared of memoryEntries)'), 'replace memory must come from validated entries');
+  assert.equal(toolsSrc.includes('filter((c: any) => c && c.title && typeof c.amount ==='), false,
+    'replace import must not silently filter malformed commitments');
+  assert.equal(toolsSrc.includes('Object.entries(memoryToImport).filter'), false,
+    'replace import must not silently filter malformed memory entries');
+});
