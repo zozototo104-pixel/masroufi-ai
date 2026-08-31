@@ -109,6 +109,37 @@ test('AUTH-06: token with empty uid rejected', async () => {
   assert.match(r.error || '', /no uid/);
 });
 
+test('AUTH-07: server cannot mint a Firebase identity from an email claim', async () => {
+  const authSource = await import('node:fs/promises').then(fs => fs.readFile(
+    join(process.cwd(), 'src/server/auth.ts'), 'utf8'
+  ));
+  const serverSource = await import('node:fs/promises').then(fs => fs.readFile(
+    join(process.cwd(), 'server.ts'), 'utf8'
+  ));
+  const clientSource = await import('node:fs/promises').then(fs => fs.readFile(
+    join(process.cwd(), 'src/lib/firebase.ts'), 'utf8'
+  ));
+
+  assert.equal(
+    authSource.includes('adminAuth.createCustomToken'),
+    false,
+    'auth.ts must not mint a trusted Firebase token from an unverified email claim'
+  );
+  assert.ok(
+    serverSource.includes("error: 'EMAIL_ONLY_DIRECT_LOGIN_DISABLED'"),
+    'legacy Safari token endpoint must fail closed'
+  );
+  assert.equal(
+    clientSource.includes("fetch('/api/auth/safari-token'"),
+    false,
+    'client must not use the retired email-only token endpoint'
+  );
+  assert.ok(
+    clientSource.includes('signInWithRedirect(auth, googleProvider)'),
+    'Safari/mobile must use Firebase provider-controlled redirect authentication'
+  );
+});
+
 test('WS-01: token not in WebSocket URL — verified via source inspection', async () => {
   // Read useGeminiLive.ts and verify no `token` URL param is appended.
   const src = await import('node:fs/promises').then(fs => fs.readFile(
