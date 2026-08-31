@@ -186,11 +186,12 @@ test('FIN-15: duplicate after restart executes once — persistent idempotency',
   assert.ok(src.includes("IDEMPOTENCY_COLLECTION = 'idempotency_keys'"), 'uses persistent Firestore collection');
 });
 
-test('FIN-16: PalPay malformed amount rejected — sendPalPayPayment guards', async () => {
-  const src = await import('node:fs/promises').then(fs => fs.readFile(
-    join(process.cwd(), 'src/server/tools.ts'), 'utf8'
-  ));
-  assert.ok(src.includes("Number.isFinite(amount) || amount <= 0"), 'sendPalPayPayment rejects NaN/Infinity/negative/zero');
+test('FIN-16: PalPay malformed amounts collapse to invalid zero through the shared parser', () => {
+  assert.equal(parseAbsoluteFinancialAmount(NaN), 0);
+  assert.equal(parseAbsoluteFinancialAmount(Infinity), 0);
+  assert.equal(parseAbsoluteFinancialAmount(-Infinity), 0);
+  assert.equal(parseAbsoluteFinancialAmount(0), 0);
+  assert.equal(parseAbsoluteFinancialAmount('15.75'), 15.75);
 });
 
 test('FIN-17: non-finite amounts cannot poison canonical balances or breakdowns', () => {
