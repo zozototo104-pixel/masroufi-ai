@@ -16,7 +16,19 @@ export type CustomVoiceProfile = {
 };
 
 function selectedProvider(): CustomVoiceProvider {
-  return process.env.CUSTOM_VOICE_PROVIDER?.trim().toLowerCase() === 'elevenlabs' ? 'elevenlabs' : 'fish';
+  const provider = process.env.CUSTOM_VOICE_PROVIDER?.trim().toLowerCase();
+  if (provider === 'elevenlabs' || provider === 'fish') return provider;
+  return 'moss';
+}
+
+function requireMossUrl(): string {
+  const url = process.env.MOSS_TTS_URL?.trim().replace(/\/$/, '');
+  if (!url) throw new Error('MOSS_TTS_URL is not configured');
+  return url;
+}
+
+function voiceReferencePath(userId: string): string {
+  return `private/custom-voices/${userId}/reference.webm`;
 }
 
 function requireElevenLabsApiKey(): string {
