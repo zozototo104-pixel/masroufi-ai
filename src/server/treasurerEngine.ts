@@ -425,7 +425,7 @@ export function evaluateTreasurerRisk(params: {
   subcategory?: string;
   necessity?: string;
   merchant?: string;
-  balances: any;
+  balances: BalanceSnapshot;
   budgetLimit?: number;
   categorySpent?: number;
   dailyExpenseAverage?: number;
