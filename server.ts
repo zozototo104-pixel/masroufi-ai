@@ -225,6 +225,101 @@ function buildStableOperationIdForToolCall(call: FunctionCall, clientMessageId: 
   return null;
 }
 
+function normalizeArabicDigits(value: string): string {
+  return String(value || '')
+    .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+}
+
+function extractAmountFromFinancialText(text: string): number | null {
+  const normalized = normalizeArabicDigits(normalizeArabicForIntent(text));
+  const matches = Array.from(normalized.matchAll(/(?:^|\s)(\d+(?:[\.,]\d+)?)(?=\s*(?:ش|شيكل|₪|دولار|دينار|ils|nis|$|\s))/g));
+  if (matches.length === 0) return null;
+  const amount = Number(String(matches[matches.length - 1][1]).replace(',', '.'));
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function accountFromFinancialText(text: string): 'cash' | 'palPay' | 'debt' | null {
+  const t = normalizeArabicForIntent(text);
+  if (/palpay|pal pay|بال باي|بالباي|محفظ|المحفظ/.test(t)) return 'palPay';
+  if (/كاش|نقد|نقدي/.test(t)) return 'cash';
+  if (/دين|بالدين/.test(t)) return 'debt';
+  return null;
+}
+
+function inferFallbackExpenseCategory(text: string): { category: string; subcategory: string; purchaseItem: string; beneficiary: string } {
+  const t = normalizeArabicForIntent(text);
+  const beneficiary =
+    /اولاد|الأولاد|الاولاد|عيال|ابناء|أبناء|اطفال|أطفال/.test(t) ? 'الأبناء' :
+    /زوجتي|للزوجه|للزوجة|الزوجه|الزوجة/.test(t) ? 'الزوجة' :
+    /بيت|البيت|دار|الدار|منزل|المنزل/.test(t) ? 'البيت' :
+    /علاج|دواء|دكتور|طبيب|صيدل/.test(t) ? 'العلاج' :
+    /عمل|شغل/.test(t) ? 'العمل' :
+    /ضيف|ضياف|زيار/.test(t) ? 'الضيافة' : '';
+  if (/خبز|طحين|دقيق|رز|سكر|زيت|تموين|خضار|بقال|غاز|ماء|مياه/.test(t)) return { category: 'طعام ومشتريات منزل', subcategory: 'تموين', purchaseItem: 'تموين/طعام', beneficiary: beneficiary || 'البيت' };
+  if (/دواء|صيدل|علاج|دكتور|طبيب|تحاليل/.test(t)) return { category: 'صحة وعلاج', subcategory: 'علاج', purchaseItem: 'علاج/دواء', beneficiary: beneficiary || 'العلاج' };
+  if (/ملابس|لبس|اواعي|أواعي|حذاء|كندره|كندرة|جزمه|جزمة/.test(t)) return { category: beneficiary === 'الأبناء' ? 'الأبناء' : 'ملابس', subcategory: 'ملابس', purchaseItem: 'ملابس/أحذية', beneficiary };
+  if (/مواصلات|تاكسي|اجره|أجرة|بنزين|سولار/.test(t)) return { category: 'مواصلات', subcategory: 'مواصلات', purchaseItem: 'مواصلات', beneficiary: beneficiary || 'تنقل' };
+  return { category: 'أخرى', subcategory: 'متفرقات', purchaseItem: '', beneficiary };
+}
+
+function extractMerchantFromFinancialText(text: string): string {
+  const raw = String(text || '').trim();
+  const m = raw.match(/(?:من\s+(?:عند\s+)?|عند\s+)([^\d،,.]+?)(?=\s+(?:ب|بـ|بمبلغ|بقيمة|ل|لل|لاجل|عشان|دين|كاش|بال|على)|$)/i);
+  return m?.[1]?.trim() || '';
+}
+
+function buildFallbackFinancialToolCall(userText: string, clientMessageId: string): FunctionCall | null {
+  const text = normalizeArabicForIntent(userText);
+  const amount = extractAmountFromFinancialText(userText);
+  if (!amount) return null;
+  const account = accountFromFinancialText(userText);
+  const isPurchase = /(اشتريت|شريت|شراء|دفعت|دفع|مصروف)/.test(text);
+  const isIncome = /(دخل|راتب|مساعده|مساعدة|منحه|منحة|هديه|هدية|الغذاء العالمي|الغذا العالمي|استلمت|وصلني)/.test(text) && !isPurchase;
+  const isBorrowing = /(دين نقدي|سلفه|سلفة|استدنت|اقترضت|سلفني)/.test(text);
+
+  if (isBorrowing) {
+    const creditor = extractMerchantFromFinancialText(userText) || 'غير محدد';
+    return { name: 'transfer_money', args: { amount, fromAccount: 'debt', toAccount: 'cash', creditor, notes: userText } } as any;
+  }
+
+  if (isIncome) {
+    if (!account || account === 'debt') return null;
+    const isSalary = /راتب/.test(text);
+    return { name: 'add_transaction', args: {
+      amount,
+      type: 'income',
+      paymentMethod: account,
+      account,
+      category: 'دخل',
+      subcategory: isSalary ? 'راتب' : 'دخل عام',
+      notes: userText,
+      incomeDestinationConfirmed: true,
+      destinationConfirmed: true,
+    }} as any;
+  }
+
+  if (isPurchase) {
+    if (!account) return null;
+    const merchant = extractMerchantFromFinancialText(userText);
+    const inferred = inferFallbackExpenseCategory(userText);
+    return { name: 'add_transaction', args: {
+      amount,
+      type: 'expense',
+      paymentMethod: account,
+      account,
+      category: inferred.category,
+      subcategory: inferred.subcategory,
+      purchaseItem: inferred.purchaseItem,
+      beneficiary: inferred.beneficiary,
+      merchant,
+      notes: userText,
+    }} as any;
+  }
+
+  return null;
+}
+
 function shouldSkipFinancialToolCallForIntent(call: FunctionCall, userMessage: string, seenKeys: Set<string>, batchCalls: FunctionCall[] = []): { skip: boolean; reason?: string } {
   const key = semanticToolKey(call);
   if (seenKeys.has(key)) return { skip: true, reason: 'DUPLICATE_TOOL_CALL_IN_SAME_TURN' };
