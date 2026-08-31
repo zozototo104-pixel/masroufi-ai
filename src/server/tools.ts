@@ -1644,12 +1644,8 @@ export async function importUserData(payload: any, userId: string, token: string
       firebaseAdminDb.collection('users').doc(userId).collection('memory').get(),
     ]);
 
-    const validBudgets = Object.entries(budgetsToImport).filter(([category, limit]) => category && typeof limit === 'number');
-    const validCommitments = commitmentsToImport.filter((c: any) => c && c.title && typeof c.amount === 'number');
-    const validReports = reportsToImport.filter((r: any) => r && r.content);
-    const validMemory = Object.entries(memoryToImport).filter(([key, value]) => key && typeof value === 'string');
     const deleteCount = oldTx.size + oldComm.size + oldRep.size + oldBudgets.size + oldMemory.size;
-    const writeCount = preparedTransactions.entries.length + validBudgets.length + validCommitments.length + validReports.length + validMemory.length;
+    const writeCount = transactionEntries.length + budgetEntries.length + commitmentEntries.length + reportEntries.length + memoryEntries.length;
     const mutationCount = deleteCount + writeCount;
 
     // Firestore batches support at most 500 writes. Keep safety headroom and fail
