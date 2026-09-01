@@ -852,12 +852,13 @@ export default function App() {
     if (!idToken || !savingsContributionAmount) return;
     setIsSavingsSaving(true);
     try {
-      const goalId = savingsContributionGoalId || (savingsGoals.length === 1 ? savingsGoals[0].id : '');
-      const url = goalId ? `/api/savings-goals/${encodeURIComponent(goalId)}/contribute` : '/api/command';
-      const body = goalId
-        ? { amount: Number(savingsContributionAmount) }
-        : { type: 'add_savings_contribution' as FinancialCommandType, payload: { amount: Number(savingsContributionAmount) } };
-      const res = await fetch(url, {
+      const activeGoals = savingsGoals.filter((g: any) => String(g.status || 'active') !== 'completed');
+      const goalId = savingsContributionGoalId || (activeGoals.length === 1 ? activeGoals[0].id : '');
+      if (!goalId) {
+        alert(activeGoals.length > 1 ? 'اختر هدف الادخار أولاً.' : 'أنشئ هدف ادخار قبل إضافة مساهمة.');
+        return;
+      }
+      const res = await fetch(`/api/savings-goals/${encodeURIComponent(goalId)}/contribute`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
