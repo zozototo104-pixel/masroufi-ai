@@ -3037,6 +3037,7 @@ export const functionDeclarations = [
         targetAmount: { type: "number" },
         savedAmount: { type: "number" },
         dueDate: { type: "string" },
+        durationMonths: { type: "number", description: "مدة جديدة بالشهور لإعادة حساب الموعد والمطلوب شهرياً" },
         priority: { type: "string" },
         status: { type: "string" },
         notes: { type: "string" }
