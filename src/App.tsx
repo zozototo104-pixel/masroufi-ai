@@ -1437,6 +1437,27 @@ export default function App() {
               )}
             </button>
 
+            {/* Savings Goals Quick Button */}
+            <button 
+              onClick={() => setShowSavings(true)} 
+              className={`p-2.5 rounded-2xl border transition-all relative flex items-center gap-1.5 text-xs font-semibold ${
+                criticalSavingsGoals.length > 0
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                  : warningSavingsGoals.length > 0
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+              }`} 
+              title="المدخرات وأهداف الادخار"
+            >
+              <PiggyBank className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">المدخرات</span>
+              {criticalSavingsGoals.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full text-[10px] flex items-center justify-center font-bold text-white animate-bounce">
+                  {criticalSavingsGoals.length}
+                </span>
+              )}
+            </button>
+
             {/* Commitments & Cash Flow Quick Button */}
             <button 
               onClick={() => setShowCommitments(true)} 
