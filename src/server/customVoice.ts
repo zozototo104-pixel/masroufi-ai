@@ -1,4 +1,4 @@
-import { adminDb, adminStorageBucket } from './firebaseAdmin';
+import { adminDb } from './firebaseAdmin';
 
 const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io/v1';
 const FISH_AUDIO_API_BASE = 'https://api.fish.audio';
