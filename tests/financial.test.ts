@@ -230,6 +230,56 @@ test('FIN-19: positive amount parser rejects zero and negative values before INV
   assert.equal(parsePositiveFinancialAmount('22'), 22);
 });
 
+test('SAV-01: savings goal of 5000 over one year calculates monthly requirement', () => {
+  const built = buildSavingsGoalRecord({
+    userId: 'u1',
+    name: 'هدف السنة',
+    targetAmount: 5000,
+    durationMonths: 12,
+    now: new Date('2026-09-01T00:00:00.000Z'),
+  });
+  assert.equal(built.ok, true);
+  if (built.ok) {
+    assert.equal(built.goal.dueDate, '2027-09-01');
+    assert.equal(built.goal.monthlyRequired, 416.67);
+    assert.equal(built.goal.status, 'active');
+  }
+});
+
+test('SAV-02: savings contribution auto-selects the only active goal but asks when ambiguous', () => {
+  const one = selectSavingsGoalForContribution([
+    { id: 'g1', name: 'طوارئ', targetAmount: 5000, savedAmount: 1000, status: 'active' },
+  ]);
+  assert.equal(one.ok, true);
+  if (one.ok) assert.equal(one.selected.id, 'g1');
+
+  const multiple = selectSavingsGoalForContribution([
+    { id: 'g1', name: 'طوارئ', targetAmount: 5000, savedAmount: 1000, status: 'active' },
+    { id: 'g2', name: 'سيارة', targetAmount: 10000, savedAmount: 100, status: 'active' },
+  ]);
+  assert.equal(multiple.ok, false);
+  if (!multiple.ok) {
+    assert.equal(multiple.reason, 'AMBIGUOUS_SAVINGS_GOAL');
+    assert.equal(multiple.options.length, 2);
+  }
+});
+
+test('SAV-03: savings plan emits critical alert when monthly remainder reaches required saving threshold', () => {
+  const plan = buildSavingsGoalPlan({
+    goal: { id: 'g1', name: 'طوارئ', targetAmount: 5000, savedAmount: 0, dueDate: '2027-09-01' },
+    transactions: [
+      tx({ type: 'income', amount: 1000, date: '2026-09-01T08:00:00.000Z' }),
+      tx({ type: 'expense', amount: 590, date: '2026-09-02T08:00:00.000Z' }),
+    ],
+    contributions: [],
+    now: new Date('2026-09-15T00:00:00.000Z'),
+  });
+  assert.equal(plan.monthlyRequired, 416.67);
+  assert.equal(plan.monthlyNetAvailable, 410);
+  assert.equal(plan.alertLevel, 'critical');
+  assert.match(plan.alertMessage, /تنبيه أحمر/);
+});
+
 test('IMP-01: import envelope rejects invalid and unrecognized backups before Firestore access', () => {
   const invalid = validateImportEnvelope(null);
   assert.equal(invalid.ok, false);
