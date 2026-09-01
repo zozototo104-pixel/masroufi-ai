@@ -2988,7 +2988,7 @@ export const functionDeclarations = [
   },
   {
     name: "create_savings_goal",
-    description: "ينشئ هدف ادخار مثل احتياطي طوارئ أو شراء آيفون أو تعليم الأبناء. اسأل عن المبلغ المستهدف والموعد إن لم يذكرا.",
+    description: "ينشئ هدف ادخار مثل احتياطي طوارئ أو شراء آيفون أو تعليم الأبناء. إذا قال المستخدم: هدفي أصل إلى 5000 خلال سنة، استخدم targetAmount=5000 وdurationMonths=12. احسب له المطلوب شهرياً ولا تسجلها كمصروف.",
     parameters: {
       type: "object",
       properties: {
@@ -2996,6 +2996,7 @@ export const functionDeclarations = [
         targetAmount: { type: "number", description: "المبلغ المستهدف بالشيكل" },
         savedAmount: { type: "number", description: "المبلغ المحفوظ حالياً إن وجد" },
         dueDate: { type: "string", description: "موعد مستهدف اختياري YYYY-MM-DD" },
+        durationMonths: { type: "number", description: "مدة الهدف بالشهور عند قول المستخدم خلال سنة/6 شهور/شهرين" },
         priority: { type: "string", description: "low, medium, high" },
         notes: { type: "string", description: "ملاحظات" }
       },
@@ -3004,14 +3005,17 @@ export const functionDeclarations = [
   },
   {
     name: "add_savings_contribution",
-    description: "يضيف مبلغاً إلى هدف ادخار موجود. لا تعتبر المساهمة مصروفاً إلا إذا طلب المستخدم نقلها من حساب مالي؛ هي تحديث لهدف الادخار.",
+    description: "يضيف مبلغاً إلى هدف ادخار موجود. إذا كان للمستخدم هدف نشط واحد فقط فاختره تلقائياً. إذا تعددت الأهداف ولم يحدد الاسم، اسأل أي هدف. لا تعتبر المساهمة مصروفاً إلا إذا طلب المستخدم نقلها من حساب مالي؛ هي تحديث لهدف الادخار.",
     parameters: {
       type: "object",
       properties: {
-        id: { type: "string", description: "معرف هدف الادخار" },
-        amount: { type: "number", description: "المبلغ المضاف للادخار" }
+        id: { type: "string", description: "معرف هدف الادخار إن كان معروفاً" },
+        goalId: { type: "string", description: "معرف هدف الادخار البديل" },
+        goalName: { type: "string", description: "اسم الهدف إذا قال: ادخر 200 لهدف الطوارئ" },
+        amount: { type: "number", description: "المبلغ المضاف للادخار" },
+        notes: { type: "string", description: "ملاحظات اختيارية" }
       },
-      required: ["id", "amount"]
+      required: ["amount"]
     }
   },
   {
