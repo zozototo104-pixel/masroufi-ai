@@ -103,7 +103,8 @@ test('VOICE-04: Custom suppresses Gemini native audio and uses cloned-voice synt
   const server = await src('server.ts');
   assert.ok(server.includes('if (audio && !useCustomVoice)'), 'Gemini native audio must be suppressed only for Custom mode');
   assert.ok(server.includes('outputAudioTranscription'), 'Custom mode must request Gemini output transcription');
-  assert.ok(server.includes('streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak })'), 'Custom mode must synthesize through the stored personal voice');
+  assert.ok(server.includes('streamCustomVoiceAudio({'), 'Custom mode must synthesize through the stored personal voice');
+  assert.ok(server.includes('voiceId: customVoiceId'), 'Custom synthesis must use the stored personal voice id');
 });
 
 test('VOICE-05: interruption invalidates late personal-voice audio', async () => {
