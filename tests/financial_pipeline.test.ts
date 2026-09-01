@@ -92,35 +92,32 @@ test('VOICE-02: browser never receives custom voice provider API keys', async ()
   assert.ok(serverVoice.includes("'s2.1-pro-free'"), 'Fish Audio free TTS model must be configured');
 });
 
-test('VOICE-03: Puck and Zephyr remain available while Custom is additive', async () => {
+test('VOICE-03: Puck and Zephyr are the only selectable Live voices', async () => {
   const app = await src('src/App.tsx');
   assert.ok(app.includes("setVoice('Puck')"), 'Puck must remain selectable');
   assert.ok(app.includes("setVoice('Zephyr')"), 'Zephyr must remain selectable');
-  assert.ok(app.includes("setVoice('Custom')"), 'Custom must be an additional option');
+  assert.equal(app.includes("setVoice('Custom')"), false, 'personal voice must not enter the built-in Live voice selector');
 });
 
-test('VOICE-04: Custom suppresses Gemini native audio and uses cloned-voice synthesis', async () => {
+test('VOICE-04: Gemini Live forwards native audio without personal-voice interception', async () => {
   const server = await src('server.ts');
-  assert.ok(server.includes('if (audio && !useCustomVoice)'), 'Gemini native audio must be suppressed only for Custom mode');
-  assert.ok(server.includes('outputAudioTranscription'), 'Custom mode must request Gemini output transcription');
-  assert.ok(server.includes('streamCustomVoiceAudio({'), 'Custom mode must synthesize through the stored personal voice');
-  assert.ok(server.includes('voiceId: customVoiceId'), 'Custom synthesis must use the stored personal voice id');
+  assert.ok(server.includes('if (audio) {\n                safeSend({ audio });'), 'Gemini native audio must be forwarded directly');
+  assert.equal(server.includes('outputAudioTranscription'), false, 'built-in Live voices must not request custom TTS transcription');
+  assert.equal(server.includes('streamCustomVoiceAudio({'), false, 'personal TTS must stay out of the Gemini Live message path');
 });
 
-test('VOICE-05: interruption invalidates late personal-voice audio', async () => {
+test('VOICE-05: interruption handling matches the original Gemini Live path', async () => {
   const server = await src('server.ts');
-  assert.ok(server.includes('customVoiceGeneration++'), 'custom voice generation must be invalidated on interruption');
-  assert.ok(server.includes('generation !== customVoiceGeneration || !isActive'), 'streaming TTS must stop relaying after interruption');
-});
-
-test('VOICE-06: personal voice TTS is streamed and mobile barge-in resists speaker echo', async () => {
-  const server = await src('server.ts');
-  const voice = await src('src/server/customVoice.ts');
   const live = await src('src/lib/useGeminiLive.ts');
-  assert.ok(voice.includes('AsyncGenerator<Uint8Array>'), 'provider audio must be exposed as a stream');
-  assert.ok(server.includes('for await (const pcmChunk of streamCustomVoiceAudio'), 'server must relay provider PCM incrementally');
-  assert.ok(live.includes('rms > 0.07'), 'barge-in must reject low-level speaker echo');
-  assert.ok(live.includes('userSpeechCounter >= 4'), 'barge-in must require sustained speech');
+  assert.ok(server.includes('if (message.serverContent?.interrupted)'), 'server must relay Gemini interruption events');
+  assert.ok(server.includes('safeSend({ interrupted: true })'), 'server must notify the client immediately on interruption');
+  assert.ok(live.includes('stopPlayback();\n          setStatus(\'listening\');'), 'client must stop playback and return to listening on interruption');
+});
+
+test('VOICE-06: mobile barge-in uses the pre-personal-voice sensitivity', async () => {
+  const live = await src('src/lib/useGeminiLive.ts');
+  assert.ok(live.includes('rms > 0.04'), 'barge-in must use the original speech threshold');
+  assert.ok(live.includes('userSpeechCounter >= 2'), 'barge-in must use the original sustained-speech threshold');
 });
 
 test('VOICE-07: websocket connect reads the latest selected voice', async () => {
@@ -131,15 +128,9 @@ test('VOICE-07: websocket connect reads the latest selected voice', async () => 
   assert.equal(live.includes("params.append('voice', settings.voice)"), false, 'connect must not capture a stale voice value');
 });
 
-test('VOICE-08: MOSS custom voices stay on the free Firestore path and preserve provider identity', async () => {
-  const voice = await src('src/server/customVoice.ts');
+test('VOICE-08: dormant personal-voice management remains isolated from Live voice runtime', async () => {
   const server = await src('server.ts');
-  assert.ok(voice.includes("return 'moss'"), 'self-hosted MOSS must be the default custom voice provider');
-  assert.equal(voice.includes('adminStorageBucket'), false, 'MOSS must not require paid Firebase Storage');
-  assert.ok(voice.includes('referenceAudioBase64'), 'MOSS reference audio must be persisted in the private Firestore voice profile');
-  assert.ok(voice.includes('MOSS_FIRESTORE_AUDIO_MAX_BYTES'), 'Firestore reference audio must have a safe document-size limit');
-  assert.ok(voice.includes('getCustomVoiceRuntime'), 'runtime must return voice id together with its provider and reference');
-  assert.ok(server.includes('customVoiceRuntime?.provider'), 'live sessions must bind to the provider that created the voice');
-  assert.ok(server.includes('customVoiceRuntime?.referenceAudioBase64'), 'live sessions must load the Firestore MOSS reference');
-  assert.ok(voice.includes("`${requireMossUrl()}/v1/tts`"), 'MOSS synthesis must go through the isolated service');
+  assert.ok(server.includes('app.get("/api/custom-voice", authMiddleware'), 'dormant personal-voice data remains manageable behind auth');
+  assert.equal(server.includes('getCustomVoiceRuntime'), false, 'Gemini Live runtime must not load personal voice state');
+  assert.equal(server.includes('streamCustomVoiceAudio'), false, 'Gemini Live runtime must not call personal voice synthesis');
 });
