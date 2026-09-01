@@ -27,9 +27,7 @@ function requireMossUrl(): string {
   return url;
 }
 
-function voiceReferencePath(userId: string): string {
-  return `private/custom-voices/${userId}/reference.webm`;
-}
+const MOSS_FIRESTORE_AUDIO_MAX_BYTES = 600 * 1024;
 
 function requireElevenLabsApiKey(): string {
   const key = process.env.ELEVENLABS_API_KEY?.trim();
