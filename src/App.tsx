@@ -819,6 +819,61 @@ export default function App() {
     }
   };
 
+  const handleCreateSavingsGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!idToken || !newSavingsName.trim() || !newSavingsTarget) return;
+    setIsSavingsSaving(true);
+    try {
+      const res = await fetch('/api/savings-goals', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newSavingsName.trim(),
+          targetAmount: Number(newSavingsTarget),
+          durationMonths: Number(newSavingsDurationMonths) || 12,
+          priority: 'high',
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.error || 'تعذر إنشاء هدف الادخار');
+      setNewSavingsName('');
+      setNewSavingsTarget('');
+      setNewSavingsDurationMonths('12');
+      window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+    } catch (err) {
+      console.error('Failed to create savings goal', err);
+    } finally {
+      setIsSavingsSaving(false);
+    }
+  };
+
+  const handleAddSavingsContribution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!idToken || !savingsContributionAmount) return;
+    setIsSavingsSaving(true);
+    try {
+      const goalId = savingsContributionGoalId || (savingsGoals.length === 1 ? savingsGoals[0].id : '');
+      const url = goalId ? `/api/savings-goals/${encodeURIComponent(goalId)}/contribute` : '/api/command';
+      const body = goalId
+        ? { amount: Number(savingsContributionAmount) }
+        : { type: 'add_savings_contribution' as FinancialCommandType, payload: { amount: Number(savingsContributionAmount) } };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.error || 'تعذر إضافة الادخار');
+      setSavingsContributionAmount('');
+      setSavingsContributionGoalId('');
+      window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+    } catch (err) {
+      console.error('Failed to add savings contribution', err);
+    } finally {
+      setIsSavingsSaving(false);
+    }
+  };
+
   const handleCreateCommitment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idToken || !newCommitmentTitle || !newCommitmentAmount || !newCommitmentDate) return;
