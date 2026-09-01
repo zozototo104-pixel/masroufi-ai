@@ -288,3 +288,17 @@ test('CONC-21: atomic financial guards parse amounts through the shared finite p
   assert.ok(atomicSrc.includes('const amount = parsePositiveFinancialAmount(newTx.amount)'),
     'atomic transfer/add/debt guards must sanitize non-finite amounts consistently');
 });
+
+test('CONC-22: savings contributions use Firestore transaction and contribution history', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const contributionBlock = toolsSrc.slice(
+    toolsSrc.indexOf('export async function addSavingsContribution'),
+    toolsSrc.indexOf('export async function updateSavingsGoal')
+  );
+  assert.ok(contributionBlock.includes('firebaseAdminDb.runTransaction'),
+    'savings contribution must atomically update savedAmount based on the latest cloud value');
+  assert.ok(contributionBlock.includes("collection('contributions').doc()"),
+    'savings contribution must persist contribution history for monthly progress calculations');
+  assert.ok(contributionBlock.includes('selectSavingsGoalForContribution'),
+    'savings contribution must use the shared goal selection authority');
+});
