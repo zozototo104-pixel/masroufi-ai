@@ -2580,7 +2580,7 @@ export async function createSavingsGoal(args: any, userId: string, token: string
     priority: args.priority,
     notes: args.notes,
   });
-  if (!built.ok) return { success: false, needsClarification: true, reason: built.reason, message: built.message };
+  if (built.ok === false) return { success: false, needsClarification: true, reason: built.reason, message: built.message };
   const docRef = adminDb.collection('users').doc(userId).collection('savingsGoals').doc();
   await docRef.set(built.goal);
   await addNotification(userId, `تم إنشاء هدف ادخار "${name}" بمبلغ ${built.goal.targetAmount} ₪. المطلوب شهرياً: ${built.goal.monthlyRequired || 0} ₪.`, 'success', adminDb);
