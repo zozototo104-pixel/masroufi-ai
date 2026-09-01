@@ -229,10 +229,13 @@ export async function* streamCustomVoiceAudio(args: {
   const provider = args.provider || selectedProvider();
   let response: Response;
   if (provider === 'moss') {
-    const [reference] = await adminStorageBucket.file(args.voiceId).download();
+    if (!args.referenceAudioBase64) throw new Error('MOSS_REFERENCE_AUDIO_MISSING');
+    const reference = Buffer.from(args.referenceAudioBase64, 'base64');
+    const mimeType = args.referenceMimeType || 'audio/webm';
+    const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('mpeg') ? 'mp3' : mimeType.includes('wav') ? 'wav' : 'webm';
     const form = new FormData();
     form.append('text', args.text);
-    form.append('reference_audio', new Blob([new Uint8Array(reference)], { type: 'audio/webm' }), 'reference.webm');
+    form.append('reference_audio', new Blob([new Uint8Array(reference)], { type: mimeType }), `reference.${extension}`);
     form.append('format', 'pcm');
     form.append('sample_rate', '24000');
     response = await fetch(`${requireMossUrl()}/v1/tts`, { method: 'POST', body: form, headers: { Accept: 'audio/pcm' } });
