@@ -1460,19 +1460,6 @@ ${relationshipContext}
           userEmail = result.email;
           userToken = result.token;
 
-          if (useCustomVoice) {
-            const customVoiceRuntime = await getCustomVoiceRuntime(userId);
-            customVoiceId = customVoiceRuntime?.voiceId || null;
-            customVoiceProvider = customVoiceRuntime?.provider || null;
-            customVoiceReferenceAudioBase64 = customVoiceRuntime?.referenceAudioBase64 || null;
-            customVoiceReferenceMimeType = customVoiceRuntime?.referenceMimeType || null;
-            if (!customVoiceId || !customVoiceProvider || (customVoiceProvider === 'moss' && !customVoiceReferenceAudioBase64)) {
-              safeSend({ error: "سجّل صوتك من الإعدادات قبل اختيار «صوتي»." });
-              try { clientWs.close(4003, "custom voice not configured"); } catch (e) { /* ignore */ }
-              return;
-            }
-          }
-
           if (authTimeout) {
             clearTimeout(authTimeout);
             authTimeout = null;
