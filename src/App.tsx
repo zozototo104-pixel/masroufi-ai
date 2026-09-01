@@ -330,12 +330,19 @@ export default function App() {
       setCustomVoiceMessage('');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(type => MediaRecorder.isTypeSupported(type));
-      const recorder = preferred ? new MediaRecorder(stream, { mimeType: preferred }) : new MediaRecorder(stream);
+      const recorderOptions: MediaRecorderOptions = preferred
+        ? { mimeType: preferred, audioBitsPerSecond: 32_000 }
+        : { audioBitsPerSecond: 32_000 };
+      const recorder = new MediaRecorder(stream, recorderOptions);
       customVoiceStreamRef.current = stream;
       customVoiceRecorderRef.current = recorder;
       customVoiceChunksRef.current = [];
       recorder.ondataavailable = event => { if (event.data.size > 0) customVoiceChunksRef.current.push(event.data); };
+      const autoStopTimer = window.setTimeout(() => {
+        if (recorder.state === 'recording') recorder.stop();
+      }, 30_000);
       recorder.onstop = async () => {
+        window.clearTimeout(autoStopTimer);
         const blob = new Blob(customVoiceChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         stopCustomVoiceCapture();
         if (!customVoiceConsent) {
