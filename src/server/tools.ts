@@ -2537,52 +2537,89 @@ export async function updateTreasurerProfile(args: any, userId: string, token: s
 
 export async function getSavingsGoals(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
-  const snap = await adminDb.collection('users').doc(userId).collection('savingsGoals').get();
-  const goals = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+  const [snap, txSnap] = await Promise.all([
+    adminDb.collection('users').doc(userId).collection('savingsGoals').get(),
+    adminDb.collection('transactions').where('userId', '==', userId).get().catch(() => ({ docs: [], partial: true }))
+  ]);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const txs = (txSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const rawGoals = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
     .sort((a: any, b: any) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
-  return { success: true, goals, partial: (snap as any).partial };
+
+  const goals = [];
+  for (const goal of rawGoals) {
+    let contributions: any[] = [];
+    try {
+      const contributionSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(goal.id).collection('contributions').get();
+      contributions = contributionSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    } catch {}
+    const plan = buildSavingsGoalPlan({ goal, transactions: txs, contributions, now });
+    goals.push(plan);
+    if (plan.alertLevel === 'critical') {
+      await addNotification(userId, plan.alertMessage, 'danger', adminDb, {
+        idempotencyKey: `savings-critical:${goal.id}:${monthKey(now)}`,
+        metadata: { goalId: goal.id, monthlyRequired: plan.monthlyRequired, monthlyNetAvailable: plan.monthlyNetAvailable }
+      });
+    }
+  }
+
+  return { success: true, goals, partial: (snap as any).partial || (txSnap as any).partial };
 }
 
 export async function createSavingsGoal(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const name = String(args.name || args.title || '').trim();
-  const targetAmount = parsePositiveFinancialAmount(args.targetAmount || args.amount);
-  if (!name) return { success: false, needsClarification: true, reason: 'MISSING_SAVINGS_GOAL_NAME', message: 'ما اسم هدف الادخار؟ مثال: احتياطي طوارئ، آيفون، تعليم الأبناء.' };
-  if (targetAmount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_TARGET_AMOUNT', message: 'كم مبلغ هدف الادخار؟' };
-  const docRef = adminDb.collection('users').doc(userId).collection('savingsGoals').doc();
-  const savedAmount = parsePositiveFinancialAmount(args.savedAmount || args.initialAmount);
-  const goal = {
+  const built = buildSavingsGoalRecord({
     userId,
     name,
-    targetAmount,
-    savedAmount,
-    dueDate: args.dueDate || '',
-    priority: args.priority || 'medium',
-    notes: args.notes || '',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  await docRef.set(goal);
-  await addNotification(userId, `تم إنشاء هدف ادخار "${name}" بمبلغ ${targetAmount} ₪.`, 'success', adminDb);
-  return { success: true, id: docRef.id, goal: { id: docRef.id, ...goal } };
+    targetAmount: args.targetAmount || args.amount,
+    savedAmount: args.savedAmount || args.initialAmount,
+    dueDate: args.dueDate,
+    durationMonths: args.durationMonths || args.months,
+    priority: args.priority,
+    notes: args.notes,
+  });
+  if (!built.ok) return { success: false, needsClarification: true, reason: built.reason, message: built.message };
+  const docRef = adminDb.collection('users').doc(userId).collection('savingsGoals').doc();
+  await docRef.set(built.goal);
+  await addNotification(userId, `تم إنشاء هدف ادخار "${name}" بمبلغ ${built.goal.targetAmount} ₪. المطلوب شهرياً: ${built.goal.monthlyRequired || 0} ₪.`, 'success', adminDb);
+  return { success: true, id: docRef.id, goal: { id: docRef.id, ...built.goal } };
 }
 
 export async function addSavingsContribution(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
-  const id = String(args.id || args.goalId || '').trim();
   const amount = parsePositiveFinancialAmount(args.amount);
-  if (!id) return { success: false, needsClarification: true, reason: 'MISSING_SAVINGS_GOAL_ID', message: 'لأي هدف ادخار أضيف هذا المبلغ؟' };
   if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_SAVINGS_AMOUNT', message: 'كم المبلغ الذي تريد ادخاره؟' };
+  const snap = await adminDb.collection('users').doc(userId).collection('savingsGoals').get();
+  const goals = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const explicitId = String(args.id || args.goalId || '').trim();
+  const selection = explicitId
+    ? selectSavingsGoalForContribution(goals.filter((g: any) => String(g.id) === explicitId), String(args.goalName || args.name || ''))
+    : selectSavingsGoalForContribution(goals, args.goalName || args.name || args.title);
+  if (selection.ok === false) {
+    return { success: false, needsClarification: true, reason: selection.reason, options: selection.options, message: selection.message };
+  }
+  const id = String(selection.selected.id || explicitId);
   const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) return { success: false, error: 'هدف الادخار غير موجود.' };
-  const current = snap.data() || {};
-  const savedAmount = Math.round((Number(current.savedAmount || 0) + amount) * 100) / 100;
-  const status = savedAmount >= Number(current.targetAmount || 0) ? 'completed' : (current.status || 'active');
-  await ref.update({ savedAmount, status, updatedAt: new Date().toISOString() });
-  await addNotification(userId, `تمت إضافة ${amount} ₪ إلى هدف ادخار "${current.name}". المجموع الآن ${savedAmount} ₪.`, 'success', adminDb);
-  return { success: true, id, savedAmount, status, remaining: Math.max(0, Number(current.targetAmount || 0) - savedAmount) };
+  const contributionRef = ref.collection('contributions').doc();
+  const now = new Date().toISOString();
+  const txResult = await firebaseAdminDb.runTransaction(async (tx: any) => {
+    const currentSnap = await tx.get(ref as any);
+    if (!currentSnap.exists) return { ok: false as const, reason: 'SAVINGS_GOAL_NOT_FOUND' };
+    const current = currentSnap.data() || {};
+    const targetAmount = parsePositiveFinancialAmount(current.targetAmount);
+    const savedAmount = roundMoney(parsePositiveFinancialAmount(current.savedAmount) + amount);
+    const status = savedAmount >= targetAmount ? 'completed' : (current.status || 'active');
+    tx.set(contributionRef as any, { userId, goalId: id, amount, createdAt: now, notes: String(args.notes || '') });
+    tx.update(ref as any, { savedAmount, status, lastContributionAt: now, updatedAt: now });
+    return { ok: true as const, goalName: String(current.name || 'هدف ادخار'), targetAmount, savedAmount, status };
+  });
+  if (!txResult.ok) return { success: false, error: 'هدف الادخار غير موجود.' };
+  await addNotification(userId, `تمت إضافة ${amount} ₪ إلى هدف ادخار "${txResult.goalName}". المجموع الآن ${txResult.savedAmount} ₪.`, 'success', adminDb, {
+    idempotencyKey: `savings-contribution:${id}:${amount}:${now}`,
+    metadata: { goalId: id, amount }
+  });
+  return { success: true, id, savedAmount: txResult.savedAmount, status: txResult.status, remaining: Math.max(0, txResult.targetAmount - txResult.savedAmount) };
 }
 
 export async function updateSavingsGoal(args: any, userId: string, token: string) {
