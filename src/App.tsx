@@ -1813,11 +1813,10 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">صوت الخبير</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="block text-sm font-medium text-slate-300 mb-2">صوت الخبير (الجنس)</label>
+                <div className="grid grid-cols-2 gap-3">
                   <button onClick={() => setVoice('Puck')} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Puck' ? 'border-emerald-500 bg-emerald-900/30 text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>رجل (Puck)</button>
                   <button onClick={() => setVoice('Zephyr')} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Zephyr' ? 'border-emerald-500 bg-emerald-900/30 text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>امرأة (Zephyr)</button>
-                  <button onClick={() => { if (customVoiceConfigured) setVoice('Custom'); else setCustomVoiceMessage('سجّل صوتك أولًا من القسم أدناه.'); }} className={`px-4 py-3 rounded-xl border transition-colors ${voice === 'Custom' ? 'border-amber-400 bg-amber-900/30 text-amber-300 font-bold shadow-[0_0_10px_rgba(251,191,36,0.18)]' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>صوتي{customVoiceConfigured ? ' ✓' : ''}</button>
                 </div>
 
                 <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4 space-y-3">
