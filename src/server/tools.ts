@@ -2611,7 +2611,7 @@ export async function addSavingsContribution(args: any, userId: string, token: s
     const savedAmount = roundMoney(parsePositiveFinancialAmount(current.savedAmount) + amount);
     const status = savedAmount >= targetAmount ? 'completed' : (current.status || 'active');
     tx.set(contributionRef as any, { userId, goalId: id, amount, createdAt: now, notes: String(args.notes || '') });
-    tx.update(ref as any, { savedAmount, status, lastContributionAt: now, updatedAt: now });
+    tx.update(cloudRef as any, { savedAmount, status, lastContributionAt: now, updatedAt: now });
     return { ok: true as const, goalName: String(current.name || 'هدف ادخار'), targetAmount, savedAmount, status };
   });
   if (!txResult.ok) return { success: false, error: 'هدف الادخار غير موجود.' };
