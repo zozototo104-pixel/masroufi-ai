@@ -107,6 +107,14 @@ export default function App() {
   const [newCommitmentDate, setNewCommitmentDate] = useState('');
   const [newCommitmentCategory, setNewCommitmentCategory] = useState('أقساط والتزامات');
 
+  // Savings goal form state
+  const [newSavingsName, setNewSavingsName] = useState('');
+  const [newSavingsTarget, setNewSavingsTarget] = useState('');
+  const [newSavingsDurationMonths, setNewSavingsDurationMonths] = useState('12');
+  const [savingsContributionGoalId, setSavingsContributionGoalId] = useState('');
+  const [savingsContributionAmount, setSavingsContributionAmount] = useState('');
+  const [isSavingsSaving, setIsSavingsSaving] = useState(false);
+
   // Budget edit state
   const [editingBudgetCat, setEditingBudgetCat] = useState<string | null>(null);
   const [editingBudgetLimit, setEditingBudgetLimit] = useState('');
