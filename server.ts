@@ -1216,13 +1216,6 @@ function setupLiveApi(wss: WebSocketServer) {
 
     const authState: WSAuthState = { authenticated: false };
     let userId: string | null = null;
-    const useCustomVoice = voice === "Custom";
-    let customVoiceId: string | null = null;
-    let customVoiceProvider: CustomVoiceProvider | null = null;
-    let customVoiceReferenceAudioBase64: string | null = null;
-    let customVoiceReferenceMimeType: string | null = null;
-    let customVoiceTurnText = "";
-    let customVoiceGeneration = 0;
     let userEmail: string | undefined = undefined;
     let userToken: string | undefined = undefined;
     const pendingAudio: string[] = [];
