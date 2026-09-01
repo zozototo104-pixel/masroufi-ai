@@ -365,8 +365,7 @@ export default function App() {
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data?.error || 'تعذر إنشاء الصوت.');
           setCustomVoiceConfigured(true);
-          setVoice('Custom');
-          setCustomVoiceMessage('تم إنشاء صوتك. أصبح خيار «صوتي» جاهزًا.');
+          setCustomVoiceMessage('تم إنشاء صوتك الشخصي. بقي مسار Puck/Zephyr الصوتي المستقر كما هو.');
         } catch (err: any) {
           setCustomVoiceMessage(err?.message || 'تعذر إنشاء الصوت.');
         } finally {
