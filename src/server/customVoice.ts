@@ -28,6 +28,52 @@ function requireMossUrl(): string {
 }
 
 const MOSS_FIRESTORE_AUDIO_MAX_BYTES = 600 * 1024;
+const MOSS_RETRY_DELAYS_MS = [1_500, 3_000, 6_000];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function wakeMossService(): Promise<void> {
+  const baseUrl = requireMossUrl();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const response = await fetch(`${baseUrl}/health`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (response.ok) return;
+      if (response.status !== 429 && response.status < 500) return;
+    } catch {
+      // A sleeping free Render service can drop/timeout the first wake-up request.
+    }
+    if (attempt < MOSS_RETRY_DELAYS_MS.length) await sleep(MOSS_RETRY_DELAYS_MS[attempt]);
+  }
+}
+
+async function fetchMossTts(buildForm: () => FormData): Promise<Response> {
+  const url = `${requireMossUrl()}/v1/tts`;
+  await wakeMossService();
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        body: buildForm(),
+        headers: { Accept: 'audio/pcm' },
+        signal: AbortSignal.timeout(120_000),
+      });
+      if (response.status !== 429 && response.status < 500) return response;
+      await response.body?.cancel().catch(() => undefined);
+    } catch (err) {
+      if (attempt === 3) throw err;
+    }
+    if (attempt < MOSS_RETRY_DELAYS_MS.length) await sleep(MOSS_RETRY_DELAYS_MS[attempt]);
+  }
+  if (!response) throw new Error('MOSS_TTS_UNREACHABLE');
+  return response;
+}
 
 function requireElevenLabsApiKey(): string {
   const key = process.env.ELEVENLABS_API_KEY?.trim();
