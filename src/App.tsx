@@ -72,6 +72,7 @@ export default function App() {
   const [activeReport, setActiveReport] = useState<any>(null);
   const [budgetsData, setBudgetsData] = useState<any>({ budgets: [], totalBudget: 0, totalSpent: 0 });
   const [commitments, setCommitments] = useState<any[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
 
   // Helper to extract relevant transactions for a report dynamically and strictly
   const getReportTransactions = (report: any | null, allTransactions: any[]) => {
