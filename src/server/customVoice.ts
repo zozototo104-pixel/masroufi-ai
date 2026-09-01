@@ -199,16 +199,32 @@ export async function getCustomVoiceId(userId: string): Promise<string | null> {
   return profile.voiceId || null;
 }
 
-export async function getCustomVoiceRuntime(userId: string): Promise<{ voiceId: string; provider: CustomVoiceProvider } | null> {
-  const profile = await getCustomVoiceProfile(userId);
-  if (!profile.voiceId || !profile.provider) return null;
-  return { voiceId: profile.voiceId, provider: profile.provider };
+export async function getCustomVoiceRuntime(userId: string): Promise<{
+  voiceId: string;
+  provider: CustomVoiceProvider;
+  referenceAudioBase64?: string;
+  referenceMimeType?: string;
+} | null> {
+  const snap = await profileRef(userId).get();
+  if (!snap.exists) return null;
+  const data = snap.data() || {};
+  const provider: CustomVoiceProvider | undefined =
+    data.provider === 'moss' || data.provider === 'fish' || data.provider === 'elevenlabs' ? data.provider : undefined;
+  if (!data.voiceId || !provider) return null;
+  return {
+    voiceId: String(data.voiceId),
+    provider,
+    referenceAudioBase64: provider === 'moss' ? String(data.referenceAudioBase64 || '') : undefined,
+    referenceMimeType: provider === 'moss' ? String(data.referenceMimeType || 'audio/webm') : undefined,
+  };
 }
 
 export async function* streamCustomVoiceAudio(args: {
   voiceId: string;
   text: string;
   provider?: CustomVoiceProvider;
+  referenceAudioBase64?: string;
+  referenceMimeType?: string;
 }): AsyncGenerator<Uint8Array> {
   const provider = args.provider || selectedProvider();
   let response: Response;
