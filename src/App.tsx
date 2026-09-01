@@ -111,7 +111,10 @@ export default function App() {
 
   // Settings State
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('masrofi_api_key') || '');
-  const [voice, setVoice] = useState(() => localStorage.getItem('masrofi_voice') || 'Zephyr');
+  const [voice, setVoice] = useState(() => {
+    const savedVoice = localStorage.getItem('masrofi_voice');
+    return savedVoice === 'Puck' || savedVoice === 'Zephyr' ? savedVoice : 'Zephyr';
+  });
   const [persona, setPersona] = useState(() => localStorage.getItem('masrofi_persona') || 'friendly');
   const [userName, setUserName] = useState(() => localStorage.getItem('masrofi_user_name') || 'أبو مصعب');
   const [aiName, setAiName] = useState(() => localStorage.getItem('masrofi_ai_name') || 'مصروفي');
