@@ -178,7 +178,10 @@ export function buildSavingsGoalRecord(input: {
       targetAmount,
       savedAmount,
       dueDate,
-      durationMonths: Math.max(0, Math.floor(Number(input.durationMonths) || 0)) || null,
+      durationMonths: (() => {
+        const rawMonths = Number(input.durationMonths);
+        return Number.isFinite(rawMonths) ? Math.max(0, Math.floor(rawMonths)) || null : null;
+      })(),
       monthlyRequired: plan.monthlyRequired,
       priority: String(input.priority || 'medium'),
       notes: String(input.notes || ''),
