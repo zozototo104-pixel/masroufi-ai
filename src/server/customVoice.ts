@@ -91,19 +91,15 @@ export async function createCustomVoiceClone(args: {
   const form = new FormData();
 
   if (provider === 'moss') {
-    const referencePath = voiceReferencePath(args.userId);
-    await adminStorageBucket.file(referencePath).save(Buffer.from(bytes), {
-      resumable: false,
-      metadata: {
-        contentType: mimeType,
-        cacheControl: 'private, no-store',
-        metadata: { ownerUid: args.userId, purpose: 'custom-voice-reference' },
-      },
-    });
+    if (bytes.byteLength > MOSS_FIRESTORE_AUDIO_MAX_BYTES) {
+      throw new Error('VOICE_SAMPLE_TOO_LARGE: سجّل عينة أقصر، حوالي 20 إلى 30 ثانية.');
+    }
     const now = new Date().toISOString();
+    const voiceId = 'firestore-reference';
     await profileRef(args.userId).set({
-      voiceId: referencePath,
+      voiceId,
       provider: 'moss',
+      referenceAudioBase64: Buffer.from(bytes).toString('base64'),
       referenceMimeType: mimeType,
       consentConfirmed: true,
       consentConfirmedAt: now,
@@ -115,7 +111,7 @@ export async function createCustomVoiceClone(args: {
         console.warn('[custom-voice] failed to delete replaced provider voice', err);
       });
     }
-    return { configured: true, voiceId: referencePath, provider: 'moss', createdAt: existing.createdAt || now, updatedAt: now };
+    return { configured: true, voiceId, provider: 'moss', createdAt: existing.createdAt || now, updatedAt: now };
   }
 
   let response: Response;
