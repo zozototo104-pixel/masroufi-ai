@@ -5,6 +5,13 @@ import { buildReportSnapshotRecord, matchesArabicCategory } from '../lib/reportU
 import { validateImportEnvelope } from '../lib/importEnvelope';
 import { prepareImportedFinancialTransactions } from '../lib/importFinancialTransactions';
 import { selectOpenCreditorDebt } from '../lib/debtSelection';
+import {
+  buildSavingsGoalPlan,
+  buildSavingsGoalRecord,
+  selectSavingsGoalForContribution,
+  monthKey,
+  roundMoney,
+} from '../lib/savingsCore';
 import { parseAbsoluteFinancialAmount, parsePositiveFinancialAmount } from '../lib/amount';
 import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc';
 export { normalizeAccount } from '../lib/balanceCalc';
