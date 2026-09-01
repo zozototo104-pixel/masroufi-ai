@@ -49,7 +49,8 @@ export function normalizeSavingsDueDate(input: {
 }): string {
   const explicit = String(input.dueDate || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(explicit)) return explicit;
-  const months = Math.max(0, Math.floor(Number(input.durationMonths) || 0));
+  const rawMonths = Number(input.durationMonths);
+  const months = Number.isFinite(rawMonths) ? Math.max(0, Math.floor(rawMonths)) : 0;
   if (months <= 0) return '';
   return addMonths(input.now || new Date(), months).toISOString().slice(0, 10);
 }
