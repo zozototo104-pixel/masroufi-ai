@@ -2567,7 +2567,7 @@ export async function getSavingsGoals(args: any, userId: string, token: string) 
 }
 
 export async function createSavingsGoal(args: any, userId: string, token: string) {
-  const adminDb = getDb(token);
+  const adminDb = firebaseAdminDb;
   const name = String(args.name || args.title || '').trim();
   const built = buildSavingsGoalRecord({
     userId,
