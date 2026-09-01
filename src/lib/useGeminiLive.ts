@@ -151,11 +151,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             // If AI is currently talking and user speaks into mic (barge-in):
             const isAiTalking = activeSourcesRef.current.length > 0;
             if (isAiTalking) {
-              // Require sustained, clearly louder speech before barge-in. Two 4096-sample
-              // frames (~0.37s at 22.05 kHz) was too sensitive to speaker echo on phones.
-              if (rms > 0.07) {
+              if (rms > 0.04) {
                 userSpeechCounter++;
-                if (userSpeechCounter >= 4) {
+                if (userSpeechCounter >= 2) {
                   // User is actively interrupting: instantly halt audio playback
                   stopPlayback();
                   setStatus('listening');
