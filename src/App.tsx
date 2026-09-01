@@ -1261,6 +1261,13 @@ export default function App() {
   // Check budget warnings
   const hasBudgetWarnings = (budgetsData.budgets || []).some((b: any) => b.status === 'warning' || b.status === 'exceeded');
   const dueSoonCommitmentsCount = commitments.filter(c => c.isDueSoon || c.isOverdue).length;
+  const activeSavingsGoals = savingsGoals.filter((g: any) => String(g.status || 'active') !== 'completed');
+  const criticalSavingsGoals = activeSavingsGoals.filter((g: any) => g.alertLevel === 'critical');
+  const warningSavingsGoals = activeSavingsGoals.filter((g: any) => g.alertLevel === 'warning');
+  const savingsTargetTotal = activeSavingsGoals.reduce((sum: number, g: any) => sum + (Number(g.targetAmount) || 0), 0);
+  const savingsSavedTotal = activeSavingsGoals.reduce((sum: number, g: any) => sum + (Number(g.savedAmount) || 0), 0);
+  const savingsProgress = savingsTargetTotal > 0 ? Math.min(100, Math.round((savingsSavedTotal / savingsTargetTotal) * 100)) : 0;
+  const savingsMonthlyRequired = activeSavingsGoals.reduce((sum: number, g: any) => sum + (Number(g.monthlyRequired) || 0), 0);
 
   if (authLoading) {
     return (
