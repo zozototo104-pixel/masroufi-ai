@@ -1388,7 +1388,13 @@ ${relationshipContext}
                   customVoiceTurnText = '';
                   const generation = ++customVoiceGeneration;
                   try {
-                    for await (const pcmChunk of streamCustomVoiceAudio({ voiceId: customVoiceId, text: textToSpeak, provider: customVoiceProvider || undefined })) {
+                    for await (const pcmChunk of streamCustomVoiceAudio({
+                      voiceId: customVoiceId,
+                      text: textToSpeak,
+                      provider: customVoiceProvider || undefined,
+                      referenceAudioBase64: customVoiceReferenceAudioBase64 || undefined,
+                      referenceMimeType: customVoiceReferenceMimeType || undefined,
+                    })) {
                       if (generation !== customVoiceGeneration || !isActive) break;
                       safeSend({ audio: Buffer.from(pcmChunk).toString('base64') });
                     }
