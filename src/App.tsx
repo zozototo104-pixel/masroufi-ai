@@ -2634,6 +2634,92 @@ export default function App() {
         );
       })()}
 
+      {/* Savings Goals Modal */}
+      {showSavings && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[105] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col p-6 shadow-2xl relative">
+            <button onClick={() => setShowSavings(false)} className="absolute top-4 left-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
+                <PiggyBank className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">خانة المدخرات والأهداف</h2>
+                <p className="text-xs text-slate-400">حدد هدفاً مثل 5000 ₪ خلال سنة، وسأحسب لك المطلوب شهرياً وأنبهك بالأحمر عند وصول الرصيد المتبقي لهذا الحد.</p>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 my-4 space-y-4 pr-1">
+              {activeSavingsGoals.map((goal: any) => {
+                const pct = Math.min(100, Number(goal.progressPercentage || 0));
+                const critical = goal.alertLevel === 'critical';
+                const warning = goal.alertLevel === 'warning';
+                return (
+                  <div key={goal.id} className={`p-4 rounded-2xl border ${critical ? 'bg-rose-950/30 border-rose-500/40' : warning ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-950/50 border-slate-800'}`}>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-white">{goal.name}</span>
+                          {critical && <span className="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> خطر</span>}
+                          {warning && <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] px-2 py-0.5 rounded-full">تنبيه</span>}
+                        </div>
+                        <p className="text-[11px] text-slate-400">الموعد: {goal.dueDate || 'غير محدد'} · باقي {Number(goal.daysRemaining || 0)} يوم</p>
+                      </div>
+                      <div className="text-left shrink-0">
+                        <p className="text-xs text-slate-400">شهرياً</p>
+                        <p className="text-lg font-black text-emerald-300">{Number(goal.monthlyRequired || 0).toLocaleString()} ₪</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                      <div className={`h-2.5 rounded-full ${critical ? 'bg-rose-500' : warning ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }}></div>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-slate-400 mt-2">
+                      <span>ادخرت: <strong className="text-white">{Number(goal.savedAmount || 0).toLocaleString()} ₪</strong> من {Number(goal.targetAmount || 0).toLocaleString()} ₪</span>
+                      <span>هذا الشهر: <strong className="text-emerald-300">{Number(goal.monthlySavedAmount || 0).toLocaleString()} ₪</strong></span>
+                    </div>
+                    {(critical || warning) && <p className={`mt-3 text-xs ${critical ? 'text-rose-100' : 'text-amber-100'}`}>{goal.alertMessage}</p>}
+                  </div>
+                );
+              })}
+
+              {activeSavingsGoals.length === 0 && (
+                <div className="text-center py-8 text-slate-500 text-sm">
+                  لا توجد أهداف ادخار نشطة بعد. أنشئ هدفاً جديداً من الأسفل.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleCreateSavingsGoal} className="bg-slate-950/50 border border-slate-800 rounded-2xl p-4 space-y-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Target className="w-4 h-4 text-emerald-400" /> هدف جديد</h3>
+                <input value={newSavingsName} onChange={e => setNewSavingsName(e.target.value)} placeholder="اسم الهدف: سيارة، طوارئ، تعليم" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" value={newSavingsTarget} onChange={e => setNewSavingsTarget(e.target.value)} placeholder="المبلغ ₪" className="px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs" />
+                  <input type="number" value={newSavingsDurationMonths} onChange={e => setNewSavingsDurationMonths(e.target.value)} placeholder="المدة بالشهور" className="px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs" />
+                </div>
+                <button disabled={isSavingsSaving} className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all">
+                  {isSavingsSaving ? 'جارٍ الحفظ...' : '+ إنشاء هدف'}
+                </button>
+              </form>
+
+              <form onSubmit={handleAddSavingsContribution} className="bg-slate-950/50 border border-slate-800 rounded-2xl p-4 space-y-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2"><PiggyBank className="w-4 h-4 text-emerald-400" /> ادخار مبلغ</h3>
+                <select value={savingsContributionGoalId} onChange={e => setSavingsContributionGoalId(e.target.value)} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs">
+                  <option value="">{activeSavingsGoals.length === 1 ? 'سيتم اختيار الهدف الوحيد تلقائياً' : 'اختر هدف الادخار'}</option>
+                  {activeSavingsGoals.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                <input type="number" value={savingsContributionAmount} onChange={e => setSavingsContributionAmount(e.target.value)} placeholder="المبلغ الذي تريد ادخاره ₪" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs" />
+                <button disabled={isSavingsSaving} className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all">
+                  {isSavingsSaving ? 'جارٍ الإضافة...' : '+ ادخار'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Smart Budgets & Pre-Alerts Modal */}
       {showBudgets && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[105] flex items-center justify-center p-4">
