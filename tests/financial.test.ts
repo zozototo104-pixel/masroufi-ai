@@ -18,6 +18,7 @@ import { parseAbsoluteFinancialAmount, parseFiniteAmount, parsePositiveFinancial
 import { validateImportEnvelope } from '../src/lib/importEnvelope.ts';
 import { prepareImportedFinancialTransactions } from '../src/lib/importFinancialTransactions.ts';
 import { buildReportSnapshotRecord } from '../src/lib/reportUtils.ts';
+import { buildSavingsGoalPlan, buildSavingsGoalRecord, selectSavingsGoalForContribution } from '../src/lib/savingsCore.ts';
 import { calculateBalances, calculateBreakdown, calculateCreditorRemaining, normalizeAccount, normalizeCreditorKey } from '../src/lib/balanceCalc.ts';
 import { buildCompletedIdempotencyRecord, decideIdempotencyClaim } from '../src/server/idempotencyCore.ts';
 import { IDEMPOTENCY_COLLECTION } from '../src/server/idempotencyConfig.ts';
