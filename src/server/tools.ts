@@ -2624,7 +2624,7 @@ export async function addSavingsContribution(args: any, userId: string, token: s
 }
 
 export async function updateSavingsGoal(args: any, userId: string, token: string) {
-  const adminDb = getDb(token);
+  const adminDb = firebaseAdminDb;
   const id = String(args.id || args.goalId || '').trim();
   if (!id) return { success: false, error: 'Savings goal id is required' };
   const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
@@ -2635,9 +2635,16 @@ export async function updateSavingsGoal(args: any, userId: string, token: string
   if (args.targetAmount !== undefined || args.amount !== undefined) patch.targetAmount = parsePositiveFinancialAmount(args.targetAmount || args.amount);
   if (args.savedAmount !== undefined) patch.savedAmount = parsePositiveFinancialAmount(args.savedAmount);
   if (args.dueDate !== undefined) patch.dueDate = args.dueDate || '';
+  if (args.durationMonths !== undefined || args.months !== undefined) {
+    const months = parsePositiveFinancialAmount(args.durationMonths ?? args.months);
+    patch.durationMonths = months || null;
+    patch.dueDate = months > 0 ? normalizeSavingsDueDate({ durationMonths: months }) : patch.dueDate || '';
+  }
   if (args.priority !== undefined) patch.priority = args.priority;
   if (args.notes !== undefined) patch.notes = args.notes;
   if (args.status !== undefined) patch.status = args.status;
+  const projected = { ...(snap.data() || {}), ...patch };
+  patch.monthlyRequired = buildSavingsGoalPlan({ goal: projected }).monthlyRequired;
   await ref.update(patch);
   return { success: true, id, updated: patch };
 }
