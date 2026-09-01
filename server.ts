@@ -1375,36 +1375,7 @@ ${relationshipContext}
                 safeSend({ audio });
               }
 
-              if (useCustomVoice) {
-                const transcript = (message.serverContent as any)?.outputTranscription?.text;
-                if (typeof transcript === 'string' && transcript) {
-                  customVoiceTurnText += transcript;
-                }
-                if ((message.serverContent as any)?.turnComplete && customVoiceTurnText.trim() && customVoiceId) {
-                  const textToSpeak = customVoiceTurnText.trim();
-                  customVoiceTurnText = '';
-                  const generation = ++customVoiceGeneration;
-                  try {
-                    for await (const pcmChunk of streamCustomVoiceAudio({
-                      voiceId: customVoiceId,
-                      text: textToSpeak,
-                      provider: customVoiceProvider || undefined,
-                      referenceAudioBase64: customVoiceReferenceAudioBase64 || undefined,
-                      referenceMimeType: customVoiceReferenceMimeType || undefined,
-                    })) {
-                      if (generation !== customVoiceGeneration || !isActive) break;
-                      safeSend({ audio: Buffer.from(pcmChunk).toString('base64') });
-                    }
-                  } catch (voiceErr) {
-                    console.error('[custom-voice] synthesis failed', voiceErr);
-                    safeSend({ error: 'تعذر تشغيل صوتك الشخصي. جرّب مرة أخرى أو اختر أحد الأصوات الجاهزة.' });
-                  }
-                }
-              }
-
               if (message.serverContent?.interrupted) {
-                customVoiceTurnText = '';
-                customVoiceGeneration++;
                 safeSend({ interrupted: true });
               }
 
