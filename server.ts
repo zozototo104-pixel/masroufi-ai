@@ -1370,7 +1370,7 @@ ${relationshipContext}
 
             try {
               const audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-              if (audio && !useCustomVoice) {
+              if (audio) {
                 safeSend({ audio });
               }
 
