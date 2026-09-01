@@ -2536,7 +2536,7 @@ export async function updateTreasurerProfile(args: any, userId: string, token: s
 }
 
 export async function getSavingsGoals(args: any, userId: string, token: string) {
-  const adminDb = getDb(token);
+  const adminDb = firebaseAdminDb;
   const [snap, txSnap] = await Promise.all([
     adminDb.collection('users').doc(userId).collection('savingsGoals').get(),
     adminDb.collection('transactions').where('userId', '==', userId).get().catch(() => ({ docs: [], partial: true }))
