@@ -590,6 +590,18 @@ export default function App() {
         }
         setCommitments(finalCom);
 
+        const savingsRes = await fetch('/api/savings-goals', { headers });
+        const savingsData = await savingsRes.json().catch(() => ({}));
+        let finalSavings = [];
+        if (savingsRes.ok && savingsData && Array.isArray(savingsData.goals) && !savingsData.partial) {
+          finalSavings = savingsData.goals;
+          await idbSet('lkgs_savings_goals', finalSavings);
+        } else {
+          const cachedSavings = (await idbGet<any[]>('lkgs_savings_goals')) || [];
+          finalSavings = Array.isArray(cachedSavings) ? cachedSavings : [];
+        }
+        setSavingsGoals(finalSavings);
+
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
         if (memData && memData.memory) {
