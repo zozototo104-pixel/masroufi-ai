@@ -2581,10 +2581,11 @@ export async function createSavingsGoal(args: any, userId: string, token: string
     notes: args.notes,
   });
   if (built.ok === false) return { success: false, needsClarification: true, reason: built.reason, message: built.message };
+  const goal = built.goal as any;
   const docRef = adminDb.collection('users').doc(userId).collection('savingsGoals').doc();
-  await docRef.set(built.goal);
-  await addNotification(userId, `تم إنشاء هدف ادخار "${name}" بمبلغ ${built.goal.targetAmount} ₪. المطلوب شهرياً: ${built.goal.monthlyRequired || 0} ₪.`, 'success', adminDb);
-  return { success: true, id: docRef.id, goal: { id: docRef.id, ...built.goal } };
+  await docRef.set(goal);
+  await addNotification(userId, `تم إنشاء هدف ادخار "${name}" بمبلغ ${goal.targetAmount} ₪. المطلوب شهرياً: ${goal.monthlyRequired || 0} ₪.`, 'success', adminDb);
+  return { success: true, id: docRef.id, goal: { id: docRef.id, ...goal } };
 }
 
 export async function addSavingsContribution(args: any, userId: string, token: string) {
