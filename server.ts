@@ -724,6 +724,16 @@ If individual line items cannot be broken down, provide a single item in the ite
     }
   });
 
+  app.patch("/api/savings-goals/:id", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { updateSavingsGoal } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await updateSavingsGoal({ ...(req.body || {}), id: req.params.id }, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/market-directory", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketDirectory } = await import('./src/server/tools');
