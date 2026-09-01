@@ -1845,7 +1845,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {!customVoiceConfigured && <p className="text-xs text-slate-500">لأفضل نتيجة: تحدث بصوت طبيعي وواضح لمدة دقيقة إلى دقيقتين في مكان هادئ.</p>}
+                  {!customVoiceConfigured && <p className="text-xs text-slate-500">لأفضل نتيجة: تحدث بصوت طبيعي وواضح لمدة 20 إلى 30 ثانية في مكان هادئ. سيتوقف التسجيل تلقائيًا بعد 30 ثانية.</p>}
                   {customVoiceMessage && <p className="text-xs text-amber-300">{customVoiceBusy && <Loader2 size={13} className="inline animate-spin ml-1" />}{customVoiceMessage}</p>}
                 </div>
               </div>
