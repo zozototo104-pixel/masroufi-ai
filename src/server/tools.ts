@@ -2601,10 +2601,11 @@ export async function addSavingsContribution(args: any, userId: string, token: s
   }
   const id = String(selection.selected.id || explicitId);
   const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
-  const contributionRef = ref.collection('contributions').doc();
+  const cloudRef = firebaseAdminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
+  const contributionRef = cloudRef.collection('contributions').doc();
   const now = new Date().toISOString();
   const txResult = await firebaseAdminDb.runTransaction(async (tx: any) => {
-    const currentSnap = await tx.get(ref as any);
+    const currentSnap = await tx.get(cloudRef as any);
     if (!currentSnap.exists) return { ok: false as const, reason: 'SAVINGS_GOAL_NOT_FOUND' };
     const current = currentSnap.data() || {};
     const targetAmount = parsePositiveFinancialAmount(current.targetAmount);
