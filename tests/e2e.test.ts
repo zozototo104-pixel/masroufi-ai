@@ -234,3 +234,15 @@ test('AI-INTENT: prompt distinguishes purchase intent vs completed purchase', as
   assert.ok(src.includes('0.9- **V6.1 — نية الشراء vs الشراء المنجز'),
     'V6.1 intent-vs-completed rule present');
 });
+
+test('SAVINGS-UI: dashboard exposes savings goals without touching stable Live voice pipeline', async () => {
+  const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
+  assert.ok(app.includes('const [showSavings, setShowSavings]'),
+    'dashboard must expose a savings goals modal state');
+  assert.ok(app.includes("fetch('/api/savings-goals'"),
+    'dashboard must load savings goals from the backend API');
+  assert.ok(app.includes('criticalSavingsGoals'),
+    'dashboard must surface critical savings-goal alerts');
+  assert.equal(app.includes("setVoice('Custom')"), false,
+    'savings UI must not introduce custom voice into the stable Puck/Zephyr Live selector');
+});
