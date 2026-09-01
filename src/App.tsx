@@ -1502,14 +1502,17 @@ export default function App() {
 
       {/* Toast Notifications */}
       <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none">
-        {notifications.map(notif => (
-          <div key={notif.id} className="bg-slate-800 border border-slate-700 shadow-2xl rounded-2xl p-4 flex items-center gap-3 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-auto">
-            <div className="bg-emerald-500/20 p-2 rounded-full shrink-0">
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
+        {notifications.map(notif => {
+          const isDanger = notif.type === 'danger' || notif.type === 'critical';
+          return (
+            <div key={notif.id} className={`shadow-2xl rounded-2xl p-4 flex items-center gap-3 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-auto border ${isDanger ? 'bg-rose-950 border-rose-500/50' : 'bg-slate-800 border-slate-700'}`}>
+              <div className={`${isDanger ? 'bg-rose-500/20' : 'bg-emerald-500/20'} p-2 rounded-full shrink-0`}>
+                {isDanger ? <ShieldAlert className="w-5 h-5 text-rose-300" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
+              </div>
+              <p className={`text-sm font-medium ${isDanger ? 'text-rose-50' : 'text-white'}`}>{notif.message}</p>
             </div>
-            <p className="text-white text-sm font-medium">{notif.message}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <main className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
