@@ -279,12 +279,14 @@ export async function* streamCustomVoiceAudio(args: {
     const reference = Buffer.from(args.referenceAudioBase64, 'base64');
     const mimeType = args.referenceMimeType || 'audio/webm';
     const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('mpeg') ? 'mp3' : mimeType.includes('wav') ? 'wav' : 'webm';
-    const form = new FormData();
-    form.append('text', args.text);
-    form.append('reference_audio', new Blob([new Uint8Array(reference)], { type: mimeType }), `reference.${extension}`);
-    form.append('format', 'pcm');
-    form.append('sample_rate', '24000');
-    response = await fetch(`${requireMossUrl()}/v1/tts`, { method: 'POST', body: form, headers: { Accept: 'audio/pcm' } });
+    response = await fetchMossTts(() => {
+      const form = new FormData();
+      form.append('text', args.text);
+      form.append('reference_audio', new Blob([new Uint8Array(reference)], { type: mimeType }), `reference.${extension}`);
+      form.append('format', 'pcm');
+      form.append('sample_rate', '24000');
+      return form;
+    });
   } else response = provider === 'fish'
     ? await fetch(`${FISH_AUDIO_API_BASE}/v1/tts`, {
         method: 'POST',
