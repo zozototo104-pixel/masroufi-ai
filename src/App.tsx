@@ -373,7 +373,7 @@ export default function App() {
       };
       recorder.start(1000);
       setCustomVoiceRecording(true);
-      setCustomVoiceMessage('تحدث بصوت طبيعي لمدة دقيقة إلى دقيقتين، ثم اضغط إيقاف.');
+      setCustomVoiceMessage('تحدث بصوت طبيعي وواضح لمدة 20 إلى 30 ثانية. سيتوقف التسجيل تلقائيًا بعد 30 ثانية.');
     } catch (err: any) {
       stopCustomVoiceCapture();
       setCustomVoiceMessage(err?.message || 'تعذر الوصول إلى الميكروفون.');
