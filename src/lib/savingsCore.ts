@@ -63,9 +63,15 @@ export function daysRemainingUntil(dueDate: unknown, now: Date = new Date()): nu
 }
 
 export function monthsRemainingUntil(dueDate: unknown, now: Date = new Date()): number {
-  const days = daysRemainingUntil(dueDate, now);
-  if (days <= 0) return 0;
-  return Math.max(1, Math.ceil(days / 30.4375));
+  const due = String(dueDate || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return 0;
+  const [year, month, day] = due.split('-').map(Number);
+  const end = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  if (end.getTime() <= now.getTime()) return 0;
+  let months = (year - now.getUTCFullYear()) * 12 + (month - 1 - now.getUTCMonth());
+  if (months <= 0) return 1;
+  if (day > now.getUTCDate()) months += 1;
+  return Math.max(1, months);
 }
 
 export function monthKey(date: Date = new Date()): string {
