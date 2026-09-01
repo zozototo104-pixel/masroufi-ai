@@ -2600,7 +2600,6 @@ export async function addSavingsContribution(args: any, userId: string, token: s
     return { success: false, needsClarification: true, reason: selection.reason, options: selection.options, message: selection.message };
   }
   const id = String(selection.selected.id || explicitId);
-  const ref = adminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
   const cloudRef = firebaseAdminDb.collection('users').doc(userId).collection('savingsGoals').doc(id);
   const contributionRef = cloudRef.collection('contributions').doc();
   const now = new Date().toISOString();
