@@ -1206,7 +1206,8 @@ function setupLiveApi(wss: WebSocketServer) {
     // send the auth packet before the handler existed, causing auth timeouts and
     // wasting Gemini resources on unauthenticated sockets.
     const url = new URL(req.url || "", `http://${req.headers.host}`);
-    const voice = url.searchParams.get("voice") || "Zephyr";
+    const requestedVoice = url.searchParams.get("voice");
+    const voice = requestedVoice === "Puck" ? "Puck" : "Zephyr";
     const persona = url.searchParams.get("persona") || "friendly";
     const userName = url.searchParams.get("userName") || "يا صديقي";
     const aiName = url.searchParams.get("aiName") || "مصروفي";
