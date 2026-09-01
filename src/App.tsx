@@ -1575,6 +1575,63 @@ export default function App() {
             </div>
           </div>
 
+          {/* Savings Goals Card */}
+          <div className={`border rounded-3xl p-5 shadow-xl ${criticalSavingsGoals.length > 0 ? 'bg-rose-950/30 border-rose-500/40' : 'bg-slate-900 border-slate-800'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <PiggyBank className="w-4 h-4 text-emerald-400" />
+                المدخرات والأهداف
+              </h3>
+              <button onClick={() => setShowSavings(true)} className="text-[11px] text-emerald-300 hover:text-emerald-200 font-bold">
+                إدارة
+              </button>
+            </div>
+
+            {activeSavingsGoals.length > 0 ? (
+              <div className="space-y-3">
+                {criticalSavingsGoals[0] && (
+                  <div className="bg-rose-500/15 border border-rose-500/40 rounded-2xl p-3 text-xs text-rose-100 flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-rose-300 shrink-0 mt-0.5" />
+                    <span>{criticalSavingsGoals[0].alertMessage}</span>
+                  </div>
+                )}
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-slate-400">التقدم الإجمالي</p>
+                    <p className="text-2xl font-black text-white">{savingsSavedTotal.toLocaleString()} <span className="text-sm text-slate-500">₪</span></p>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-slate-400">المطلوب شهرياً</p>
+                    <p className="text-lg font-black text-emerald-300">{Math.round(savingsMonthlyRequired).toLocaleString()} ₪</p>
+                  </div>
+                </div>
+                <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden">
+                  <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${savingsProgress}%` }}></div>
+                </div>
+                <div className="space-y-2">
+                  {activeSavingsGoals.slice(0, 2).map((goal: any) => (
+                    <button key={goal.id} onClick={() => setShowSavings(true)} className="w-full text-right bg-slate-950/60 border border-slate-800 hover:border-emerald-500/30 rounded-2xl p-3 transition-colors">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-sm font-bold text-white truncate">{goal.name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${goal.alertLevel === 'critical' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : goal.alertLevel === 'warning' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'}`}>
+                          {goal.progressPercentage || 0}%
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">باقي {Number(goal.remainingAmount || 0).toLocaleString()} ₪ · شهرياً {Number(goal.monthlyRequired || 0).toLocaleString()} ₪</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-xs text-slate-400 mb-3">لا يوجد هدف ادخار. مثال: هدفي أوصل 5000 ₪ خلال سنة.</p>
+                <button onClick={() => setShowSavings(true)} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+                  + إنشاء هدف
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Comprehensive Financial Fitness Card (مؤشر الرشاقة المالية) */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
