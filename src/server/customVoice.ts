@@ -172,10 +172,7 @@ export async function createCustomVoiceClone(args: {
 }
 
 async function deleteProviderVoice(provider: CustomVoiceProvider, voiceId: string): Promise<void> {
-  if (provider === 'moss') {
-    await adminStorageBucket.file(voiceId).delete({ ignoreNotFound: true });
-    return;
-  }
+  if (provider === 'moss') return;
   const response = provider === 'fish'
     ? await fetch(`${FISH_AUDIO_API_BASE}/model/${encodeURIComponent(voiceId)}`, {
         method: 'DELETE',
