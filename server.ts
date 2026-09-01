@@ -1513,12 +1513,8 @@ ${relationshipContext}
         }
 
         if (msg.interrupt && session && isActive) {
-          // In Custom mode invalidate any in-flight TTS result so a late HTTP
-          // response can never resume speech after the user has interrupted.
-          customVoiceTurnText = '';
-          customVoiceGeneration++;
-          // Gemini Live itself still receives the user's input audio above, which
-          // remains the canonical barge-in signal for cancelling model speech.
+          // The Live API interruption is primarily handled by input audio/barge-in.
+          // Keep this branch so future SDK versions can hook explicit interruption.
           safeSend({ interrupted: true });
         }
       } catch (err) {
