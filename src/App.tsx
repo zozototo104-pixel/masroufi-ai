@@ -861,7 +861,7 @@ export default function App() {
       const res = await fetch(`/api/savings-goals/${encodeURIComponent(goalId)}/contribute`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ amount: Number(savingsContributionAmount) })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.message || data?.error || 'تعذر إضافة الادخار');
