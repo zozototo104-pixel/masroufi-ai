@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import { parseAbsoluteFinancialAmount, parseFiniteAmount, parsePositiveFinancialAmount } from '../src/lib/amount.ts';
 import { validateImportEnvelope } from '../src/lib/importEnvelope.ts';
 import { prepareImportedFinancialTransactions } from '../src/lib/importFinancialTransactions.ts';
+import { parseExpenseImportFile } from '../src/lib/expenseImport.ts';
 import { buildReportSnapshotRecord } from '../src/lib/reportUtils.ts';
 import { buildSavingsGoalPlan, buildSavingsGoalRecord, selectSavingsGoalForContribution } from '../src/lib/savingsCore.ts';
 import { normalizeHistoricalTransactionDate } from '../src/lib/historicalDate.ts';
