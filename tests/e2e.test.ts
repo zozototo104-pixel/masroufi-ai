@@ -235,6 +235,23 @@ test('AI-INTENT: prompt distinguishes purchase intent vs completed purchase', as
     'V6.1 intent-vs-completed rule present');
 });
 
+test('HISTORICAL-ENTRY: prompt and tool schema support backdated expense entry safely', async () => {
+  const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(serverSrc.includes('عند نقل مصروفات أشهر سابقة'),
+    'prompt must instruct historical entry behavior');
+  assert.ok(serverSrc.includes('لا تخترع تاريخاً'),
+    'prompt must forbid inventing dates for historical month context');
+  assert.ok(toolsSrc.includes('date: { type: "string"'),
+    'add_transaction schema must expose explicit date');
+  assert.ok(toolsSrc.includes('historicalMonth: { type: "string"'),
+    'add_transaction schema must expose historical month context');
+  assert.ok(toolsSrc.includes('day: { type: "number"'),
+    'add_transaction schema must expose day within historical month');
+  assert.ok(toolsSrc.includes('normalizeHistoricalTransactionDate'),
+    'addTransaction must normalize historical dates before persistence');
+});
+
 test('SAVINGS-UI: dashboard exposes savings goals without touching stable Live voice pipeline', async () => {
   const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
   assert.ok(app.includes('const [showSavings, setShowSavings]'),
