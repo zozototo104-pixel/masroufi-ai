@@ -2709,26 +2709,69 @@ export async function updateSavingsGoal(args: any, userId: string, token: string
 
 export async function queryTransactions(args: any, userId: string, token: string) {
   console.log("TOOL CALL: queryTransactions", args);
-  // This endpoint feeds the visible ledger after Live sends `refresh: true`.
-  // Read the same authoritative Firestore collection used by atomicAddTransaction;
-  // otherwise a committed PalPay entry can be acknowledged by Live while the UI
-  // refreshes through FakeDb's stale/local fallback and never displays it.
-  let snapshot: any;
-  try {
-    snapshot = await firebaseAdminDb.collection('transactions').where('userId', '==', userId).get();
-    snapshot = { docs: snapshot.docs, partial: false };
-  } catch (cloudErr: any) {
-    // Preserve the existing offline behavior for display only. A cached result is
-    // explicitly partial, so the client keeps its last-known-good ledger instead
-    // of treating stale data as authoritative cloud state.
-    const localDb = getDb(token);
-    const cachedSnapshot: any = await localDb.collection('transactions').where('userId', '==', userId).get();
-    snapshot = {
-      docs: cachedSnapshot.docs || [],
-      partial: true,
-      error: cloudErr?.message || 'Firestore transaction read failed',
-    };
+  // Historical entry can create many documents quickly. Do not read the full
+  // user ledger on every assistant turn; bounded Firestore reads prevent quota
+  // exhaustion that leaves the UI stuck on "thinking".
+  const now = new Date();
+  const limit = Math.max(1, Math.min(300, Number(args.limit) || 120));
+  const period = String(args.period || '').trim();
+  let startIso = '';
+  let endIso = '';
+
+  if (period === 'today') {
+    const today = now.toISOString().split('T')[0];
+    startIso = `${today}T00:00:00.000Z`;
+    endIso = `${today}T23:59:59.999Z`;
+  } else if (period === 'this_week') {
+    startIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  } else if (period === 'this_month') {
+    const thisMonth = now.toISOString().slice(0, 7);
+    startIso = `${thisMonth}-01T00:00:00.000Z`;
+  } else if (args.startDate || args.endDate) {
+    if (args.startDate) startIso = new Date(args.startDate).toISOString();
+    if (args.endDate) {
+      const end = new Date(args.endDate);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(args.endDate))) end.setUTCHours(23, 59, 59, 999);
+      endIso = end.toISOString();
+    }
   }
+
+  let snapshot: any;
+  let boundedFallback = false;
+  try {
+    let q: any = firebaseAdminDb.collection('transactions').where('userId', '==', userId);
+    if (startIso) q = q.where('date', '>=', startIso);
+    if (endIso) q = q.where('date', '<=', endIso);
+    if (startIso || endIso) q = q.orderBy('date', 'desc');
+    q = q.limit(limit);
+    const cloudSnap = await q.get();
+    snapshot = { docs: cloudSnap.docs, partial: false };
+  } catch (cloudErr: any) {
+    try {
+      // If a date-range query needs a composite index, keep the app responsive by
+      // falling back to a small bounded read. Never fall back to the full ledger.
+      const fallbackSnap = await firebaseAdminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .limit(limit)
+        .get();
+      snapshot = {
+        docs: fallbackSnap.docs,
+        partial: true,
+        error: cloudErr?.message || 'Firestore bounded transaction read failed',
+      };
+      boundedFallback = true;
+    } catch (fallbackErr: any) {
+      const localDb = getDb(token);
+      const cachedSnapshot: any = await localDb.collection('transactions').where('userId', '==', userId).get();
+      snapshot = {
+        docs: (cachedSnapshot.docs || []).slice(0, limit),
+        partial: true,
+        error: fallbackErr?.message || cloudErr?.message || 'Firestore transaction read failed',
+      };
+      boundedFallback = true;
+    }
+  }
+
   let filtered = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   
   if (args.type) {
@@ -2747,28 +2790,9 @@ export async function queryTransactions(args: any, userId: string, token: string
     filtered = filtered.filter((t: any) => t.necessity === args.necessity);
   }
 
-  const now = new Date();
-  if (args.period === 'today') {
-    const today = now.toISOString().split('T')[0];
-    filtered = filtered.filter((t: any) => (t.date || t.createdAt || '').startsWith(today));
-  } else if (args.period === 'this_week') {
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    filtered = filtered.filter((t: any) => new Date(t.date || t.createdAt || now) >= weekAgo);
-  } else if (args.period === 'this_month') {
-    const thisMonth = now.toISOString().slice(0, 7);
-    filtered = filtered.filter((t: any) => (t.date || t.createdAt || '').startsWith(thisMonth));
-  } else if (args.startDate || args.endDate) {
-    if (args.startDate) {
-      const start = new Date(args.startDate);
-      filtered = filtered.filter((t: any) => new Date(t.date || t.createdAt || now) >= start);
-    }
-    if (args.endDate) {
-      const end = new Date(args.endDate);
-      filtered = filtered.filter((t: any) => new Date(t.date || t.createdAt || now) <= end);
-    }
-  }
+  if (startIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') >= startIso);
+  if (endIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') <= endIso);
 
-  // Sort descending by date
   filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
 
   const total = filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0);
@@ -2778,7 +2802,10 @@ export async function queryTransactions(args: any, userId: string, token: string
     count: filtered.length,
     totalAmount: total,
     transactions: filtered,
-    partial: (snapshot as any).partial
+    partial: (snapshot as any).partial,
+    bounded: true,
+    limit,
+    boundedFallback
   };
 }
 
