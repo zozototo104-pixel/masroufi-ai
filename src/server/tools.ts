@@ -926,8 +926,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
     creditor: type === 'expense' && account === 'debt' ? merchant : '',
     creditorKey: type === 'expense' && account === 'debt' ? normalizeCreditorName(merchant) : '',
     operationId,
-    date: args.date || new Date().toISOString(),
-    createdAt: new Date().toISOString()
+    date: dateResult.date,
+    dateSource: dateResult.source,
+    createdAt: transactionNow.toISOString()
   };
 
   // V6.1+ (CONC-01..CONC-05): every real add_transaction write goes through
