@@ -282,3 +282,13 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
   assert.ok(server.includes("beneficiary: item.beneficiary || item.forWhom || item.purpose || item.category || item.subcategory || item.notes || 'مصروف مستورد'"),
     'reviewed imported items must pass an extracted purpose/beneficiary so normal expense guards do not ask again');
 });
+
+test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
+  const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
+  assert.ok(app.includes('const cloudReady = res.ok && data?.firestore === \'read-write-ok\''),
+    'cloud badge must have an explicit cloud-health source of truth');
+  assert.ok(app.includes('setIsOfflineMode(!cloudReady)'),
+    'partial or bounded ledger fallback must not force the badge to local when cloud-health is ok');
+  assert.ok(app.includes('does not prove that the app is offline'),
+    'source code should document that partial ledger data is not connectivity state');
+});
