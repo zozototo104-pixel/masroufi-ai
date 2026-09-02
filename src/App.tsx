@@ -812,6 +812,8 @@ export default function App() {
     } catch (err) {
       console.error('Record scanned receipt error', err);
       alert('حدث خطأ أثناء تسجيل الفاتورة.');
+    } finally {
+      setIsRecordingScannedReceipt(false);
     }
   };
 
