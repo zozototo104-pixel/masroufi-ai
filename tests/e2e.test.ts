@@ -303,4 +303,6 @@ test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-
     'partial or bounded ledger fallback must not force the badge to local when cloud-health is ok');
   assert.ok(app.includes('does not prove that the app is offline'),
     'source code should document that partial ledger data is not connectivity state');
+  assert.ok(server.includes('let cachedCloudHealth') && server.includes('cached: true'),
+    'cloud-health must cache recent success so the badge probe itself does not burn quota on every refresh');
 });
