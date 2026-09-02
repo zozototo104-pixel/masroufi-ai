@@ -696,7 +696,7 @@ If a row has a month but no day, keep date empty and include day only if visible
         created,
         atomic: true,
         splitOverflowToDebt: splitApplied,
-        selectedBalanceUsed: Math.round((selectedAvailable - remainingSelectedBalance) * 100) / 100,
+        selectedBalanceUsed: splitApplied ? Math.round((selectedAvailable - remainingSelectedBalance) * 100) / 100 : 0,
         overflowDebtAmount: Math.round(created.filter((item: any) => item.paymentMethodOverride === 'debt' || item.account === 'debt').reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) * 100) / 100,
         idempotentReplay: Boolean((committed as any).idempotentReplay),
       });
