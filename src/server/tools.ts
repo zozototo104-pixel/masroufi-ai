@@ -673,6 +673,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
         message: 'تمام، وطبيعة الدخل واضحة. الآن أكد لي أين دخل فعلياً: كاش أم PalPay؟ وإن كان موزعاً قل كم كاش وكم PalPay.'
       };
     }
+    // Income must not be committed from model-invented metadata. For non-salary
+    // income, identify the real source/person/organization before writing.
+    const incomeSource = String(args.source || merchant || '').trim();
+    const isSalaryIncome = /راتب|salary|قبض/i.test(`${originalUserIncomeText} ${toolIncomeText}`);
+    if (!isSalaryIncome && !incomeSource) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'MISSING_INCOME_SOURCE',
+        message: 'قبل ما أسجل الدخل: من مين أو من أي جهة وصلك المبلغ؟'
+      };
+    }
   }
 
   // Financial writes must never silently invent missing accounting dimensions.
