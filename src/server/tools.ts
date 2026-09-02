@@ -792,7 +792,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     }
   }
 
-  if (type === 'expense') {
+  if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch) {
     try {
       [preUserBudgets, preTxSnapshot] = await Promise.all([
         getUserBudgets(userId, adminDb),
