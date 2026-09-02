@@ -165,8 +165,8 @@ test('CONC-13: receipt lines are validated first and persisted by one atomic tra
     'shared transaction side effects must sanitize amounts through the shared finite amount parser');
   assert.equal(toolsSrc.includes('const amount = Number(tx?.amount) || 0'), false,
     'shared transaction side effects must not reintroduce Number(... ) || 0 amount parsing');
-  assert.ok(serverSrc.includes('recordTransactionCommittedSideEffects('),
-    'receipt commits must preserve add_transaction post-commit side effects');
+  assert.equal(serverSrc.includes('recordTransactionCommittedSideEffects('), false,
+    'reviewed receipt/import commits must not block the response on quota-heavy per-item side effects');
   assert.equal(serverSrc.includes('createdBeforeFailure'), false, 'receipt endpoint must not expose partial-success semantics');
 });
 
