@@ -70,6 +70,20 @@ export function buildPendingIdempotencyRecord(
   };
 }
 
+function stripUndefinedForFirestore(value: any): any {
+  if (Array.isArray(value)) {
+    return value.filter(item => item !== undefined).map(stripUndefinedForFirestore);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, stripUndefinedForFirestore(item)])
+    );
+  }
+  return value;
+}
+
 export function buildCompletedIdempotencyRecord(
   userId: string,
   operationId: string,
@@ -81,7 +95,10 @@ export function buildCompletedIdempotencyRecord(
     operationId,
     operationIdPreview: operationId.slice(0, 300),
     status: 'completed' as const,
-    result,
+    // Optional response metadata may legitimately be absent. Firestore rejects
+    // undefined values, so persist only fields that actually have a value while
+    // keeping required financial/idempotency fields protected.
+    result: stripUndefinedForFirestore(result),
     completedAt: now,
     updatedAt: now,
     expiresAt: now + IDEMPOTENCY_TTL_MS,
