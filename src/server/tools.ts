@@ -873,6 +873,22 @@ export async function addTransaction(args: any, userId: string, token: string) {
     }
   }
 
+  const transactionNow = new Date();
+  const dateResult = normalizeHistoricalTransactionDate({
+    date: args.date,
+    historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth,
+    day: args.day || args.transactionDay,
+    now: transactionNow,
+  });
+  if (dateResult.ok === false) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: dateResult.reason,
+      message: dateResult.message,
+    };
+  }
+
   const operationId = String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
   const tx = {
     userId,
