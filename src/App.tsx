@@ -3065,6 +3065,7 @@ export default function App() {
                 <tbody>
                   {(showScannerResult.items || []).map((item: any, idx: number) => (
                     <tr key={idx} className="border-b border-slate-800/60 bg-slate-950/30 hover:bg-slate-800/40">
+                      <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{item.date ? String(item.date).slice(0, 10) : 'بحاجة تاريخ'}</td>
                       <td className="py-2.5 px-3 font-semibold text-white">{item.notes || item.name}</td>
                       <td className="py-2.5 px-3 text-slate-300">{item.category}</td>
                       <td className="py-2.5 px-3 text-slate-400">{item.subcategory || 'عام'}</td>
