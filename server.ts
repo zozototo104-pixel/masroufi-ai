@@ -664,7 +664,7 @@ If a row has a month but no day, keep date empty and include day only if visible
         {
           riskConfirmed: Boolean(riskConfirmed),
           receiptId,
-          receiptMeta: { merchant, paymentMethod, itemCount: prepared.length, importMode: 'reviewed-file-or-image' },
+          receiptMeta: { merchant, paymentMethod, itemCount: prepared.length, importMode: 'reviewed-file-or-image', splitOverflowToDebt: splitApplied, selectedBalanceUsed: Math.round((selectedAvailable - remainingSelectedBalance) * 100) / 100 },
           skipLedgerBalanceCheck: true,
         },
       );
