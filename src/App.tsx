@@ -3054,6 +3054,7 @@ export default function App() {
               <table className="w-full text-right border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <th className="py-2 px-3">التاريخ</th>
                     <th className="py-2 px-3">البند / المشتريات</th>
                     <th className="py-2 px-3">التصنيف الرئيسي</th>
                     <th className="py-2 px-3">البند الفرعي</th>
