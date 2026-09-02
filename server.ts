@@ -406,14 +406,19 @@ async function startServer() {
     });
   });
 
+  let cachedCloudHealth: any = null;
   app.get("/api/cloud-health", async (req, res) => {
+    const nowMs = Date.now();
+    if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < 60_000) {
+      return res.json({ ...cachedCloudHealth.body, cached: true });
+    }
     try {
       const { adminDb, firebaseAdminDiagnostics } = await import('./src/server/firebaseAdmin');
       const ref = adminDb.collection('__health').doc('firestore');
       const checkedAt = new Date().toISOString();
       await ref.set({ checkedAt, service: 'masroufi-ai' }, { merge: true });
       const snap = await ref.get();
-      res.json({
+      const body = {
         status: snap.exists ? 'ok' : 'degraded',
         firestore: snap.exists ? 'read-write-ok' : 'write-not-visible',
         checkedAt,
@@ -421,8 +426,13 @@ async function startServer() {
         commit: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || null,
         environment: process.env.NODE_ENV || null,
         diagnostics: firebaseAdminDiagnostics,
-      });
+      };
+      if (body.firestore === 'read-write-ok') cachedCloudHealth = { cachedAtMs: nowMs, body };
+      res.json(body);
     } catch (e: any) {
+      if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < 5 * 60_000) {
+        return res.json({ ...cachedCloudHealth.body, cached: true, staleDueTo: e?.code || e?.message || 'cloud-health probe failed' });
+      }
       res.status(503).json({
         status: 'degraded',
         firestore: 'read-write-failed',
