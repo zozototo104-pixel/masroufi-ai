@@ -963,7 +963,15 @@ export async function addTransaction(args: any, userId: string, token: string) {
     console.warn('Post-commit financial side effect failed; preserving committed transaction success:', sideEffectErr);
   }
   
-  const balances = await getBalance({}, userId, token);
+  // A post-commit balance refresh is informational only. The transaction has
+  // already committed atomically above, so a transient read failure must not
+  // turn a durable write into a failed Live tool call.
+  let balances: any = { balances: undefined, partial: true };
+  try {
+    balances = await getBalance({}, userId, token);
+  } catch (balanceErr) {
+    console.warn('Post-commit balance refresh failed; preserving committed transaction success:', balanceErr);
+  }
   return {
     success: true,
     transactionId: actualTxId,
