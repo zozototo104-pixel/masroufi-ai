@@ -753,7 +753,13 @@ export default function App() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${currentToken}`
           },
-          body: JSON.stringify({ imageBase64: base64, mimeType: file.type, apiKey })
+          body: JSON.stringify({
+            fileBase64: base64,
+            imageBase64: file.type.startsWith('image/') ? base64 : undefined,
+            mimeType: file.type || 'application/octet-stream',
+            fileName: file.name,
+            apiKey
+          })
         });
         const data = await res.json();
         if (data.success) {
