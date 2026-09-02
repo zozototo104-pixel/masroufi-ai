@@ -49,6 +49,10 @@ function stableReceiptDocId(userId: string, receiptId: string): string {
   return createHash('sha256').update(`${userId}:receipt:${receiptId}`).digest('hex');
 }
 
+function stableReceiptItemDocId(userId: string, operationId: string): string {
+  return createHash('sha256').update(`${userId}:receipt-item:${operationId}`).digest('hex');
+}
+
 function sameReceiptTransaction(existing: FinancialTransactionInput, incoming: FinancialTransactionInput): boolean {
   const existingAmount = parsePositiveFinancialAmount(existing?.amount);
   const incomingAmount = parsePositiveFinancialAmount(incoming?.amount);
