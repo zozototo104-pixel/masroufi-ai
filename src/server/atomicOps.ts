@@ -242,7 +242,7 @@ export async function atomicDeleteTransaction(
 export async function atomicAddTransactions(
   userId: string,
   newTransactions: any[],
-  opts: { riskConfirmed?: boolean; receiptId?: string; receiptMeta?: any } = {}
+  opts: { riskConfirmed?: boolean; receiptId?: string; receiptMeta?: any; skipLedgerBalanceCheck?: boolean } = {}
 ): Promise<
   | { ok: true; docIds: string[]; balances: { cash: number; palPay: number; debt: number; total: number }; idempotentReplay?: boolean }
   | { ok: false; reason: string; balances?: any; conflictingTransactionIds?: string[] }
