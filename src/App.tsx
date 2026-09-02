@@ -793,6 +793,7 @@ export default function App() {
         body: JSON.stringify({
           paymentMethod,
           merchant: showScannerResult.merchant,
+          sourceType: showScannerResult.sourceType,
           items: showScannerResult.items || []
         })
       });
