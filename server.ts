@@ -601,14 +601,44 @@ If a row has a month but no day, keep date empty and include day only if visible
           message: 'بعض بنود الملف بلا تاريخ. لن أسجلها بتاريخ اليوم. أضف عمود تاريخ لكل بند أو استخدم ملفاً يحتوي تاريخاً واضحاً.',
         });
       }
+      const splitApplied = Boolean(splitOverflowToDebt && (paymentMethod === 'cash' || paymentMethod === 'palPay'));
+      const selectedAvailable = splitApplied
+        ? Math.max(0, Number(paymentMethod === 'cash' ? currentBalances.cash : currentBalances.palPay) || 0)
+        : Infinity;
+      let remainingSelectedBalance = selectedAvailable;
+      const expandedItems: any[] = [];
+      for (const item of items) {
+        const amount = Math.round((Number(item.amount) || 0) * 100) / 100;
+        if (!splitApplied || paymentMethod === 'debt') {
+          expandedItems.push({ ...item, amount, paymentMethodOverride: paymentMethod });
+          continue;
+        }
+        const selectedPart = Math.round(Math.min(amount, Math.max(0, remainingSelectedBalance)) * 100) / 100;
+        const debtPart = Math.round((amount - selectedPart) * 100) / 100;
+        if (selectedPart > 0) {
+          expandedItems.push({ ...item, amount: selectedPart, paymentMethodOverride: paymentMethod, splitPart: selectedPart < amount ? 'paid-from-selected-balance' : undefined });
+          remainingSelectedBalance = Math.round((remainingSelectedBalance - selectedPart) * 100) / 100;
+        }
+        if (debtPart > 0) {
+          expandedItems.push({
+            ...item,
+            amount: debtPart,
+            paymentMethodOverride: 'debt',
+            account: 'debt',
+            splitPart: selectedPart > 0 ? 'overflow-to-debt' : 'all-overflow-to-debt',
+            notes: `${item.notes || item.name || 'بند من فاتورة'} — الباقي دين بعد نفاد رصيد ${paymentMethod === 'cash' ? 'الكاش' : 'PalPay'}`,
+          });
+        }
+      }
       const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${items.length}_${merchant}_${paymentMethod}_${items.map((i: any) => `${i.amount}:${i.name || i.notes || i.subcategory || ''}`).join('|')}`);
       const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
-      for (const [index, item] of items.entries()) {
+      for (const [index, item] of expandedItems.entries()) {
+        const linePaymentMethod = item.paymentMethodOverride || paymentMethod;
         const txArgs = {
           amount: item.amount,
           type: 'expense',
-          account: paymentMethod,
-          paymentMethod,
+          account: linePaymentMethod,
+          paymentMethod: linePaymentMethod,
           category: item.category,
           subcategory: item.subcategory || item.notes || 'مشتريات',
           purchaseItem: item.purchaseItem || item.name || item.notes || item.subcategory || 'بند فاتورة',
