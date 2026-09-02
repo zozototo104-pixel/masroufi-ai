@@ -302,3 +302,36 @@ test('CONC-22: savings contributions use Firestore transaction and contribution 
   assert.ok(contributionBlock.includes('selectSavingsGoalForContribution'),
     'savings contribution must use the shared goal selection authority');
 });
+
+test('CONC-23: chat ledger lookups are bounded to prevent Firestore quota exhaustion', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const queryBlock = toolsSrc.slice(
+    toolsSrc.indexOf('export async function queryTransactions'),
+    toolsSrc.indexOf('export async function getTransactionContext')
+  );
+  assert.ok(queryBlock.includes('.limit(limit)'),
+    'queryTransactions must limit Firestore reads instead of loading the full ledger');
+  assert.ok(queryBlock.includes("where('date', '>='"),
+    'queryTransactions must push date range filters into Firestore when available');
+  assert.equal(queryBlock.includes("where('userId', '==', userId).get()"), false,
+    'queryTransactions must not reintroduce an unbounded where(userId).get() full-ledger read');
+
+  const memoryBlock = toolsSrc.slice(
+    toolsSrc.indexOf('export async function memorySearch'),
+    toolsSrc.indexOf('export async function deleteMemoryKey')
+  );
+  assert.ok(memoryBlock.includes('.limit(limit).get()'),
+    'memorySearch must also be bounded because it runs during chat turns');
+});
+
+test('CONC-24: custom voice status failures fall back without breaking built-in voices', async () => {
+  const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  const customVoiceStatusBlock = serverSrc.slice(
+    serverSrc.indexOf('app.get("/api/custom-voice"'),
+    serverSrc.indexOf('app.post("/api/custom-voice"')
+  );
+  assert.ok(customVoiceStatusBlock.includes('fallbackVoice'),
+    'custom voice status failure must advertise built-in voice fallback');
+  assert.equal(customVoiceStatusBlock.includes('res.status(500)'), false,
+    'custom voice status quota/read failures must not surface as fatal 500s');
+});
