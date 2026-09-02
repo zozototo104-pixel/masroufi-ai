@@ -607,6 +607,9 @@ If a row has a month but no day, keep date empty and include day only if visible
           merchant: item.merchant || merchant,
           notes: item.notes || item.name || 'بند من فاتورة ممسوحة',
           necessity: item.necessity || '',
+          date: item.date,
+          historicalMonth: item.historicalMonth,
+          day: item.day,
           riskConfirmed: Boolean(riskConfirmed),
           operationId: `receipt:${receiptId}:item:${index}:${paymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
         };
