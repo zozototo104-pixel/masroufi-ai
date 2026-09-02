@@ -3094,9 +3094,9 @@ export default function App() {
             <div className="pt-3 border-t border-slate-800 space-y-3">
               <p className="text-xs text-slate-400">هذه مسودة فقط. اختر طريقة الدفع حتى تُحفظ فعلياً في الخزينة.</p>
               <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => handleRecordScannedReceipt('cash')} className="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all">سجلها كاش</button>
-                <button onClick={() => handleRecordScannedReceipt('palPay')} className="px-3 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all">سجلها PalPay</button>
-                <button onClick={() => handleRecordScannedReceipt('debt')} className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all">سجلها دين</button>
+                <button disabled={isRecordingScannedReceipt} onClick={() => handleRecordScannedReceipt('cash')} className="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-lg transition-all">{isRecordingScannedReceipt ? 'جارٍ التسجيل...' : 'سجلها كاش'}</button>
+                <button disabled={isRecordingScannedReceipt} onClick={() => handleRecordScannedReceipt('palPay')} className="px-3 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-lg transition-all">{isRecordingScannedReceipt ? 'جارٍ التسجيل...' : 'سجلها PalPay'}</button>
+                <button disabled={isRecordingScannedReceipt} onClick={() => handleRecordScannedReceipt('debt')} className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-lg transition-all">{isRecordingScannedReceipt ? 'جارٍ التسجيل...' : 'سجلها دين'}</button>
               </div>
               <button 
                 onClick={() => setShowScannerResult(null)}
