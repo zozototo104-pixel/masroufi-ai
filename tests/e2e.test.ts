@@ -281,6 +281,12 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'tabular imports missing dates must not be saved as today by accident');
   assert.ok(server.includes("beneficiary: item.beneficiary || item.forWhom || item.purpose || item.category || item.subcategory || item.notes || 'مصروف مستورد'"),
     'reviewed imported items must pass an extracted purpose/beneficiary so normal expense guards do not ask again');
+  assert.ok(app.includes('const [isRecordingScannedReceipt, setIsRecordingScannedReceipt]'),
+    'receipt record UI must track in-flight submission state');
+  assert.ok(app.includes('disabled={isRecordingScannedReceipt}'),
+    'receipt record buttons must be disabled during submission to prevent duplicate quota-burning requests');
+  assert.ok(app.includes('جارٍ التسجيل'),
+    'receipt record UI must show clear progress instead of appearing unresponsive');
 });
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
