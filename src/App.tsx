@@ -1845,8 +1845,7 @@ export default function App() {
           <div className="relative">
             <input 
               type="file" 
-              accept="image/*" 
-              capture="environment" 
+              accept="image/*,application/pdf,text/plain,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.csv,.tsv,.txt,.json,.xlsx" 
               className="hidden" 
               ref={fileInputRef}
               onChange={handleScanReceipt}
