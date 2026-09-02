@@ -670,7 +670,13 @@ If a row has a month but no day, keep date empty and include day only if visible
       });
     } catch (e: any) {
       console.error('Record scanned receipt error:', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      const exhausted = String(e?.code || '').includes('8') || String(e?.message || '').includes('RESOURCE_EXHAUSTED') || String(e?.message || '').includes('Quota exceeded');
+      res.status(exhausted ? 429 : 500).json({
+        success: false,
+        reason: exhausted ? 'FIRESTORE_QUOTA_EXHAUSTED' : 'RECEIPT_RECORD_FAILED',
+        retryable: exhausted,
+        error: exhausted ? 'استهلكت السحابة حدّها مؤقتاً بسبب طلبات متكررة. انتظر دقيقة ثم اضغط مرة واحدة فقط.' : e.message,
+      });
     }
   });
 
