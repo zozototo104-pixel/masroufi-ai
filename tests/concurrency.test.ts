@@ -307,7 +307,7 @@ test('CONC-23: chat ledger lookups are bounded to prevent Firestore quota exhaus
   const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   const queryBlock = toolsSrc.slice(
     toolsSrc.indexOf('export async function queryTransactions'),
-    toolsSrc.indexOf('export async function getTransactionContext')
+    toolsSrc.indexOf('export async function wipeAllUserData')
   );
   assert.ok(queryBlock.includes('.limit(limit)'),
     'queryTransactions must limit Firestore reads instead of loading the full ledger');
