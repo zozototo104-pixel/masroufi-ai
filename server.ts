@@ -504,7 +504,7 @@ Return ONLY a valid JSON object matching this schema without markdown code block
 If individual line items cannot be broken down, provide a single item in the items array with the total amount.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: [
           {
             role: 'user',
