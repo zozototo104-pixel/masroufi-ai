@@ -628,7 +628,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
       }
       return { success: true, splitIncome: true, results, message: `تم توزيع الدخل: ${allocations.map(a => `${a.amount} ₪ ${a.account === 'palPay' ? 'PalPay' : 'كاش'}`).join('، ')}.` };
     }
-    const originalUserIncomeText = normalizeArabicText(args.userText || '');
+    // Live tool calls do not carry a transcript/userText; in that path the model's
+    // structured income fields are the only available evidence. Text chat still
+    // prefers the user's original words when they are available.
+    const originalUserIncomeText = normalizeArabicText(args.userText || args.currentUserText || '');
     const toolIncomeText = normalizeArabicText(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''}`);
     const explicitIncomeDestination = paymentWasProvided && (account === 'cash' || account === 'palPay');
     // Nature must be explicit from the user's words, not inferred by the model's generated category/notes.
