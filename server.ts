@@ -612,7 +612,7 @@ If a row has a month but no day, keep date empty and include day only if visible
           category: item.category,
           subcategory: item.subcategory || item.notes || 'مشتريات',
           purchaseItem: item.purchaseItem || item.name || item.notes || item.subcategory || 'بند فاتورة',
-          beneficiary: item.beneficiary || item.forWhom || '',
+          beneficiary: item.beneficiary || item.forWhom || item.purpose || item.category || item.subcategory || item.notes || 'مصروف مستورد',
           merchant: item.merchant || merchant,
           notes: item.notes || item.name || 'بند من فاتورة ممسوحة',
           necessity: item.necessity || '',
