@@ -280,6 +280,71 @@ export async function atomicAddTransactions(
       }
     }
 
+    if (receiptId && opts.skipLedgerBalanceCheck) {
+      const itemRefs = normalizedNewTransactions.map((item: any) =>
+        adminDb.collection('transactions').doc(stableReceiptItemDocId(userId, String(item.operationId)))
+      );
+      const itemSnaps = await Promise.all(itemRefs.map((ref: any) => tx.get(ref)));
+      const existingMatches = itemSnaps
+        .map((snap: any, index: number) => ({ snap, index, item: normalizedNewTransactions[index] }))
+        .filter((row: any) => row.snap.exists);
+
+      if (existingMatches.length > 0) {
+        const allRowsAlreadyCommitted = existingMatches.length === normalizedNewTransactions.length
+          && existingMatches.every((row: any) => sameReceiptTransaction(row.snap.data() || {}, row.item));
+        if (allRowsAlreadyCommitted) {
+          const docIds = itemRefs.map((ref: any) => ref.id);
+          const balances = calculateBalances(itemSnaps.map((snap: any) => snap.data()).filter(Boolean));
+          if (receiptRef) {
+            tx.set(receiptRef, {
+              userId,
+              receiptId,
+              status: 'completed',
+              docIds,
+              operationIds: normalizedNewTransactions.map((item: any) => item.operationId),
+              itemCount: normalizedNewTransactions.length,
+              balances,
+              balanceScope: 'receipt-items-only',
+              receiptMeta: opts.receiptMeta || null,
+              recoveredFromStableReceiptItems: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          return { ok: true, docIds, balances, idempotentReplay: true };
+        }
+        return {
+          ok: false,
+          reason: 'RECEIPT_OPERATION_CONFLICT',
+          conflictingTransactionIds: existingMatches.map((row: any) => row.snap.id).filter(Boolean),
+        };
+      }
+
+      const balances = calculateBalances(normalizedNewTransactions.map((item: any) => ({ ...item, userId })));
+      const docIds: string[] = [];
+      normalizedNewTransactions.forEach((item: any, index: number) => {
+        const ref = itemRefs[index];
+        docIds.push(ref.id);
+        tx.set(ref, { ...item, userId, id: ref.id, balanceValidation: 'skipped-full-ledger-for-receipt-import' });
+      });
+      if (receiptRef) {
+        tx.set(receiptRef, {
+          userId,
+          receiptId,
+          status: 'completed',
+          docIds,
+          operationIds: normalizedNewTransactions.map((item: any) => item.operationId),
+          itemCount: normalizedNewTransactions.length,
+          balances,
+          balanceScope: 'receipt-items-only',
+          receiptMeta: opts.receiptMeta || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      return { ok: true, docIds, balances };
+    }
+
     const snap = await tx.get(adminDb.collection('transactions').where('userId', '==', userId));
     const existing = plainTransactions(snap.docs);
 
