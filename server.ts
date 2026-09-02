@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionCall } from "@google/genai";
 import dotenv from "dotenv";
-import { functionDeclarations, toolHandlers, prepareAddTransaction, recordTransactionCommittedSideEffects } from "./src/server/tools";
+import { functionDeclarations, toolHandlers, prepareAddTransaction } from "./src/server/tools";
 import { atomicAddTransactions } from "./src/server/atomicOps";
 import { adminAuth, adminDb } from "./src/server/firebaseAdmin";
 import {
