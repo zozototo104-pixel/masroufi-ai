@@ -788,9 +788,12 @@ export default function App() {
   const handleRecordScannedReceipt = async (paymentMethod: 'cash' | 'palPay' | 'debt') => {
     if (!idToken || !showScannerResult || isRecordingScannedReceipt) return;
     setIsRecordingScannedReceipt(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 30000);
     try {
       const res = await fetch('/api/scan-receipt/record', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
@@ -799,6 +802,8 @@ export default function App() {
           paymentMethod,
           merchant: showScannerResult.merchant,
           sourceType: showScannerResult.sourceType,
+          currentBalances: { cash, palPay, debt, total: balance },
+          splitOverflowToDebt: true,
           items: showScannerResult.items || []
         })
       });
