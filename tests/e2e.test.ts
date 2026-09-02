@@ -263,3 +263,20 @@ test('SAVINGS-UI: dashboard exposes savings goals without touching stable Live v
   assert.equal(app.includes("setVoice('Custom')"), false,
     'savings UI must not introduce custom voice into the stable Puck/Zephyr Live selector');
 });
+
+test('IMPORT-UI: expense file import supports images and spreadsheets with review-before-save', async () => {
+  const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
+  const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  assert.ok(app.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    'upload control must accept .xlsx expense files');
+  assert.ok(app.includes('.csv,.tsv,.txt,.json,.xlsx'),
+    'upload control must accept common table files');
+  assert.ok(app.includes('fileBase64'),
+    'client must send generic file data, not image-only payloads');
+  assert.ok(app.includes('showScannerResult.warnings'),
+    'review modal must show parser warnings before save');
+  assert.ok(server.includes('parseExpenseImportFile'),
+    'server must parse tabular expense files locally before optional AI fallback');
+  assert.ok(server.includes('MISSING_IMPORTED_EXPENSE_DATE'),
+    'tabular imports missing dates must not be saved as today by accident');
+});
