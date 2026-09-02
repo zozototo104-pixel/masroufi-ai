@@ -336,17 +336,26 @@ test('CONC-24: custom voice status failures fall back without breaking built-in 
     'custom voice status quota/read failures must not surface as fatal 500s');
 });
 
-test('CONC-25: receipt import preparation defers legacy balance checks to atomic batch commit only', async () => {
+test('CONC-25: receipt import preparation defers legacy balance checks to bounded receipt commit only', async () => {
   const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
-  const prepareBlock = toolsSrc.slice(
-    toolsSrc.indexOf('export async function prepareAddTransaction'),
-    toolsSrc.indexOf('export async function addTransaction')
+  const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
+  const addTransactionBlock = toolsSrc.slice(
+    toolsSrc.indexOf('export async function addTransaction'),
+    toolsSrc.indexOf('export async function prepareAddTransaction')
   );
-  assert.ok(prepareBlock.includes("if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch)"),
+  const receiptCommitBlock = atomicSrc.slice(
+    atomicSrc.indexOf('export async function atomicAddTransactions'),
+    atomicSrc.indexOf('export async function atomicPayDebt')
+  );
+  assert.ok(addTransactionBlock.includes("if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch)"),
     'only receipt/import batch preparation may skip the legacy per-item preflight');
   assert.ok(serverSrc.includes('deferBalanceCheckToAtomicBatch: true'),
-    'receipt import record path must explicitly defer to atomicAddTransactions');
-  assert.ok(serverSrc.includes('atomicAddTransactions'),
-    'deferred receipt/import balance checks must still be enforced by the atomic batch writer');
+    'receipt import record path must explicitly defer per-item preflight');
+  assert.ok(serverSrc.includes('skipLedgerBalanceCheck: true'),
+    'reviewed receipt imports must avoid a full-ledger scan during record');
+  assert.ok(receiptCommitBlock.includes('stableReceiptItemDocId'),
+    'receipt import commit must use deterministic item ids for idempotent retries');
+  assert.ok(receiptCommitBlock.includes('if (receiptId && opts.skipLedgerBalanceCheck)'),
+    'full-ledger balance scan skip must be limited to receipt imports with receipt idempotency');
 });
