@@ -479,33 +479,71 @@ async function startServer() {
   });
 
   app.post("/api/scan-receipt", authMiddleware, async (req: any, res: any) => {
-    const { imageBase64, mimeType, apiKey: customApiKey } = req.body;
-    if (!imageBase64 || !mimeType) {
-      return res.status(400).json({ error: "Missing image data" });
+    const {
+      imageBase64,
+      fileBase64,
+      text,
+      mimeType,
+      fileName,
+      defaultMonth,
+      apiKey: customApiKey,
+    } = req.body || {};
+    const payloadBase64 = fileBase64 || imageBase64;
+    if (!payloadBase64 && !text) {
+      return res.status(400).json({ error: "Missing file data" });
+    }
+    if (payloadBase64 && !mimeType) {
+      return res.status(400).json({ error: "Missing mime type" });
     }
 
     try {
+      const localPreview = parseExpenseImportFile({
+        base64: payloadBase64,
+        text,
+        mimeType,
+        fileName,
+        defaultMonth,
+      });
+      if (localPreview.ok) {
+        return res.json({
+          success: true,
+          requiresConfirmation: true,
+          reason: 'EXPENSE_IMPORT_PAYMENT_METHOD_REQUIRED',
+          message: 'حللت الملف ولم أسجل أي شيء بعد. راجع البنود ثم اختر طريقة الدفع للحفظ.',
+          merchant: localPreview.merchant,
+          totalAmount: localPreview.totalAmount,
+          itemsCount: localPreview.items.length,
+          items: localPreview.items,
+          warnings: localPreview.warnings,
+          sourceType: localPreview.sourceType,
+          nextStep: 'اعتمد البنود بعد المراجعة ليتم حفظها عبر مسار الفاتورة الذري.'
+        });
+      }
+
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("No API key");
 
       const ai = new GoogleGenAI({ apiKey });
-      const prompt = `Analyze this receipt / invoice image in detail. Extract both the store/merchant name, the overall total, and breakdown all individual purchased items.
-Return ONLY a valid JSON object matching this schema without markdown code blocks:
+      const prompt = `Analyze this uploaded expense source. It may be a receipt image, invoice image, PDF, screenshot from another finance app, or a table of historical expenses.
+Extract expense rows only. Do not register anything. Return ONLY a valid JSON object matching this schema without markdown code blocks:
 {
-  "merchant": "Store or merchant name",
+  "merchant": "Source/store/app name if known",
   "totalAmount": 120,
-  "date": "YYYY-MM-DD",
+  "date": "YYYY-MM-DD if all rows share one date, otherwise empty",
   "items": [
     {
-      "name": "Item name / description in Arabic",
+      "name": "Expense item / description in Arabic",
       "amount": 30.5,
+      "date": "YYYY-MM-DD if visible for this row",
+      "day": 15,
       "category": "Main Category in Arabic: 'الأبناء' | 'طعام ومشتريات منزل' | 'زيارات وضيافة' | 'مواصلات' | 'فواتير والتزامات' | 'صحة وعلاج' | 'أخرى'",
       "subcategory": "Specific subcategory like 'خضار وفواكه', 'منظفات', 'لحوم', 'أدوية', 'ملابس'...",
+      "merchant": "Store/vendor if visible",
       "necessity": "'ضروري' or 'كمالي'"
     }
   ]
 }
-If individual line items cannot be broken down, provide a single item in the items array with the total amount.`;
+If a row has a month but no day, keep date empty and include day only if visible. If no line items can be broken down, provide a single item with the total amount.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.6-flash',
@@ -513,7 +551,7 @@ If individual line items cannot be broken down, provide a single item in the ite
           {
             role: 'user',
             parts: [
-              { inlineData: { data: imageBase64, mimeType } },
+              { inlineData: { data: payloadBase64, mimeType } },
               { text: prompt }
             ]
           }
@@ -525,48 +563,26 @@ If individual line items cannot be broken down, provide a single item in the ite
 
       const jsonText = response.text;
       if (!jsonText) throw new Error("No response text");
-      
       const parsed = JSON.parse(jsonText);
-      const items = Array.isArray(parsed.items) && parsed.items.length > 0 ? parsed.items : [
-        {
-          name: "مشتريات من " + (parsed.merchant || "المتجر"),
-          amount: parsed.totalAmount || parsed.amount || 0,
-          category: parsed.category || "طعام ومشتريات منزل",
-          subcategory: parsed.subcategory || "عام",
-          necessity: "ضروري"
-        }
-      ];
-
-      const draftTransactions = items
-        .map((item: any) => {
-          const itemAmount = Math.abs(Number(item.amount) || 0);
-          if (itemAmount <= 0) return null;
-          return {
-            amount: itemAmount,
-            type: 'expense',
-            category: item.category || 'طعام ومشتريات منزل',
-            subcategory: item.subcategory || item.name || 'مشتريات',
-            merchant: parsed.merchant || 'متجر',
-            notes: item.name || 'تم تحليلها عبر الماسح الضوئي للفاتورة',
-            necessity: item.necessity || 'ضروري'
-          };
-        })
-        .filter(Boolean);
+      const preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
+      if (!preview.ok) return res.status(422).json({ success: false, ...preview });
 
       res.json({
         success: true,
         requiresConfirmation: true,
-        reason: 'RECEIPT_PAYMENT_METHOD_REQUIRED',
-        message: 'حللت الفاتورة ولم أسجلها بعد. اختر طريقة الدفع لكل البنود: كاش أم PalPay أم دين؟',
-        merchant: parsed.merchant || 'متجر',
-        totalAmount: parsed.totalAmount || draftTransactions.reduce((s: number, t: any) => s + t.amount, 0),
-        itemsCount: draftTransactions.length,
-        items: draftTransactions,
-        nextStep: 'مرر البنود إلى add_transaction بعد أن يحدد المستخدم طريقة الدفع أو الدائن.'
+        reason: 'EXPENSE_IMPORT_PAYMENT_METHOD_REQUIRED',
+        message: 'حللت الملف ولم أسجل أي شيء بعد. راجع البنود ثم اختر طريقة الدفع للحفظ.',
+        merchant: preview.merchant || parsed.merchant || 'استيراد مصروفات',
+        totalAmount: preview.totalAmount,
+        itemsCount: preview.items.length,
+        items: preview.items,
+        warnings: preview.warnings,
+        sourceType: mimeType?.startsWith('image/') ? 'image' : (mimeType === 'application/pdf' ? 'pdf' : 'ai'),
+        nextStep: 'اعتمد البنود بعد المراجعة ليتم حفظها عبر مسار الفاتورة الذري.'
       });
     } catch (error: any) {
-      console.error("Scanner error:", error);
-      res.status(500).json({ error: "Failed to scan receipt: " + error.message });
+      console.error("Expense import scan error:", error);
+      res.status(500).json({ error: "Failed to analyze expense file: " + error.message });
     }
   });
 
