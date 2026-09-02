@@ -62,10 +62,20 @@ test('DUR-04: addTransaction response includes durability + pending flags', asyn
     'addTransaction response must include partial flag');
 });
 
-test('DUR-05: getBalance propagates partial flag from FakeDb', async () => {
+test('DUR-05: getBalance marks offline-cache fallback as partial', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes("return {balances,total:balances.cash+balances.palPay,partial:(snap as any).partial===true};"),
-    'getBalance must propagate partial=true when FakeDb returns partial snapshot');
+  const getBalanceBlock = src.slice(
+    src.indexOf('export async function getBalance'),
+    src.indexOf('export async function transferMoney')
+  );
+  assert.ok(getBalanceBlock.includes("source: 'firestore'"),
+    'getBalance must identify authoritative Firestore reads');
+  assert.ok(getBalanceBlock.includes("source: 'offline-cache'"),
+    'getBalance fallback must be explicitly display-only offline cache');
+  assert.ok(getBalanceBlock.includes('partial: true'),
+    'getBalance fallback must propagate partial=true when cloud balance read fails');
+  assert.ok(getBalanceBlock.includes('cloudStorageConfirmed: false'),
+    'offline-cache balance fallback must not be treated as confirmed cloud state');
 });
 
 test('DUR-06: account switch cannot expose cache — logout clears IndexedDB', async () => {
