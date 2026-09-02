@@ -1854,9 +1854,9 @@ export default function App() {
               onClick={() => fileInputRef.current?.click()}
               disabled={isScanning}
               className="flex items-center justify-center w-14 h-14 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 shadow-lg transition-all"
-              title="مسح فاتورة بالكاميرا"
+              title="استيراد مصروفات من صورة أو ملف أو Excel"
             >
-              {isScanning ? <Loader2 className="w-6 h-6 animate-spin text-emerald-400" /> : <Camera className="w-6 h-6" />}
+              {isScanning ? <Loader2 className="w-6 h-6 animate-spin text-emerald-400" /> : <FileText className="w-6 h-6" />}
             </button>
           </div>
         </div>
