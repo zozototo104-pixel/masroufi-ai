@@ -354,6 +354,10 @@ test('CONC-25: receipt import preparation defers legacy balance checks to bounde
     'receipt import record path must explicitly defer per-item preflight');
   assert.ok(serverSrc.includes('skipLedgerBalanceCheck: true'),
     'reviewed receipt imports must avoid a full-ledger scan during record');
+  assert.ok(serverSrc.includes('splitOverflowToDebt') && serverSrc.includes("paymentMethodOverride: 'debt'"),
+    'reviewed imports must record from the selected balance first and push overflow to debt');
+  assert.equal(serverSrc.includes('recordTransactionCommittedSideEffects'), false,
+    'reviewed receipt import response must not be blocked by quota-heavy per-item side effects');
   assert.ok(receiptCommitBlock.includes('stableReceiptItemDocId'),
     'receipt import commit must use deterministic item ids for idempotent retries');
   assert.ok(receiptCommitBlock.includes('if (receiptId && opts.skipLedgerBalanceCheck)'),
