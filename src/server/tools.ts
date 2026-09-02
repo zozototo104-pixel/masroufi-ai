@@ -1217,8 +1217,11 @@ export async function memorySave(args: any, userId: string, token: string) {
 export async function memorySearch(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: memorySearch", args);
-  // V6 (MF-2): actually filter by args.query (was previously ignored).
-  const snapshot = await adminDb.collection('users').doc(userId).collection('memory').get();
+  // Keep memory lookup bounded. A substring search still happens in-process, but
+  // only over a small recent slice so long-running historical entry sessions do
+  // not exhaust Firestore quota.
+  const limit = Math.max(1, Math.min(80, Number(args?.limit) || 40));
+  const snapshot = await adminDb.collection('users').doc(userId).collection('memory').limit(limit).get();
   const query = String(args?.query || '').trim().toLowerCase();
   const allEntries: { key: string; value: string }[] = [];
   snapshot.docs.forEach(doc => {
@@ -1227,17 +1230,14 @@ export async function memorySearch(args: any, userId: string, token: string) {
       allEntries.push({ key: doc.id, value: String(data.value) });
     }
   });
-  // If no query provided, return top 20 (was previously returning ALL — bloated).
   if (!query) {
-    return { memory: Object.fromEntries(allEntries.slice(0, 20).map(e => [e.key, e.value])) };
+    return { memory: Object.fromEntries(allEntries.slice(0, 20).map(e => [e.key, e.value])), bounded: true, limit };
   }
-  // Filter by substring match on key OR value, case-insensitive.
   const matched = allEntries.filter(e =>
     e.key.toLowerCase().includes(query) || e.value.toLowerCase().includes(query)
   );
-  // Return top 10 matches to bound context size.
   const top = matched.slice(0, 10);
-  return { memory: Object.fromEntries(top.map(e => [e.key, e.value])) };
+  return { memory: Object.fromEntries(top.map(e => [e.key, e.value])), bounded: true, limit };
 }
 
 export async function deleteMemoryKey(args: { key: string }, userId: string, token: string) {
