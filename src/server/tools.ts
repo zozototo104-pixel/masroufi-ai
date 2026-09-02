@@ -2762,9 +2762,9 @@ export async function queryTransactions(args: any, userId: string, token: string
       boundedFallback = true;
     } catch (fallbackErr: any) {
       const localDb = getDb(token);
-      const cachedSnapshot: any = await localDb.collection('transactions').where('userId', '==', userId).get();
+      const cachedSnapshot: any = await localDb.collection('transactions').where('userId', '==', userId).limit(limit).get();
       snapshot = {
-        docs: (cachedSnapshot.docs || []).slice(0, limit),
+        docs: cachedSnapshot.docs || [],
         partial: true,
         error: fallbackErr?.message || cloudErr?.message || 'Firestore transaction read failed',
       };
