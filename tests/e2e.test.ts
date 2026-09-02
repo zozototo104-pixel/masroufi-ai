@@ -285,7 +285,7 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
   const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
-  assert.ok(app.includes('const cloudReady = res.ok && data?.firestore === \'read-write-ok\''),
+  assert.ok(app.includes("fetch('/api/cloud-health'") && app.includes("const cloudReady = cloudHealthRes.ok && cloudHealth?.firestore === 'read-write-ok'"),
     'cloud badge must have an explicit cloud-health source of truth');
   assert.ok(app.includes('setIsOfflineMode(!cloudReady)'),
     'partial or bounded ledger fallback must not force the badge to local when cloud-health is ok');
