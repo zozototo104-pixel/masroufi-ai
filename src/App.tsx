@@ -768,11 +768,11 @@ export default function App() {
             window.dispatchEvent(new CustomEvent('masrofi:refresh'));
           }
         } else {
-          alert("فشل في مسح الفاتورة: " + (data.error || "خطأ غير معروف"));
+          alert("فشل في تحليل الملف: " + (data.message || data.error || "خطأ غير معروف"));
         }
       } catch (err) {
         console.error("Scan error", err);
-        alert("حدث خطأ أثناء تحليل الفاتورة بالكاميرا");
+        alert("حدث خطأ أثناء تحليل ملف المصروفات");
       } finally {
         setIsScanning(false);
       }
