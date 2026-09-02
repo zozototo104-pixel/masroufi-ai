@@ -447,8 +447,8 @@ async function startServer() {
       const profile = await getCustomVoiceProfile(req.user.uid);
       res.json({ configured: profile.configured, provider: profile.provider, createdAt: profile.createdAt, updatedAt: profile.updatedAt });
     } catch (error: any) {
-      console.error('[custom-voice] status failed', error);
-      res.status(500).json({ error: 'CUSTOM_VOICE_STATUS_FAILED' });
+      console.warn('[custom-voice] status unavailable; falling back to built-in voices', error?.code || error?.message || error);
+      res.json({ configured: false, unavailable: true, fallbackVoice: 'Zephyr' });
     }
   });
 
