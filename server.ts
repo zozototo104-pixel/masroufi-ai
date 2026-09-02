@@ -589,9 +589,18 @@ If a row has a month but no day, keep date empty and include day only if visible
   app.post("/api/scan-receipt/record", authMiddleware, async (req: any, res: any) => {
     try {
       const token = req.headers.authorization.split('Bearer ')[1];
-      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed } = req.body || {};
+      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed, sourceType } = req.body || {};
       if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
+      const tabularImport = ['csv', 'tsv', 'text', 'json', 'xlsx'].includes(String(sourceType || ''));
+      if (tabularImport && items.some((item: any) => !item?.date)) {
+        return res.status(400).json({
+          success: false,
+          needsClarification: true,
+          reason: 'MISSING_IMPORTED_EXPENSE_DATE',
+          message: 'بعض بنود الملف بلا تاريخ. لن أسجلها بتاريخ اليوم. أضف عمود تاريخ لكل بند أو استخدم ملفاً يحتوي تاريخاً واضحاً.',
+        });
+      }
       const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${items.length}_${merchant}_${paymentMethod}_${items.map((i: any) => `${i.amount}:${i.name || i.notes || i.subcategory || ''}`).join('|')}`);
       const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
       for (const [index, item] of items.entries()) {
