@@ -279,4 +279,6 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'server must parse tabular expense files locally before optional AI fallback');
   assert.ok(server.includes('MISSING_IMPORTED_EXPENSE_DATE'),
     'tabular imports missing dates must not be saved as today by accident');
+  assert.ok(server.includes("beneficiary: item.beneficiary || item.forWhom || item.purpose || item.category || item.subcategory || item.notes || 'مصروف مستورد'"),
+    'reviewed imported items must pass an extracted purpose/beneficiary so normal expense guards do not ask again');
 });
