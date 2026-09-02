@@ -134,3 +134,10 @@ test('VOICE-08: dormant personal-voice management remains isolated from Live voi
   assert.equal(server.includes('getCustomVoiceRuntime'), false, 'Gemini Live runtime must not load personal voice state');
   assert.equal(server.includes('streamCustomVoiceAudio'), false, 'Gemini Live runtime must not call personal voice synthesis');
 });
+
+test('FIN-LIVE-01: duplicate in-flight Live write prefers a confirmed committed result', async () => {
+  const server = await src('server.ts');
+  assert.ok(server.includes("result?.success === false && (result?.inFlight || result?.retryable)"), 'Live duplicate retry/in-flight responses must be recognized');
+  assert.ok(server.includes("committedResult?.cloudStorageConfirmed === true || committedResult?.durability === 'committed' || committedResult?.transactionId"), 'only a confirmed/committed prior write may replace the retry warning');
+  assert.ok(server.includes('recoveredFromDuplicateInFlight: true'), 'the recovered response must be explicitly marked as deduplicated recovery');
+});
