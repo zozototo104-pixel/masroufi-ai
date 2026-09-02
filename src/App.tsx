@@ -3043,6 +3043,13 @@ export default function App() {
               </div>
             </div>
 
+            {(showScannerResult.warnings || []).length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 mb-3 text-xs text-amber-100 space-y-1">
+                {(showScannerResult.warnings || []).slice(0, 5).map((warning: string, idx: number) => <p key={idx}>⚠️ {warning}</p>)}
+                {(showScannerResult.warnings || []).length > 5 && <p>ويوجد تحذيرات إضافية. راجع الملف قبل الاعتماد.</p>}
+              </div>
+            )}
+
             <div className="overflow-y-auto flex-1 my-3 pr-1">
               <table className="w-full text-right border-collapse text-xs">
                 <thead>
