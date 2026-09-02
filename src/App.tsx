@@ -786,7 +786,8 @@ export default function App() {
   };
 
   const handleRecordScannedReceipt = async (paymentMethod: 'cash' | 'palPay' | 'debt') => {
-    if (!idToken || !showScannerResult) return;
+    if (!idToken || !showScannerResult || isRecordingScannedReceipt) return;
+    setIsRecordingScannedReceipt(true);
     try {
       const res = await fetch('/api/scan-receipt/record', {
         method: 'POST',
