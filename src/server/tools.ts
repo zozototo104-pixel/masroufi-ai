@@ -950,10 +950,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
   actualTxId = atomicResult.docId;
   writeResult = { durability: 'committed', synced: true, pending: false };
   
-  await recordTransactionCommittedSideEffects(userId, actualTxId, tx, adminDb, {
-    preUserBudgets,
-    preTxSnapshot,
-  });
+  // The ledger write above is already durably committed. Secondary effects
+  // (notifications/budget warnings) must never turn that committed write into
+  // an apparent tool failure, otherwise Live may tell the user to retry and
+  // create a duplicate while the original transaction already exists.
+  try {
+    await recordTransactionCommittedSideEffects(userId, actualTxId, tx, adminDb, {
+      preUserBudgets,
+      preTxSnapshot,
+    });
+  } catch (sideEffectErr) {
+    console.warn('Post-commit financial side effect failed; preserving committed transaction success:', sideEffectErr);
+  }
   
   const balances = await getBalance({}, userId, token);
   return {
