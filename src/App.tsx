@@ -814,10 +814,13 @@ export default function App() {
       }
       setShowScannerResult(null);
       window.dispatchEvent(new CustomEvent('masrofi:refresh'));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Record scanned receipt error', err);
-      alert('حدث خطأ أثناء تسجيل الفاتورة.');
+      alert(err?.name === 'AbortError'
+        ? 'تأخر تسجيل الفاتورة أكثر من 30 ثانية. أوقفت الطلب حتى لا يبقى عالقاً. جرّب مرة واحدة بعد قليل.'
+        : 'حدث خطأ أثناء تسجيل الفاتورة.');
     } finally {
+      window.clearTimeout(timeout);
       setIsRecordingScannedReceipt(false);
     }
   };
