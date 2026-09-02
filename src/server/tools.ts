@@ -2690,10 +2690,28 @@ export async function updateSavingsGoal(args: any, userId: string, token: string
 }
 
 export async function queryTransactions(args: any, userId: string, token: string) {
-  const adminDb = getDb(token);
   console.log("TOOL CALL: queryTransactions", args);
-  const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  let filtered = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  // This endpoint feeds the visible ledger after Live sends `refresh: true`.
+  // Read the same authoritative Firestore collection used by atomicAddTransaction;
+  // otherwise a committed PalPay entry can be acknowledged by Live while the UI
+  // refreshes through FakeDb's stale/local fallback and never displays it.
+  let snapshot: any;
+  try {
+    snapshot = await firebaseAdminDb.collection('transactions').where('userId', '==', userId).get();
+    snapshot = { docs: snapshot.docs, partial: false };
+  } catch (cloudErr: any) {
+    // Preserve the existing offline behavior for display only. A cached result is
+    // explicitly partial, so the client keeps its last-known-good ledger instead
+    // of treating stale data as authoritative cloud state.
+    const localDb = getDb(token);
+    const cachedSnapshot: any = await localDb.collection('transactions').where('userId', '==', userId).get();
+    snapshot = {
+      docs: cachedSnapshot.docs || [],
+      partial: true,
+      error: cloudErr?.message || 'Firestore transaction read failed',
+    };
+  }
+  let filtered = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   
   if (args.type) {
     filtered = filtered.filter((t: any) => t.type === args.type);
