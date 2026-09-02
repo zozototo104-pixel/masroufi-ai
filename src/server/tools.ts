@@ -1709,11 +1709,34 @@ export async function searchMarketInformation(args: any, userId: string, token: 
 }
 
 export async function getBalance(args:any,userId:string,token:string){
-  const adminDb=getDb(token);
-  const snap=await adminDb.collection('transactions').where('userId','==',userId).get();
-  const balances=calculateBalancesFromDocs(snap.docs);
-  // V6 (CF-5): propagate partial flag from FakeDb. AI/UI must refuse decisions on partial data.
-  return {balances,total:balances.cash+balances.palPay,partial:(snap as any).partial===true};
+  // Financial reads use Firestore as the single source of truth. FakeDb remains
+  // available elsewhere for offline display/cache behavior, but it must not be
+  // used to certify a financial balance or a just-committed transaction.
+  try {
+    const snap = await firebaseAdminDb.collection('transactions').where('userId','==',userId).get();
+    const balances = calculateBalancesFromDocs(snap.docs);
+    return {
+      balances,
+      total: balances.cash + balances.palPay,
+      partial: false,
+      cloudStorageConfirmed: true,
+      source: 'firestore',
+    };
+  } catch (e: any) {
+    // Offline/read-failure fallback is display-only: return the last local view
+    // if available, explicitly marked partial. Never manufacture zero balances.
+    const localDb = getDb(token);
+    const cachedSnap = await localDb.collection('transactions').where('userId','==',userId).get();
+    const cachedBalances = calculateBalancesFromDocs(cachedSnap.docs);
+    return {
+      balances: cachedBalances,
+      total: cachedBalances.cash + cachedBalances.palPay,
+      partial: true,
+      cloudStorageConfirmed: false,
+      source: 'offline-cache',
+      error: e?.message || 'Firestore balance read failed',
+    };
+  }
 }
 
 export async function transferMoney(args: any, userId: string, token: string) {
