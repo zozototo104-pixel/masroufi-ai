@@ -472,7 +472,10 @@ export default function App() {
           finalTx = txData.transactions || [];
           await idbSet('lkgs_transactions', finalTx);
         } else {
-          setIsOfflineMode(true); // Firestore did not return durable cloud data; stay in local mode
+          // The cloud connection badge is owned by /api/cloud-health. A partial or
+          // bounded transaction response means the visible ledger may fall back to
+          // cached display data, but it does not prove that the app is offline.
+          setIsOfflineMode(!cloudReady);
           let cachedTx = (await idbGet<any[]>('lkgs_transactions')) || [];
           if (!Array.isArray(cachedTx)) cachedTx = [];
           const pending = (txData && txData.partial && txData.transactions) ? txData.transactions : [];
