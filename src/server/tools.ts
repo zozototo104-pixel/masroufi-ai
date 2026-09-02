@@ -653,7 +653,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
     const incomeDestinationConfirmed = Boolean(args.incomeDestinationConfirmed || args.destinationConfirmed || args.confirmedDestination || args.allocationConfirmed || explicitIncomeDestination);
     const incomeNatureConfirmed = originalUserIncomeText
       ? Boolean(userStatedIncomeNature || userStatedNonReturnAid)
-      : Boolean(args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed || /راتب|salary|قبض/i.test(toolIncomeText));
+      : Boolean(
+          args.incomeNatureConfirmed || args.sourceConfirmed || args.natureConfirmed ||
+          /راتب|salary|قبض|مساعده|مساعدة|منحه|منحة|هديه|هدية|مكافاه|مكافأة|دخل اضافي|عمل اضافي|بيع|ربح|تحويل وارد|ايداع|إيداع|دعم/i.test(toolIncomeText)
+        );
     if (!incomeNatureConfirmed) {
       return {
         success: false,
