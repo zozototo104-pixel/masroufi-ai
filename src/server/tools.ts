@@ -1217,12 +1217,12 @@ export async function memorySave(args: any, userId: string, token: string) {
 export async function memorySearch(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: memorySearch", args);
-  // Keep memory lookup bounded. A substring search still happens in-process, but
-  // only over a small recent slice so long-running historical entry sessions do
-  // not exhaust Firestore quota.
-  const limit = Math.max(1, Math.min(80, Number(args?.limit) || 40));
+  // V6 (MF-2): actually filter by args.query while keeping memory lookup bounded.
+  // A substring search still happens in-process, but only over a small recent
+  // slice so long-running historical entry sessions do not exhaust Firestore quota.
+  const limit = Math.max(1, Math.min(80, Number(args.limit) || 40));
   const snapshot = await adminDb.collection('users').doc(userId).collection('memory').limit(limit).get();
-  const query = String(args?.query || '').trim().toLowerCase();
+  const query = String(args.query || '').trim().toLowerCase();
   const allEntries: { key: string; value: string }[] = [];
   snapshot.docs.forEach(doc => {
     const data = doc.data();
