@@ -231,6 +231,38 @@ test('FIN-19: positive amount parser rejects zero and negative values before INV
   assert.equal(parsePositiveFinancialAmount('22'), 22);
 });
 
+test('HIST-01: explicit transaction date is normalized instead of using today', () => {
+  const result = normalizeHistoricalTransactionDate({
+    date: '2026-06-15',
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.date, '2026-06-15T10:13:00.000Z');
+    assert.equal(result.source, 'explicit-date');
+  }
+});
+
+test('HIST-02: historical month requires a day so the assistant cannot invent dates', () => {
+  const missingDay = normalizeHistoricalTransactionDate({
+    historicalMonth: '6/2026',
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(missingDay.ok, false);
+  if (!missingDay.ok) assert.equal(missingDay.reason, 'MISSING_HISTORICAL_DAY');
+
+  const withDay = normalizeHistoricalTransactionDate({
+    historicalMonth: '6/2026',
+    day: 7,
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(withDay.ok, true);
+  if (withDay.ok) {
+    assert.equal(withDay.date, '2026-06-07T10:13:00.000Z');
+    assert.equal(withDay.source, 'historical-month');
+  }
+});
+
 test('SAV-01: savings goal of 5000 over one year calculates monthly requirement', () => {
   const built = buildSavingsGoalRecord({
     userId: 'u1',
