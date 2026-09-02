@@ -185,12 +185,10 @@ function liveFinancialCommitKey(call: FunctionCall, userId: string | null | unde
   const args: any = call.args || {};
   const amount = Math.round((Number(args.amount) || 0) * 100) / 100;
   if (!amount) return null;
-  // add_transaction may legitimately occur twice with the same amount/details in
-  // consecutive user turns (for example two separate 1000 ₪ deposits). Do not
-  // dedupe those across turns here; operationId/idempotency still protects a
-  // repeated tool call for the same execution. Transfers/debt payments keep the
-  // short Live safety window because repeating either can move money twice.
-  if (['transfer_money', 'pay_debt'].includes(call.name)) {
+  // Keep a short recent-operation key for add_transaction too. A second matching
+  // entry must be confirmed as a genuinely new transaction before it is written;
+  // operationId/idempotency still protects retries of the same execution.
+  if (['add_transaction', 'transfer_money', 'pay_debt'].includes(call.name)) {
     return `${userId}|${financialOperationCoreKey(call)}`;
   }
   return null;
