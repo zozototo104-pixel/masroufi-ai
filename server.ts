@@ -1406,7 +1406,22 @@ ${relationshipContext}
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
                         const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : (call.args || {});
-                        const result = await handler(toolArgs, userId!, userToken!);
+                        let result = await handler(toolArgs, userId!, userToken!);
+                        // A duplicate Live tool call can arrive while the first call is still
+                        // finishing its idempotency record. If the original write has already
+                        // committed, prefer that canonical committed result instead of telling
+                        // the user that cloud storage failed and inviting a dangerous retry.
+                        if (result?.success === false && (result?.inFlight || result?.retryable)) {
+                          const committedResult = getRecentLiveFinancialCommit(liveKey);
+                          if (committedResult?.success === true && (committedResult?.cloudStorageConfirmed === true || committedResult?.durability === 'committed' || committedResult?.transactionId)) {
+                            result = {
+                              ...committedResult,
+                              deduped: true,
+                              recoveredFromDuplicateInFlight: true,
+                              message: committedResult.message || 'تم حفظ العملية في السحابة، ولم أكرر تسجيلها.'
+                            };
+                          }
+                        }
                         rememberLiveFinancialCommit(liveKey, result);
                         return { id: call.id, name: call.name, response: result };
                       }
