@@ -264,6 +264,40 @@ test('HIST-02: historical month requires a day so the assistant cannot invent da
   }
 });
 
+test('IMP-FILE-01: CSV expense import creates dated review drafts without saving', () => {
+  const csv = 'date,notes,amount,category,subcategory,merchant\n2026-06-05,خبز,12,طعام ومشتريات منزل,مخبوزات,مخبز\n2026-06-06,مواصلات,8,مواصلات,تكسي,تاكسي';
+  const preview = parseExpenseImportFile({
+    base64: Buffer.from(csv, 'utf8').toString('base64'),
+    mimeType: 'text/csv',
+    fileName: 'june.csv',
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(preview.ok, true);
+  if (preview.ok) {
+    assert.equal(preview.sourceType, 'csv');
+    assert.equal(preview.items.length, 2);
+    assert.equal(preview.totalAmount, 20);
+    assert.equal(preview.items[0].date, '2026-06-05T10:13:00.000Z');
+    assert.equal(preview.items[0].notes, 'خبز');
+  }
+});
+
+test('IMP-FILE-02: tabular imports without row dates are flagged for review', () => {
+  const csv = 'notes,amount,category\nخبز,12,طعام ومشتريات منزل';
+  const preview = parseExpenseImportFile({
+    base64: Buffer.from(csv, 'utf8').toString('base64'),
+    mimeType: 'text/csv',
+    fileName: 'missing-date.csv',
+    defaultMonth: '6/2026',
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(preview.ok, true);
+  if (preview.ok) {
+    assert.equal(preview.items[0].date, undefined);
+    assert.ok(preview.warnings.some(w => w.includes('أي يوم')));
+  }
+});
+
 test('SAV-01: savings goal of 5000 over one year calculates monthly requirement', () => {
   const built = buildSavingsGoalRecord({
     userId: 'u1',
