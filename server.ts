@@ -1402,7 +1402,17 @@ ${relationshipContext}
                         const liveKey = liveFinancialCommitKey(call, userId);
                         const recentResult = getRecentLiveFinancialCommit(liveKey);
                         if (recentResult) {
-                          return { id: call.id, name: call.name, response: { ...recentResult, deduped: true, message: recentResult.message || 'هذه العملية نُفذت قبل لحظات، لذلك لم أكرر تسجيلها.' } };
+                          const args: any = call.args || {};
+                          const confirmedNew = call.name === 'add_transaction' && Boolean(args.duplicateConfirmed || args.confirmedNewTransaction);
+                          if (!confirmedNew) {
+                            return {
+                              id: call.id,
+                              name: call.name,
+                              response: call.name === 'add_transaction'
+                                ? { success: false, needsConfirmation: true, reason: 'POSSIBLE_DUPLICATE_TRANSACTION', message: 'وجدت عملية سابقة قريبة بنفس التفاصيل. هل تؤكد أن هذه عملية جديدة ومستقلة وليست تكراراً للعملية السابقة؟' }
+                                : { ...recentResult, deduped: true, message: recentResult.message || 'هذه العملية نُفذت قبل لحظات، لذلك لم أكرر تسجيلها.' }
+                            };
+                          }
                         }
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
