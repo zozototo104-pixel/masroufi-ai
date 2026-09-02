@@ -335,3 +335,18 @@ test('CONC-24: custom voice status failures fall back without breaking built-in 
   assert.equal(customVoiceStatusBlock.includes('res.status(500)'), false,
     'custom voice status quota/read failures must not surface as fatal 500s');
 });
+
+test('CONC-25: receipt import preparation defers legacy balance checks to atomic batch commit only', async () => {
+  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  const prepareBlock = toolsSrc.slice(
+    toolsSrc.indexOf('export async function prepareAddTransaction'),
+    toolsSrc.indexOf('export async function addTransaction')
+  );
+  assert.ok(prepareBlock.includes("if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch)"),
+    'only receipt/import batch preparation may skip the legacy per-item preflight');
+  assert.ok(serverSrc.includes('deferBalanceCheckToAtomicBatch: true'),
+    'receipt import record path must explicitly defer to atomicAddTransactions');
+  assert.ok(serverSrc.includes('atomicAddTransactions'),
+    'deferred receipt/import balance checks must still be enforced by the atomic batch writer');
+});
