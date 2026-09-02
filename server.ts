@@ -683,19 +683,14 @@ If a row has a month but no day, keep date empty and include day only if visible
         transactionId: committed.docIds[index],
         operationId: row.operationId,
       }));
-      if (!(committed as any).idempotentReplay) {
-        await Promise.all(prepared.map((row, index) => recordTransactionCommittedSideEffects(
-          req.user.uid,
-          committed.docIds[index],
-          { ...row.transaction, receiptId },
-          adminDb,
-        )));
-      }
       res.json({
         success: true,
         createdCount: created.length,
         created,
         atomic: true,
+        splitOverflowToDebt: splitApplied,
+        selectedBalanceUsed: Math.round((selectedAvailable - remainingSelectedBalance) * 100) / 100,
+        overflowDebtAmount: Math.round(created.filter((item: any) => item.paymentMethodOverride === 'debt' || item.account === 'debt').reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) * 100) / 100,
         idempotentReplay: Boolean((committed as any).idempotentReplay),
       });
     } catch (e: any) {
