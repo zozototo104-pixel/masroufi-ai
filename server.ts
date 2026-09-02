@@ -620,6 +620,7 @@ If a row has a month but no day, keep date empty and include day only if visible
           historicalMonth: item.historicalMonth,
           day: item.day,
           riskConfirmed: Boolean(riskConfirmed),
+          deferBalanceCheckToAtomicBatch: true,
           operationId: `receipt:${receiptId}:item:${index}:${paymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
         };
         const validation = await prepareAddTransaction(txArgs, req.user.uid, token);
