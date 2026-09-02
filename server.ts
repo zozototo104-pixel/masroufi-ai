@@ -651,7 +651,7 @@ If a row has a month but no day, keep date empty and include day only if visible
           day: item.day,
           riskConfirmed: Boolean(riskConfirmed),
           deferBalanceCheckToAtomicBatch: true,
-          operationId: `receipt:${receiptId}:item:${index}:${paymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
+          operationId: `receipt:${receiptId}:item:${index}:${linePaymentMethod}:${item.amount}:${item.name || item.notes || item.subcategory || ''}`
         };
         const validation = await prepareAddTransaction(txArgs, req.user.uid, token);
         if (!validation?.success || !validation?.preparedTransaction) return res.json(validation);
