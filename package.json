@@ -15,7 +15,7 @@
     "test:v6_1": "node --import tsx --test tests/concurrency.test.ts tests/offline.test.ts tests/market.test.ts tests/e2e.test.ts",
     "test:v6_2": "node --import tsx --test tests/v6_2_adversarial.test.ts",
     "test:auth": "node --import tsx --test tests/auth.test.ts",
-    "ci:trigger": "node -e \"console.log('CI verification trigger')\"",
+    "ci:trigger": "node -e \"console.log('CI verification trigger: render auto-deploy check')\"",
     "test:financial": "node --import tsx --test tests/financial.test.ts",
     "test:durability": "node --import tsx --test tests/durability.test.ts",
     "test:authz": "node --import tsx --test tests/authorization.test.ts",
