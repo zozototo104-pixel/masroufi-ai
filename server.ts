@@ -202,6 +202,17 @@ ${JSON.stringify(missing.map(({ index, item }) => ({ index, name: item.notes, am
   };
 }
 
+function isTrustedImportedDateSource(source: unknown): boolean {
+  const normalized = normalizeArabicForIntent(source);
+  return normalized === 'user-confirmed-date'
+    || normalized.includes('visible')
+    || normalized.includes('مرئي')
+    || normalized.includes('عمود')
+    || normalized.includes('صف')
+    || normalized.includes('مجموعة')
+    || normalized.includes('ai-visible-date-repair');
+}
+
 function stableShortFingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value) ?? 'null').digest('hex').slice(0, 24);
 }
