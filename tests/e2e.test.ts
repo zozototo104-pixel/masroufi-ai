@@ -343,6 +343,16 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'server must allow dates tied to visible receipt rows/columns while rejecting untrusted upload-day hallucinations');
 });
 
+test('LIVE-AUDIO: backend must forward every Gemini Live audio part, not only the first part', async () => {
+  const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  assert.ok(server.includes('const parts = message.serverContent?.modelTurn?.parts || []') && server.includes('for (const part of parts)'),
+    'Gemini Live server events can contain multiple parts and the backend must iterate over all of them');
+  assert.ok(server.includes('part?.inlineData?.data') && server.includes('safeSend({ audio })'),
+    'each inline audio part must be forwarded to the browser playback path');
+  assert.equal(server.includes('modelTurn?.parts?.[0]?.inlineData?.data'), false,
+    'backend must not drop Live audio when Gemini sends audio in a non-first part');
+});
+
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
   const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
   const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
