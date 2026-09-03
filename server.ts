@@ -139,6 +139,26 @@ function normalizeVisibleImportDate(value: unknown): string | undefined {
   return result.ok ? result.date : undefined;
 }
 
+function applyExpenseImportDateMap(preview: Extract<ExpenseImportPreview, { ok: true }>, parsed: any): Extract<ExpenseImportPreview, { ok: true }> {
+  const patches = Array.isArray(parsed?.dateMap) ? parsed.dateMap : [];
+  if (patches.length === 0) return preview;
+  const nextItems = preview.items.map(item => ({ ...item }));
+  for (const patch of patches) {
+    const oneBasedRow = Number(patch?.rowNumber ?? patch?.index ?? patch?.row);
+    const index = Number.isInteger(oneBasedRow) && oneBasedRow > 0 ? oneBasedRow - 1 : -1;
+    if (index < 0 || index >= nextItems.length || nextItems[index].date) continue;
+    const normalizedDate = normalizeVisibleImportDate(patch?.date);
+    if (!normalizedDate) continue;
+    nextItems[index] = {
+      ...nextItems[index],
+      date: normalizedDate,
+      dateSource: String(patch?.dateSource || 'visible-date-map'),
+      confidence: Math.max(Number(nextItems[index].confidence) || 0.7, 0.9),
+    };
+  }
+  return { ...preview, items: nextItems };
+}
+
 async function repairMissingExpenseImportDates(ai: GoogleGenAI, input: {
   payloadBase64: string;
   mimeType: string;
