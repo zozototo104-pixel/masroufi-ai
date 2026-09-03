@@ -1779,7 +1779,29 @@ ${relationshipContext}
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
                         const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : (call.args || {});
-                        let result = await handler(toolArgs, userId!, userToken!);
+                        const liveToolStartedAt = Date.now();
+                        const isBoundedReadTool = call.name === 'queryTransactions' || call.name === 'memorySearch';
+                        let result: any;
+                        if (isBoundedReadTool) {
+                          const LIVE_READ_TOOL_TIMEOUT_MS = 5000;
+                          result = await Promise.race([
+                            handler(toolArgs, userId!, userToken!),
+                            new Promise(resolve => setTimeout(() => resolve({
+                              success: false,
+                              error: 'LIVE_TOOL_TIMEOUT',
+                              message: 'تعذر إكمال قراءة البيانات في الوقت المحدد. أكمل الرد الصوتي دون انتظار هذه القراءة.',
+                              retryable: true,
+                            }), LIVE_READ_TOOL_TIMEOUT_MS)),
+                          ]);
+                        } else {
+                          result = await handler(toolArgs, userId!, userToken!);
+                        }
+                        console.log('[live-tool] completed', {
+                          requestId,
+                          name: call.name,
+                          durationMs: Date.now() - liveToolStartedAt,
+                          timedOut: result?.error === 'LIVE_TOOL_TIMEOUT',
+                        });
                         // A duplicate Live tool call can arrive while the first call is still
                         // finishing its idempotency record. If the original write has already
                         // committed, prefer that canonical committed result instead of telling
