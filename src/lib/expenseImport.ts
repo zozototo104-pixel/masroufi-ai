@@ -368,14 +368,15 @@ export function normalizeAiExpenseItems(parsed: any, options: TableParseOptions 
       && !String(options.defaultMonth || '').trim()
       && options.allowCurrentDateFallback !== true;
     return {
-    date: dateLooksLikeCurrentFallback ? '' : modelDate,
-    day: String(item.day || ''),
-    amount: String(item.amount || ''),
-    category: String(item.category || DEFAULT_CATEGORY),
-    subcategory: String(item.subcategory || item.name || 'عام'),
-    merchant: String(item.merchant || parsed?.merchant || 'استيراد مصروفات'),
-    notes: String(item.notes || item.name || 'مصروف مستورد'),
-    necessity: String(item.necessity || DEFAULT_NECESSITY),
-  }));
+      date: dateLooksLikeCurrentFallback ? '' : modelDate,
+      day: String(item.day || ''),
+      amount: String(item.amount || ''),
+      category: String(item.category || DEFAULT_CATEGORY),
+      subcategory: String(item.subcategory || item.name || 'عام'),
+      merchant: String(item.merchant || parsed?.merchant || 'استيراد مصروفات'),
+      notes: String(item.notes || item.name || 'مصروف مستورد'),
+      necessity: String(item.necessity || DEFAULT_NECESSITY),
+    };
+  });
   return buildDraftsFromRows(rows, { ...options, fileName: parsed?.merchant || options.fileName });
 }
