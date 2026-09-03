@@ -298,6 +298,23 @@ test('IMP-FILE-02: tabular imports without row dates are flagged for review', ()
   }
 });
 
+test('IMP-FILE-03: image/AI imports without visible dates do not default to today', () => {
+  const preview = normalizeAiExpenseItems({
+    merchant: 'تطبيق مصاريف',
+    items: [
+      { name: 'ماجي بكيت من البابا', amount: 18, category: 'طعام ومشتريات منزل', subcategory: 'بقالة وتوابل' },
+    ],
+  }, {
+    fileName: 'IMG_0769.jpeg',
+    now: new Date('2026-09-03T09:21:00.000Z'),
+  });
+  assert.equal(preview.ok, true);
+  if (preview.ok) {
+    assert.equal(preview.items[0].date, undefined);
+    assert.ok(preview.warnings.some(w => w.includes('لن أسجله بتاريخ اليوم')));
+  }
+});
+
 test('SAV-01: savings goal of 5000 over one year calculates monthly requirement', () => {
   const built = buildSavingsGoalRecord({
     userId: 'u1',
