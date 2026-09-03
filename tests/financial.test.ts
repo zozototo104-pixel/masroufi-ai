@@ -334,6 +334,23 @@ test('IMP-FILE-04: suspected AI current-date hallucinations are not accepted for
   }
 });
 
+test('IMP-FILE-05: visible AI date columns are preserved even when date equals upload day', () => {
+  const preview = normalizeAiExpenseItems({
+    merchant: 'تطبيق مصاريف',
+    items: [
+      { name: 'بند بتاريخ ظاهر', amount: 25, date: '2026-09-03', dateSource: 'visible-date-column', category: 'صحة وعلاج', subcategory: 'أدوية' },
+    ],
+  }, {
+    fileName: 'IMG_0769.jpeg',
+    now: new Date('2026-09-03T09:21:00.000Z'),
+  });
+  assert.equal(preview.ok, true);
+  if (preview.ok) {
+    assert.equal(preview.items[0].date, '2026-09-03T09:21:00.000Z');
+    assert.equal(preview.items[0].dateSource, 'visible-date-column');
+  }
+});
+
 test('SAV-01: savings goal of 5000 over one year calculates monthly requirement', () => {
   const built = buildSavingsGoalRecord({
     userId: 'u1',
