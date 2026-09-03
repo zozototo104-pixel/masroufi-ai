@@ -840,7 +840,6 @@ export default function App() {
         return;
       }
       await rememberCloudConnected();
-      setScannerMissingDateValue('');
       setShowScannerResult(null);
       window.dispatchEvent(new CustomEvent('masrofi:refresh'));
     } catch (err: any) {
