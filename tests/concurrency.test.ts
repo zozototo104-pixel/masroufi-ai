@@ -336,22 +336,21 @@ test('CONC-24: custom voice status failures fall back without breaking built-in 
     'custom voice status quota/read failures must not surface as fatal 500s');
 });
 
-test('CONC-25: receipt import preparation defers legacy balance checks to bounded receipt commit only', async () => {
-  const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+test('CONC-25: reviewed receipt import records through direct preparation and bounded batch commit', async () => {
   const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
   const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
-  const addTransactionBlock = toolsSrc.slice(
-    toolsSrc.indexOf('export async function addTransaction'),
-    toolsSrc.indexOf('export async function prepareAddTransaction')
+  const receiptRecordBlock = serverSrc.slice(
+    serverSrc.indexOf('app.post("/api/scan-receipt/record"'),
+    serverSrc.indexOf('app.get("/api/budgets"')
   );
   const receiptCommitBlock = atomicSrc.slice(
     atomicSrc.indexOf('export async function atomicAddTransactions'),
     atomicSrc.indexOf('export async function atomicPayDebt')
   );
-  assert.ok(addTransactionBlock.includes("if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch)"),
-    'only receipt/import batch preparation may skip the legacy per-item preflight');
-  assert.ok(serverSrc.includes('deferBalanceCheckToAtomicBatch: true'),
-    'receipt import record path must explicitly defer per-item preflight');
+  assert.equal(serverSrc.includes('prepareAddTransaction'), false,
+    'reviewed receipt imports must not use addTransaction validateOnly orchestration');
+  assert.equal(receiptRecordBlock.includes('validateOnly'), false,
+    'reviewed receipt imports must not emit per-line addTransaction validateOnly tool calls');
   assert.ok(serverSrc.includes('skipLedgerBalanceCheck: true'),
     'reviewed receipt imports must avoid a full-ledger scan during record');
   assert.ok(serverSrc.includes('splitOverflowToDebt') && serverSrc.includes("paymentMethodOverride: 'debt'"),
