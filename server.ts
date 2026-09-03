@@ -1711,9 +1711,12 @@ ${relationshipContext}
             if (!isActive) return;
 
             try {
-              const audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-              if (audio) {
-                safeSend({ audio });
+              const parts = message.serverContent?.modelTurn?.parts || [];
+              for (const part of parts) {
+                const audio = part?.inlineData?.data;
+                if (audio) {
+                  safeSend({ audio });
+                }
               }
 
               if (message.serverContent?.interrupted) {
