@@ -311,6 +311,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'reviewed receipt item operation ids must use short fingerprints instead of embedding full Arabic line text');
   assert.ok(server.includes('GEMINI_TEMPORARILY_UNAVAILABLE') && server.includes('خدمة تحليل الصور مزدحمة مؤقتاً'),
     'temporary Gemini 503/high-demand errors must be returned as a clear Arabic retryable message');
+  assert.ok(server.includes('SUSPECT_IMPORTED_CURRENT_DATE') && server.includes('تاريخ رفع الصورة وليس تاريخ المصروف'),
+    'server must reject stale AI/image previews that still contain suspected current-date hallucinations');
 });
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
