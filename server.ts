@@ -134,7 +134,7 @@ async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
 }
 
 function stableShortFingerprint(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 24);
+  return createHash('sha256').update(JSON.stringify(value) ?? 'null').digest('hex').slice(0, 24);
 }
 
 function classifyDebtIntent(message: string): 'credit_purchase' | 'cash_borrowing' | 'unknown' {
