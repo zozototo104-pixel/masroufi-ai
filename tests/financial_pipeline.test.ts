@@ -101,7 +101,8 @@ test('VOICE-03: Puck and Zephyr are the only selectable Live voices', async () =
 
 test('VOICE-04: Gemini Live forwards native audio without personal-voice interception', async () => {
   const server = await src('server.ts');
-  assert.ok(server.includes('if (audio) {\n                safeSend({ audio });'), 'Gemini native audio must be forwarded directly');
+  assert.ok(server.includes('for (const part of parts)') && server.includes('part?.inlineData?.data') && server.includes('safeSend({ audio });'), 'Gemini native audio from every Live response part must be forwarded directly');
+  assert.equal(server.includes('modelTurn?.parts?.[0]?.inlineData?.data'), false, 'Live audio must not be dropped when Gemini places it in a non-first part');
   assert.equal(server.includes('outputAudioTranscription'), false, 'built-in Live voices must not request custom TTS transcription');
   assert.equal(server.includes('streamCustomVoiceAudio({'), false, 'personal TTS must stay out of the Gemini Live message path');
 });
