@@ -320,7 +320,7 @@ test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-
     'cloud badge must remember recent cloud success and avoid flipping to local on one transient probe failure');
   assert.equal(app.includes('setIsOfflineMode(!cloudReady)'), false,
     'cloud badge must not flip directly to local from a single cloud-health result');
-  assert.ok(app.includes('does not prove that the app is offline'),
+  assert.ok(app.includes('does not prove that the app is') && app.includes('offline, so do not flip the badge here'),
     'source code should document that partial ledger data is not connectivity state');
   assert.ok(server.includes('let cachedCloudHealth') && server.includes('cached: true'),
     'cloud-health must cache recent success so the badge probe itself does not burn quota on every refresh');
