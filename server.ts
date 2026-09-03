@@ -1736,11 +1736,14 @@ ${relationshipContext}
 
               if (message.serverContent?.turnComplete) {
                 liveTurnsCompleted += 1;
-                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent });
+                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio });
                 liveAudioSinceLastToolResponse = 0;
+                awaitingPostToolAudio = false;
               }
 
               if (message.serverContent?.interrupted) {
+                liveInterruptions += 1;
+                console.log('[live-audio] interrupted', { requestId, interruptions: liveInterruptions, awaitingPostToolAudio, audioSinceLastToolResponse: liveAudioSinceLastToolResponse });
                 safeSend({ interrupted: true });
               }
 
