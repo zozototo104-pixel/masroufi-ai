@@ -3097,7 +3097,7 @@ export default function App() {
               </div>
             )}
 
-            {(showScannerResult.items || []).some((item: any) => !String(item?.date || '').trim()) && (
+            {scannerHasMissingDates && (
               <div className="bg-slate-950/70 border border-amber-500/30 rounded-2xl p-3 mb-3 text-xs text-slate-200 space-y-2">
                 <p className="text-amber-200 font-bold">يوجد بنود بلا تاريخ. ضع التاريخ هنا ثم طبّقه على البنود الناقصة قبل التسجيل.</p>
                 <div className="flex flex-col sm:flex-row gap-2">
