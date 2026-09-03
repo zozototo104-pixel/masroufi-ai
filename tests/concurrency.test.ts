@@ -365,7 +365,7 @@ test('CONC-25: reviewed receipt import records through direct preparation and bo
     'receipt import commit must use deterministic item ids for idempotent retries');
   assert.ok(receiptCommitBlock.includes('if (receiptId && opts.skipLedgerBalanceCheck)'),
     'full-ledger balance scan skip must be limited to receipt imports with receipt idempotency');
-  assert.ok(receiptCommitBlock.includes('const batch = adminDb.batch()') && receiptCommitBlock.includes('commitMode: \'write-batch-no-ledger-scan\''),
+  assert.ok(receiptCommitBlock.includes('const batch = adminDb.batch()') && receiptCommitBlock.includes("receiptCommitMode: 'write-batch-no-ledger-scan'"),
     'reviewed receipt imports must use bounded WriteBatch instead of a transaction that can exceed the UI timeout');
   const importFastPath = receiptCommitBlock.slice(
     receiptCommitBlock.indexOf('if (receiptId && opts.skipLedgerBalanceCheck)'),
