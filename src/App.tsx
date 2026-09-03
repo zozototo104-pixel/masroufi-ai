@@ -3159,7 +3159,7 @@ export default function App() {
                           onChange={(e) => setShowScannerResult((prev: any) => {
                             if (!prev) return prev;
                             const nextItems = [...(prev.items || [])];
-                            nextItems[idx] = { ...nextItems[idx], date: e.target.value, dateSource: 'user-confirmed-date' };
+                            nextItems[idx] = { ...nextItems[idx], date: normalizeScannedReceiptDateInput(e.target.value), dateSource: 'user-confirmed-date' };
                             return { ...prev, items: nextItems };
                           })}
                           className={`w-32 bg-slate-950 border rounded-lg px-2 py-1 text-[11px] text-slate-100 placeholder:text-slate-500 ${item.date ? 'border-slate-700' : 'border-amber-400 ring-1 ring-amber-400/40'}`}
