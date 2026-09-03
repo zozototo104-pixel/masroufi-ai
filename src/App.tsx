@@ -31,6 +31,13 @@ function normalizeScannedReceiptDateInput(value: string): string {
   return normalizedDigits;
 }
 
+function isCompleteScannedReceiptDate(value: unknown): boolean {
+  const normalized = normalizeScannedReceiptDateInput(String(value || ''));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return false;
+  const parsed = new Date(`${normalized}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === normalized;
+}
+
 export default function App() {
   const [user, setUser] = useState<any | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
