@@ -770,6 +770,7 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       const parsed = parseJsonObjectFromModelText(generated.text);
       let preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
       if (!preview.ok) return res.status(422).json({ success: false, ...preview });
+      preview = applyExpenseImportDateMap(preview, parsed);
       if (preview.items.some((item: any) => !item.date)) {
         try {
           preview = await repairMissingExpenseImportDates(ai, { payloadBase64, mimeType, preview });
