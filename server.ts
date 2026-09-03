@@ -753,6 +753,14 @@ If a row has a month but no day, keep date empty and include day only if visible
       const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
       for (const [index, item] of expandedItems.entries()) {
         const linePaymentMethod = item.paymentMethodOverride || paymentMethod;
+        const itemFingerprint = stableShortFingerprint({
+          receiptId,
+          index,
+          linePaymentMethod,
+          amount: item.amount,
+          name: item.name || item.notes || item.subcategory || '',
+          date: item.date || '',
+        });
         const txArgs = {
           amount: item.amount,
           type: 'expense',
