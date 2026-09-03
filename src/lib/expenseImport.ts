@@ -362,8 +362,13 @@ export function normalizeAiExpenseItems(parsed: any, options: TableParseOptions 
       merchant: parsed?.merchant,
     }
   ];
-  const rows = sourceItems.map((item: any) => ({
-    date: String(item.date || parsed?.date || ''),
+  const rows = sourceItems.map((item: any) => {
+    const modelDate = String(item.date || parsed?.date || '').trim();
+    const dateLooksLikeCurrentFallback = modelDate.slice(0, 10) === currentDate
+      && !String(options.defaultMonth || '').trim()
+      && options.allowCurrentDateFallback !== true;
+    return {
+    date: dateLooksLikeCurrentFallback ? '' : modelDate,
     day: String(item.day || ''),
     amount: String(item.amount || ''),
     category: String(item.category || DEFAULT_CATEGORY),
