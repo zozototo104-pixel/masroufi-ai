@@ -3172,7 +3172,7 @@ export default function App() {
                           className={`w-32 bg-slate-950 border rounded-lg px-2 py-1 text-[11px] text-slate-100 placeholder:text-slate-500 ${item.date ? 'border-slate-700' : 'border-amber-400 ring-1 ring-amber-400/40'}`}
                           aria-label={`تاريخ البند ${idx + 1}`}
                         />
-                        {!item.date && <div className="text-[10px] text-amber-300 mt-1">بحاجة تاريخ</div>}
+                        {!isCompleteScannedReceiptDate(item.date) && <div className="text-[10px] text-amber-300 mt-1">بحاجة تاريخ كامل</div>}
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-white">{item.notes || item.name}</td>
                       <td className="py-2.5 px-3 text-slate-300">{item.category}</td>
