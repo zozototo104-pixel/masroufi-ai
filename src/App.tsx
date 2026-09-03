@@ -3071,7 +3071,7 @@ export default function App() {
       {showScannerResult && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[120] flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col p-6 shadow-2xl relative">
-            <button onClick={() => { setScannerMissingDateValue(''); setShowScannerResult(null); }} className="absolute top-4 left-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 transition-colors">
+            <button onClick={() => setShowScannerResult(null)} className="absolute top-4 left-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 transition-colors">
               <X className="w-5 h-5" />
             </button>
             
