@@ -1780,7 +1780,7 @@ ${relationshipContext}
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
                         const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : (call.args || {});
                         const liveToolStartedAt = Date.now();
-                        const isBoundedReadTool = call.name === 'queryTransactions' || call.name === 'memorySearch';
+                        const isBoundedReadTool = call.name === 'query_transactions' || call.name === 'memory_search';
                         let result: any;
                         if (isBoundedReadTool) {
                           const LIVE_READ_TOOL_TIMEOUT_MS = 5000;
