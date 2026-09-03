@@ -277,6 +277,10 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'review modal must show parser warnings before save');
   assert.ok(app.includes('aria-label={`تاريخ البند ${idx + 1}`}') && app.includes('setShowScannerResult((prev: any) =>'),
     'review modal must allow correcting imported item dates before save');
+  assert.ok(app.includes('scannerMissingDateValue') && app.includes('طبّق على البنود الناقصة'),
+    'review modal must provide one-tap date fill for rows without visible dates');
+  assert.ok(app.includes('missingDateCount') && app.includes('return;') && app.includes('يوجد ${missingDateCount} بند بدون تاريخ'),
+    'record buttons must block locally before submitting incomplete dated rows');
   assert.ok(server.includes('parseExpenseImportFile'),
     'server must parse tabular expense files locally before optional AI fallback');
   assert.ok(server.includes('MISSING_IMPORTED_EXPENSE_DATE'),
