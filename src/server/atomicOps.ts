@@ -250,7 +250,6 @@ export async function atomicAddTransactions(
   const receiptId = opts.receiptId ? String(opts.receiptId) : '';
 
   if (receiptId && opts.skipLedgerBalanceCheck) {
-    const receiptRef = adminDb.collection('receiptIdempotency').doc(stableReceiptDocId(userId, receiptId));
     const normalizedNewTransactions = newTransactions.map((item: any) => ({ ...item, receiptId }));
     const operationIds = normalizedNewTransactions.map((item: any) => String(item?.operationId || ''));
     if (operationIds.some((operationId: string) => !operationId)) {
