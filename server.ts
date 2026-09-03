@@ -1918,8 +1918,15 @@ ${relationshipContext}
       }
     });
 
-    clientWs.on("close", () => {
-      console.log("Client disconnected");
+    clientWs.on("close", (code, reason) => {
+      console.log("Client disconnected", {
+        requestId,
+        code,
+        reason: reason?.toString?.() || '',
+        liveAudioChunksForwarded,
+        liveToolResponsesSent,
+        liveTurnsCompleted,
+      });
       isActive = false;
       if (authTimeout) {
         clearTimeout(authTimeout);
