@@ -3118,7 +3118,7 @@ export default function App() {
                 <p className="font-bold">اكتب تاريخ كل بند ناقص في خانته الخاصة. لن يبدأ التسجيل حتى تكتمل التواريخ.</p>
                 <div className="space-y-2">
                   {(showScannerResult.items || []).map((item: any, idx: number) => {
-                    if (String(item?.date || '').trim()) return null;
+                    if (isCompleteScannedReceiptDate(item?.date)) return null;
                     return (
                       <div key={`missing-date-${idx}`} className="bg-slate-900/80 border border-amber-500/40 rounded-xl p-3 space-y-2">
                         <div className="text-slate-100 font-semibold leading-relaxed">{idx + 1}. {item.notes || item.name || 'بند ناقص التاريخ'}</div>
