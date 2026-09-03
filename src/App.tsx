@@ -777,6 +777,15 @@ export default function App() {
     window.print();
   };
 
+  const handleOpenScanner = () => {
+    // On iOS/Safari, opening a file/camera picker can interrupt an active Web Audio
+    // capture/playback session and leave it unusable after focus returns. Tear down
+    // Gemini Live cleanly before handing control to the scanner; the user can then
+    // restart voice with an explicit mic-button gesture, which is Safari-safe.
+    if (isConnected) disconnect();
+    fileInputRef.current?.click();
+  };
+
   const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
