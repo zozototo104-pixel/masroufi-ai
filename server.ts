@@ -1899,6 +1899,16 @@ ${relationshipContext}
           return;
         }
 
+        if (msg.type === "client_audio_ack") {
+          console.log('[live-audio] client audio ack', {
+            requestId,
+            audioContextState: msg.audioContextState || 'unknown',
+            visibilityState: msg.visibilityState || 'unknown',
+            hasFocus: typeof msg.hasFocus === 'boolean' ? msg.hasFocus : undefined,
+          });
+          return;
+        }
+
         if (msg.audio) {
           if (!authState.authenticated || !session) {
             pendingAudio.push(msg.audio);
