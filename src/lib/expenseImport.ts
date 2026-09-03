@@ -282,7 +282,7 @@ function buildDraftsFromRows(rows: Row[], options: TableParseOptions = {}): Expe
       notes,
       necessity: necessity === 'كمالي' ? 'كمالي' : 'ضروري',
       date: dateResult.ok ? dateResult.date : undefined,
-      dateSource: dateResult.ok ? dateResult.source : undefined,
+      dateSource: dateResult.ok ? (rawDateSource ? String(rawDateSource) : dateResult.source) : undefined,
       sourceRow: index + 1,
       confidence: dateResult.ok ? 0.95 : 0.7,
     });
