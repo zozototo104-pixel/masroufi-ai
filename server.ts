@@ -35,8 +35,29 @@ function getExpenseImportModelFallbacks(): string[] {
     .split(',')
     .map(model => model.trim())
     .filter(Boolean);
-  const defaults = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'];
+  const defaults = [
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+  ];
   return Array.from(new Set([...configured, ...defaults]));
+}
+
+function isGeminiRetryableModelError(error: any): boolean {
+  const raw = `${error?.status || ''} ${error?.code || ''} ${error?.message || ''}`;
+  return raw.includes('503')
+    || raw.includes('UNAVAILABLE')
+    || raw.includes('high demand')
+    || raw.includes('429')
+    || raw.includes('RESOURCE_EXHAUSTED')
+    || raw.includes('Quota exceeded')
+    || raw.includes('NOT_FOUND')
+    || raw.includes('not found')
+    || raw.includes('not supported')
+    || raw.includes('INVALID_ARGUMENT')
+    || raw.includes('not available');
 }
 
 function isGeminiTemporaryCapacityError(error: any): boolean {
@@ -47,6 +68,21 @@ function isGeminiTemporaryCapacityError(error: any): boolean {
     || raw.includes('429')
     || raw.includes('RESOURCE_EXHAUSTED')
     || raw.includes('Quota exceeded');
+}
+
+function parseJsonObjectFromModelText(text: string): any {
+  const raw = String(text || '').trim();
+  if (!raw) throw new Error('GEMINI_EMPTY_RESPONSE');
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const candidate = fenced || raw;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start >= 0 && end > start) return JSON.parse(candidate.slice(start, end + 1));
+    throw new Error('GEMINI_RETURNED_NON_JSON');
+  }
 }
 
 async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
