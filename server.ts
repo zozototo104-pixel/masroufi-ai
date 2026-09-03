@@ -760,28 +760,37 @@ If a row has a month but no day, keep date empty and include day only if visible
           name: item.name || item.notes || item.subcategory || '',
           date: item.date || '',
         });
-        const txArgs = {
-          amount: item.amount,
+        const operationId = `receipt:${receiptId}:item:${index}:${linePaymentMethod}:${itemFingerprint}`;
+        const amount = Math.round((Number(item.amount) || 0) * 100) / 100;
+        if (amount <= 0) {
+          return res.status(400).json({ success: false, reason: 'INVALID_IMPORTED_EXPENSE_AMOUNT', message: 'يوجد بند مستورد بمبلغ غير صالح.' });
+        }
+        const lineMerchant = String(item.merchant || merchant || 'استيراد مصروفات').trim();
+        const transaction = {
+          userId: req.user.uid,
+          amount,
           type: 'expense',
           account: linePaymentMethod,
           paymentMethod: linePaymentMethod,
-          category: item.category,
+          category: item.category || 'أخرى',
           subcategory: item.subcategory || item.notes || 'مشتريات',
           purchaseItem: item.purchaseItem || item.name || item.notes || item.subcategory || 'بند فاتورة',
           beneficiary: item.beneficiary || item.forWhom || item.purpose || item.category || item.subcategory || item.notes || 'مصروف مستورد',
-          merchant: item.merchant || merchant,
+          merchant: lineMerchant,
           notes: item.notes || item.name || 'بند من فاتورة ممسوحة',
           necessity: item.necessity || '',
+          necessitySource: item.necessity ? 'import-review' : '',
+          necessityReason: '',
+          transactionType: linePaymentMethod === 'debt' ? 'CREDIT_PURCHASE' : 'EXPENSE',
+          creditor: linePaymentMethod === 'debt' ? lineMerchant : '',
+          creditorKey: linePaymentMethod === 'debt' ? lineMerchant.toLowerCase().trim() : '',
+          operationId,
           date: item.date,
-          historicalMonth: item.historicalMonth,
-          day: item.day,
-          riskConfirmed: Boolean(riskConfirmed),
-          deferBalanceCheckToAtomicBatch: true,
-          operationId: `receipt:${receiptId}:item:${index}:${linePaymentMethod}:${itemFingerprint}`
+          dateSource: item.dateSource || 'explicit-date',
+          createdAt: new Date().toISOString(),
+          importSource: 'reviewed-expense-file',
         };
-        const validation = await prepareAddTransaction(txArgs, req.user.uid, token);
-        if (!validation?.success || !validation?.preparedTransaction) return res.json(validation);
-        prepared.push({ item, operationId: txArgs.operationId, transaction: validation.preparedTransaction });
+        prepared.push({ item, operationId, transaction });
       }
 
       const committed = await atomicAddTransactions(
