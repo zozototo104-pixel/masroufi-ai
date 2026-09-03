@@ -697,9 +697,19 @@ If a row has a month but no day, keep date empty and include day only if visible
 
   app.post("/api/scan-receipt/record", authMiddleware, async (req: any, res: any) => {
     try {
-      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed, currentBalances = {}, splitOverflowToDebt = false } = req.body || {};
+      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed, currentBalances = {}, splitOverflowToDebt = false, sourceType } = req.body || {};
       if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const aiLikeImport = ['image', 'pdf', 'ai'].includes(String(sourceType || ''));
+      if (aiLikeImport && items.some((item: any) => String(item?.date || '').slice(0, 10) === todayIso && item?.dateSource !== 'user-confirmed-date')) {
+        return res.status(400).json({
+          success: false,
+          needsClarification: true,
+          reason: 'SUSPECT_IMPORTED_CURRENT_DATE',
+          message: 'ظهر أن بعض البنود بتاريخ اليوم، وهذا غالباً تاريخ رفع الصورة وليس تاريخ المصروف. لن أسجلها حتى لا أخرب الشهر. أعد التحليل بصورة يظهر فيها التاريخ أو استخدم ملف Excel/CSV بتواريخ واضحة.',
+        });
+      }
       if (items.some((item: any) => !item?.date)) {
         return res.status(400).json({
           success: false,
