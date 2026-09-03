@@ -757,7 +757,7 @@ If a row has a month but no day, keep date empty and include day only if visible
           date: i.date || '',
         })),
       });
-      const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${receiptFingerprint}`);
+      const receiptId = `receipt_${receiptFingerprint}`;
       const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
       for (const [index, item] of expandedItems.entries()) {
         const linePaymentMethod = item.paymentMethodOverride || paymentMethod;
