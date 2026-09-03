@@ -1920,7 +1920,7 @@ export default function App() {
               onChange={handleScanReceipt}
             />
             <button
-              onClick={handleOpenScanner}
+              onClick={() => fileInputRef.current?.click()}
               disabled={isScanning}
               className="flex items-center justify-center w-14 h-14 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 shadow-lg transition-all"
               title="استيراد مصروفات من صورة أو ملف أو Excel"
