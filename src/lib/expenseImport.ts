@@ -349,6 +349,8 @@ export function parseExpenseImportFile(input: {
 }
 
 export function normalizeAiExpenseItems(parsed: any, options: TableParseOptions = {}): ExpenseImportPreview {
+  const now = options.now || new Date();
+  const currentDate = now.toISOString().slice(0, 10);
   const sourceItems = Array.isArray(parsed?.items) && parsed.items.length > 0 ? parsed.items : [
     {
       name: parsed?.merchant ? `مشتريات من ${parsed.merchant}` : 'مصروف مستورد',
