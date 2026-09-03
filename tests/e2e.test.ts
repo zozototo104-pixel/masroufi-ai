@@ -277,10 +277,12 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'review modal must show parser warnings before save');
   assert.ok(app.includes('aria-label={`تاريخ البند ${idx + 1}`}') && app.includes('setShowScannerResult((prev: any) =>'),
     'review modal must allow correcting imported item dates before save');
-  assert.ok(app.includes('scannerMissingDateValue') && app.includes('طبّق على البنود الناقصة'),
-    'review modal must provide one-tap date fill for rows without visible dates');
+  assert.equal(app.includes('scannerMissingDateValue'), false,
+    'review modal must not rely on one shared date value for all missing rows');
+  assert.ok(app.includes('placeholder="18/7/2026"') && app.includes('border-amber-400'),
+    'each missing imported row must expose a visible highlighted date text field');
   assert.ok(app.includes("dateSource: 'user-confirmed-date'"),
-    'dates entered or bulk-filled by the user must be marked confirmed so the server does not treat them as AI hallucinations');
+    'dates entered by the user per row must be marked confirmed so the server does not treat them as AI hallucinations');
   assert.ok(app.includes('scannerHasMissingDates') && app.includes('disabled={isRecordingScannedReceipt || scannerHasMissingDates}'),
     'record buttons must stay disabled until all reviewed rows have dates');
   assert.ok(app.includes('missingDateCount') && app.includes('return;') && app.includes('يوجد ${missingDateCount} بند بدون تاريخ'),
