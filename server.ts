@@ -697,7 +697,7 @@ If a row has a month but no day, keep date empty and include day only if visible
 
   app.post("/api/scan-receipt/record", authMiddleware, async (req: any, res: any) => {
     try {
-      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed, sourceType, currentBalances = {}, splitOverflowToDebt = false } = req.body || {};
+      const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed, currentBalances = {}, splitOverflowToDebt = false } = req.body || {};
       if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
       if (items.some((item: any) => !item?.date)) {
