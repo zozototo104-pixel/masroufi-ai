@@ -733,8 +733,15 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
 
       const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
       const parsed = parseJsonObjectFromModelText(generated.text);
-      const preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
+      let preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
       if (!preview.ok) return res.status(422).json({ success: false, ...preview });
+      if (preview.items.some((item: any) => !item.date)) {
+        try {
+          preview = await repairMissingExpenseImportDates(ai, { payloadBase64, mimeType, preview });
+        } catch (repairError: any) {
+          console.warn('[expense-import] date repair pass failed; keeping manual review fallback', repairError?.message || repairError);
+        }
+      }
 
       res.json({
         success: true,
