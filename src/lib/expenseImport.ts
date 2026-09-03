@@ -380,7 +380,7 @@ export function normalizeAiExpenseItems(parsed: any, options: TableParseOptions 
       merchant: String(item.merchant || parsed?.merchant || 'استيراد مصروفات'),
       notes: String(item.notes || item.name || 'مصروف مستورد'),
       necessity: String(item.necessity || DEFAULT_NECESSITY),
-      dateSource: String(item.dateSource || ''),
+      dateSource: modelDateSource,
     };
   });
   return buildDraftsFromRows(rows, { ...options, fileName: parsed?.merchant || options.fileName });
