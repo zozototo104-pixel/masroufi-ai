@@ -1231,7 +1231,7 @@ export default function App() {
       if (data.success && data.text) {
         setChatMessages(prev => [...prev, { role: 'ai', text: data.text }]);
         if (Array.isArray(data.committedTransactions) && data.committedTransactions.length > 0) {
-          setIsOfflineMode(false);
+          void rememberCloudConnected();
           setTransactions(prev => {
             const byId = new Map((Array.isArray(prev) ? prev : []).map((t: any) => [t.id, t]));
             for (const tx of data.committedTransactions) {
