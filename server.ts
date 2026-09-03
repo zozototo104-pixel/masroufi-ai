@@ -1565,6 +1565,7 @@ function setupLiveApi(wss: WebSocketServer) {
     let userId: string | null = null;
     let userEmail: string | undefined = undefined;
     let userToken: string | undefined = undefined;
+    const requestId = Math.random().toString(36).slice(2, 8);
     const pendingAudio: string[] = [];
     let liveAudioChunksForwarded = 0;
     let liveToolResponsesSent = 0;
