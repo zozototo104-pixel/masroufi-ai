@@ -134,6 +134,73 @@ async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
   throw new Error('GEMINI_EXPENSE_IMPORT_FAILED');
 }
 
+function normalizeVisibleImportDate(value: unknown): string | undefined {
+  const result = normalizeHistoricalTransactionDate({ date: value, now: new Date() });
+  return result.ok ? result.date : undefined;
+}
+
+async function repairMissingExpenseImportDates(ai: GoogleGenAI, input: {
+  payloadBase64: string;
+  mimeType: string;
+  preview: Extract<ExpenseImportPreview, { ok: true }>;
+}): Promise<Extract<ExpenseImportPreview, { ok: true }>> {
+  const missing = input.preview.items
+    .map((item, index) => ({ index, item }))
+    .filter(({ item }) => !item.date);
+  if (missing.length === 0) return input.preview;
+
+  const prompt = `أعد فحص الصورة/الملف لاستخراج تواريخ البنود الناقصة فقط.
+المشكلة السابقة: بعض التواريخ تكون في عمود مستقل في جدول عربي من اليمين لليسار، أو في خلية/مجموعة بجانب عدة صفوف، وليست داخل نص البند نفسه.
+اربط التاريخ المرئي بالصف حسب موضعه البصري، رقم السطر، وصف البند، والمبلغ.
+لا تستخدم تاريخ اليوم أو تاريخ رفع الصورة. لا تخمن. إذا لم ترَ التاريخ بوضوح لهذا البند فاتركه فارغاً.
+البنود الناقصة المراد إصلاحها:
+${JSON.stringify(missing.map(({ index, item }) => ({ index, name: item.notes, amount: item.amount, category: item.category, subcategory: item.subcategory })), null, 2)}
+أرجع JSON فقط بهذا الشكل:
+{
+  "datePatches": [
+    { "index": 0, "date": "YYYY-MM-DD", "dateSource": "visible-date-column", "confidence": 0.0 }
+  ]
+}
+ضع date فارغاً إذا لم يكن التاريخ ظاهراً بوضوح.`;
+
+  const generated = await generateExpenseImportJsonWithFallback(ai, {
+    payloadBase64: input.payloadBase64,
+    mimeType: input.mimeType,
+    prompt,
+  });
+  const parsed = parseJsonObjectFromModelText(generated.text);
+  const patches = Array.isArray(parsed?.datePatches) ? parsed.datePatches : [];
+  if (patches.length === 0) return input.preview;
+
+  const nextItems = input.preview.items.map(item => ({ ...item }));
+  for (const patch of patches) {
+    const index = Number(patch?.index);
+    if (!Number.isInteger(index) || index < 0 || index >= nextItems.length) continue;
+    if (nextItems[index].date) continue;
+    const normalizedDate = normalizeVisibleImportDate(patch?.date);
+    if (!normalizedDate) continue;
+    const confidence = Number(patch?.confidence);
+    if (Number.isFinite(confidence) && confidence < 0.55) continue;
+    nextItems[index] = {
+      ...nextItems[index],
+      date: normalizedDate,
+      dateSource: String(patch?.dateSource || 'ai-visible-date-repair'),
+      confidence: Math.max(Number(nextItems[index].confidence) || 0.7, Number.isFinite(confidence) ? confidence : 0.85),
+    };
+  }
+  const repairedIndexes = nextItems
+    .map((item, index) => item.date && !input.preview.items[index].date ? index + 1 : null)
+    .filter(Boolean);
+  const remainingWarnings = input.preview.warnings.filter((warning: string) => !repairedIndexes.some(index => warning.startsWith(`السطر ${index}:`)));
+  return {
+    ...input.preview,
+    items: nextItems,
+    warnings: repairedIndexes.length > 0
+      ? [...remainingWarnings, `تمت إعادة قراءة التاريخ من الصورة للبنود: ${repairedIndexes.join(', ')}.`]
+      : input.preview.warnings,
+  };
+}
+
 function stableShortFingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value) ?? 'null').digest('hex').slice(0, 24);
 }
