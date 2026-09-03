@@ -115,16 +115,18 @@ async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
       return { text, model, fallbackUsed: index > 0 };
     } catch (error: any) {
       errors.push(`${model}: ${error?.message || error}`);
-      if (!isGeminiTemporaryCapacityError(error) || index === models.length - 1) {
-        const wrapped = new Error(isGeminiTemporaryCapacityError(error)
+      const retryable = isGeminiRetryableModelError(error);
+      if (!retryable || index === models.length - 1) {
+        const temporary = errors.some(msg => isGeminiTemporaryCapacityError({ message: msg })) || isGeminiTemporaryCapacityError(error);
+        const wrapped = new Error(temporary
           ? 'GEMINI_TEMPORARILY_UNAVAILABLE'
           : (error?.message || 'Gemini expense import failed')) as any;
-        wrapped.reason = isGeminiTemporaryCapacityError(error) ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : 'GEMINI_EXPENSE_IMPORT_FAILED';
-        wrapped.statusCode = isGeminiTemporaryCapacityError(error) ? 503 : 500;
+        wrapped.reason = temporary ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : 'GEMINI_EXPENSE_IMPORT_FAILED';
+        wrapped.statusCode = temporary ? 503 : 500;
         wrapped.modelErrors = errors;
         throw wrapped;
       }
-      console.warn('[expense-import] model temporarily unavailable, trying fallback', { model, error: error?.code || error?.message || error });
+      console.warn('[expense-import] model failed, trying fallback', { model, error: error?.code || error?.message || error });
     }
   }
   throw new Error('GEMINI_EXPENSE_IMPORT_FAILED');
