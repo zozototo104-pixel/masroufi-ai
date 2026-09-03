@@ -1726,6 +1726,7 @@ ${relationshipContext}
                   audioChunksInMessage += 1;
                   liveAudioChunksForwarded += 1;
                   liveAudioSinceLastToolResponse += 1;
+                  if (awaitingPostToolAudio) awaitingPostToolAudio = false;
                   safeSend({ audio });
                 }
               }
