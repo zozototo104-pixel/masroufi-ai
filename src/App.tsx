@@ -487,7 +487,7 @@ export default function App() {
         const txData = await txRes.json();
         let finalTx = [];
         if (txRes.ok && txData && txData.transactions && !txData.partial) {
-          setIsOfflineMode(false); // Cloud API succeeded; this is more reliable than navigator.onLine on iOS/Safari
+          await rememberCloudConnected(); // Cloud API succeeded; this is more reliable than navigator.onLine on iOS/Safari
           // Financial transactions are now synced only through offlineQueue -> /api/command.
           // Never merge legacy _unsynced transaction documents with cloud transactions here;
           // doing so can visually double balances even when Firestore has only one canonical record.
