@@ -169,7 +169,6 @@ export default function App() {
   
   const [isScanning, setIsScanning] = useState(false);
   const [isRecordingScannedReceipt, setIsRecordingScannedReceipt] = useState(false);
-  const [scannerMissingDateValue, setScannerMissingDateValue] = useState('');
 
   const { connect, disconnect, isConnected, isRecording, status, error } = useGeminiLive({ apiKey, voice, persona, idToken, userName, aiName, relationship: aiRelationship });
 
