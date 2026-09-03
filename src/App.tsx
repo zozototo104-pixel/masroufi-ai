@@ -789,7 +789,6 @@ export default function App() {
         });
         const data = await res.json();
         if (data.success) {
-          setScannerMissingDateValue('');
           setShowScannerResult(data);
           if (!data.requiresConfirmation) {
             window.dispatchEvent(new CustomEvent('masrofi:refresh'));
