@@ -1778,7 +1778,19 @@ ${relationshipContext}
                         }
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
-                        const toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : (call.args || {});
+                        let toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : { ...(call.args || {}) };
+                        // Keep every explicit date/range exactly as requested. Only broad,
+                        // date-unspecified Live reads are capped so one voice turn cannot pull
+                        // an unnecessarily large ledger payload into Gemini context.
+                        if (call.name === 'query_transactions' && !toolArgs.startDate && !toolArgs.endDate) {
+                          const requestedLimit = Number(toolArgs.limit);
+                          toolArgs = {
+                            ...toolArgs,
+                            limit: Number.isFinite(requestedLimit) && requestedLimit > 0
+                              ? Math.min(requestedLimit, 40)
+                              : 40,
+                          };
+                        }
                         const liveToolStartedAt = Date.now();
                         const isBoundedReadTool = call.name === 'query_transactions' || call.name === 'memory_search';
                         let result: any;
