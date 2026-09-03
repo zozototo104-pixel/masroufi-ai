@@ -28,6 +28,10 @@ function normalizeScannedReceiptDateInput(value: string): string {
   if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
   const slash = normalizedDigits.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
   if (slash) return `${slash[3]}-${slash[2].padStart(2, '0')}-${slash[1].padStart(2, '0')}`;
+  const eightDigits = normalizedDigits.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (eightDigits) return `${eightDigits[3]}-${eightDigits[2]}-${eightDigits[1]}`;
+  const sevenDigits = normalizedDigits.match(/^(\d{2})(\d)(\d{4})$/);
+  if (sevenDigits) return `${sevenDigits[3]}-0${sevenDigits[2]}-${sevenDigits[1]}`;
   return normalizedDigits;
 }
 
