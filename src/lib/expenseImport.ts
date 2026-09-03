@@ -251,12 +251,19 @@ function buildDraftsFromRows(rows: Row[], options: TableParseOptions = {}): Expe
     const rawDate = pick(row, ['date', 'تاريخ', 'اليوم', 'transaction date', 'created at']) || row.date || '';
     const rawDay = pick(row, ['day', 'يوم', 'رقم اليوم']) || '';
     const dateInput = rawDate && /^\d+(?:\.\d+)?$/.test(rawDate) ? excelSerialToDate(rawDate) : rawDate;
-    const dateResult = normalizeHistoricalTransactionDate({
-      date: dateInput,
-      historicalMonth: dateInput ? undefined : options.defaultMonth,
-      day: rawDay || undefined,
-      now,
-    });
+    const hasExplicitDateSignal = Boolean(String(dateInput || '').trim() || String(options.defaultMonth || '').trim() || String(rawDay || '').trim());
+    const dateResult = hasExplicitDateSignal || options.allowCurrentDateFallback
+      ? normalizeHistoricalTransactionDate({
+        date: dateInput,
+        historicalMonth: dateInput ? undefined : options.defaultMonth,
+        day: rawDay || undefined,
+        now,
+      })
+      : {
+        ok: false as const,
+        reason: 'MISSING_IMPORTED_EXPENSE_DATE',
+        message: 'لم أجد تاريخاً واضحاً لهذا البند. لن أسجله بتاريخ اليوم؛ أضف تاريخاً لكل بند أو اذكر الشهر واليوم.',
+      };
     if (dateResult.ok === false) {
       warnings.push(`السطر ${index + 1}: ${dateResult.message}`);
     }
