@@ -3187,7 +3187,7 @@ export default function App() {
                 <button disabled={isRecordingScannedReceipt} onClick={() => handleRecordScannedReceipt('debt')} className="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-lg transition-all">{isRecordingScannedReceipt ? 'جارٍ التسجيل...' : 'سجلها دين'}</button>
               </div>
               <button 
-                onClick={() => setShowScannerResult(null)}
+                onClick={() => { setScannerMissingDateValue(''); setShowScannerResult(null); }}
                 className="w-full px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all"
               >
                 إلغاء بدون تسجيل
