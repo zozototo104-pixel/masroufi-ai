@@ -365,7 +365,10 @@ export function normalizeAiExpenseItems(parsed: any, options: TableParseOptions 
   ];
   const rows = sourceItems.map((item: any) => {
     const modelDate = String(item.date || parsed?.date || '').trim();
+    const modelDateSource = String(item.dateSource || '').trim();
+    const dateSourceIsVisible = /visible|مرئي|column|group|row|عمود|مجموعة|صف/i.test(modelDateSource);
     const dateLooksLikeCurrentFallback = modelDate.slice(0, 10) === currentDate
+      && !dateSourceIsVisible
       && !String(options.defaultMonth || '').trim()
       && options.allowCurrentDateFallback !== true;
     return {
