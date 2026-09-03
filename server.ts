@@ -651,7 +651,7 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
     {
       "name": "Expense item / description in Arabic",
       "amount": 30.5,
-      "date": "YYYY-MM-DD if visible for this row",
+      "date": "YYYY-MM-DD only if visibly printed for this row; otherwise empty. Never use today's/current date as a fallback.",
       "day": 15,
       "category": "Main Category in Arabic: 'الأبناء' | 'طعام ومشتريات منزل' | 'زيارات وضيافة' | 'مواصلات' | 'فواتير والتزامات' | 'صحة وعلاج' | 'أخرى'",
       "subcategory": "Specific subcategory like 'خضار وفواكه', 'منظفات', 'لحوم', 'أدوية', 'ملابس'...",
