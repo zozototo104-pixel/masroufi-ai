@@ -658,7 +658,7 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
 If a row has a month but no day, keep date empty and include day only if visible. If no line items can be broken down, provide a single item with the total amount.`;
 
       const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
-      const parsed = JSON.parse(generated.text);
+      const parsed = parseJsonObjectFromModelText(generated.text);
       const preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
       if (!preview.ok) return res.status(422).json({ success: false, ...preview });
 
