@@ -764,7 +764,7 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
     }
   ]
 }
-For Arabic/RTL tables, inspect the visual date column on the far right or far left and attach that date to the matching visual row. If multiple consecutive rows are visually grouped under one printed date, apply that printed date to those rows only when the grouping is clear. If a row has a month but no day, keep date empty and include day only if visible. If a date is not printed in the source, leave date empty; do not infer from upload date, current date, or today's date. If no line items can be broken down, provide a single item with the total amount.`;
+For Arabic/RTL tables, inspect the visual date column on the far right or far left and attach that date to the matching visual row. Build dateMap for every extracted item row that has a visible printed date anywhere aligned with it. If several consecutive rows are visually grouped under one printed date, add a dateMap entry for each affected row. Row numbers in dateMap must be 1-based and match the items array order. If a row has a month but no day, keep date empty and include day only if visible. If a date is not printed in the source, leave date empty; do not infer from upload date, current date, or today's date. If no line items can be broken down, provide a single item with the total amount.`;
 
       const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
       const parsed = parseJsonObjectFromModelText(generated.text);
