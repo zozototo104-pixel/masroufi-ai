@@ -1716,11 +1716,24 @@ ${relationshipContext}
 
             try {
               const parts = message.serverContent?.modelTurn?.parts || [];
+              let audioChunksInMessage = 0;
               for (const part of parts) {
                 const audio = part?.inlineData?.data;
                 if (audio) {
+                  audioChunksInMessage += 1;
+                  liveAudioChunksForwarded += 1;
+                  liveAudioSinceLastToolResponse += 1;
                   safeSend({ audio });
                 }
+              }
+              if (audioChunksInMessage > 0) {
+                console.log('[live-audio] forwarded audio chunks', { requestId, chunks: audioChunksInMessage, total: liveAudioChunksForwarded });
+              }
+
+              if (message.serverContent?.turnComplete) {
+                liveTurnsCompleted += 1;
+                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent });
+                liveAudioSinceLastToolResponse = 0;
               }
 
               if (message.serverContent?.interrupted) {
