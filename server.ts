@@ -30,6 +30,70 @@ function normalizeArabicForIntent(value: any): string {
     .trim();
 }
 
+function getExpenseImportModelFallbacks(): string[] {
+  const configured = String(process.env.GEMINI_EXPENSE_IMPORT_MODELS || '')
+    .split(',')
+    .map(model => model.trim())
+    .filter(Boolean);
+  const defaults = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'];
+  return Array.from(new Set([...configured, ...defaults]));
+}
+
+function isGeminiTemporaryCapacityError(error: any): boolean {
+  const raw = `${error?.status || ''} ${error?.code || ''} ${error?.message || ''}`;
+  return raw.includes('503')
+    || raw.includes('UNAVAILABLE')
+    || raw.includes('high demand')
+    || raw.includes('429')
+    || raw.includes('RESOURCE_EXHAUSTED')
+    || raw.includes('Quota exceeded');
+}
+
+async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
+  payloadBase64: string;
+  mimeType: string;
+  prompt: string;
+}): Promise<{ text: string; model: string; fallbackUsed: boolean }> {
+  const models = getExpenseImportModelFallbacks();
+  const errors: string[] = [];
+  for (let index = 0; index < models.length; index++) {
+    const model = models[index];
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { inlineData: { data: input.payloadBase64, mimeType: input.mimeType } },
+              { text: input.prompt }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+      const text = response.text;
+      if (!text) throw new Error('No response text');
+      return { text, model, fallbackUsed: index > 0 };
+    } catch (error: any) {
+      errors.push(`${model}: ${error?.message || error}`);
+      if (!isGeminiTemporaryCapacityError(error) || index === models.length - 1) {
+        const wrapped = new Error(isGeminiTemporaryCapacityError(error)
+          ? 'GEMINI_TEMPORARILY_UNAVAILABLE'
+          : (error?.message || 'Gemini expense import failed')) as any;
+        wrapped.reason = isGeminiTemporaryCapacityError(error) ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : 'GEMINI_EXPENSE_IMPORT_FAILED';
+        wrapped.statusCode = isGeminiTemporaryCapacityError(error) ? 503 : 500;
+        wrapped.modelErrors = errors;
+        throw wrapped;
+      }
+      console.warn('[expense-import] model temporarily unavailable, trying fallback', { model, error: error?.code || error?.message || error });
+    }
+  }
+  throw new Error('GEMINI_EXPENSE_IMPORT_FAILED');
+}
+
 function classifyDebtIntent(message: string): 'credit_purchase' | 'cash_borrowing' | 'unknown' {
   const text = normalizeArabicForIntent(message);
   // Do not use \b with Arabic; JS word boundaries are unreliable for Arabic text.
