@@ -20,6 +20,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const nextPlayTimeRef = useRef<number>(0);
   // Keep track of active audio source nodes so we can stop them on interrupt
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  // One acknowledgement per connection is enough to prove whether server audio
+  // reached the browser and what state Web Audio was in when it arrived.
+  const clientAudioAckSentRef = useRef(false);
 
   const disconnect = useCallback(() => {
     setIsConnected(false);
