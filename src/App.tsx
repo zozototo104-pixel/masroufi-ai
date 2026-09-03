@@ -58,7 +58,7 @@ export default function App() {
   const [copiedReport, setCopiedReport] = useState(false);
   const [interruptedFeedback, setInterruptedFeedback] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
-  const scannerHasMissingDates = Boolean(showScannerResult?.items?.some((item: any) => !String(item?.date || '').trim()));
+  const scannerHasMissingDates = Boolean(showScannerResult?.items?.some((item: any) => !isCompleteScannedReceiptDate(item?.date)));
   const cloudProbeFailuresRef = useRef(0);
 
   const rememberCloudConnected = async () => {
