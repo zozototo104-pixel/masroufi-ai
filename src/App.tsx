@@ -833,7 +833,7 @@ export default function App() {
         alert(data?.message || data?.error || 'تعذر تسجيل الفاتورة. قد تحتاج تأكيداً مالياً أو اختيار طريقة دفع أخرى.');
         return;
       }
-      setIsOfflineMode(false);
+      await rememberCloudConnected();
       setShowScannerResult(null);
       window.dispatchEvent(new CustomEvent('masrofi:refresh'));
     } catch (err: any) {
