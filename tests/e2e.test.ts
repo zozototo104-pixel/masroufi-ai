@@ -293,6 +293,10 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'receipt record UI must request safe selected-balance-then-debt splitting');
   assert.ok(app.includes('controller.abort(), 30000') && app.includes("err?.name === 'AbortError'"),
     'receipt record UI must time out instead of staying stuck on submitting forever');
+  assert.ok(server.includes('generateExpenseImportJsonWithFallback') && server.includes('getExpenseImportModelFallbacks'),
+    'image/PDF expense analysis must try fallback Gemini models when the primary model is temporarily unavailable');
+  assert.ok(server.includes('GEMINI_TEMPORARILY_UNAVAILABLE') && server.includes('خدمة تحليل الصور مزدحمة مؤقتاً'),
+    'temporary Gemini 503/high-demand errors must be returned as a clear Arabic retryable message');
 });
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
