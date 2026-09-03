@@ -638,8 +638,17 @@ If a row has a month but no day, keep date empty and include day only if visible
         nextStep: 'اعتمد البنود بعد المراجعة ليتم حفظها عبر مسار الفاتورة الذري.'
       });
     } catch (error: any) {
-      console.error("Expense import scan error:", error);
-      res.status(500).json({ error: "Failed to analyze expense file: " + error.message });
+      console.error("Expense import scan error:", error?.message || error, error?.modelErrors || '');
+      const temporary = error?.reason === 'GEMINI_TEMPORARILY_UNAVAILABLE' || isGeminiTemporaryCapacityError(error);
+      res.status(temporary ? 503 : 500).json({
+        success: false,
+        reason: temporary ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : 'EXPENSE_IMPORT_ANALYSIS_FAILED',
+        retryable: temporary,
+        message: temporary
+          ? 'خدمة تحليل الصور مزدحمة مؤقتاً. جرّب بعد قليل أو ارفع الملف كـ Excel/CSV إذا كان متوفراً.'
+          : 'تعذر تحليل الملف. جرّب صورة أوضح أو ملف CSV/Excel منظم.',
+        error: temporary ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : (error?.message || 'EXPENSE_IMPORT_ANALYSIS_FAILED'),
+      });
     }
   });
 
