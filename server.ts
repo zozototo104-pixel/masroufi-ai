@@ -747,6 +747,9 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
   "merchant": "Source/store/app name if known",
   "totalAmount": 120,
   "date": "YYYY-MM-DD if all rows share one date, otherwise empty",
+  "dateMap": [
+    { "rowNumber": 1, "date": "YYYY-MM-DD", "dateSource": "visible-date-column | visible-date-group | visible-row-date", "confidence": 0.0 }
+  ],
   "items": [
     {
       "name": "Expense item / description in Arabic",
