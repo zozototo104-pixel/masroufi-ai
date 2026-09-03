@@ -19,6 +19,18 @@ import { calculateFinancialFitness } from './lib/fitnessScore';
 import { calculateBalances } from './lib/balanceCalc';
 import { clearPendingOpsForUser, syncPendingOps, getPendingCount, migrateLegacyPendingOps, enqueuePendingOp, type FinancialCommandType } from './lib/offlineQueue';
 
+function normalizeScannedReceiptDateInput(value: string): string {
+  const normalizedDigits = String(value || '')
+    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .trim();
+  const iso = normalizedDigits.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+  const slash = normalizedDigits.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (slash) return `${slash[3]}-${slash[2].padStart(2, '0')}-${slash[1].padStart(2, '0')}`;
+  return normalizedDigits;
+}
+
 export default function App() {
   const [user, setUser] = useState<any | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
