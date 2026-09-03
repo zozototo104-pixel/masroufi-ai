@@ -660,7 +660,7 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
     }
   ]
 }
-If a row has a month but no day, keep date empty and include day only if visible. If no line items can be broken down, provide a single item with the total amount.`;
+If a row has a month but no day, keep date empty and include day only if visible. If a date is not printed in the source, leave date empty; do not infer from upload date, current date, or today's date. If no line items can be broken down, provide a single item with the total amount.`;
 
       const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
       const parsed = parseJsonObjectFromModelText(generated.text);
