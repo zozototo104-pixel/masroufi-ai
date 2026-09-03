@@ -267,20 +267,6 @@ export async function atomicAddTransactions(
       batch.set(ref, { ...item, userId, id: ref.id, balanceValidation: 'receipt-import-bounded-batch', receiptCommitMode: 'write-batch-no-ledger-scan' });
     });
     const balances = calculateBalances(normalizedNewTransactions.map((item: any) => ({ ...item, userId })));
-    batch.set(receiptRef, {
-      userId,
-      receiptId,
-      status: 'completed',
-      docIds,
-      operationIds,
-      itemCount: normalizedNewTransactions.length,
-      balances,
-      balanceScope: 'receipt-items-only',
-      receiptMeta: opts.receiptMeta || null,
-      commitMode: 'write-batch-no-ledger-scan',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
     await batch.commit();
     return { ok: true, docIds, balances };
   }
