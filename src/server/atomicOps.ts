@@ -247,6 +247,62 @@ export async function atomicAddTransactions(
   | { ok: true; docIds: string[]; balances: { cash: number; palPay: number; debt: number; total: number }; idempotentReplay?: boolean }
   | { ok: false; reason: string; balances?: any; conflictingTransactionIds?: string[] }
 > {
+  const receiptId = opts.receiptId ? String(opts.receiptId) : '';
+
+  if (receiptId && opts.skipLedgerBalanceCheck) {
+    const receiptRef = adminDb.collection('receiptIdempotency').doc(stableReceiptDocId(userId, receiptId));
+    const receiptSnap = await receiptRef.get();
+    if (receiptSnap.exists) {
+      const record = receiptSnap.data() || {};
+      if (record.userId !== userId || record.receiptId !== receiptId) {
+        return { ok: false, reason: 'RECEIPT_ID_CONFLICT' };
+      }
+      if (record.status === 'completed' && Array.isArray(record.docIds)) {
+        return {
+          ok: true,
+          docIds: record.docIds,
+          balances: record.balances || { cash: 0, palPay: 0, debt: 0, total: 0 },
+          idempotentReplay: true,
+        };
+      }
+      return { ok: false, reason: 'RECEIPT_OUTCOME_INDETERMINATE' };
+    }
+
+    const normalizedNewTransactions = newTransactions.map((item: any) => ({ ...item, receiptId }));
+    const operationIds = normalizedNewTransactions.map((item: any) => String(item?.operationId || ''));
+    if (operationIds.some((operationId: string) => !operationId)) {
+      return { ok: false, reason: 'MISSING_RECEIPT_OPERATION_ID' };
+    }
+    if (new Set(operationIds).size !== operationIds.length) {
+      return { ok: false, reason: 'DUPLICATE_RECEIPT_OPERATION_ID' };
+    }
+
+    const batch = adminDb.batch();
+    const docIds: string[] = [];
+    normalizedNewTransactions.forEach((item: any) => {
+      const ref = adminDb.collection('transactions').doc(stableReceiptItemDocId(userId, String(item.operationId)));
+      docIds.push(ref.id);
+      batch.set(ref, { ...item, userId, id: ref.id, balanceValidation: 'receipt-import-bounded-batch' });
+    });
+    const balances = calculateBalances(normalizedNewTransactions.map((item: any) => ({ ...item, userId })));
+    batch.set(receiptRef, {
+      userId,
+      receiptId,
+      status: 'completed',
+      docIds,
+      operationIds,
+      itemCount: normalizedNewTransactions.length,
+      balances,
+      balanceScope: 'receipt-items-only',
+      receiptMeta: opts.receiptMeta || null,
+      commitMode: 'write-batch-no-ledger-scan',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    await batch.commit();
+    return { ok: true, docIds, balances };
+  }
+
   return adminDb.runTransaction(async (tx: any) => {
     const receiptId = opts.receiptId ? String(opts.receiptId) : '';
     const receiptRef = receiptId
