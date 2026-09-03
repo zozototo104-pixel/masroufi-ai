@@ -364,4 +364,10 @@ test('CONC-25: receipt import preparation defers legacy balance checks to bounde
     'full-ledger balance scan skip must be limited to receipt imports with receipt idempotency');
   assert.ok(receiptCommitBlock.includes('const batch = adminDb.batch()') && receiptCommitBlock.includes('commitMode: \'write-batch-no-ledger-scan\''),
     'reviewed receipt imports must use bounded WriteBatch instead of a transaction that can exceed the UI timeout');
+  const importFastPath = receiptCommitBlock.slice(
+    receiptCommitBlock.indexOf('if (receiptId && opts.skipLedgerBalanceCheck)'),
+    receiptCommitBlock.indexOf('return adminDb.runTransaction')
+  );
+  assert.equal(importFastPath.includes('.get()'), false,
+    'reviewed receipt import fast path must be write-only and avoid Firestore pre-reads under quota pressure');
 });
