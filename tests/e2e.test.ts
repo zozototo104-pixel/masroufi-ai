@@ -337,6 +337,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'temporary Gemini 503/high-demand errors must be returned as a clear Arabic retryable message');
   assert.ok(server.includes('SUSPECT_IMPORTED_CURRENT_DATE') && server.includes('تاريخ رفع الصورة وليس تاريخ المصروف'),
     'server must reject stale AI/image previews that still contain suspected current-date hallucinations');
+  assert.ok(server.includes('isTrustedImportedDateSource') && server.includes('!isTrustedImportedDateSource(item?.dateSource)'),
+    'server must allow dates tied to visible receipt rows/columns while rejecting untrusted upload-day hallucinations');
 });
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
