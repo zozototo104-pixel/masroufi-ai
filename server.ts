@@ -16,7 +16,8 @@ import {
 } from "./src/server/auth";
 import { dispatchFinancialCommand, isValidFinancialCommandType } from "./src/server/financialEngine";
 import { createCustomVoiceClone, deleteCustomVoice, getCustomVoiceProfile } from "./src/server/customVoice";
-import { normalizeAiExpenseItems, parseExpenseImportFile } from "./src/lib/expenseImport";
+import { normalizeAiExpenseItems, parseExpenseImportFile, type ExpenseImportPreview } from "./src/lib/expenseImport";
+import { normalizeHistoricalTransactionDate } from "./src/lib/historicalDate";
 
 dotenv.config();
 
