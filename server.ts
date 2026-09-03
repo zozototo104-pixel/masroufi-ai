@@ -133,6 +133,10 @@ async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
   throw new Error('GEMINI_EXPENSE_IMPORT_FAILED');
 }
 
+function stableShortFingerprint(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 24);
+}
+
 function classifyDebtIntent(message: string): 'credit_purchase' | 'cash_borrowing' | 'unknown' {
   const text = normalizeArabicForIntent(message);
   // Do not use \b with Arabic; JS word boundaries are unreliable for Arabic text.
