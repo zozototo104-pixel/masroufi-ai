@@ -295,6 +295,14 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'receipt record UI must time out instead of staying stuck on submitting forever');
   assert.ok(server.includes('generateExpenseImportJsonWithFallback') && server.includes('getExpenseImportModelFallbacks'),
     'image/PDF expense analysis must try fallback Gemini models when the primary model is temporarily unavailable');
+  assert.ok(server.includes("'gemini-3.7-flash'") && server.includes("'gemini-2.5-flash'"),
+    'image/PDF expense analysis fallbacks must use current official multimodal Flash model names');
+  assert.equal(server.includes("'gemini-3.8-flash'"), false,
+    'expense import must not depend on speculative Gemini model names');
+  assert.equal(server.includes("'gemini-2.0-flash'"), false,
+    'expense import must not depend on shut-down Gemini 2.0 Flash for image analysis');
+  assert.ok(server.includes('parseJsonObjectFromModelText(generated.text)'),
+    'Gemini JSON should be extracted robustly from fenced or extra text responses');
   assert.ok(server.includes('GEMINI_TEMPORARILY_UNAVAILABLE') && server.includes('خدمة تحليل الصور مزدحمة مؤقتاً'),
     'temporary Gemini 503/high-demand errors must be returned as a clear Arabic retryable message');
 });
