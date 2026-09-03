@@ -3127,7 +3127,7 @@ export default function App() {
                             nextItems[idx] = { ...nextItems[idx], date: e.target.value, dateSource: 'user-confirmed-date' };
                             return { ...prev, items: nextItems };
                           })}
-                          className="w-28 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-100"
+                          className={`w-32 bg-slate-950 border rounded-lg px-2 py-1 text-[11px] text-slate-100 placeholder:text-slate-500 ${item.date ? 'border-slate-700' : 'border-amber-400 ring-1 ring-amber-400/40'}`}
                           aria-label={`تاريخ البند ${idx + 1}`}
                         />
                         {!item.date && <div className="text-[10px] text-amber-300 mt-1">بحاجة تاريخ</div>}
