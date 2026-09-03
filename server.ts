@@ -739,7 +739,17 @@ If a row has a month but no day, keep date empty and include day only if visible
           });
         }
       }
-      const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${items.length}_${merchant}_${paymentMethod}_${items.map((i: any) => `${i.amount}:${i.name || i.notes || i.subcategory || ''}`).join('|')}`);
+      const receiptFingerprint = stableShortFingerprint({
+        itemCount: items.length,
+        merchant,
+        paymentMethod,
+        items: items.map((i: any) => ({
+          amount: i.amount,
+          name: i.name || i.notes || i.subcategory || '',
+          date: i.date || '',
+        })),
+      });
+      const receiptId = String(req.body?.receiptId || req.body?.scanId || `receipt_${receiptFingerprint}`);
       const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
       for (const [index, item] of expandedItems.entries()) {
         const linePaymentMethod = item.paymentMethodOverride || paymentMethod;
