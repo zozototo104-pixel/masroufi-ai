@@ -249,6 +249,7 @@ function buildDraftsFromRows(rows: Row[], options: TableParseOptions = {}): Expe
       return;
     }
     const rawDate = pick(row, ['date', 'تاريخ', 'اليوم', 'transaction date', 'created at']) || row.date || '';
+    const rawDateSource = row.dateSource || pick(row, ['dateSource', 'مصدر التاريخ']) || '';
     const rawDay = pick(row, ['day', 'يوم', 'رقم اليوم']) || '';
     const dateInput = rawDate && /^\d+(?:\.\d+)?$/.test(rawDate) ? excelSerialToDate(rawDate) : rawDate;
     const hasExplicitDateSignal = Boolean(String(dateInput || '').trim() || String(options.defaultMonth || '').trim() || String(rawDay || '').trim());
