@@ -264,7 +264,7 @@ export async function atomicAddTransactions(
     normalizedNewTransactions.forEach((item: any) => {
       const ref = adminDb.collection('transactions').doc(stableReceiptItemDocId(userId, String(item.operationId)));
       docIds.push(ref.id);
-      batch.set(ref, { ...item, userId, id: ref.id, balanceValidation: 'receipt-import-bounded-batch' });
+      batch.set(ref, { ...item, userId, id: ref.id, balanceValidation: 'receipt-import-bounded-batch', receiptCommitMode: 'write-batch-no-ledger-scan' });
     });
     const balances = calculateBalances(normalizedNewTransactions.map((item: any) => ({ ...item, userId })));
     batch.set(receiptRef, {
