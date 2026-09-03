@@ -303,6 +303,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'expense import must not depend on shut-down Gemini 2.0 Flash for image analysis');
   assert.ok(server.includes('parseJsonObjectFromModelText(generated.text)'),
     'Gemini JSON should be extracted robustly from fenced or extra text responses');
+  assert.ok(server.includes('stableShortFingerprint') && server.includes('receipt_${receiptFingerprint}'),
+    'reviewed receipt imports must use short stable receipt ids instead of embedding all Arabic line text in operation ids');
   assert.ok(server.includes('GEMINI_TEMPORARILY_UNAVAILABLE') && server.includes('خدمة تحليل الصور مزدحمة مؤقتاً'),
     'temporary Gemini 503/high-demand errors must be returned as a clear Arabic retryable message');
 });
