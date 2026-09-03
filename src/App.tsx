@@ -828,7 +828,7 @@ export default function App() {
 
   const handleRecordScannedReceipt = async (paymentMethod: 'cash' | 'palPay' | 'debt') => {
     if (!idToken || !showScannerResult || isRecordingScannedReceipt) return;
-    const missingDateCount = (showScannerResult.items || []).filter((item: any) => !String(item?.date || '').trim()).length;
+    const missingDateCount = (showScannerResult.items || []).filter((item: any) => !isCompleteScannedReceiptDate(item?.date)).length;
     if (missingDateCount > 0) {
       alert(`يوجد ${missingDateCount} بند بدون تاريخ. ضع تاريخاً للبنود الناقصة أو اضغط "طبّق على البنود الناقصة" قبل التسجيل.`);
       return;
