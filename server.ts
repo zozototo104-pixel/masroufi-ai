@@ -143,6 +143,7 @@ function applyExpenseImportDateMap(preview: Extract<ExpenseImportPreview, { ok: 
   const patches = Array.isArray(parsed?.dateMap) ? parsed.dateMap : [];
   if (patches.length === 0) return preview;
   const nextItems = preview.items.map(item => ({ ...item }));
+  const repairedIndexes: number[] = [];
   for (const patch of patches) {
     const oneBasedRow = Number(patch?.rowNumber ?? patch?.index ?? patch?.row);
     const index = Number.isInteger(oneBasedRow) && oneBasedRow > 0 ? oneBasedRow - 1 : -1;
