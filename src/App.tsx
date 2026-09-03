@@ -3103,7 +3103,21 @@ export default function App() {
                 <tbody>
                   {(showScannerResult.items || []).map((item: any, idx: number) => (
                     <tr key={idx} className="border-b border-slate-800/60 bg-slate-950/30 hover:bg-slate-800/40">
-                      <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{item.date ? String(item.date).slice(0, 10) : 'بحاجة تاريخ'}</td>
+                      <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
+                        <input
+                          type="date"
+                          value={item.date ? String(item.date).slice(0, 10) : ''}
+                          onChange={(e) => setShowScannerResult((prev: any) => {
+                            if (!prev) return prev;
+                            const nextItems = [...(prev.items || [])];
+                            nextItems[idx] = { ...nextItems[idx], date: e.target.value };
+                            return { ...prev, items: nextItems };
+                          })}
+                          className="w-28 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-100"
+                          aria-label={`تاريخ البند ${idx + 1}`}
+                        />
+                        {!item.date && <div className="text-[10px] text-amber-300 mt-1">بحاجة تاريخ</div>}
+                      </td>
                       <td className="py-2.5 px-3 font-semibold text-white">{item.notes || item.name}</td>
                       <td className="py-2.5 px-3 text-slate-300">{item.category}</td>
                       <td className="py-2.5 px-3 text-slate-400">{item.subcategory || 'عام'}</td>
