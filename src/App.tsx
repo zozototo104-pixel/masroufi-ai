@@ -494,10 +494,10 @@ export default function App() {
           finalTx = txData.transactions || [];
           await idbSet('lkgs_transactions', finalTx);
         } else {
-          // The cloud connection badge is owned by /api/cloud-health. A partial or
-          // bounded transaction response means the visible ledger may fall back to
-          // cached display data, but it does not prove that the app is offline.
-          setIsOfflineMode(!cloudReady);
+          // The cloud connection badge is owned by real health/API successes.
+          // A partial or bounded transaction response means the visible ledger may
+          // fall back to cached display data, but it does not prove that the app is
+          // offline, so do not flip the badge here.
           let cachedTx = (await idbGet<any[]>('lkgs_transactions')) || [];
           if (!Array.isArray(cachedTx)) cachedTx = [];
           const pending = (txData && txData.partial && txData.transactions) ? txData.transactions : [];
