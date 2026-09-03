@@ -325,6 +325,10 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'expense import must not depend on shut-down Gemini 2.0 Flash for image analysis');
   assert.ok(server.includes('parseJsonObjectFromModelText(generated.text)'),
     'Gemini JSON should be extracted robustly from fenced or extra text responses');
+  assert.ok(server.includes('visible-date-column') && server.includes('Arabic/RTL tables'),
+    'image prompt must explicitly read visible RTL table date columns instead of requiring dates inside item text');
+  assert.ok(server.includes('repairMissingExpenseImportDates') && server.includes('datePatches'),
+    'image analysis must run a date-only repair pass for missing dates before falling back to manual entry');
   assert.ok(server.includes('stableShortFingerprint') && server.includes('receipt_${receiptFingerprint}'),
     'reviewed receipt imports must use short stable receipt ids instead of embedding all Arabic line text in operation ids');
   assert.ok(server.includes('itemFingerprint') && server.includes('receipt:${receiptId}:item:${index}:${linePaymentMethod}:${itemFingerprint}'),
