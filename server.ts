@@ -790,7 +790,7 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
       const todayIso = new Date().toISOString().slice(0, 10);
       const aiLikeImport = ['image', 'pdf', 'ai'].includes(String(sourceType || ''));
-      if (aiLikeImport && items.some((item: any) => String(item?.date || '').slice(0, 10) === todayIso && item?.dateSource !== 'user-confirmed-date')) {
+      if (aiLikeImport && items.some((item: any) => String(item?.date || '').slice(0, 10) === todayIso && !isTrustedImportedDateSource(item?.dateSource))) {
         return res.status(400).json({
           success: false,
           needsClarification: true,
