@@ -275,6 +275,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'client must send generic file data, not image-only payloads');
   assert.ok(app.includes('showScannerResult.warnings'),
     'review modal must show parser warnings before save');
+  assert.ok(app.includes('aria-label={`تاريخ البند ${idx + 1}`}') && app.includes('setShowScannerResult((prev: any) =>'),
+    'review modal must allow correcting imported item dates before save');
   assert.ok(server.includes('parseExpenseImportFile'),
     'server must parse tabular expense files locally before optional AI fallback');
   assert.ok(server.includes('MISSING_IMPORTED_EXPENSE_DATE'),
