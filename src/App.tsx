@@ -39,6 +39,25 @@ export default function App() {
   const [copiedReport, setCopiedReport] = useState(false);
   const [interruptedFeedback, setInterruptedFeedback] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const cloudProbeFailuresRef = useRef(0);
+
+  const rememberCloudConnected = async () => {
+    cloudProbeFailuresRef.current = 0;
+    setIsOfflineMode(false);
+    try { await idbSet('last_cloud_ok_at', Date.now()); } catch { /* ignore */ }
+  };
+
+  const markCloudProbeFailed = async () => {
+    cloudProbeFailuresRef.current += 1;
+    let lastOkAt = 0;
+    try { lastOkAt = Number(await idbGet<number>('last_cloud_ok_at')) || 0; } catch { /* ignore */ }
+    const recentlyConnected = lastOkAt > 0 && Date.now() - lastOkAt < 5 * 60 * 1000;
+    // Do not flip the badge to local because of one transient health/Firestore
+    // probe failure during Render cold start, Gemini pressure, or temporary quota.
+    // Real API success turns it back to connected; only repeated failures or no
+    // recent cloud success should show local/offline.
+    if (!recentlyConnected || cloudProbeFailuresRef.current >= 3) setIsOfflineMode(true);
+  };
 
   useEffect(() => {
     // navigator.onLine is unreliable on iOS/Safari and may report false while fetch works.
@@ -47,9 +66,10 @@ export default function App() {
       try {
         const res = await fetch('/api/cloud-health', { cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
-        setIsOfflineMode(!(res.ok && data?.firestore === 'read-write-ok'));
+        if (res.ok && data?.firestore === 'read-write-ok') await rememberCloudConnected();
+        else await markCloudProbeFailed();
       } catch {
-        setIsOfflineMode(true);
+        await markCloudProbeFailed();
       }
     };
     const handleOnline = () => { void probeCloud(); };
