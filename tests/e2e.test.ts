@@ -283,6 +283,10 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'each missing imported row must expose a dedicated visible date input card on mobile');
   assert.ok(app.includes('normalizeScannedReceiptDateInput(e.target.value)') && app.includes('border-amber-400'),
     'per-row date inputs must accept Arabic/English typed dates and visibly highlight missing rows');
+  assert.ok(app.includes('inputMode="text"') && app.includes('18072026'),
+    'receipt date inputs must show a full keyboard on mobile and accept digit-only dates as a fallback');
+  assert.equal(app.includes('inputMode="numeric"'), false,
+    'receipt date inputs must not force a numeric-only keyboard that hides / and - on iOS');
   assert.ok(app.includes('isCompleteScannedReceiptDate') && app.includes('بحاجة تاريخ كامل'),
     'missing-date cards must remain visible and record buttons disabled until each row has a complete valid date');
   assert.ok(app.includes("dateSource: 'user-confirmed-date'"),
