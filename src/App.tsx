@@ -24,6 +24,8 @@ function normalizeScannedReceiptDateInput(value: string): string {
     .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .trim();
+  const isoWithTime = normalizedDigits.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T\s]/);
+  if (isoWithTime) return `${isoWithTime[1]}-${isoWithTime[2].padStart(2, '0')}-${isoWithTime[3].padStart(2, '0')}`;
   const iso = normalizedDigits.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
   const slash = normalizedDigits.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
