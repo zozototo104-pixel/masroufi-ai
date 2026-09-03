@@ -701,13 +701,12 @@ If a row has a month but no day, keep date empty and include day only if visible
       const { items = [], merchant = 'متجر', paymentMethod, riskConfirmed, sourceType, currentBalances = {}, splitOverflowToDebt = false } = req.body || {};
       if (!paymentMethod) return res.status(400).json({ success: false, needsClarification: true, message: 'اختر طريقة الدفع: كاش أو PalPay أو دين.' });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, error: 'لا توجد بنود لتسجيلها.' });
-      const tabularImport = ['csv', 'tsv', 'text', 'json', 'xlsx'].includes(String(sourceType || ''));
-      if (tabularImport && items.some((item: any) => !item?.date)) {
+      if (items.some((item: any) => !item?.date)) {
         return res.status(400).json({
           success: false,
           needsClarification: true,
           reason: 'MISSING_IMPORTED_EXPENSE_DATE',
-          message: 'بعض بنود الملف بلا تاريخ. لن أسجلها بتاريخ اليوم. أضف عمود تاريخ لكل بند أو استخدم ملفاً يحتوي تاريخاً واضحاً.',
+          message: 'بعض البنود بلا تاريخ واضح. لن أسجلها بتاريخ اليوم. أضف تاريخاً لكل بند أو ارفع صورة/ملفاً يظهر التاريخ بوضوح.',
         });
       }
       const splitApplied = Boolean(splitOverflowToDebt && (paymentMethod === 'cash' || paymentMethod === 'palPay'));
