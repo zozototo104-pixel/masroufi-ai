@@ -279,6 +279,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'review modal must allow correcting imported item dates before save');
   assert.ok(app.includes('scannerMissingDateValue') && app.includes('طبّق على البنود الناقصة'),
     'review modal must provide one-tap date fill for rows without visible dates');
+  assert.ok(app.includes('scannerHasMissingDates') && app.includes('disabled={isRecordingScannedReceipt || scannerHasMissingDates}'),
+    'record buttons must stay disabled until all reviewed rows have dates');
   assert.ok(app.includes('missingDateCount') && app.includes('return;') && app.includes('يوجد ${missingDateCount} بند بدون تاريخ'),
     'record buttons must block locally before submitting incomplete dated rows');
   assert.ok(server.includes('parseExpenseImportFile'),
