@@ -156,8 +156,15 @@ function applyExpenseImportDateMap(preview: Extract<ExpenseImportPreview, { ok: 
       dateSource: String(patch?.dateSource || 'visible-date-map'),
       confidence: Math.max(Number(nextItems[index].confidence) || 0.7, 0.9),
     };
+    repairedIndexes.push(index + 1);
   }
-  return { ...preview, items: nextItems };
+  if (repairedIndexes.length === 0) return { ...preview, items: nextItems };
+  const remainingWarnings = preview.warnings.filter((warning: string) => !repairedIndexes.some(index => warning.startsWith(`السطر ${index}:`)));
+  return {
+    ...preview,
+    items: nextItems,
+    warnings: [...remainingWarnings, `تم استخراج التاريخ من عمود/صف مرئي للبنود: ${repairedIndexes.join(', ')}.`],
+  };
 }
 
 async function repairMissingExpenseImportDates(ai: GoogleGenAI, input: {
