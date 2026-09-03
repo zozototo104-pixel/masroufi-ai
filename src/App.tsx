@@ -809,6 +809,11 @@ export default function App() {
 
   const handleRecordScannedReceipt = async (paymentMethod: 'cash' | 'palPay' | 'debt') => {
     if (!idToken || !showScannerResult || isRecordingScannedReceipt) return;
+    const missingDateCount = (showScannerResult.items || []).filter((item: any) => !String(item?.date || '').trim()).length;
+    if (missingDateCount > 0) {
+      alert(`يوجد ${missingDateCount} بند بدون تاريخ. ضع تاريخاً للبنود الناقصة أو اضغط "طبّق على البنود الناقصة" قبل التسجيل.`);
+      return;
+    }
     setIsRecordingScannedReceipt(true);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 30000);
