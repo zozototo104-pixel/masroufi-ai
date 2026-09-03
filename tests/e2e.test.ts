@@ -304,8 +304,10 @@ test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-
   const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
   assert.ok(app.includes("fetch('/api/cloud-health'") && app.includes("const cloudReady = cloudHealthRes.ok && cloudHealth?.firestore === 'read-write-ok'"),
     'cloud badge must have an explicit cloud-health source of truth');
-  assert.ok(app.includes('setIsOfflineMode(!cloudReady)'),
-    'partial or bounded ledger fallback must not force the badge to local when cloud-health is ok');
+  assert.ok(app.includes('rememberCloudConnected') && app.includes('markCloudProbeFailed'),
+    'cloud badge must remember recent cloud success and avoid flipping to local on one transient probe failure');
+  assert.equal(app.includes('setIsOfflineMode(!cloudReady)'), false,
+    'cloud badge must not flip directly to local from a single cloud-health result');
   assert.ok(app.includes('does not prove that the app is offline'),
     'source code should document that partial ledger data is not connectivity state');
   assert.ok(server.includes('let cachedCloudHealth') && server.includes('cached: true'),
