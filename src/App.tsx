@@ -3117,7 +3117,9 @@ export default function App() {
                     <tr key={idx} className="border-b border-slate-800/60 bg-slate-950/30 hover:bg-slate-800/40">
                       <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
                         <input
-                          type="date"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="18/7/2026"
                           value={item.date ? String(item.date).slice(0, 10) : ''}
                           onChange={(e) => setShowScannerResult((prev: any) => {
                             if (!prev) return prev;
