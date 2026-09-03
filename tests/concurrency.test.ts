@@ -149,15 +149,19 @@ test('CONC-12: direct and smart transaction deletion revalidate and delete atomi
   assert.ok(calls.length >= 2, 'both direct-ID and confirmed smart deletion must use atomic deletion');
 });
 
-test('CONC-13: receipt lines are validated first and persisted by one atomic transaction', async () => {
+test('CONC-13: reviewed receipt/import lines are prepared directly and persisted by one bounded batch', async () => {
   const atomicSrc = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
   const serverSrc = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
   const toolsSrc = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  const receiptRecordBlock = serverSrc.slice(
+    serverSrc.indexOf('app.post("/api/scan-receipt/record"'),
+    serverSrc.indexOf('app.get("/api/budgets"')
+  );
   assert.ok(atomicSrc.includes('export async function atomicAddTransactions'), 'multi-transaction atomic primitive must exist');
-  assert.ok(toolsSrc.includes('export async function prepareAddTransaction'), 'receipt preparation helper must exist');
-  assert.ok(serverSrc.includes('await prepareAddTransaction(txArgs'), 'receipt must validate every line without passing through the idempotency wrapper');
-  assert.equal(serverSrc.includes('toolHandlers.add_transaction({ ...txArgs, validateOnly: true }'), false,
-    'validation-only receipt preparation must not record completed idempotency outcomes before persistence');
+  assert.equal(serverSrc.includes('prepareAddTransaction'), false,
+    'reviewed imports must not call the chat addTransaction validateOnly path');
+  assert.equal(receiptRecordBlock.includes('validateOnly'), false,
+    'reviewed imports must not record completed idempotency outcomes before persistence');
   assert.ok(serverSrc.includes('await atomicAddTransactions('), 'receipt must persist through the atomic multi-line primitive');
   assert.ok(toolsSrc.includes('export async function recordTransactionCommittedSideEffects'),
     'transaction success notifications and budget warnings must live in one shared side-effect helper');
