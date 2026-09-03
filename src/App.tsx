@@ -3107,8 +3107,31 @@ export default function App() {
             )}
 
             {scannerHasMissingDates && (
-              <div className="bg-slate-950/70 border border-amber-500/30 rounded-2xl p-3 mb-3 text-xs text-amber-100">
-                اكتب التاريخ داخل خانة كل بند ناقص في الجدول، مثل 18/7/2026 أو 2026-07-18. لن يبدأ التسجيل حتى تكتمل تواريخ البنود.
+              <div className="bg-slate-950/70 border border-amber-500/30 rounded-2xl p-3 mb-3 text-xs text-amber-100 space-y-3">
+                <p className="font-bold">اكتب تاريخ كل بند ناقص في خانته الخاصة. لن يبدأ التسجيل حتى تكتمل التواريخ.</p>
+                <div className="space-y-2">
+                  {(showScannerResult.items || []).map((item: any, idx: number) => {
+                    if (String(item?.date || '').trim()) return null;
+                    return (
+                      <div key={`missing-date-${idx}`} className="bg-slate-900/80 border border-amber-500/40 rounded-xl p-3 space-y-2">
+                        <div className="text-slate-100 font-semibold leading-relaxed">{idx + 1}. {item.notes || item.name || 'بند ناقص التاريخ'}</div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="مثال: 18/7/2026"
+                          onChange={(e) => setShowScannerResult((prev: any) => {
+                            if (!prev) return prev;
+                            const nextItems = [...(prev.items || [])];
+                            nextItems[idx] = { ...nextItems[idx], date: normalizeScannedReceiptDateInput(e.target.value), dateSource: 'user-confirmed-date' };
+                            return { ...prev, items: nextItems };
+                          })}
+                          className="w-full bg-slate-950 border-2 border-amber-400 rounded-xl px-4 py-3 text-base text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                          aria-label={`أدخل تاريخ البند الناقص ${idx + 1}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
