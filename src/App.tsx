@@ -3165,8 +3165,9 @@ export default function App() {
                       <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
                         <input
                           type="text"
-                          inputMode="numeric"
-                          placeholder="18/7/2026"
+                          inputMode="text"
+                          autoComplete="off"
+                          placeholder="18/7/2026 أو 18072026"
                           value={item.date ? String(item.date).slice(0, 10) : ''}
                           onChange={(e) => setShowScannerResult((prev: any) => {
                             if (!prev) return prev;
