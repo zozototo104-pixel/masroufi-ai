@@ -3128,8 +3128,9 @@ export default function App() {
                         <div className="text-slate-100 font-semibold leading-relaxed">{idx + 1}. {item.notes || item.name || 'بند ناقص التاريخ'}</div>
                         <input
                           type="text"
-                          inputMode="numeric"
-                          placeholder="مثال: 18/7/2026"
+                          inputMode="text"
+                          autoComplete="off"
+                          placeholder="مثال: 18/7/2026 أو 18072026"
                           onChange={(e) => setShowScannerResult((prev: any) => {
                             if (!prev) return prev;
                             const nextItems = [...(prev.items || [])];
