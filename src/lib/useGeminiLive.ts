@@ -207,6 +207,15 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
 
         if (msg.audio && outputCtxRef.current) {
+          if (!clientAudioAckSentRef.current && ws.readyState === WebSocket.OPEN) {
+            clientAudioAckSentRef.current = true;
+            ws.send(JSON.stringify({
+              type: 'client_audio_ack',
+              audioContextState: outputCtxRef.current.state,
+              visibilityState: document.visibilityState,
+              hasFocus: document.hasFocus(),
+            }));
+          }
           setStatus('talking');
           // Play audio
           const pcmData = base64ToPcm(msg.audio);
