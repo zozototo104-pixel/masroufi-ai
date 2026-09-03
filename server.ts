@@ -188,9 +188,10 @@ ${JSON.stringify(missing.map(({ index, item }) => ({ index, name: item.notes, am
       confidence: Math.max(Number(nextItems[index].confidence) || 0.7, Number.isFinite(confidence) ? confidence : 0.85),
     };
   }
-  const repairedIndexes = nextItems
-    .map((item, index) => item.date && !input.preview.items[index].date ? index + 1 : null)
-    .filter(Boolean);
+  const repairedIndexes = nextItems.reduce<number[]>((indexes, item, index) => {
+    if (item.date && !input.preview.items[index].date) indexes.push(index + 1);
+    return indexes;
+  }, []);
   const remainingWarnings = input.preview.warnings.filter((warning: string) => !repairedIndexes.some(index => warning.startsWith(`السطر ${index}:`)));
   return {
     ...input.preview,
