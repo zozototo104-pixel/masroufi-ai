@@ -450,7 +450,8 @@ export default function App() {
         const cloudHealthRes = await fetch('/api/cloud-health', { cache: 'no-store' });
         const cloudHealth = await cloudHealthRes.json().catch(() => ({}));
         const cloudReady = cloudHealthRes.ok && cloudHealth?.firestore === 'read-write-ok';
-        setIsOfflineMode(!cloudReady);
+        if (cloudReady) await rememberCloudConnected();
+        else await markCloudProbeFailed();
 
         // V6.1 (OFF-04, OFF-05): attempt to sync pending offline ops at start of every refresh.
         // Server-side idempotency (runIdempotent + operationId) prevents duplication.
