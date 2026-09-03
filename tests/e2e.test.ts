@@ -295,8 +295,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'reviewed imported items must pass an extracted purpose/beneficiary so normal expense guards do not ask again');
   assert.ok(app.includes('const [isRecordingScannedReceipt, setIsRecordingScannedReceipt]'),
     'receipt record UI must track in-flight submission state');
-  assert.ok(app.includes('disabled={isRecordingScannedReceipt}'),
-    'receipt record buttons must be disabled during submission to prevent duplicate quota-burning requests');
+  assert.ok(app.includes('disabled={isRecordingScannedReceipt || scannerHasMissingDates}'),
+    'receipt record buttons must be disabled during submission and while required dates are missing');
   assert.ok(app.includes('جارٍ التسجيل'),
     'receipt record UI must show clear progress instead of appearing unresponsive');
   assert.ok(app.includes('currentBalances: { cash, palPay, debt, total: balance }'),
