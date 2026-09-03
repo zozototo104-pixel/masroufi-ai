@@ -1802,6 +1802,9 @@ ${relationshipContext}
                   console.log("Sending Tool Response:", functionResponses);
                   try {
                     await session.sendToolResponse({ functionResponses });
+                    liveToolResponsesSent += 1;
+                    liveAudioSinceLastToolResponse = 0;
+                    console.log('[live-audio] tool response sent', { requestId, toolResponses: liveToolResponsesSent, functionResponses: functionResponses.length });
                   } catch (toolErr) {
                     console.error("Error sending tool response:", toolErr);
                   }
