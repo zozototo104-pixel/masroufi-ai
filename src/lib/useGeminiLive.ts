@@ -94,6 +94,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+      clientAudioAckSentRef.current = false;
 
       // Output context for playback (Gemini outputs 24kHz)
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
