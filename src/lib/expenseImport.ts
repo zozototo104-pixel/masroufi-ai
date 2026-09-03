@@ -36,6 +36,7 @@ type TableParseOptions = {
   defaultMonth?: unknown;
   fileName?: string;
   now?: Date;
+  allowCurrentDateFallback?: boolean;
 };
 
 const DEFAULT_CATEGORY = 'أخرى';
