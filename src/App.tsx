@@ -3121,7 +3121,7 @@ export default function App() {
                           ...prev,
                           items: (prev.items || []).map((item: any) => String(item?.date || '').trim()
                             ? item
-                            : { ...item, date: scannerMissingDateValue })
+                            : { ...item, date: scannerMissingDateValue, dateSource: 'user-confirmed-date' })
                         };
                       });
                     }}
