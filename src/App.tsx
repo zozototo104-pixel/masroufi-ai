@@ -3095,38 +3095,8 @@ export default function App() {
             )}
 
             {scannerHasMissingDates && (
-              <div className="bg-slate-950/70 border border-amber-500/30 rounded-2xl p-3 mb-3 text-xs text-slate-200 space-y-2">
-                <p className="text-amber-200 font-bold">يوجد بنود بلا تاريخ. ضع التاريخ هنا ثم طبّقه على البنود الناقصة قبل التسجيل.</p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="date"
-                    value={scannerMissingDateValue}
-                    onChange={(e) => setScannerMissingDateValue(e.target.value)}
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100"
-                    aria-label="تاريخ للبنود الناقصة"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!scannerMissingDateValue) {
-                        alert('اختر التاريخ أولاً ثم طبّقه على البنود الناقصة.');
-                        return;
-                      }
-                      setShowScannerResult((prev: any) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          items: (prev.items || []).map((item: any) => String(item?.date || '').trim()
-                            ? item
-                            : { ...item, date: scannerMissingDateValue, dateSource: 'user-confirmed-date' })
-                        };
-                      });
-                    }}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl"
-                  >
-                    طبّق على البنود الناقصة
-                  </button>
-                </div>
+              <div className="bg-slate-950/70 border border-amber-500/30 rounded-2xl p-3 mb-3 text-xs text-amber-100">
+                اكتب التاريخ داخل خانة كل بند ناقص في الجدول، مثل 18/7/2026 أو 2026-07-18. لن يبدأ التسجيل حتى تكتمل تواريخ البنود.
               </div>
             )}
 
