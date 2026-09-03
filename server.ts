@@ -1566,6 +1566,10 @@ function setupLiveApi(wss: WebSocketServer) {
     let userEmail: string | undefined = undefined;
     let userToken: string | undefined = undefined;
     const pendingAudio: string[] = [];
+    let liveAudioChunksForwarded = 0;
+    let liveToolResponsesSent = 0;
+    let liveTurnsCompleted = 0;
+    let liveAudioSinceLastToolResponse = 0;
 
     let authTimeout: NodeJS.Timeout | null = setTimeout(() => {
       if (!authState.authenticated) {
