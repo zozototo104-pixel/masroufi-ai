@@ -619,25 +619,8 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
 }
 If a row has a month but no day, keep date empty and include day only if visible. If no line items can be broken down, provide a single item with the total amount.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { inlineData: { data: payloadBase64, mimeType } },
-              { text: prompt }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-
-      const jsonText = response.text;
-      if (!jsonText) throw new Error("No response text");
-      const parsed = JSON.parse(jsonText);
+      const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
+      const parsed = JSON.parse(generated.text);
       const preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
       if (!preview.ok) return res.status(422).json({ success: false, ...preview });
 
