@@ -351,6 +351,8 @@ test('LIVE-AUDIO: backend must forward every Gemini Live audio part, not only th
     'each inline audio part must be forwarded to the browser playback path');
   assert.equal(server.includes('modelTurn?.parts?.[0]?.inlineData?.data'), false,
     'backend must not drop Live audio when Gemini sends audio in a non-first part');
+  assert.ok(server.includes('liveAudioChunksForwarded') && server.includes('liveToolResponsesSent') && server.includes('liveTurnsCompleted'),
+    'Live disconnect logs must summarize whether audio was received/forwarded before closing');
 });
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
