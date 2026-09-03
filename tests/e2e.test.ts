@@ -327,6 +327,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'Gemini JSON should be extracted robustly from fenced or extra text responses');
   assert.ok(server.includes('visible-date-column') && server.includes('Arabic/RTL tables'),
     'image prompt must explicitly read visible RTL table date columns instead of requiring dates inside item text');
+  assert.ok(server.includes('dateMap') && server.includes('applyExpenseImportDateMap(preview, parsed)'),
+    'image analysis must extract and apply an explicit row-numbered date map before showing manual missing-date inputs');
   assert.ok(server.includes('repairMissingExpenseImportDates') && server.includes('datePatches'),
     'image analysis must run a date-only repair pass for missing dates before falling back to manual entry');
   assert.ok(server.includes('stableShortFingerprint') && server.includes('receipt_${receiptFingerprint}'),
