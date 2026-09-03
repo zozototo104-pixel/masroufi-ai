@@ -251,23 +251,6 @@ export async function atomicAddTransactions(
 
   if (receiptId && opts.skipLedgerBalanceCheck) {
     const receiptRef = adminDb.collection('receiptIdempotency').doc(stableReceiptDocId(userId, receiptId));
-    const receiptSnap = await receiptRef.get();
-    if (receiptSnap.exists) {
-      const record = receiptSnap.data() || {};
-      if (record.userId !== userId || record.receiptId !== receiptId) {
-        return { ok: false, reason: 'RECEIPT_ID_CONFLICT' };
-      }
-      if (record.status === 'completed' && Array.isArray(record.docIds)) {
-        return {
-          ok: true,
-          docIds: record.docIds,
-          balances: record.balances || { cash: 0, palPay: 0, debt: 0, total: 0 },
-          idempotentReplay: true,
-        };
-      }
-      return { ok: false, reason: 'RECEIPT_OUTCOME_INDETERMINATE' };
-    }
-
     const normalizedNewTransactions = newTransactions.map((item: any) => ({ ...item, receiptId }));
     const operationIds = normalizedNewTransactions.map((item: any) => String(item?.operationId || ''));
     if (operationIds.some((operationId: string) => !operationId)) {
