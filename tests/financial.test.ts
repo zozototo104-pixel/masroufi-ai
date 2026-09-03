@@ -315,6 +315,25 @@ test('IMP-FILE-03: image/AI imports without visible dates do not default to toda
   }
 });
 
+test('IMP-FILE-04: suspected AI current-date hallucinations are not accepted for historical imports', () => {
+  const preview = normalizeAiExpenseItems({
+    merchant: 'تطبيق مصاريف',
+    items: [
+      { name: 'دواء للخضروف ولزقة', amount: 25, date: '2026-09-03', category: 'صحة وعلاج', subcategory: 'أدوية' },
+      { name: 'كفتة', amount: 54, date: '2026-07-19', category: 'طعام ومشتريات منزل', subcategory: 'لحوم وبقالة' },
+    ],
+  }, {
+    fileName: 'IMG_0769.jpeg',
+    now: new Date('2026-09-03T09:21:00.000Z'),
+  });
+  assert.equal(preview.ok, true);
+  if (preview.ok) {
+    assert.equal(preview.items[0].date, undefined, 'AI must not silently use upload/current date for historical imports');
+    assert.equal(preview.items[1].date, '2026-07-19T09:21:00.000Z');
+    assert.ok(preview.warnings.some(w => w.includes('لن أسجله بتاريخ اليوم')));
+  }
+});
+
 test('SAV-01: savings goal of 5000 over one year calculates monthly requirement', () => {
   const built = buildSavingsGoalRecord({
     userId: 'u1',
