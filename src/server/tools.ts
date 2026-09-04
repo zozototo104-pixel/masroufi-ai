@@ -2415,11 +2415,35 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
     if (b.limit) userBudgets[b.category || b.id] = Number(b.limit);
   });
   
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  const monthExpenses = txSnapshot.docs
+  const now = new Date();
+  const thisMonth = now.toISOString().slice(0, 7);
+  const monthStart = `${thisMonth}-01`;
+  const nextMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const nextMonthStart = nextMonthDate.toISOString().slice(0, 10);
+
+  let txDocs: any[] = [];
+  try {
+    const txSnapshot = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .where('date', '>=', monthStart)
+      .where('date', '<', nextMonthStart)
+      .get();
+    txDocs = txSnapshot.docs;
+  } catch (rangeErr) {
+    // If the range query needs a composite index, never fall back to the full
+    // ledger. A bounded recent read keeps quota use predictable while preserving
+    // all stored history.
+    console.warn('[budgets] monthly range query fallback:', rangeErr);
+    const fallbackSnapshot = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .limit(300)
+      .get();
+    txDocs = fallbackSnapshot.docs;
+  }
+
+  const monthExpenses = txDocs
     .map((d: any) => ({ id: d.id, ...d.data() }))
-    .filter((t: any) => t.type === 'expense' && (t.date || '').startsWith(thisMonth));
+    .filter((t: any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth));
 
   const categories = Object.keys(userBudgets);
   const budgets = categories.map(cat => {
