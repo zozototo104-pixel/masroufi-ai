@@ -2105,6 +2105,29 @@ export async function updateTransaction(args: any, userId: string, token: string
     }
   }
 
+  // Date/description metadata cannot change account balances. For those edits,
+  // avoid the full-ledger preflight and use the atomic ownership-checked write.
+  const balanceSensitiveUpdate = updates.amount !== undefined
+    || updates.type !== undefined
+    || updates.account !== undefined
+    || updates.fromAccount !== undefined
+    || updates.toAccount !== undefined;
+  if (!balanceSensitiveUpdate) {
+    const atomicResult = await atomicUpdateTransaction(userId, args.id, updates, {
+      riskConfirmed: !!args.riskConfirmed,
+      skipBalanceRecalculation: true,
+    });
+    if ('reason' in atomicResult) {
+      return { success: false, reason: atomicResult.reason, message: 'تعذر تعديل العملية بأمان لأنها تغيرت أو لم تعد موجودة.' };
+    }
+    return {
+      success: true,
+      durability: 'cloud',
+      pending: false,
+      partial: false,
+    };
+  }
+
   // 5. Snapshot all transactions (excluding the doc being updated) to compute resulting balance.
   const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
   if ((snap as any).partial === true) {
