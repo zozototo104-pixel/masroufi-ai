@@ -55,6 +55,28 @@ jobs:
         continue-on-error: true
         run: set -o pipefail; npm run build 2>&1 | tee /tmp/build.log
 
+      - name: Runtime smoke check
+        id: runtime
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        env:
+          PORT: 3000
+          NODE_ENV: test
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -o pipefail
+          node dist/server.cjs > /tmp/runtime-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/runtime-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          cat /tmp/runtime-health.json | tee /tmp/runtime.log
+          node -e "const fs=require('fs'); const h=JSON.parse(fs.readFileSync('/tmp/runtime-health.json','utf8')); if(h.status!=='ok'||h.service!=='masroufi-ai'||h.commit!==process.env.COMMIT_SHA) process.exit(1)"
+
       - name: Persist CI verification report
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
