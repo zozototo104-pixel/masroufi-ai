@@ -185,13 +185,20 @@ export async function atomicUpdateTransaction(
   userId: string,
   transactionId: string,
   finalUpdates: any,
-  opts: { riskConfirmed?: boolean } = {}
-): Promise<{ ok: true; balances: { cash: number; palPay: number; debt: number; total: number } } | { ok: false; reason: string; balances?: any }> {
+  opts: { riskConfirmed?: boolean; skipBalanceRecalculation?: boolean } = {}
+): Promise<{ ok: true; balances?: { cash: number; palPay: number; debt: number; total: number } } | { ok: false; reason: string; balances?: any }> {
   return adminDb.runTransaction(async (tx: any) => {
     const ref = adminDb.collection('transactions').doc(transactionId);
     const targetSnap = await tx.get(ref);
     if (!targetSnap.exists || targetSnap.data()?.userId !== userId) {
       return { ok: false, reason: 'TRANSACTION_NOT_FOUND' };
+    }
+
+    // Metadata-only updates such as changing a transaction date cannot alter
+    // account balances. Avoid rereading the entire ledger for every such edit.
+    if (opts.skipBalanceRecalculation) {
+      tx.update(ref, finalUpdates);
+      return { ok: true };
     }
 
     const ledgerSnap = await tx.get(adminDb.collection('transactions').where('userId', '==', userId));
