@@ -198,11 +198,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           if (msg.status === 'thinking') setStatus('thinking');
           if (msg.status === 'ready') {
             setStatus('listening');
-            window.dispatchEvent(new CustomEvent('masrofi:refresh'));
           }
         }
 
-        if (msg.refresh) {
+        // The server commonly sends { status: 'ready', refresh: true } together.
+        // Dispatch exactly once so one Live tool response cannot trigger two full
+        // Firestore refresh cycles on the client.
+        if (msg.refresh || msg.status === 'ready') {
           window.dispatchEvent(new CustomEvent('masrofi:refresh'));
         }
 
