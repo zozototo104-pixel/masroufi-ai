@@ -2407,7 +2407,13 @@ export async function setCategoryBudget(args: any, userId: string, token: string
 export async function getBudgetsOverview(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const customBudgetDocs = await getUserCustomBudgetDocs(userId, adminDb);
-  const userBudgets = await getUserBudgets(userId, adminDb);
+  // Reuse the documents already fetched above. Calling getUserBudgets() here
+  // would read the same Firestore budget subcollection a second time on every
+  // dashboard refresh.
+  const userBudgets: Record<string, number> = { ...DEFAULT_BUDGETS };
+  customBudgetDocs.forEach((b) => {
+    if (b.limit) userBudgets[b.category || b.id] = Number(b.limit);
+  });
   
   const thisMonth = new Date().toISOString().slice(0, 7);
   const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
