@@ -84,6 +84,7 @@ jobs:
           TEST_OUTCOME: ${{ steps.tests.outcome }}
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
         run: |
           REPORT_FILE="/tmp/ci-report-$GITHUB_SHA.md"
           {
