@@ -1778,7 +1778,7 @@ ${relationshipContext}
                         }
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
-                        let toolArgs = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : { ...(call.args || {}) };
+                        let toolArgs: Record<string, any> = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : { ...(call.args || {}) };
                         // Keep every explicit date/range exactly as requested. Only broad,
                         // date-unspecified Live reads are capped so one voice turn cannot pull
                         // an unnecessarily large ledger payload into Gemini context.
