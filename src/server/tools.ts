@@ -2480,7 +2480,7 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
     month: thisMonth,
     customBudgetCount: customBudgetDocs.length,
     defaultBudgetCount: Object.keys(DEFAULT_BUDGETS).length,
-    partial: (txSnapshot as any).partial
+    partial: false
   };
 }
 
