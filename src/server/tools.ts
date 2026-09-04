@@ -56,10 +56,13 @@ const IMPORT_REPLACE_ATOMIC_MUTATION_LIMIT = FIRESTORE_WRITE_BATCH_LIMIT - IMPOR
 // The UI still renders short-lived toasts, but persistence is the source of truth.
 export async function getNotifications(userId: string, token: string, limit: number = 50) {
   const adminDb = getDb(token);
-  const snap = await adminDb.collection('users').doc(userId).collection('notifications').get();
-  const allItems = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-  const items = allItems.filter((n: any) => !n.delivered).slice(0, Math.max(1, Math.min(100, limit)));
+  const requestedLimit = Math.max(1, Math.min(100, limit));
+  const snap = await adminDb.collection('users').doc(userId).collection('notifications')
+    .orderBy('createdAt', 'desc')
+    .limit(Math.max(requestedLimit, 100))
+    .get();
+  const allItems = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const items = allItems.filter((n: any) => !n.delivered).slice(0, requestedLimit);
   // V6 (MF-5): mark items as delivered in a SINGLE Firestore batch instead of N writes.
   // This reduces quota usage and prevents partial-write storms.
   if (items.length > 0) {
