@@ -152,8 +152,10 @@ jobs:
           TEST_OUTCOME: ${{ steps.tests.outcome }}
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
         run: |
           test "$INSTALL_OUTCOME" = "success"
           test "$TEST_OUTCOME" = "success"
           test "$LINT_OUTCOME" = "success"
           test "$BUILD_OUTCOME" = "success"
+          test "$RUNTIME_OUTCOME" = "success"
