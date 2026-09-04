@@ -1194,7 +1194,11 @@ export async function generateReport(args: any, userId: string, token: string) {
 
 export async function getReports(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
-  const snapshot = await adminDb.collection('reports').where('userId', '==', userId).orderBy('createdAt', 'desc').get();
+  const snapshot = await adminDb.collection('reports')
+    .where('userId', '==', userId)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .get();
   return { reports: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })), partial: (snapshot as any).partial };
 }
 
