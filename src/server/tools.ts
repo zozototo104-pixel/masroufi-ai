@@ -2929,6 +2929,7 @@ async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId:
     snapshot = { docs: snap.docs || [], partial: true, error };
   }
   const transactions = (snapshot.docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+  const limitReached = transactions.length >= boundedLimit;
   logFirestoreReadDiagnostics('salary_cycle_transactions_query', {
     userId,
     queryType: 'transactions_by_user_and_date_range',
@@ -2937,10 +2938,11 @@ async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId:
     endExclusive: period.cycleEndExclusive,
     returnedDocs: transactions.length,
     limit: boundedLimit,
+    limitReached,
     durationMs: Date.now() - startedAt,
     fallback: boundedFallback,
   });
-  return { transactions, partial: Boolean(snapshot.partial), boundedFallback, error, limit: boundedLimit };
+  return { transactions, partial: Boolean(snapshot.partial), boundedFallback, error, limit: boundedLimit, limitReached };
 }
 
 async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: SalaryCyclePeriod, summary: any, readResult: any) {
