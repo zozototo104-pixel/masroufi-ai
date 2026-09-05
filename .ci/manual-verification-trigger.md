@@ -1,15 +1,20 @@
 # Manual CI verification trigger
 
-Verify that the noisy Live no-audio watchdog message no longer appears to users.
+Verify real Live audio no-response fix.
 
-Fix:
-- removed the red user-facing message: "الصوت متصل والمايك يرسل..."
-- no-audio watchdog is diagnostic-only via console.warn
-- real user-facing errors remain only for explicit quota/live_ready/websocket-close failures
+Root cause addressed:
+- after live_ready handshake, client was dropping early user speech before Gemini Live readiness
+- user could speak before live_ready, Gemini would receive no request, and the expert would appear silent
+
+Fixes:
+- client buffers up to 24 early microphone frames before live_ready
+- client flushes buffered frames immediately after live_ready
+- output AudioContext is resumed again when Gemini audio arrives
+- non-quota liveError and early liveClosed are surfaced explicitly
+- previous noisy no-audio message remains removed from UI
 
 Also verify:
-- live_ready handshake remains intact
 - PalPay income guard path remains intact
-- install/audit/tests/TypeScript/build/runtime all pass
+- install/audit/tests/TypeScript/build/runtime smoke all pass
 
-Timestamp: 2026-09-05T16:52:00+03:00
+Timestamp: 2026-09-05T17:05:00+03:00
