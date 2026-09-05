@@ -358,7 +358,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           </div>
           <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
             <span className="text-slate-400 block text-[11px]">التقارير</span>
-            <strong className="text-emerald-400 text-sm font-mono">{reportsCount}</strong>
+            <strong className="text-emerald-400 text-sm font-mono">{countOverride?.reports ?? reportsCount}</strong>
           </div>
         </div>
 
