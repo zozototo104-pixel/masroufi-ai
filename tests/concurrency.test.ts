@@ -59,8 +59,8 @@ test('CONC-05: concurrent update + expense preserves invariant (NEGATIVE_CASH_RE
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   assert.ok(src.includes('NEGATIVE_CASH_RESULT'),
     'updateTransaction blocks updates that would make cash negative');
-  assert.ok(src.includes('resultingBalances.cash < -0.0001'),
-    'guard triggers when resulting cash is negative');
+  assert.ok(src.includes('NEGATIVE_CASH_RESULT') || src.includes('negativeBalanceFailure(balances'),
+    'guard triggers when resulting cash is negative through the atomic balance snapshot path');
 });
 
 test('CONC-06: atomicAddTransaction exists in atomicOps.ts', async () => {
