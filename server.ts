@@ -1070,6 +1070,36 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.get("/api/savings-vault", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getSavingsVault } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getSavingsVault(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/salary-cycles/:cycleId", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getSalaryCycleSummary } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getSalaryCycleSummary({ ...(req.query || {}), cycleId: req.params.cycleId }, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/salary-cycles/recalculate", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { recalculateSalaryCycle } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await recalculateSalaryCycle(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/market-directory", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketDirectory } = await import('./src/server/tools');
