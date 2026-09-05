@@ -72,6 +72,7 @@ function balanceSnapshotPayload(userId: string, balances: BalanceSnapshot, sourc
     cash: roundBalance(balances.cash),
     palPay: roundBalance(balances.palPay),
     debt: roundBalance(balances.debt),
+    vault: roundBalance(balances.vault),
     total: roundBalance(balances.cash + balances.palPay),
     source,
     updatedAt: now,
