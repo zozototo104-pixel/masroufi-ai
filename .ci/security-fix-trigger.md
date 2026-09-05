@@ -2,8 +2,6 @@
 
 Run `npm audit fix --package-lock-only --audit-level=moderate` without `--force`.
 
-Goal:
-- fix the express/body-parser/qs advisories safely if npm can update the lockfile
-- do not downgrade firebase-admin or apply breaking changes
+This time the workflow commits any safe lockfile changes even if npm exits non-zero because firebase-admin/uuid still requires force/breaking handling.
 
-Timestamp: 2026-09-05T13:45:00+03:00
+Timestamp: 2026-09-05T13:50:00+03:00
