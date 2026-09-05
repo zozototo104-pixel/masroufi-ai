@@ -597,5 +597,3 @@ test('REP-07: import/export preserves transactionType and creditor fields', () =
   }
 });
 
-// Helper for source-level tests.
-import { join } from 'node:path';
