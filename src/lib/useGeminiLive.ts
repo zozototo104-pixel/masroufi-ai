@@ -27,8 +27,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   // reached the browser and what state Web Audio was in when it arrived.
   const clientAudioAckSentRef = useRef(false);
   const responseWatchdogRef = useRef<number | null>(null);
+  const liveReadyWatchdogRef = useRef<number | null>(null);
   const sentAudioFramesRef = useRef(0);
   const receivedAudioFramesRef = useRef(0);
+  const liveReadyRef = useRef(false);
 
   const clearResponseWatchdog = useCallback(() => {
     if (responseWatchdogRef.current !== null) {
