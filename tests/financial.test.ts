@@ -705,7 +705,11 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   assert.ok(toolsSrc.includes('.limit(100)'), 'reports list must remain limited');
   assert.ok(liveSrc.includes('if (msg.refresh)'), 'Live should refresh only on explicit refresh messages');
   assert.ok(!liveSrc.includes("msg.refresh || msg.status === 'ready'"), 'status ready must not create a second dashboard refresh');
+  assert.ok(serverSrc.includes('liveRefreshScopeForTools'), 'server must classify Live refresh scope by tool effect');
+  assert.ok(serverSrc.includes("scope: 'read_only'"), 'read-only tools must not refresh the dashboard');
+  assert.ok(serverSrc.includes('refreshScope'), 'Live refresh messages must carry a targeted scope');
   assert.ok(appSrc.includes('refreshDebounceRef'), 'App refresh events must be debounced');
+  assert.ok(appSrc.includes("scope === 'vault'"), 'vault-only refresh must avoid a full dashboard fetch');
 });
 
 test('VAULT-13: Savings Vault is separated from cash, PalPay, debt, and Personal Voice', async () => {
