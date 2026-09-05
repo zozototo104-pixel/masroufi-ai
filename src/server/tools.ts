@@ -3584,17 +3584,52 @@ export async function wipeAllUserData(userId: string, token: string) {
 export async function generateTreasurerReport(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log('TOOL CALL: generateTreasurerReport', args);
+  const now = new Date();
+  const timeframe = String(args?.timeframe || 'month');
+  if (timeframe === 'all' && !args?.allowFullLedgerReport) {
+    return {
+      success: false,
+      needsConfirmation: true,
+      reason: 'FULL_LEDGER_REPORT_REQUIRES_CONFIRMATION',
+      message: 'تقرير كل التاريخ يحتاج قراءة واسعة. حدد شهر/أسبوع/يوم أو أكد صراحة أنك تريد تقرير كل السجل.',
+    };
+  }
+  let startIso = '';
+  let endExclusiveIso = now.toISOString();
+  if (timeframe === 'today') {
+    const today = now.toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    startIso = `${today}T00:00:00.000Z`;
+    endExclusiveIso = `${tomorrow.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  } else if (timeframe === 'week') {
+    startIso = new Date(now.getTime() - 7 * 86400000).toISOString();
+  } else if (timeframe === 'month') {
+    const thisMonth = now.toISOString().slice(0, 7);
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    startIso = `${thisMonth}-01T00:00:00.000Z`;
+    endExclusiveIso = `${nextMonth.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  } else if (args?.startDate && args?.endDate) {
+    startIso = new Date(`${String(args.startDate).slice(0, 10)}T00:00:00.000Z`).toISOString();
+    const end = new Date(`${String(args.endDate).slice(0, 10)}T00:00:00.000Z`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    endExclusiveIso = end.toISOString();
+  }
+
+  let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
+  if (startIso) txQuery = txQuery.where('date', '>=', startIso);
+  if (endExclusiveIso && timeframe !== 'all') txQuery = txQuery.where('date', '<', endExclusiveIso);
+  if (timeframe !== 'all') txQuery = txQuery.limit(1000);
   const [txSnapshot, budgets, savingsSnap] = await Promise.all([
-    adminDb.collection('transactions').where('userId', '==', userId).get(),
+    txQuery.get(),
     getUserBudgets(userId, adminDb),
-    adminDb.collection('users').doc(userId).collection('savingsGoals').get().catch(() => ({ docs: [] }))
+    adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [] }))
   ]);
-  if ((txSnapshot as any).partial === true) {
-    return { success: false, partial: true, retryable: true, reason: 'PARTIAL_STATE_UNSAFE', message: 'لا أستطيع إصدار تقرير أمين صندوق دقيق الآن لأن بيانات العمليات جزئية. حاول عند استقرار الاتصال.' };
+  if ((txSnapshot as any).partial === true || (timeframe !== 'all' && txSnapshot.docs.length >= 1000)) {
+    return { success: false, partial: true, retryable: true, reason: 'TREASURER_REPORT_QUERY_INCOMPLETE', message: 'لا أستطيع إصدار تقرير أمين صندوق دقيق لأن قراءة الفترة جزئية أو وصلت حدها. استخدم فترة أصغر أو pagination.' };
   }
   const txs = txSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const savingsGoals = (savingsSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  const report = buildTreasurerReport(args, txs, budgets, savingsGoals);
+  const report = buildTreasurerReport({ ...args, timeframe }, txs, budgets, savingsGoals);
   if (args?.save !== false) {
     const reportRef = adminDb.collection('reports').doc();
     await reportRef.set({
@@ -3603,11 +3638,12 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
       title: report.title,
       content: JSON.stringify(report, null, 2),
       data: report,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      readEfficiency: { timeframe, startIso: startIso || null, endExclusiveIso: timeframe === 'all' ? null : endExclusiveIso, transactionDocsRead: txs.length, savingsGoalLimit: 100 }
     });
-    return { success: true, reportId: reportRef.id, report };
+    return { success: true, reportId: reportRef.id, report, readEfficiency: { transactionDocsRead: txs.length, timeframe } };
   }
-  return { success: true, report };
+  return { success: true, report, readEfficiency: { transactionDocsRead: txs.length, timeframe } };
 }
 
 // In-memory cache to guard against rapid duplicate tool calls
