@@ -2025,9 +2025,18 @@ export async function transferMoney(args: any, userId: string, token: string) {
     return { success: false, needsClarification: true, reason: transferDateResult.reason, message: transferDateResult.message };
   }
 
-  // Create ONE single transaction of type 'transfer'
+  // Create ONE single transaction of type 'transfer'. Vault transfers are locked
+  // internal transfers: they never create income/expense, but they move liquidity
+  // out of cash/PalPay into the unavailable vault account, or release it back.
   const txRef = adminDb.collection('transactions').doc();
   const transferNow = new Date().toISOString();
+  const transferTransactionType = toAccount === 'vault'
+    ? 'VAULT_LOCK_MANUAL'
+    : fromAccount === 'vault'
+      ? 'VAULT_RELEASE'
+      : fromAccount === 'debt'
+        ? 'DEBT_BORROWING'
+        : 'INTERNAL_TRANSFER';
   const tx = {
     userId,
     amount,
@@ -2035,13 +2044,13 @@ export async function transferMoney(args: any, userId: string, token: string) {
     account: fromAccount,
     fromAccount,
     toAccount,
-    category: 'تحويل داخلي',
+    category: toAccount === 'vault' ? 'تحويل للخزنة' : fromAccount === 'vault' ? 'فتح الخزنة' : 'تحويل داخلي',
     subcategory: `تحويل من ${fromName} إلى ${toName}`,
     notes: args.notes || `تحويل مبلغ ${amount} ₪ من ${fromName} إلى ${toName}`,
-    merchant: fromAccount === 'debt' ? creditor : 'تحويل بين المحافظ',
+    merchant: fromAccount === 'debt' ? creditor : (fromAccount === 'vault' || toAccount === 'vault' ? 'الخزنة' : 'تحويل بين المحافظ'),
     creditor: fromAccount === 'debt' ? creditor : '',
     creditorKey: fromAccount === 'debt' ? normalizeCreditorName(creditor) : '',
-    transactionType: fromAccount === 'debt' ? 'DEBT_BORROWING' : 'INTERNAL_TRANSFER',
+    transactionType: transferTransactionType,
     operationId: String(args.operationId || `transfer_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
     necessity: '',
     date: transferDateResult.date,
