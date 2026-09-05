@@ -55,6 +55,7 @@ export default function App() {
   const [showBudgets, setShowBudgets] = useState(false);
   const [showCommitments, setShowCommitments] = useState(false);
   const [showSavings, setShowSavings] = useState(false);
+  const [showVault, setShowVault] = useState(false);
   const [showDataBackup, setShowDataBackup] = useState(false);
   const [showScannerResult, setShowScannerResult] = useState<any>(null);
   const [showChat, setShowChat] = useState(false);
