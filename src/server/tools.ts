@@ -3205,6 +3205,81 @@ async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId:
   return { transactions, partial: limitReached, boundedFallback: false, error: '', limit: boundedLimit, limitReached };
 }
 
+function calculateVaultLockAllocations(transactions: any[], targetVaultAmount: number) {
+  const available = { cash: 0, palPay: 0 };
+  for (const tx of transactions || []) {
+    const amount = parsePositiveFinancialAmount(tx?.amount);
+    if (!amount) continue;
+    const type = String(tx?.type || '');
+    const category = String(tx?.category || '');
+    const transactionType = String(tx?.transactionType || '');
+    if (transactionType === 'VAULT_LOCK' || transactionType === 'VAULT_RELEASE') continue;
+    if (type === 'transfer') {
+      const from = normalizeLedgerAccount(tx?.fromAccount || tx?.account);
+      const to = normalizeLedgerAccount(tx?.toAccount);
+      if (from === 'vault' || to === 'vault') continue;
+      if (from === 'cash') available.cash = roundMoney(available.cash - amount);
+      if (from === 'palPay') available.palPay = roundMoney(available.palPay - amount);
+      if (to === 'cash') available.cash = roundMoney(available.cash + amount);
+      if (to === 'palPay') available.palPay = roundMoney(available.palPay + amount);
+      continue;
+    }
+    if (type === 'income') {
+      const account = normalizeLedgerAccount(tx?.account);
+      if (account === 'cash') available.cash = roundMoney(available.cash + amount);
+      if (account === 'palPay') available.palPay = roundMoney(available.palPay + amount);
+      continue;
+    }
+    if (type === 'expense') {
+      if (transactionType === 'CREDIT_PURCHASE' || category === 'دين') continue;
+      const account = normalizeLedgerAccount(tx?.account);
+      if (account === 'cash') available.cash = roundMoney(available.cash - amount);
+      if (account === 'palPay') available.palPay = roundMoney(available.palPay - amount);
+    }
+  }
+  const cashAvailable = Math.max(0, roundMoney(available.cash));
+  const palPayAvailable = Math.max(0, roundMoney(available.palPay));
+  const target = Math.max(0, roundMoney(targetVaultAmount));
+  const fromCash = Math.min(cashAvailable, target);
+  const fromPalPay = Math.min(palPayAvailable, roundMoney(target - fromCash));
+  return {
+    cash: roundMoney(fromCash),
+    palPay: roundMoney(fromPalPay),
+    availableCash: cashAvailable,
+    availablePalPay: palPayAvailable,
+    totalAvailable: roundMoney(cashAvailable + palPayAvailable),
+    lockedTotal: roundMoney(fromCash + fromPalPay),
+    shortfall: roundMoney(Math.max(0, target - fromCash - fromPalPay)),
+  };
+}
+
+function vaultLockTransactionForCycle(userId: string, period: SalaryCyclePeriod, sourceAccount: 'cash' | 'palPay', amount: number, now: string, existingCreatedAt?: string) {
+  const sourceName = sourceAccount === 'palPay' ? 'PalPay' : 'نقدي';
+  return {
+    userId,
+    amount: roundMoney(amount),
+    type: 'transfer',
+    account: sourceAccount,
+    fromAccount: sourceAccount,
+    toAccount: 'vault',
+    category: 'تحويل للخزنة',
+    subcategory: `إغلاق ${period.name} من ${sourceName}`,
+    notes: `ترحيل فائض ${period.name} إلى الخزنة من ${sourceName}`,
+    merchant: 'الخزنة',
+    creditor: '',
+    creditorKey: '',
+    transactionType: 'VAULT_LOCK',
+    salaryCycleId: period.cycleId,
+    vaultCycleId: period.cycleId,
+    necessity: '',
+    date: `${period.cycleEnd}T23:59:00.000Z`,
+    dateSource: 'salary_cycle_close',
+    operationId: `vault_lock_${period.cycleId}_${sourceAccount}`,
+    createdAt: existingCreatedAt || now,
+    updatedAt: now,
+  };
+}
+
 async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: SalaryCyclePeriod, summary: any, readResult: any) {
   const now = new Date().toISOString();
   const cycleRef = firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').doc(period.cycleId);
