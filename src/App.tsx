@@ -1267,7 +1267,7 @@ export default function App() {
 
   useEffect(() => {
     if (!showVault) return;
-    const initialCycleId = selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultData?.cycles?.[0]?.cycleId || vaultData?.cycles?.[0]?.id;
+    const initialCycleId = selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultCycleOptions?.[0]?.cycleId || vaultCycleOptions?.[0]?.id;
     if (initialCycleId && !selectedVaultCycleDetails && !isVaultCycleLoading) {
       void loadVaultCycleDetails(initialCycleId);
     }
