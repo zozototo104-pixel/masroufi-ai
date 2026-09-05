@@ -3794,17 +3794,47 @@ export const functionDeclarations = [
   },
   {
     name: "query_transactions",
-    description: "يجلب ويحلل العمليات المالية لإنشاء تقارير، والإجابة عن أسئلة مثل: كم صرفت اليوم؟ كم صرفت على الأولاد هذا الشهر؟ ما هي مصروفات الكماليات هذا الأسبوع؟",
+    description: "يجلب ملخصاً محدوداً للعمليات المالية. أي سؤال عن شهر مثل شهر 7/يوليو يفسَّر افتراضياً كـ دورة راتب 27→26 وليس كشهر ميلادي، إلا إذا قال المستخدم صراحة الشهر الميلادي أو أعطى startDate/endDate. لا تطلب custom بلا startDate و endDate. لا تطلب transactions كاملة إلا إذا طلب المستخدم التفاصيل.",
     parameters: {
       type: "object",
       properties: {
-        period: { type: "string", description: "الفترة الزمنية. القيم المسموحة: 'today', 'this_week', 'this_month', 'custom'" },
-        startDate: { type: "string", description: "تاريخ البداية بصيغة YYYY-MM-DD (يستخدم فقط إذا كانت الفترة custom)" },
-        endDate: { type: "string", description: "تاريخ النهاية بصيغة YYYY-MM-DD (يستخدم فقط إذا كانت الفترة custom)" },
+        period: { type: "string", description: "الفترة الزمنية: 'today', 'this_week', 'this_month' (تعني دورة الراتب الحالية افتراضياً), 'salary_cycle', 'current_salary_cycle', 'previous_salary_cycle', أو 'custom'" },
+        startDate: { type: "string", description: "تاريخ البداية بصيغة YYYY-MM-DD. مطلوب إذا period=custom" },
+        endDate: { type: "string", description: "تاريخ النهاية بصيغة YYYY-MM-DD. مطلوب إذا period=custom" },
+        month: { type: "string", description: "رقم أو اسم الشهر لدورة الراتب؛ شهر 7 يعني 27/06→26/07" },
+        year: { type: "number", description: "سنة دورة الراتب عند السؤال عن شهر محدد" },
+        calendarMonth: { type: "boolean", description: "ضعها true فقط إذا قال المستخدم صراحة الشهر الميلادي" },
         category: { type: "string", description: "التصنيف المراد البحث عنه مثل: أولاد، سيارة، كماليات (اختياري)" },
         type: { type: "string", description: "نوع العملية: 'expense' أو 'income' (الافتراضي عادة expense إن سأل عن الصرف)" },
-        account: { type: "string", description: "الحساب: 'cash', 'palPay', 'debt' (لمعرفة الديون مثلاً)" },
-        necessity: { type: "string", description: "الضرورة: 'ضروري' أو 'كمالي'" }
+        account: { type: "string", description: "الحساب: 'cash', 'palPay', 'debt'" },
+        necessity: { type: "string", description: "الضرورة: 'ضروري' أو 'كمالي'" },
+        includeTransactions: { type: "boolean", description: "true فقط إذا طلب المستخدم قائمة العمليات أو التفاصيل، وإلا أعد الملخص فقط لتقليل بيانات Gemini وFirestore" },
+        limit: { type: "number", description: "حد أقصى للنتائج؛ اتركه صغيراً ولا تتجاوز الحاجة" }
+      }
+    }
+  },
+  {
+    name: "get_savings_vault",
+    description: "يعرض الخزنة: رصيد الخزنة الحالي، الدورة الحالية، والدورات السابقة المخزنة. لا يقرأ المعاملات ولا يعيد حساب التاريخ؛ يستخدم users/{uid}/salaryCycles و users/{uid}/meta/savingsVault.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "عدد دورات الراتب المراد عرضها، افتراضياً 12 وبحد أعلى 60" }
+      }
+    }
+  },
+  {
+    name: "get_salary_cycle_summary",
+    description: "يحسب أو يحدّث ملخص دورة راتب واحدة 27→26 باستعلام معاملات محدود بالتاريخ. استخدمه لأسئلة مثل: كم فائض راتب يوليو؟ كم حولنا للخزنة في أغسطس؟ كم بقي من دورة راتب شهر 9؟ ما الفرق بين فائض يوليو وأغسطس؟",
+    parameters: {
+      type: "object",
+      properties: {
+        month: { type: "string", description: "رقم أو اسم شهر دورة الراتب؛ 7/يوليو يعني 27/06→26/07" },
+        year: { type: "number", description: "سنة دورة الراتب" },
+        period: { type: "string", description: "current_salary_cycle أو previous_salary_cycle عند الحاجة" },
+        cycleId: { type: "string", description: "معرف دورة مثل vault_2026_07 إن توفر" },
+        compareToMonth: { type: "string", description: "شهر آخر للمقارنة، مثل أغسطس" },
+        compareToYear: { type: "number", description: "سنة شهر المقارنة" }
       }
     }
   },
