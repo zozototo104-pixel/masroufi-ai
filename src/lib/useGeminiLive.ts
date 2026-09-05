@@ -287,6 +287,15 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           setStatus('listening');
         }
         
+        if (msg.liveQuotaExceeded) {
+          stopPlayback();
+          setStatus('idle');
+          setIsRecording(false);
+          setIsConnected(false);
+          setError(msg.message || msg.error || 'انتهت حصة Gemini Live API حالياً. استخدم الكتابة مؤقتاً أو جرّب لاحقاً.');
+          return;
+        }
+
         if (msg.error) {
           setError(msg.error);
           setTimeout(() => setError(null), 4000);
