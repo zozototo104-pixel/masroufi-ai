@@ -28,36 +28,47 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const clientAudioAckSentRef = useRef(false);
 
   const disconnect = useCallback(() => {
+    connectionEpochRef.current += 1;
+    connectingRef.current = false;
     setIsConnected(false);
     setIsRecording(false);
     setStatus('idle');
-    
+
+    activeSourcesRef.current.forEach(source => {
+      try { source.stop(); } catch (e) { /* ignore */ }
+      try { source.disconnect(); } catch (e) { /* ignore */ }
+    });
+    activeSourcesRef.current = [];
+
     if (wsRef.current) {
-      wsRef.current.close();
+      try { wsRef.current.close(); } catch (e) { /* ignore */ }
       wsRef.current = null;
     }
-    
+
     if (processorRef.current) {
-      processorRef.current.disconnect();
+      try { processorRef.current.disconnect(); } catch (e) { /* ignore */ }
       processorRef.current = null;
     }
-    
+
+    if (processorSinkRef.current) {
+      try { processorSinkRef.current.disconnect(); } catch (e) { /* ignore */ }
+      processorSinkRef.current = null;
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    
+
     if (inputCtxRef.current) {
-      inputCtxRef.current.close();
+      try { inputCtxRef.current.close(); } catch (e) { /* ignore */ }
       inputCtxRef.current = null;
     }
-    
+
     if (outputCtxRef.current) {
-      outputCtxRef.current.close();
+      try { outputCtxRef.current.close(); } catch (e) { /* ignore */ }
       outputCtxRef.current = null;
     }
-    
-    activeSourcesRef.current = [];
   }, []);
 
   const stopPlayback = useCallback(() => {
