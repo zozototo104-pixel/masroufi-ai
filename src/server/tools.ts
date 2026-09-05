@@ -3927,6 +3927,7 @@ export async function wipeAllUserData(userId: string, token: string) {
     verify('savingsGoals', userDoc.collection('savingsGoals')),
     verify('marketDirectory', userDoc.collection('marketDirectory')),
     verify('salaryCycles', userDoc.collection('salaryCycles')),
+    verify('salaryIncomeGuards', userDoc.collection('salaryIncomeGuards')),
     verify('savingsVaultAdjustments', userDoc.collection('savingsVaultAdjustments')),
     verify('meta', userDoc.collection('meta')),
     verify('treasurer', userDoc.collection('treasurer')),
