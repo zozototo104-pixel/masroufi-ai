@@ -803,3 +803,64 @@ test('READS-04: common tools must not contain unbounded user transaction scans',
   assert.ok(toolsSrc.includes("collection('salaryCycles').get()"), 'wipe must remove derived salary cycle summaries');
 });
 
+test('CYCLE-01: salary credited on 27/06 and expenses after it belong to July salary cycle', () => {
+  const salary = tx({ type: 'income', account: 'cash', amount: 3000, date: '2026-06-27T08:00:00.000Z', category: 'دخل', subcategory: 'راتب' });
+  const expenseStart = tx({ type: 'expense', account: 'cash', amount: 100, date: '2026-06-27T12:00:00.000Z', category: 'طعام' });
+  const expenseEnd = tx({ type: 'expense', account: 'palPay', amount: 50, date: '2026-07-26T20:00:00.000Z', category: 'مواصلات' });
+  assert.equal(getSalaryCycleForDate(salary.date, new Date('2026-09-05T00:00:00.000Z')).cycleId, 'vault_2026_07');
+  assert.equal(getSalaryCycleForDate(expenseStart.date, new Date('2026-09-05T00:00:00.000Z')).cycleId, 'vault_2026_07');
+  assert.equal(getSalaryCycleForDate(expenseEnd.date, new Date('2026-09-05T00:00:00.000Z')).cycleId, 'vault_2026_07');
+  const summary = summarizeSalaryCycleTransactions([salary, expenseStart, expenseEnd]);
+  assert.equal(summary.totalIncome, 3000);
+  assert.equal(summary.totalExpense, 150);
+  assert.equal(summary.surplus, 2850);
+});
+
+test('CYCLE-02: cash debt borrowing is incoming cash but never a vault-eligible surplus', () => {
+  const summary = summarizeSalaryCycleTransactions([
+    tx({ type: 'transfer', fromAccount: 'debt', toAccount: 'cash', amount: 500, transactionType: 'DEBT_BORROWING' }),
+    tx({ type: 'expense', account: 'cash', amount: 120, category: 'طعام' }),
+  ]);
+  assert.equal(summary.totalIncome, 0);
+  assert.equal(summary.debtCashInflow, 500);
+  assert.equal(summary.totalInflow, 500);
+  assert.equal(summary.totalExpense, 120);
+  assert.equal(summary.surplus, -120);
+});
+
+test('CYCLE-03: savings goals use salary-cycle window instead of calendar month', () => {
+  const july = buildSalaryCycleForMonth(2026, 7, new Date('2026-07-10T00:00:00.000Z'));
+  const txs = [
+    tx({ type: 'income', account: 'cash', amount: 1000, date: '2026-06-28T00:00:00.000Z' }),
+    tx({ type: 'expense', account: 'cash', amount: 200, date: '2026-07-02T00:00:00.000Z' }),
+    tx({ type: 'income', account: 'cash', amount: 700, date: '2026-06-20T00:00:00.000Z' }),
+  ];
+  assert.equal(calculateMonthlyNetAvailable(txs as any, new Date('2026-07-10T00:00:00.000Z'), { startIso: july.startIso, endExclusiveIso: july.endExclusiveIso }), 800);
+  const plan = buildSavingsGoalPlan({
+    goal: { name: 'طوارئ', targetAmount: 1000, savedAmount: 0, dueDate: '2026-08-31' },
+    transactions: txs as any,
+    contributions: [{ amount: 50, createdAt: '2026-06-29T00:00:00.000Z' }],
+    now: new Date('2026-07-10T00:00:00.000Z'),
+    period: { startIso: july.startIso, endExclusiveIso: july.endExclusiveIso, label: july.name },
+  });
+  assert.equal(plan.monthlyNetAvailable, 800);
+  assert.equal(plan.monthlySavedAmount, 50);
+  assert.equal(plan.savingsPeriodLabel, july.name);
+});
+
+test('READS-05: salary-cycle reports, transfers, market memory, live audio, and manual vault carryover are guarded', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const liveSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/useGeminiLive.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('CUSTOM_REPORT_REQUIRES_DATES'), 'custom reports must require explicit dates');
+  assert.ok(toolsSrc.includes('salaryCycleForReport'), 'reports must support salary-cycle month interpretation');
+  assert.ok(toolsSrc.includes('transferDateResult.date'), 'cash/PalPay/debt transfers must preserve explicit historical dates');
+  assert.ok(toolsSrc.includes("orderBy('checkedAt', 'desc')"), 'market directory reads must be ordered and bounded');
+  assert.ok(toolsSrc.includes('addSavingsVaultAdjustment'), 'vault must support manual old/carryover amounts');
+  assert.ok(toolsSrc.includes('affectsCash: false'), 'manual vault carryover must not mutate cash');
+  assert.ok(toolsSrc.includes('savingsVaultAdjustments'), 'manual vault carryovers must be stored separately');
+  assert.ok(serverSrc.includes('search_local_market') && !serverSrc.includes('search_market_information للبحث عن سعره'), 'voice/chat prompt must use the real market tool, not the deprecated fake one');
+  assert.ok(liveSrc.includes('createScriptProcessor(2048'), 'voice input buffer should be low-latency');
+  assert.ok(!liveSrc.includes("window.dispatchEvent(new CustomEvent('masrofi:refresh'))"), 'voice socket close/error must not trigger full dashboard refresh');
+});
+
