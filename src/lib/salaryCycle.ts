@@ -19,13 +19,20 @@ export interface SalaryCyclePeriod {
 }
 
 export interface SalaryCycleSummary {
+  /** True earned income used for Savings Vault surplus eligibility. */
   totalIncome: number;
+  /** All money that entered cash/PalPay in the cycle, including cash debt borrowing. */
+  totalInflow: number;
+  /** Cash/PalPay debt borrowing: counts as incoming money, not expense, but not vault-eligible income. */
+  debtCashInflow: number;
   totalExpense: number;
+  /** Vault-eligible surplus = true earned income - true expenses. Borrowed cash is intentionally excluded. */
   surplus: number;
   transactionCount: number;
   incomeCount: number;
   expenseCount: number;
   transferCount: number;
+  debtBorrowingCount: number;
 }
 
 const ARABIC_MONTHS: Record<string, number> = {
