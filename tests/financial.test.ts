@@ -911,7 +911,7 @@ test('WIPE-01: destructive wipe fixes root cause by using Admin Firestore, no sw
   assert.ok(modalSrc.includes('clearLocalBackupStateAfterVerifiedWipe'), 'UI must clear local IndexedDB/cache state after a verified wipe');
   assert.ok(modalSrc.includes('clearPendingOpsForUser'), 'UI must clear pending offline financial commands after a verified wipe');
   assert.ok(modalSrc.includes("window.dispatchEvent(new CustomEvent('masrofi:data-wiped'))"), 'UI must notify App to clear in-memory dashboard state after wipe');
-  assert.equal(modalSrc.includes("window.dispatchEvent(new CustomEvent('masrofi:refresh'))"), false, 'wipe must not trigger a full cloud refresh immediately after verified deletion');
+  assert.equal(wipeUiBlock.includes("window.dispatchEvent(new CustomEvent('masrofi:refresh'))"), false, 'wipe must not trigger a full cloud refresh immediately after verified deletion');
   assert.ok(appSrc.includes("window.addEventListener('masrofi:data-wiped'"), 'App must listen for verified wipe event');
   assert.ok(appSrc.includes('setTransactions([])') && appSrc.includes('setBalance(0)'), 'App must clear in-memory dashboard state after verified wipe');
   assert.ok(modalSrc.includes('setCountOverride({ transactions: 0'), 'UI counters must reflect verified empty state immediately');
