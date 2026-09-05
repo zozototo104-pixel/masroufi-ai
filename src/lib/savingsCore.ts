@@ -88,14 +88,23 @@ export function monthKey(date: Date = new Date()): string {
   return date.toISOString().slice(0, 7);
 }
 
-export function calculateMonthlyNetAvailable(transactions: SavingsContributionRecord[], now: Date = new Date()): number {
-  const key = monthKey(now);
+function isInsideSavingsWindow(date: string, now: Date, period?: SavingsPeriodWindow): boolean {
+  if (!date) return false;
+  if (period?.startIso || period?.endExclusiveIso) {
+    if (period.startIso && date < period.startIso) return false;
+    if (period.endExclusiveIso && date >= period.endExclusiveIso) return false;
+    return true;
+  }
+  return date.startsWith(monthKey(now));
+}
+
+export function calculateMonthlyNetAvailable(transactions: SavingsContributionRecord[], now: Date = new Date(), period?: SavingsPeriodWindow): number {
   return roundMoney((transactions || []).reduce((sum, raw) => {
     const type = String(raw?.type || '');
     const category = String(raw?.category || '');
     if (type === 'transfer' || category === 'تحويل' || category === 'تحويل داخلي') return sum;
     const date = String(raw?.date || raw?.createdAt || '');
-    if (!date.startsWith(key)) return sum;
+    if (!isInsideSavingsWindow(date, now, period)) return sum;
     const amount = parsePositiveFinancialAmount(raw?.amount);
     if (type === 'income') return sum + amount;
     if (type === 'expense') return sum - amount;
@@ -103,11 +112,10 @@ export function calculateMonthlyNetAvailable(transactions: SavingsContributionRe
   }, 0));
 }
 
-export function calculateMonthlyContributions(contributions: SavingsContributionRecord[], now: Date = new Date()): number {
-  const key = monthKey(now);
+export function calculateMonthlyContributions(contributions: SavingsContributionRecord[], now: Date = new Date(), period?: SavingsPeriodWindow): number {
   return roundMoney((contributions || []).reduce((sum, c) => {
     const date = String(c?.createdAt || c?.date || '');
-    if (!date.startsWith(key)) return sum;
+    if (!isInsideSavingsWindow(date, now, period)) return sum;
     return sum + parsePositiveFinancialAmount(c?.amount);
   }, 0));
 }
