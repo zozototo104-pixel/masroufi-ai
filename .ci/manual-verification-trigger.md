@@ -1,14 +1,18 @@
 # Manual CI verification trigger
 
-User requested running the existing GitHub Action verification gate again.
+Rerun after fixing the only TypeScript error from the previous run.
 
-Scope:
+Previous failure:
+- src/App.tsx: Cannot find name 'setPendingCount'
+
+Fix:
+- removed nonexistent setPendingCount(0) from verified wipe event handler
+
+Expected gates:
 - install
 - tests
-- TypeScript check
+- TypeScript
 - build
 - runtime smoke
 
-No code changes in this trigger.
-
-Timestamp: 2026-09-05T12:52:00+03:00
+Timestamp: 2026-09-05T13:08:00+03:00
