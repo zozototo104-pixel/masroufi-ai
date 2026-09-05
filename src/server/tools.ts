@@ -840,7 +840,6 @@ export async function addTransaction(args: any, userId: string, token: string) {
       }
       const existingIncome = preTxSnapshot.docs.map((d:any)=>({ id: d.id, ...d.data() }));
       const nowTime = Date.now();
-      const isSalaryLike = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes}`);
       const sameIncome = existingIncome
         .filter((t:any) => t.type === 'income' && Math.abs(parsePositiveFinancialAmount(t.amount) - amount) < 0.01 && t.account === account)
         .filter((t:any) => {
