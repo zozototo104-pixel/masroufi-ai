@@ -1002,6 +1002,10 @@ test('LIVE-01: voice path prevents duplicate expert playback and echo feedback l
   assert.ok(liveSrc.includes('rms > 0.08') && liveSrc.includes('userSpeechCounter >= 6'), 'barge-in threshold must resist speaker echo false positives');
   assert.ok(liveSrc.includes('Do not send the same frame that triggered barge-in'), 'barge-in must not send the echo frame that triggered interruption');
   assert.ok(liveSrc.includes('source.disconnect()'), 'stopped playback sources must be disconnected');
+  assert.ok(serverSrc.includes('aiOutputActive = true'), 'server must mark AI audio output as active when forwarding voice');
+  assert.ok(serverSrc.includes('dropped mic chunk during AI output'), 'server must drop microphone echo chunks while the expert is speaking');
+  assert.ok(serverSrc.includes('clientInterruptOverrideUntilMs'), 'explicit client barge-in must have a short override window');
+  assert.ok(serverSrc.includes('pendingAudio.length < 12'), 'server must bound pre-auth pending audio chunks');
   assert.ok(serverSrc.includes('activeLiveSocketsByUser'), 'server must track active live sockets by user');
   assert.ok(serverSrc.includes("previousLiveSocket.close(4000, 'new live session opened')"), 'server must close the old live socket when a new one opens for the same user');
 });
