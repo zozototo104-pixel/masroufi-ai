@@ -275,6 +275,14 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) return;
         const msg = JSON.parse(event.data);
         
+        if (msg.type === 'live_ready') {
+          liveReadyRef.current = true;
+          clearLiveReadyWatchdog();
+          setIsConnected(true);
+          setIsRecording(true);
+          setStatus('listening');
+        }
+
         if (msg.status) {
           if (msg.status === 'thinking') setStatus('thinking');
           if (msg.status === 'ready') {
