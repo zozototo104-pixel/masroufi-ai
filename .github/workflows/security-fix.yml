@@ -1,0 +1,45 @@
+name: Safe npm audit fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .ci/security-fix-trigger.md
+
+permissions:
+  contents: write
+
+jobs:
+  safe-audit-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run safe npm audit fix without force
+        run: npm audit fix --package-lock-only --audit-level=moderate
+
+      - name: Commit package-lock changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No safe audit-fix changes were produced."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore(security): apply safe npm audit fixes"
+          git push
