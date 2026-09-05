@@ -30,6 +30,7 @@ import {
 } from '../src/lib/salaryCycle.ts';
 import { calculateBalances, calculateBreakdown, calculateCreditorRemaining, normalizeAccount, normalizeCreditorKey } from '../src/lib/balanceCalc.ts';
 import { addBalanceDelta, transactionReplacementDelta, txBalanceDelta } from '../src/lib/accountBalance.ts';
+import { addVaultCurrencyAmount, deriveVaultAdjustmentCurrencyDelta, mergeVaultCurrencyDeltas, normalizeVaultAdjustmentEntries, normalizeVaultCurrency } from '../src/lib/vaultCurrency.ts';
 import { buildCompletedIdempotencyRecord, decideIdempotencyClaim } from '../src/server/idempotencyCore.ts';
 import { IDEMPOTENCY_COLLECTION } from '../src/server/idempotencyConfig.ts';
 import { buildHierarchicalReport } from '../src/lib/reportUtils.ts';
