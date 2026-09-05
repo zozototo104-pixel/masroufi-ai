@@ -3823,6 +3823,14 @@ export async function addSavingsVaultAdjustment(args: any, userId: string, token
       cumulativeBalanceByCurrency: nextByCurrency,
     };
     tx.set(adjustmentRef as any, adjustment);
+    tx.set(accountBalanceRef as any, accountBalanceSnapshotPayloadForVault(userId, {
+      ...accountBalances,
+      vault: roundMoney(Number(accountBalances.vault || 0) + amountIlsEquivalent),
+    }, 'manual_vault_carryover', {
+      lastVaultAdjustmentId: adjustmentId,
+      lastManualVaultDelta: amountIlsEquivalent,
+      accountBalanceReadSource: accountBalanceSnap.exists ? 'snapshot' : 'empty_bootstrap',
+    }), { merge: true });
     tx.set(metaRef as any, {
       userId,
       currentBalance: nextBalance,
