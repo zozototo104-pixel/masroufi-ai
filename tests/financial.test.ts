@@ -898,6 +898,7 @@ test('WIPE-01: destructive wipe fixes root cause by using Admin Firestore, no sw
   const modalSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/components/DataBackupModal.tsx'), 'utf8'));
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   const wipeBlock = toolsSrc.slice(toolsSrc.indexOf('export async function wipeAllUserData'), toolsSrc.indexOf('export async function generateTreasurerReport'));
+  const wipeUiBlock = modalSrc.slice(modalSrc.indexOf('const handleWipeData'), modalSrc.indexOf('// Format bytes') > 0 ? modalSrc.indexOf('// Format bytes') : modalSrc.length);
   assert.ok(wipeBlock.includes('const adminDb = firebaseAdminDb'), 'wipe must use authoritative Admin Firestore, not getDb(token)/fallback');
   assert.equal(wipeBlock.includes('const adminDb = getDb(token)'), false, 'wipe must not use token-backed fallback db');
   assert.ok(wipeBlock.includes('throw new Error(`WIPE_PARTIAL_READ'), 'wipe must fail closed on partial reads');
