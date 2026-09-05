@@ -193,6 +193,17 @@ export function resolveSalaryCycleFromArgs(args: any = {}, now: Date = new Date(
   return getCurrentSalaryCycle(now);
 }
 
+export function isDebtCashBorrowing(tx: any): boolean {
+  const type = String(tx?.type || '');
+  const transactionType = String(tx?.transactionType || '');
+  const from = normalizeAccount(tx?.fromAccount || tx?.account);
+  const to = normalizeAccount(tx?.toAccount);
+  return type === 'transfer'
+    && transactionType === 'DEBT_BORROWING'
+    && from === 'debt'
+    && (to === 'cash' || to === 'palPay');
+}
+
 export function isInternalTransfer(tx: any): boolean {
   const type = String(tx?.type || '');
   const category = String(tx?.category || '');
