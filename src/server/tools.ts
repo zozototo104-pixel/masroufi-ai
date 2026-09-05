@@ -1978,6 +1978,7 @@ export async function transferMoney(args: any, userId: string, token: string) {
   // No more TOCTOU: the balance check + write happen inside a single
   // Firestore runTransaction. Atomic failure NEVER downgrades to direct write.
   let actualTxId = txRef.id;
+  let committedBalances: any = undefined;
   let writeResult: WriteResult | { durability: 'committed'; synced: true; pending: false };
   try {
     const atomicResult = await atomicTransferMoney(userId, tx, { riskConfirmed: Boolean(args.riskConfirmed) });
