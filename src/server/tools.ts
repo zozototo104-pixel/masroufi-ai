@@ -3630,9 +3630,14 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
     balanceAdjustmentDocsRead = allAdjustments.length;
     balancePartial = Boolean((allCyclesSnap as any).partial || (allAdjustmentsSnap as any).partial);
     balanceLimitReached = balanceCycleDocsRead >= 1000 || balanceAdjustmentDocsRead >= VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT;
+    const cycleVaultTotal = roundMoney(allCycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
     vaultBalance = roundMoney(
-      allCycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0)
-      + allAdjustments.reduce((sum: number, a: any) => sum + Number(a.amount || 0), 0)
+      cycleVaultTotal
+      + allAdjustments.reduce((sum: number, a: any) => sum + Number(a.amountIlsEquivalent ?? a.amount ?? 0), 0)
+    );
+    vaultBalanceByCurrency = allAdjustments.reduce(
+      (map: Record<string, number>, adjustment: any) => mergeVaultCurrencyDeltas(map, deriveVaultAdjustmentCurrencyDelta(adjustment)),
+      cycleVaultTotal > 0 ? { ILS: cycleVaultTotal } : {} as Record<string, number>,
     );
   }
   const currentCycle = getCurrentSalaryCycle(new Date());
