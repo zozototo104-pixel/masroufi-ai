@@ -29,7 +29,13 @@ jobs:
         run: npm ci
 
       - name: Run safe npm audit fix without force
-        run: npm audit fix --package-lock-only --audit-level=moderate
+        run: |
+          set +e
+          npm audit fix --package-lock-only --audit-level=moderate
+          status=$?
+          echo "npm audit fix exit status: $status"
+          echo "Continuing so any safe lockfile changes can be committed; no --force was used."
+          exit 0
 
       - name: Commit package-lock changes
         run: |
