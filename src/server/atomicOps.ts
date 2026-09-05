@@ -175,9 +175,18 @@ export async function atomicAddTransaction(
   opts: {
     skipBalanceCheck?: boolean;
     riskConfirmed?: boolean;
+    uniqueGuard?: {
+      ref: any;
+      payload?: Record<string, unknown>;
+      reason?: string;
+    } | null;
   } = {}
-): Promise<{ ok: true; docId: string; balances: BalanceSnapshot; balanceReadSource: string } | { ok: false; reason: string; available?: number; balances?: BalanceSnapshot }> {
+): Promise<{ ok: true; docId: string; balances: BalanceSnapshot; balanceReadSource: string } | { ok: false; reason: string; available?: number; balances?: BalanceSnapshot; duplicateGuard?: any }> {
   return adminDb.runTransaction(async (tx: any) => {
+    const guardSnap = opts.uniqueGuard?.ref ? await tx.get(opts.uniqueGuard.ref) : null;
+    if (guardSnap?.exists && !opts.riskConfirmed) {
+      return { ok: false, reason: opts.uniqueGuard?.reason || 'DUPLICATE_GUARDED_TRANSACTION', duplicateGuard: guardSnap.data() || {} };
+    }
     const snapshot = await readOrBootstrapBalanceSnapshot(tx, userId);
     const account = String(newTx.account || (newTx.fromAccount === 'cash' || newTx.fromAccount === 'palPay' ? newTx.fromAccount : 'cash'));
     const amount = parsePositiveFinancialAmount(newTx.amount);
