@@ -25,8 +25,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Refresh lockfile from package.json overrides
+        run: npm install --package-lock-only --ignore-scripts
 
       - name: Run safe npm audit fix without force
         run: |
