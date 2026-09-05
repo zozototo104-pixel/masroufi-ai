@@ -839,7 +839,7 @@ test('READS-01: account balance deltas match canonical full-ledger reconstructio
     tx({ type: 'expense', account: 'debt', amount: 90 }),
     tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', amount: 40 }),
   ];
-  const byDelta = items.reduce((balance: any, item: any) => addBalanceDelta(balance, txBalanceDelta(item)), { cash: 0, palPay: 0, debt: 0, total: 0 });
+  const byDelta = items.reduce((balance: any, item: any) => addBalanceDelta(balance, txBalanceDelta(item)), { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 });
   assert.deepEqual(byDelta, calculateBalances(items));
 });
 
