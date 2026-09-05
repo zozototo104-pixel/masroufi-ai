@@ -234,8 +234,8 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
               if (sentAudioFramesRef.current === 8 && receivedAudioFramesRef.current === 0 && responseWatchdogRef.current === null) {
                 responseWatchdogRef.current = window.setTimeout(() => {
                   responseWatchdogRef.current = null;
-                  if (wsRef.current === ws && isConnected && receivedAudioFramesRef.current === 0) {
-                    setError('الصوت متصل والمايك يرسل، لكن لم يصل رد صوتي من Gemini Live بعد. قد تكون الحصة منتهية أو الخدمة بطيئة؛ جرّب الكتابة مؤقتاً أو أعد المحاولة بعد قليل.');
+                  if (wsRef.current === ws && ws.readyState === WebSocket.OPEN && receivedAudioFramesRef.current === 0) {
+                    setError('الصوت متصل والمايك يرسل، لكن لم يصل رد صوتي من Gemini Live بعد. قد تكون حصة Gemini Live منتهية أو الخدمة بطيئة؛ جرّب الكتابة مؤقتاً أو أعد المحاولة بعد قليل.');
                   }
                 }, 18000);
               }
