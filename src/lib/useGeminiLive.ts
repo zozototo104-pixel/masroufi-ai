@@ -318,6 +318,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
 
         if (msg.audio && outputCtxRef.current) {
+          if (outputCtxRef.current.state === 'suspended') {
+            try { await outputCtxRef.current.resume(); } catch (e) { console.warn('[live] failed to resume output audio context', e); }
+          }
           receivedAudioFramesRef.current += 1;
           clearResponseWatchdog();
           if (!clientAudioAckSentRef.current && ws.readyState === WebSocket.OPEN) {
