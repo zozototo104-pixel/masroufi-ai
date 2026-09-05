@@ -1,17 +1,15 @@
 # Manual CI verification trigger
 
-Verify the actual Firestore index error fix, not just hiding the message.
+Verify iPhone/mobile layout fix.
 
-Production error:
-- FAILED_PRECONDITION: The query requires an index
-- caused by salary-cycle details query using userId equality + date range + orderBy(date)
+User issue:
+- Savings Vault modal shows salary cycle details but the screen cannot scroll down to see all items on iPhone/Safari.
 
-Actual fix:
-- readTransactionsForSalaryCycle no longer issues the index-dependent userId+date query
-- it reads only the selected salary-cycle date window: date >= cycleStart and date < cycleEndExclusive
-- it filters authenticated userId server-side after that bounded date-window query
-- it marks partial only when the selected date-window reaches the limit
-- tests now explicitly forbid `.where('userId', '==', userId)` inside the salary-cycle helper
+Fixes:
+- added mobile-modal-backdrop and mobile-modal-panel CSS utilities with 100dvh, safe-area insets, overflow-y auto, and -webkit-overflow-scrolling touch
+- converted Vault/Savings/Budgets/Commitments/Reports/Report Viewer/Chat/Scanner modals to mobile-safe layouts
+- Vault dates remain readable in RTL
+- added MOBILE-01 regression test
 
 Expected gates:
 - install
@@ -21,4 +19,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T21:32:00+03:00
+Timestamp: 2026-09-05T21:33:00+03:00
