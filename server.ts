@@ -2008,6 +2008,12 @@ ${relationshipContext}
           userEmail = result.email;
           userToken = result.token;
 
+          const previousLiveSocket = activeLiveSocketsByUser.get(userId);
+          if (previousLiveSocket && previousLiveSocket !== clientWs && previousLiveSocket.readyState === WebSocket.OPEN) {
+            try { previousLiveSocket.close(4000, 'new live session opened'); } catch (e) { /* ignore */ }
+          }
+          activeLiveSocketsByUser.set(userId, clientWs);
+
           if (authTimeout) {
             clearTimeout(authTimeout);
             authTimeout = null;
