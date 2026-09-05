@@ -2981,6 +2981,60 @@ export default function App() {
               </div>
             </div>
 
+            <div className="mb-4 bg-slate-950/70 border border-cyan-500/20 rounded-2xl p-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-end sm:justify-between">
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-400 mb-1">اختر دورة راتب للمعاينة</label>
+                  <select
+                    value={selectedVaultCycleId || vaultData?.currentCycle?.cycleId || ''}
+                    onChange={(e) => loadVaultCycleDetails(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                  >
+                    {vaultData?.currentCycle?.cycleId && (
+                      <option value={vaultData.currentCycle.cycleId}>الدورة الحالية · {vaultData.currentCycle.cycleStart} → {vaultData.currentCycle.cycleEnd}</option>
+                    )}
+                    {(vaultData?.cycles || []).map((cycle: any) => (
+                      <option key={cycle.cycleId || cycle.id} value={cycle.cycleId || cycle.id}>{cycle.name || cycle.cycleId} · {cycle.cycleStart} → {cycle.cycleEnd}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => loadVaultCycleDetails()} disabled={isVaultCycleLoading} className="px-3 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-bold disabled:opacity-50">
+                    {isVaultCycleLoading ? 'جارٍ التحميل...' : 'عرض البنود'}
+                  </button>
+                  <button onClick={deleteSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-bold disabled:opacity-50 flex items-center gap-1">
+                    <Trash2 className="w-3 h-3" /> حذف هذه الدورة
+                  </button>
+                </div>
+              </div>
+              {vaultCycleMessage && <p className="mt-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">{vaultCycleMessage}</p>}
+              {selectedVaultCycleDetails?.period && (
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الدورة</p><p className="font-bold text-white">{selectedVaultCycleDetails.period.name}</p></div>
+                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الفترة</p><p className="font-bold text-white">{selectedVaultCycleDetails.period.cycleStart} → {selectedVaultCycleDetails.period.cycleEnd}</p></div>
+                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الدخل</p><p className="font-bold text-emerald-300">{Number(selectedVaultCycleDetails.summary?.totalIncome || 0).toLocaleString()} ₪</p></div>
+                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">المصروف</p><p className="font-bold text-rose-300">{Number(selectedVaultCycleDetails.summary?.totalExpense || 0).toLocaleString()} ₪</p></div>
+                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">للخزنة</p><p className="font-bold text-cyan-300">{Number(selectedVaultCycleDetails.vaultContribution || 0).toLocaleString()} ₪</p></div>
+                </div>
+              )}
+              {selectedVaultCycleDetails && (
+                <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-52 overflow-auto">
+                    <h4 className="font-bold text-emerald-300 mb-2">بنود الدخل</h4>
+                    {(selectedVaultCycleDetails.income || []).length ? selectedVaultCycleDetails.income.map((tx: any) => (
+                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'دخل'} · {tx.account}</span><span className="font-bold text-emerald-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
+                    )) : <p className="text-slate-500">لا يوجد دخل في هذه الدورة.</p>}
+                  </div>
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-52 overflow-auto">
+                    <h4 className="font-bold text-rose-300 mb-2">بنود المصروفات</h4>
+                    {(selectedVaultCycleDetails.expenses || []).length ? selectedVaultCycleDetails.expenses.map((tx: any) => (
+                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}</span><span className="font-bold text-rose-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
+                    )) : <p className="text-slate-500">لا توجد مصروفات في هذه الدورة.</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="overflow-auto rounded-2xl border border-slate-800">
               <table className="w-full text-right text-xs sm:text-sm">
                 <thead className="bg-slate-950 text-slate-300 sticky top-0">
