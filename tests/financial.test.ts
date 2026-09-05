@@ -708,6 +708,7 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   assert.ok(serverSrc.includes('liveRefreshScopeForTools'), 'server must classify Live refresh scope by tool effect');
   assert.ok(serverSrc.includes("scope: 'read_only'"), 'read-only tools must not refresh the dashboard');
   assert.ok(serverSrc.includes('refreshScope'), 'Live refresh messages must carry a targeted scope');
+  assert.ok(serverSrc.includes("period: 'current_salary_cycle'"), 'dashboard transaction endpoint must not call custom without dates');
   assert.ok(appSrc.includes('refreshDebounceRef'), 'App refresh events must be debounced');
   assert.ok(appSrc.includes("scope === 'vault'"), 'vault-only refresh must avoid a full dashboard fetch');
 });
