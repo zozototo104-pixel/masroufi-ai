@@ -1662,6 +1662,31 @@ export default function App() {
             <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl -translate-x-10 -translate-y-10"></div>
           </div>
 
+          {/* Savings Vault Card */}
+          <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <HardDrive className="w-4 h-4 text-cyan-400" />
+                الخزنة
+              </h3>
+              <button onClick={() => setShowVault(true)} className="text-[11px] text-cyan-300 hover:text-cyan-200 font-bold">
+                التفاصيل
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-3">
+                <p className="text-[11px] text-slate-400 mb-1">رصيد الخزنة</p>
+                <p className="text-2xl font-black text-cyan-300">{Number(vaultData?.vaultBalance || 0).toLocaleString()} ₪</p>
+              </div>
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-3">
+                <p className="text-[11px] text-slate-400 mb-1">الدورة الحالية</p>
+                <p className="text-sm font-bold text-white">{vaultData?.currentCycle?.cycleStart || '—'} → {vaultData?.currentCycle?.cycleEnd || '—'}</p>
+                <p className="text-[10px] text-slate-500 mt-1">27 إلى 26 · {vaultData?.currentCycle?.status === 'closed' ? 'مغلقة' : 'مفتوحة'}</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-3">الخزنة تعرض فوائض دورات الراتب فقط ولا تغيّر أرصدة الكاش أو PalPay أو الديون.</p>
+          </div>
+
           {/* Quick Expense & Income stats */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-900 p-5 rounded-3xl shadow-lg border border-slate-800 flex flex-col justify-center">
