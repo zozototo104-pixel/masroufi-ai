@@ -3815,6 +3815,8 @@ export async function wipeAllUserData(userId: string, token: string) {
     verify('transactions', adminDb.collection('transactions').where('userId', '==', userId)),
     verify('commitments', adminDb.collection('commitments').where('userId', '==', userId)),
     verify('reports', adminDb.collection('reports').where('userId', '==', userId)),
+    verify('idempotency_keys', adminDb.collection('idempotency_keys').where('userId', '==', userId)),
+    verify('receiptIdempotency', adminDb.collection('receiptIdempotency').where('userId', '==', userId)),
     verify('notifications', userDoc.collection('notifications')),
     verify('memory', userDoc.collection('memory')),
     verify('budgets', userDoc.collection('budgets')),
