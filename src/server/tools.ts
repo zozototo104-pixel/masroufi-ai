@@ -2554,9 +2554,18 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
   console.log("TOOL CALL: checkBudgetStatus", args);
   
   const userBudgets = await getUserBudgets(userId, adminDb);
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  const expenses = txSnapshot.docs.map(d => d.data()).filter(t => t.type === 'expense' && (t.date || '').startsWith(thisMonth));
+  const now = new Date();
+  const thisMonth = now.toISOString().slice(0, 7);
+  const monthStart = `${thisMonth}-01T00:00:00.000Z`;
+  const nextMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const nextMonthStart = `${nextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const txSnapshot = await adminDb.collection('transactions')
+    .where('userId', '==', userId)
+    .where('date', '>=', monthStart)
+    .where('date', '<', nextMonthStart)
+    .limit(300)
+    .get();
+  const expenses = txSnapshot.docs.map(d => d.data()).filter(t => t.type === 'expense');
   
   if (args.category) {
     const categoryExpenses = expenses.filter(t => t.category === args.category);
