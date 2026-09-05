@@ -998,7 +998,9 @@ test('LIVE-01: voice path prevents duplicate expert playback and echo feedback l
   assert.ok(liveSrc.includes('connectionEpochRef'), 'client must ignore stale websocket/audio events from old sessions');
   assert.ok(liveSrc.includes('wsRef.current !== ws'), 'client must reject messages from stale sockets');
   assert.ok(liveSrc.includes('processorSink.gain.value = 0'), 'microphone processor must use a silent sink, not monitor mic to speakers');
+  assert.ok(liveSrc.includes('createScriptProcessor(4096'), 'voice capture buffer must favor stability over chopping');
   assert.ok(liveSrc.includes('rms > 0.08') && liveSrc.includes('userSpeechCounter >= 6'), 'barge-in threshold must resist speaker echo false positives');
+  assert.ok(liveSrc.includes('Do not send the same frame that triggered barge-in'), 'barge-in must not send the echo frame that triggered interruption');
   assert.ok(liveSrc.includes('source.disconnect()'), 'stopped playback sources must be disconnected');
   assert.ok(serverSrc.includes('activeLiveSocketsByUser'), 'server must track active live sockets by user');
   assert.ok(serverSrc.includes("previousLiveSocket.close(4000, 'new live session opened')"), 'server must close the old live socket when a new one opens for the same user');
