@@ -1079,6 +1079,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     atomicResult = await atomicAddTransaction(userId, tx, {
       skipBalanceCheck: !isBalanceSensitive,
       riskConfirmed: Boolean(args.riskConfirmed),
+      uniqueGuard: salaryUniqueGuard,
     });
   } catch (e: any) {
     return {
