@@ -3127,9 +3127,12 @@ export default function App() {
                       ))}
                     </select>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button onClick={() => loadVaultCycleDetails()} disabled={isVaultCycleLoading} className="px-3 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-bold disabled:opacity-50">
                       {isVaultCycleLoading ? 'جارٍ التحميل...' : 'عرض البنود'}
+                    </button>
+                    <button onClick={closeSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-bold disabled:opacity-50">
+                      إقفال الدورة وترحيل للخزنة
                     </button>
                     <button onClick={deleteSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-bold disabled:opacity-50 flex items-center gap-1">
                       <Trash2 className="w-3 h-3" /> حذف هذه الدورة
