@@ -174,6 +174,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           
           let userSpeechCounter = 0;
           processor.onaudioprocess = (e) => {
+            if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) return;
             const channelData = e.inputBuffer.getChannelData(0);
             
             // Calculate RMS volume level of user microphone input
