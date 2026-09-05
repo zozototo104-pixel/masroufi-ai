@@ -1908,7 +1908,11 @@ ${relationshipContext}
                   } catch (toolErr) {
                     console.error("Error sending tool response:", toolErr);
                   }
-                  safeSend({ status: "ready", refresh: true });
+                  const refreshDecision = liveRefreshScopeForTools(functionResponses as any);
+                  safeSend(refreshDecision.refresh
+                    ? { status: "ready", refresh: true, refreshScope: refreshDecision.scope }
+                    : { status: "ready" }
+                  );
                 }
               }
             } catch (cbErr) {
