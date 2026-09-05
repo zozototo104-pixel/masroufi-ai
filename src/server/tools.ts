@@ -3171,54 +3171,38 @@ function summarizeTransactionsForTool(transactions: any[]) {
 async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId: string, token: string, limit = SALARY_CYCLE_TRANSACTION_QUERY_LIMIT) {
   const startedAt = Date.now();
   const boundedLimit = Math.max(1, Math.min(SALARY_CYCLE_TRANSACTION_QUERY_LIMIT, Number(limit) || SALARY_CYCLE_TRANSACTION_QUERY_LIMIT));
-  let snapshot: any;
-  let boundedFallback = false;
-  let error = '';
-  try {
-    const snap = await firebaseAdminDb.collection('transactions')
-      .where('userId', '==', userId)
-      .where('date', '>=', period.startIso)
-      .where('date', '<', period.endExclusiveIso)
-      .orderBy('date', 'asc')
-      .limit(boundedLimit)
-      .get();
-    snapshot = { docs: snap.docs, partial: false };
-  } catch (cloudErr: any) {
-    boundedFallback = true;
-    error = cloudErr?.message || 'salary cycle cloud query failed';
-    const requiresIndex = /FAILED_PRECONDITION|requires an index|index/i.test(error);
-    if (!requiresIndex) throw cloudErr;
 
-    // Index-free fallback: bound by the salary-cycle date range only, then filter
-    // by userId in memory. This avoids the userId+date composite index failure
-    // without scanning the full ledger. It is marked partial if the broad date
-    // window reaches the limit before filtering.
-    const fallbackLimit = Math.max(boundedLimit, Math.min(SALARY_CYCLE_TRANSACTION_QUERY_LIMIT, 2000));
-    const snap = await firebaseAdminDb.collection('transactions')
-      .where('date', '>=', period.startIso)
-      .where('date', '<', period.endExclusiveIso)
-      .limit(fallbackLimit)
-      .get();
-    const docs = (snap.docs || []).filter((doc: any) => doc.data()?.userId === userId);
-    snapshot = { docs, partial: (snap.docs || []).length >= fallbackLimit, error };
-  }
-  const transactions = (snapshot.docs || [])
+  // Do NOT issue userId + date range here. Firestore requires a composite
+  // index for that shape, and the vault UI must work safely even before
+  // firestore.indexes.json is deployed. This query is still bounded by one
+  // salary cycle (27→26), never the full ledger. We filter ownership after
+  // the bounded date read and mark the result partial if the broad date window
+  // reaches the limit.
+  const snap = await firebaseAdminDb.collection('transactions')
+    .where('date', '>=', period.startIso)
+    .where('date', '<', period.endExclusiveIso)
+    .limit(boundedLimit)
+    .get();
+  const broadDocs = snap.docs || [];
+  const transactions = broadDocs
+    .filter((d: any) => d.data()?.userId === userId)
     .map((d: any) => ({ id: d.id, ...d.data() }))
     .sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || '')));
-  const limitReached = transactions.length >= boundedLimit;
+  const limitReached = broadDocs.length >= boundedLimit;
   logFirestoreReadDiagnostics('salary_cycle_transactions_query', {
     userId,
-    queryType: 'transactions_by_user_and_date_range',
+    queryType: 'transactions_by_date_range_then_user_filter_no_composite_index',
     cycleId: period.cycleId,
     start: period.cycleStart,
     endExclusive: period.cycleEndExclusive,
     returnedDocs: transactions.length,
+    scannedDateWindowDocs: broadDocs.length,
     limit: boundedLimit,
     limitReached,
     durationMs: Date.now() - startedAt,
-    fallback: boundedFallback,
+    fallback: false,
   });
-  return { transactions, partial: Boolean(snapshot.partial), boundedFallback, error, limit: boundedLimit, limitReached };
+  return { transactions, partial: limitReached, boundedFallback: false, error: '', limit: boundedLimit, limitReached };
 }
 
 async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: SalaryCyclePeriod, summary: any, readResult: any) {
