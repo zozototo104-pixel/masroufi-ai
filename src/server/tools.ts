@@ -34,7 +34,7 @@ import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCredi
 export { normalizeAccount } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
 import { runIdempotent } from './idempotency';
-import { atomicAddTransaction, atomicDeleteTransaction, atomicPayDebt, atomicTransferMoney, atomicUpdateTransaction } from './atomicOps';
+import { atomicAddTransaction, atomicDeleteTransaction, atomicDeleteTransactions, atomicPayDebt, atomicTransferMoney, atomicUpdateTransaction } from './atomicOps';
 import {
   getCachedMarketResult,
   cacheMarketResult,
