@@ -105,6 +105,7 @@ jobs:
             echo "TypeScript: $LINT_OUTCOME"
             echo "Build: $BUILD_OUTCOME"
             echo "Runtime: $RUNTIME_OUTCOME"
+            echo "Audit: $AUDIT_OUTCOME"
             echo
             if [ -f /tmp/tests.log ]; then
               echo "## failing tests"
