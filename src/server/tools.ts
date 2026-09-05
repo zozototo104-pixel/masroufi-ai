@@ -1010,6 +1010,12 @@ export async function addTransaction(args: any, userId: string, token: string) {
   } catch (sideEffectErr) {
     console.warn('Post-commit financial side effect failed; preserving committed transaction success:', sideEffectErr);
   }
+
+  try {
+    await recalculateCyclesForTransactionChange(userId, token, null, { id: actualTxId, ...tx }, 'transaction_added');
+  } catch (vaultErr) {
+    console.warn('Savings Vault recalculation failed after committed transaction; preserving committed transaction success:', vaultErr);
+  }
   
   // A post-commit balance refresh is informational only. The transaction has
   // already committed atomically above, so a transient read failure must not
