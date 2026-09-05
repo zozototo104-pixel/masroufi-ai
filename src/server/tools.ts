@@ -189,8 +189,21 @@ export async function recordTransactionCommittedSideEffects(
       const userBudgets = options.preUserBudgets || await getUserBudgets(userId, db);
       const budgetLimit = userBudgets[category] || DEFAULT_BUDGETS[category] || 1000;
 
-      const thisMonth = new Date().toISOString().slice(0, 7);
-      const txSnapshot = options.preTxSnapshot || await db.collection('transactions').where('userId', '==', userId).get();
+      const txDate = new Date(tx?.date || new Date().toISOString());
+      const safeTxDate = Number.isNaN(txDate.getTime()) ? new Date() : txDate;
+      const thisMonth = safeTxDate.toISOString().slice(0, 7);
+      let txSnapshot = options.preTxSnapshot;
+      if (!txSnapshot) {
+        const monthStart = `${thisMonth}-01T00:00:00.000Z`;
+        const nextMonthDate = new Date(Date.UTC(safeTxDate.getUTCFullYear(), safeTxDate.getUTCMonth() + 1, 1));
+        const nextMonthStart = `${nextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
+        txSnapshot = await db.collection('transactions')
+          .where('userId', '==', userId)
+          .where('date', '>=', monthStart)
+          .where('date', '<', nextMonthStart)
+          .where('category', '==', category)
+          .get();
+      }
       const monthExpenses = txSnapshot.docs
         .map((d: any) => d.data())
         .filter((item: any) => item.type === 'expense' && (item.date || '').startsWith(thisMonth) && item.category === category);
