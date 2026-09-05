@@ -4400,6 +4400,20 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "add_savings_vault_adjustment",
+    description: "يضيف رصيد خزنة قديم/مرحل أو مبلغ محفوظ سابقاً للخزنة كـ manual carryover. لا يغير cash أو PalPay أو debt ولا ينشئ transaction مالية. استخدمه فقط عندما يقول المستخدم إن لديه مبلغاً قديماً محفوظاً في الخزنة أو يريد ترحيل رصيد سابق.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "المبلغ القديم/المرحل المراد إضافته للخزنة" },
+        source: { type: "string", description: "مصدر المبلغ: رصيد قديم، مدخرات سابقة، صندوق البيت..." },
+        notes: { type: "string", description: "ملاحظات اختيارية" },
+        operationId: { type: "string", description: "معرف idempotency إن توفر" }
+      },
+      required: ["amount"]
+    }
+  },
+  {
     name: "get_salary_cycle_summary",
     description: "يحسب أو يحدّث ملخص دورة راتب واحدة 27→26 باستعلام معاملات محدود بالتاريخ. استخدمه لأسئلة مثل: كم فائض راتب يوليو؟ كم حولنا للخزنة في أغسطس؟ كم بقي من دورة راتب شهر 9؟ ما الفرق بين فائض يوليو وأغسطس؟",
     parameters: {
