@@ -1,13 +1,14 @@
 # Manual CI verification trigger
 
-Rerun after updating legacy tests for the voice overlap fix.
+User requested running the existing GitHub Action verification gate again.
 
 Scope:
-- client blocks duplicate live sessions
-- server closes previous live socket for the same user
-- stale websocket/audio events ignored
-- microphone processor uses silent sink
-- barge-in threshold is echo-resistant
-- wipe UI test scoped to wipe handler only
+- install
+- tests
+- TypeScript check
+- build
+- runtime smoke
 
-Timestamp: 2026-09-05T13:04:00+03:00
+No code changes in this trigger.
+
+Timestamp: 2026-09-05T12:52:00+03:00
