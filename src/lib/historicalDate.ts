@@ -86,6 +86,8 @@ export function normalizeHistoricalTransactionDate(input: {
   date?: unknown;
   historicalMonth?: unknown;
   day?: unknown;
+  year?: unknown;
+  salaryYear?: unknown;
   now?: Date;
 }): HistoricalDateResult {
   const now = input.now || new Date();
