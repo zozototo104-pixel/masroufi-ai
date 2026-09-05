@@ -785,7 +785,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if ((textToCheck.includes('تحويل') && (textToCheck.includes('من') || textToCheck.includes('إلى') || textToCheck.includes('لبال') || textToCheck.includes('كاش'))) || args.category === 'تحويل' || args.category === 'تحويل داخلي') {
     const fromAcc = normalizeAccount(args.fromAccount || args.account || (textToCheck.includes('من بال') ? 'palPay' : 'cash'));
     const toAcc = normalizeAccount(args.toAccount || (textToCheck.includes('إلى بال') || textToCheck.includes('لبال') ? 'palPay' : 'cash'));
-    return await transferMoney({ amount, fromAccount: fromAcc, toAccount: toAcc, notes: args.notes }, userId, token);
+    return await transferMoney({ amount, fromAccount: fromAcc, toAccount: toAcc, notes: args.notes, date: args.date, historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth, day: args.day || args.transactionDay }, userId, token);
   }
 
   // V5 pre-execution guard: the same budget/transaction reads that used to happen after the write
