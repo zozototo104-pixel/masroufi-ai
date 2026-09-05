@@ -2955,8 +2955,18 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
     const previousVaultContribution = roundMoney(Number(existing.vaultContribution || 0));
     const nextVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
     const adjustmentDelta = roundMoney(nextVaultContribution - previousVaultContribution);
-    const previousVaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
-    const currentBalance = roundMoney(previousVaultBalance + adjustmentDelta);
+    let metaBootstrapCyclesRead = 0;
+    let previousVaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
+    if (!metaSnap.exists) {
+      const bootstrapSnap = await tx.get(firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').limit(1000) as any);
+      const bootstrapDocs = (bootstrapSnap as any).docs || [];
+      metaBootstrapCyclesRead = bootstrapDocs.length;
+      previousVaultBalance = roundMoney(bootstrapDocs
+        .map((d: any) => ({ id: d.id, ...d.data() }))
+        .filter((cycle: any) => cycle.id !== period.cycleId && cycle.cycleId !== period.cycleId)
+        .reduce((sum: number, cycle: any) => sum + Number(cycle.vaultContribution || 0), 0));
+    }
+    const currentBalance = roundMoney(previousVaultBalance + nextVaultContribution);
     const adjustments = Array.isArray(existing.adjustments) ? existing.adjustments.slice(-20) : [];
     if (Math.abs(adjustmentDelta) >= 0.005) {
       adjustments.push({
