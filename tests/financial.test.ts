@@ -719,7 +719,15 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   assert.ok(appSrc.includes("scope === 'vault'"), 'vault-only refresh must avoid a full dashboard fetch');
 });
 
-test('VAULT-13: Savings Vault is separated from cash, PalPay, debt, and Personal Voice', async () => {
+test('VAULT-13: Savings Vault refuses unsafe partial or saturated authoritative commits', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('AUTHORITATIVE_FIRESTORE_READ_REQUIRED'), 'partial/fallback reads must not write vault records');
+  assert.ok(toolsSrc.includes('SALARY_CYCLE_TRANSACTION_LIMIT_REACHED'), 'limit saturation must not become an authoritative surplus');
+  assert.ok(toolsSrc.includes('limitReached'), 'cycle transaction query must report when it hits its read limit');
+  assert.ok(toolsSrc.includes('metaBootstrapCyclesRead'), 'missing vault meta must bootstrap from existing cycle docs, not from a limited history page');
+});
+
+test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal Voice', async () => {
   const vaultSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/salaryCycle.ts'), 'utf8'));
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   assert.ok(vaultSrc.includes("type === 'transfer'"), 'internal transfers must be excluded from income/expense');
