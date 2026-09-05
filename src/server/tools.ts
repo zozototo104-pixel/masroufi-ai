@@ -3656,7 +3656,21 @@ export async function wipeAllUserData(userId: string, token: string) {
     }
   } catch (e) {}
 
-  // 8. Wipe local disk & memoryStore cache so zero residual data exists
+  // 8. Delete derived meta/snapshot documents so no stale balances survive a wipe.
+  try {
+    const salaryCycleSnap = await adminDb.collection('users').doc(userId).collection('salaryCycles').get();
+    for (const d of salaryCycleSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('salaryCycles').doc(d.id).delete();
+    }
+  } catch (e) {}
+  try {
+    const metaSnap = await adminDb.collection('users').doc(userId).collection('meta').get();
+    for (const d of metaSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('meta').doc(d.id).delete();
+    }
+  } catch (e) {}
+
+  // 9. Wipe local disk & memoryStore cache so zero residual data exists
   clearAllLocalUserData(userId);
 
   return {
