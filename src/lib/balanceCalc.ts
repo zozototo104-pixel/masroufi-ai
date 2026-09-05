@@ -12,6 +12,11 @@ import { parseFiniteAmount } from './amount';
  */
 
 // Canonical account normalization shared by server tools, atomic operations, and reports.
+export function isVaultAccount(acc: any): boolean {
+  const s = String(acc || '').toLowerCase().trim();
+  return s === 'vault' || s.includes('vault') || s.includes('خزن') || s.includes('مقفل') || s.includes('مغلق');
+}
+
 export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
   if (!acc) return 'cash';
   const s = String(acc).toLowerCase().trim();
