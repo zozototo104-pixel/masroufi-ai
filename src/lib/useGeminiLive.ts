@@ -378,6 +378,22 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           return;
         }
 
+        if (msg.liveError) {
+          clearLiveReadyWatchdog();
+          clearResponseWatchdog();
+          if (!msg.liveQuotaExceeded) {
+            setError(msg.message || 'انقطع مسار Gemini Live مؤقتاً. جرّب إعادة تشغيل الصوت أو استخدم الكتابة مؤقتاً.');
+          }
+        }
+
+        if (msg.liveClosed && receivedAudioFramesRef.current === 0) {
+          clearLiveReadyWatchdog();
+          clearResponseWatchdog();
+          setStatus('idle');
+          setIsRecording(false);
+          setError('أغلقت جلسة Gemini Live قبل وصول أي صوت. جرّب إعادة تشغيل الصوت، وإذا تكررت فافحص حصة Gemini Live أو مفاتيح API.');
+        }
+
         if (msg.error) {
           setError(msg.error);
           setTimeout(() => setError(null), 4000);
