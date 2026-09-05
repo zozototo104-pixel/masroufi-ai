@@ -37,7 +37,15 @@ function parseDateString(value: unknown, opts: { now: Date; year?: unknown } = {
   if (slash) {
     const [, d, m, y] = slash;
     const year = Number(y), month = Number(m), day = Number(d);
-    return isValidDateParts(year, month, day) ? { year, month, day } : null;
+    return isValidDateParts(year, month, day) ? { year, month, day, short: false } : null;
+  }
+
+  const shortSlash = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})$/);
+  if (shortSlash) {
+    const [, d, m] = shortSlash;
+    const month = Number(m), day = Number(d);
+    const year = inferShortDateYear(month, day, opts.now, opts.year);
+    return isValidDateParts(year, month, day) ? { year, month, day, short: true } : null;
   }
 
   return null;
