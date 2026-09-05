@@ -1179,19 +1179,27 @@ export async function sendPalPayPayment(args: any, userId: string, token: string
     DEFAULT_BUDGETS['تحويلات PalPay'] = 1000;
   }
 
-  const writeResult = await txRef.set(tx);
+  let atomicResult: Awaited<ReturnType<typeof atomicAddTransaction>>;
+  try {
+    atomicResult = await atomicAddTransaction(userId, tx, { riskConfirmed: Boolean(args.riskConfirmed) });
+  } catch (e: any) {
+    return { success: false, retryable: true, reason: 'PALPAY_ATOMIC_WRITE_FAILED', message: `تعذر حفظ تحويل PalPay بأمان: ${e?.message || 'unknown error'}` };
+  }
+  if (!atomicResult.ok) {
+    const failAvailable = (atomicResult as any).available;
+    return { success: false, needsClarification: true, reason: (atomicResult as any).reason, message: failAvailable !== undefined ? `رصيد PalPay المتاح هو ${failAvailable} ₪ فقط.` : 'تعذر تنفيذ تحويل PalPay بأمان.' };
+  }
 
   await addNotification(userId, `تم تحويل ${amount} ₪ إلى ${recipientName} (${normalizedPhone}) عبر PalPay بنجاح.`, 'success', adminDb);
 
-  const balances = await getBalance({}, userId, token);
   return {
     success: true,
-    transactionId: txRef.id,
+    transactionId: atomicResult.docId,
     operationId,
-    currentBalances: balances.balances,
-    durability: writeResult.durability,
-    pending: writeResult.pending,
-    partial: balances.partial || writeResult.pending,
+    currentBalances: atomicResult.balances,
+    durability: 'committed',
+    pending: false,
+    partial: false,
   };
 }
 
