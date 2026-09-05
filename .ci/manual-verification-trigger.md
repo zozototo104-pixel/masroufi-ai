@@ -1,9 +1,9 @@
 # Manual CI verification trigger
 
-Run dependency audit with details printed into .ci/last-run.md.
+Run dependency audit after fixing audit outcome reporting.
 
 Goal:
-- identify exact vulnerable packages
-- decide safe package-lock/package.json remediation without npm audit fix --force
+- show npm audit package details in .ci/last-run.md
+- identify safe fixes for moderate vulnerabilities
 
-Timestamp: 2026-09-05T13:32:00+03:00
+Timestamp: 2026-09-05T13:40:00+03:00
