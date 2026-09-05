@@ -149,6 +149,9 @@ export default function App() {
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
   const [vaultCycleMessage, setVaultCycleMessage] = useState<string>('');
+  const [vaultReleaseAmount, setVaultReleaseAmount] = useState('');
+  const [vaultReleaseTarget, setVaultReleaseTarget] = useState<'cash' | 'palPay'>('cash');
+  const [isVaultReleaseLoading, setIsVaultReleaseLoading] = useState(false);
   const localSalaryCycleOptions = buildLocalSalaryCycleOptions(12);
   const vaultCycleMap = new Map<string, any>();
   if (vaultData?.currentCycle?.cycleId) vaultCycleMap.set(vaultData.currentCycle.cycleId, vaultData.currentCycle);
