@@ -1976,18 +1976,19 @@ export async function transferMoney(args: any, userId: string, token: string) {
     return { error: "Amount must be greater than 0" };
   }
 
-  const fromAccount = normalizeAccount(args.fromAccount || 'cash');
+  const fromAccount = normalizeLedgerAccount(args.fromAccount || args.account || 'cash');
   if (fromAccount === 'debt' && !args.toAccount) {
     return { success: false, needsClarification: true, reason: 'MISSING_BORROW_DESTINATION', message: 'استلمت المبلغ نقدي (كاش) أم في محفظة PalPay؟' };
   }
-  let toAccount = normalizeAccount(args.toAccount || (fromAccount === 'cash' ? 'palPay' : 'cash'));
+  let toAccount = normalizeLedgerAccount(args.toAccount || (fromAccount === 'cash' ? 'palPay' : 'cash'));
   
   if (fromAccount === toAccount) {
     toAccount = fromAccount === 'cash' ? 'palPay' : 'cash';
   }
 
-  const fromName = fromAccount === 'palPay' ? 'PalPay' : fromAccount === 'debt' ? 'الديون' : 'النقدي';
-  const toName = toAccount === 'palPay' ? 'PalPay' : toAccount === 'debt' ? 'الديون' : 'النقدي';
+  const accountDisplayName = (account: string) => account === 'palPay' ? 'PalPay' : account === 'debt' ? 'الديون' : account === 'vault' ? 'الخزنة' : 'النقدي';
+  const fromName = accountDisplayName(fromAccount);
+  const toName = accountDisplayName(toAccount);
   const creditor = String(args.creditor || args.person || args.merchant || '').trim();
 
   // Borrowing money (debt -> cash/PalPay) must identify the creditor; otherwise later repayment cannot be resolved safely.
