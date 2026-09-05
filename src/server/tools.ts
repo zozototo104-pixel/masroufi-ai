@@ -1075,28 +1075,20 @@ export async function addTransaction(args: any, userId: string, token: string) {
     console.warn('Savings Vault recalculation failed after committed transaction; preserving committed transaction success:', vaultErr);
   }
   
-  // A post-commit balance refresh is informational only. The transaction has
-  // already committed atomically above, so a transient read failure must not
-  // turn a durable write into a failed Live tool call.
-  let balances: any = { balances: undefined, partial: true };
-  try {
-    balances = await getBalance({}, userId, token);
-  } catch (balanceErr) {
-    console.warn('Post-commit balance refresh failed; preserving committed transaction success:', balanceErr);
-  }
+  const committedBalances = 'balances' in atomicResult ? (atomicResult as any).balances : undefined;
   return {
     success: true,
     transactionId: actualTxId,
     operationId,
     transaction: { id: actualTxId, ...tx },
-    currentBalances: balances.balances,
+    currentBalances: committedBalances,
     // V6: explicit durability flag. UI/AI MUST inspect this.
-    // Important: do NOT conflate a partial balance read with a pending write.
-    // A transaction can be safely committed to Firestore while the follow-up balance read is partial.
+    // The balance snapshot is updated in the same Firestore transaction as the ledger write,
+    // so no post-commit full-ledger balance refresh is needed.
     durability: writeResult!.durability,
     pending: writeResult!.pending,
     partial: writeResult!.pending,
-    balanceReadPartial: Boolean(balances.partial),
+    balanceReadPartial: false,
     cloudStorageConfirmed: writeResult!.durability === 'committed',
     cloudStoragePending: writeResult!.pending,
     message: writeResult!.durability === 'committed'
