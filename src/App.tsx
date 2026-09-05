@@ -2767,6 +2767,78 @@ export default function App() {
         );
       })()}
 
+      {/* Savings Vault Modal */}
+      {showVault && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[105] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col p-6 shadow-2xl relative">
+            <button onClick={() => setShowVault(false)} className="absolute top-4 left-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-2.5 bg-cyan-500/20 text-cyan-400 rounded-2xl border border-cyan-500/30">
+                <HardDrive className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">الخزنة · Savings Vault</h2>
+                <p className="text-xs text-slate-400">كل فائض محفوظ حسب دورة الراتب 27→26، بدون خلط بين الأشهر وبدون تعديل العمليات الأصلية.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1">رصيد الخزنة</p>
+                <p className="text-3xl font-black text-cyan-300">{Number(vaultData?.vaultBalance || 0).toLocaleString()} ₪</p>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1">الدورة الحالية</p>
+                <p className="text-sm font-bold text-white">{vaultData?.currentCycle?.name || 'دورة الراتب الحالية'}</p>
+                <p className="text-xs text-slate-400 mt-1">{vaultData?.currentCycle?.cycleStart || '—'} → {vaultData?.currentCycle?.cycleEnd || '—'}</p>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                <p className="text-xs text-slate-400 mb-1">آلية الفصل</p>
+                <p className="text-sm font-bold text-white">فائض الدورة ≠ الرصيد النقدي</p>
+                <p className="text-xs text-slate-500 mt-1">الخزنة ملخص مستقل ولا تُنشئ دخلاً جديداً.</p>
+              </div>
+            </div>
+
+            <div className="overflow-auto rounded-2xl border border-slate-800">
+              <table className="w-full text-right text-xs sm:text-sm">
+                <thead className="bg-slate-950 text-slate-300 sticky top-0">
+                  <tr>
+                    <th className="p-3">دورة الراتب</th>
+                    <th className="p-3">الفترة</th>
+                    <th className="p-3">الدخل</th>
+                    <th className="p-3">المصروفات</th>
+                    <th className="p-3">فائض الدورة</th>
+                    <th className="p-3">للخزنة</th>
+                    <th className="p-3">الحالة</th>
+                    <th className="p-3">آخر تحديث</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(vaultData?.cycles || []).length > 0 ? (vaultData.cycles || []).map((cycle: any) => (
+                    <tr key={cycle.cycleId || cycle.id} className="border-t border-slate-800 hover:bg-slate-800/40">
+                      <td className="p-3 font-bold text-white">{cycle.name || cycle.cycleId}</td>
+                      <td className="p-3 text-slate-300">{cycle.cycleStart} → {cycle.cycleEnd}</td>
+                      <td className="p-3 text-emerald-300">{Number(cycle.totalIncome || 0).toLocaleString()} ₪</td>
+                      <td className="p-3 text-rose-300">{Number(cycle.totalExpense || 0).toLocaleString()} ₪</td>
+                      <td className={`p-3 font-bold ${Number(cycle.surplus || 0) >= 0 ? 'text-cyan-300' : 'text-amber-300'}`}>{Number(cycle.surplus || 0).toLocaleString()} ₪</td>
+                      <td className="p-3 text-cyan-300 font-bold">{Number(cycle.vaultContribution || 0).toLocaleString()} ₪</td>
+                      <td className="p-3"><span className={`px-2 py-1 rounded-full text-[11px] border ${cycle.status === 'closed' ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'}`}>{cycle.status === 'closed' ? 'مغلقة' : 'مفتوحة'}</span></td>
+                      <td className="p-3 text-slate-400">{cycle.updatedAt ? new Date(cycle.updatedAt).toLocaleString('ar') : '—'}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-slate-400">لا توجد دورات راتب مخزنة بعد. سيتم إنشاء ملخص الدورة عند تسجيل أو تعديل عملية داخلها أو عند سؤال الخبير الصوتي عنها.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Savings Goals Modal */}
       {showSavings && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[105] flex items-center justify-center p-4">
