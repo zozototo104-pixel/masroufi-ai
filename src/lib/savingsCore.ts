@@ -164,6 +164,9 @@ export function buildSavingsGoalPlan(input: {
     monthlyRequired,
     monthlySavedAmount,
     monthlyNetAvailable,
+    savingsPeriodLabel: savingsPeriod.label,
+    savingsPeriodStart: savingsPeriod.startIso,
+    savingsPeriodEndExclusive: savingsPeriod.endExclusiveIso,
     alertLevel,
     alertMessage,
   };
