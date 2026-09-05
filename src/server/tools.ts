@@ -1806,33 +1806,75 @@ export async function searchMarketInformation(args: any, userId: string, token: 
   };
 }
 
-export async function getBalance(args:any,userId:string,token:string){
-  // Financial reads use Firestore as the single source of truth. FakeDb remains
-  // available elsewhere for offline display/cache behavior, but it must not be
-  // used to certify a financial balance or a just-committed transaction.
+export async function repairAccountBalanceSnapshot(args:any,userId:string,token:string){
   try {
-    const snap = await firebaseAdminDb.collection('transactions').where('userId','==',userId).get();
-    const balances = calculateBalancesFromDocs(snap.docs);
-    return {
-      balances,
-      total: balances.cash + balances.palPay,
-      partial: false,
-      cloudStorageConfirmed: true,
-      source: 'firestore',
-    };
+    const txSnap = await firebaseAdminDb.collection('transactions').where('userId','==',userId).get();
+    const balances = calculateBalancesFromDocs(txSnap.docs);
+    const now = new Date().toISOString();
+    await firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances').set({
+      userId,
+      cash: roundMoney(Number(balances.cash || 0)),
+      palPay: roundMoney(Number(balances.palPay || 0)),
+      debt: roundMoney(Number(balances.debt || 0)),
+      total: roundMoney(Number(balances.cash || 0) + Number(balances.palPay || 0)),
+      source: 'repair_full_ledger',
+      repairedAt: now,
+      updatedAt: now,
+      transactionDocsRead: txSnap.docs.length,
+      version: 1,
+    }, { merge: true });
+    return { success: true, balances, partial: false, transactionDocsRead: txSnap.docs.length, source: 'repair_full_ledger' };
+  } catch (e:any) {
+    return { success: false, retryable: true, partial: true, reason: 'ACCOUNT_BALANCE_REPAIR_FAILED', error: e?.message || String(e) };
+  }
+}
+
+export async function getBalance(args:any,userId:string,token:string){
+  // Normal financial reads are O(1): one account balance snapshot document.
+  // Full-ledger reconstruction is limited to one-time bootstrap or explicit repair.
+  try {
+    const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances');
+    const metaSnap = await metaRef.get();
+    if (metaSnap.exists) {
+      const data = metaSnap.data() || {};
+      const cash = roundMoney(Number(data.cash || 0));
+      const palPay = roundMoney(Number(data.palPay || 0));
+      const debt = roundMoney(Number(data.debt || 0));
+      const balances = { cash, palPay, debt, total: roundMoney(cash + palPay) };
+      return {
+        balances,
+        total: balances.total,
+        partial: false,
+        cloudStorageConfirmed: true,
+        source: 'accountBalances',
+        readEfficiency: { metaDocsRead: 1, transactionDocsRead: 0 },
+      };
+    }
+
+    const repaired = await repairAccountBalanceSnapshot({ reason: 'missing_account_balance_snapshot_bootstrap' }, userId, token);
+    if (repaired.success) {
+      return {
+        balances: repaired.balances,
+        total: repaired.balances.cash + repaired.balances.palPay,
+        partial: false,
+        cloudStorageConfirmed: true,
+        source: 'bootstrap_full_ledger_once',
+        readEfficiency: { metaDocsRead: 1, transactionDocsRead: repaired.transactionDocsRead },
+      };
+    }
+    throw new Error(repaired.error || 'balance snapshot repair failed');
   } catch (e: any) {
-    // Offline/read-failure fallback is display-only: return the last local view
-    // if available, explicitly marked partial. Never manufacture zero balances.
     const localDb = getDb(token);
-    const cachedSnap = await localDb.collection('transactions').where('userId','==',userId).get();
+    const cachedSnap = await localDb.collection('transactions').where('userId','==',userId).limit(300).get();
     const cachedBalances = calculateBalancesFromDocs(cachedSnap.docs);
     return {
       balances: cachedBalances,
       total: cachedBalances.cash + cachedBalances.palPay,
       partial: true,
       cloudStorageConfirmed: false,
-      source: 'offline-cache',
+      source: 'offline-cache-bounded',
       error: e?.message || 'Firestore balance read failed',
+      readEfficiency: { metaDocsRead: 1, transactionDocsRead: cachedSnap.docs.length, boundedFallback: true, limit: 300 },
     };
   }
 }
