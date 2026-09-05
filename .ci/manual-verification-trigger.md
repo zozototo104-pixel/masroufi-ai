@@ -1,14 +1,16 @@
 # Manual CI verification trigger
 
-Verification requested after full financial behavior audit.
+Final verification after salary-cycle savings and financial behavior fixes.
 
 Scope:
-- salary cycle 27→26 for salary, expenses, reports, and savings alerts
-- cash/PalPay/debt transfers preserve explicit historical dates
-- cash debt borrowing counted as inflow, not expense or vault-eligible income
-- local market memory reads bounded and real-market prompt enforced
-- live audio low-latency buffer and no refresh storms on close/error
+- salary credited on 27/6 belongs to July salary cycle
+- expenses from 27/6 through 26/7 belong to July salary cycle
+- transfer dates are preserved for cash/PalPay/debt transfers
+- cash debt borrowing is inflow, not expense, and not vault-eligible surplus
+- savings goals use salary-cycle windows and bounded contribution reads
+- reports use salary-cycle month semantics unless calendarMonth is explicit
+- real local market tool only, with bounded saved market reads
+- voice path low-latency and no refresh storms on close/error
 - manual Savings Vault carryover adjustments
-- regression tests for cycle, savings, reports, market, and live behavior
 
-Timestamp: 2026-09-05T06:25:00Z
+Timestamp: 2026-09-05T06:45:00Z
