@@ -2715,11 +2715,21 @@ export async function updateTreasurerProfile(args: any, userId: string, token: s
 
 export async function getSavingsGoals(args: any, userId: string, token: string) {
   const adminDb = firebaseAdminDb;
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const thisMonth = now.toISOString().slice(0, 7);
+  const monthStart = `${thisMonth}-01T00:00:00.000Z`;
+  const nextMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const nextMonthStart = `${nextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
   const [snap, txSnap] = await Promise.all([
     adminDb.collection('users').doc(userId).collection('savingsGoals').get(),
-    adminDb.collection('transactions').where('userId', '==', userId).get().catch(() => ({ docs: [], partial: true }))
+    adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .where('date', '>=', monthStart)
+      .where('date', '<', nextMonthStart)
+      .limit(300)
+      .get()
+      .catch(() => ({ docs: [], partial: true }))
   ]);
-  const now = args?.now ? new Date(String(args.now)) : new Date();
   const txs = (txSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const rawGoals = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
     .sort((a: any, b: any) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
