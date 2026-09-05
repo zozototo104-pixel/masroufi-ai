@@ -921,3 +921,35 @@ test('READS-06: RESOURCE_EXHAUSTED must stop dashboard fan-out and be negative-c
   assert.ok(serverSrc.includes('cachedCloudHealth = { cachedAtMs: nowMs, body: errorBody, quotaExhausted: true }'), 'server must negative-cache RESOURCE_EXHAUSTED');
 });
 
+test('VAULT-CURRENCY-01: manual vault carryover preserves original ILS/USD/EUR amounts separately', () => {
+  const entries = normalizeVaultAdjustmentEntries({
+    amounts: [
+      { amount: 1000, currency: 'شيكل', source: 'رصيد قديم' },
+      { amount: 300, currency: 'دولار', source: 'رصيد قديم' },
+      { amount: 200, currency: 'يورو', source: 'رصيد قديم' },
+    ],
+  });
+  assert.deepEqual(entries.map((e) => [e.amount, e.currency]), [[1000, 'ILS'], [300, 'USD'], [200, 'EUR']]);
+  const delta = entries.reduce((map: Record<string, number>, entry) => addVaultCurrencyAmount(map, entry.currency, entry.amount), {});
+  assert.deepEqual(delta, { ILS: 1000, USD: 300, EUR: 200 });
+});
+
+test('VAULT-CURRENCY-02: currency deltas can be repaired from old and new vault adjustment shapes', () => {
+  assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ amount: 50, currency: 'USD' }), { USD: 50 });
+  assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ originalAmount: 70, originalCurrency: 'EUR' }), { EUR: 70 });
+  assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ entries: [{ amount: 20, currency: 'شيكل' }, { amount: 10, currency: ' }] }), { ILS: 20, USD: 10 });
+  assert.deepEqual(mergeVaultCurrencyDeltas({ ILS: 100 }, { USD: 5, EUR: 8 }), { ILS: 100, USD: 5, EUR: 8 });
+  assert.equal(normalizeVaultCurrency('دولار أمريكي'), 'USD');
+});
+
+test('VAULT-CURRENCY-03: tools and UI expose multi-currency vault fields without touching cash/PalPay/debt', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(toolsSrc.includes('normalizeVaultAdjustmentEntries'), 'vault adjustment tool must parse multi-currency entries');
+  assert.ok(toolsSrc.includes('balanceByCurrency'), 'vault meta must persist per-currency balances');
+  assert.ok(toolsSrc.includes('amountIlsEquivalent'), 'vault must keep an ILS equivalent for summary display');
+  assert.ok(toolsSrc.includes('VAULT_FX_RATE_UNAVAILABLE'), 'foreign currency vault entries must fail safely if FX is unavailable');
+  assert.ok(toolsSrc.includes('affectsCash: false') && toolsSrc.includes('affectsPalPay: false') && toolsSrc.includes('affectsDebt: false'), 'manual vault carryover must not mutate spendable balances or debts');
+  assert.ok(appSrc.includes('vaultBalanceByCurrency'), 'vault UI must show per-currency balances');
+});
+
