@@ -3602,6 +3602,7 @@ export async function queryTransactions(args: any, userId: string, token: string
 
   const total = roundMoney(filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0));
   const summary = summarizeTransactionsForTool(filtered);
+  const salaryCycleCashFlow = salaryCyclePeriod ? summarizeSalaryCycleTransactions(filtered) : null;
   logFirestoreReadDiagnostics('query_transactions', {
     userId,
     queryType: salaryCyclePeriod ? 'salary_cycle_transactions' : 'transactions_bounded',
