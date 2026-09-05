@@ -937,7 +937,7 @@ test('VAULT-CURRENCY-01: manual vault carryover preserves original ILS/USD/EUR a
 test('VAULT-CURRENCY-02: currency deltas can be repaired from old and new vault adjustment shapes', () => {
   assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ amount: 50, currency: 'USD' }), { USD: 50 });
   assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ originalAmount: 70, originalCurrency: 'EUR' }), { EUR: 70 });
-  assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ entries: [{ amount: 20, currency: 'شيكل' }, { amount: 10, currency: ' }] }), { ILS: 20, USD: 10 });
+  assert.deepEqual(deriveVaultAdjustmentCurrencyDelta({ entries: [{ amount: 20, currency: 'شيكل' }, { amount: 10, currency: 'USD' }] }), { ILS: 20, USD: 10 });
   assert.deepEqual(mergeVaultCurrencyDeltas({ ILS: 100 }, { USD: 5, EUR: 8 }), { ILS: 100, USD: 5, EUR: 8 });
   assert.equal(normalizeVaultCurrency('دولار أمريكي'), 'USD');
 });
