@@ -357,7 +357,7 @@ function liveRefreshScopeForTools(functionResponses: Array<{ name: string; respo
   const names = functionResponses.map(r => r.name).filter(Boolean);
   if (names.length === 0) return { refresh: false, scope: 'none' };
   const hasSuccessfulMutation = functionResponses.some((r: any) => r?.response?.success === true && !r?.response?.skipped);
-  if (names.some(name => ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase'].includes(name)) && hasSuccessfulMutation) {
+  if (names.some(name => ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'repair_account_balance_snapshot'].includes(name)) && hasSuccessfulMutation) {
     return { refresh: true, scope: 'financial' };
   }
   if (names.some(name => ['recalculate_salary_cycle', 'get_salary_cycle_summary', 'get_savings_vault'].includes(name))) {
