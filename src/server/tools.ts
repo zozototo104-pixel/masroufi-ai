@@ -3431,6 +3431,18 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
         transactionalCommit: true,
       },
     };
+    if (nextLockTxs.cash) tx.set(vaultLockRefs.cash as any, { ...nextLockTxs.cash, id: vaultLockRefs.cash.id }, { merge: false });
+    else if (existingCashLockSnap.exists) tx.delete(vaultLockRefs.cash as any);
+    if (nextLockTxs.palPay) tx.set(vaultLockRefs.palPay as any, { ...nextLockTxs.palPay, id: vaultLockRefs.palPay.id }, { merge: false });
+    else if (existingPalPayLockSnap.exists) tx.delete(vaultLockRefs.palPay as any);
+    tx.set(accountBalanceRef as any, accountBalanceSnapshotPayloadForVault(userId, nextAccountBalances, 'salary_cycle_vault_lock', {
+      lastCycleId: period.cycleId,
+      lastVaultLockAmount: nextVaultContribution,
+      lastVaultLockCash: vaultLockAllocation.cash,
+      lastVaultLockPalPay: vaultLockAllocation.palPay,
+      accountBalanceReadSource: accountBalanceSnap.exists ? 'snapshot' : 'bootstrap_full_ledger',
+      accountBalanceBootstrapDocsRead: ((balanceBootstrapSnap as any)?.docs || []).length || 0,
+    }), { merge: true });
     tx.set(cycleRef as any, record, { merge: true });
     tx.set(metaRef as any, {
       userId,
