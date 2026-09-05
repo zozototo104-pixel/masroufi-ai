@@ -146,7 +146,7 @@ test('TOOL-09: commitments support paid/cancelled status (MF-1)', async () => {
     'createCommitment sets initial status=pending');
   assert.ok(src.includes("'pending', 'paid', 'cancelled'"),
     'updateCommitmentStatus accepts pending/paid/cancelled');
-  assert.ok(src.includes("c.status === 'paid' || c.status === 'cancelled'"),
+  assert.ok(src.includes("c.status !== 'paid' && c.status !== 'cancelled'"),
     'forecast excludes paid/cancelled commitments');
 });
 
