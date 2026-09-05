@@ -1,15 +1,18 @@
 # Manual CI verification trigger
 
-Integrated verification after user-reported blockers.
+Final verification after all code changes are complete.
 
-Fixes:
-- salary income on 27/6 no longer depends on index-sensitive preflight range query
-- salary duplicate protection uses users/{uid}/salaryIncomeGuards guard doc inside atomicAddTransaction
-- atomicAddTransaction reads/writes uniqueness guard in the same Firestore transaction
-- wipe deletes and verifies salaryIncomeGuards
-- Live tool logs safe outcome fields: success/reason/retryable/transactionCommitted without financial details
-- full financial tool response logging is redacted
-- live quota classifier and echo gate remain intact
+User blockers fixed:
+- salary dated 27/6 for July cycle should save to Firestore without preflight range-query/index dependency
+- Live audio should identify quota errors clearly and should reduce self-interruption/echo loops
+
+Implementation points:
+- addTransaction normalizes short dates before income guards
+- salary writes skip index-sensitive income preflight query
+- salaryIncomeGuards prevent duplicate salary in the same 27→26 salary cycle inside atomicAddTransaction
+- wipe removes salaryIncomeGuards
+- Live tool outcome logging is safe and redacted
+- Gemini Live quota/rate-limit errors are surfaced explicitly
 
 Expected gates:
 - install
@@ -19,4 +22,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T14:58:00+03:00
+Timestamp: 2026-09-05T14:59:00+03:00
