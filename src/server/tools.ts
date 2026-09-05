@@ -3229,7 +3229,7 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
       expenseCount: summary.expenseCount,
       transferCount: summary.transferCount,
       debtBorrowingCount: summary.debtBorrowingCount,
-      sourceVersion: stableDocId(`${period.cycleId}:${summary.totalIncome}:${summary.totalExpense}:${summary.transactionCount}:${nextVaultContribution}`),
+      sourceVersion: stableDocId(`${period.cycleId}:${summary.totalIncome}:${summary.totalInflow}:${summary.debtCashInflow}:${summary.totalExpense}:${summary.transactionCount}:${nextVaultContribution}`),
       adjustments,
       cumulativeVaultBalance: currentBalance,
       readEfficiency: {
