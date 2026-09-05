@@ -1993,8 +1993,19 @@ export async function transferMoney(args: any, userId: string, token: string) {
     }
   }
 
+  const transferDateResult = normalizeHistoricalTransactionDate({
+    date: args.date,
+    historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth,
+    day: args.day || args.transactionDay,
+    now: new Date(),
+  });
+  if (transferDateResult.ok === false) {
+    return { success: false, needsClarification: true, reason: transferDateResult.reason, message: transferDateResult.message };
+  }
+
   // Create ONE single transaction of type 'transfer'
   const txRef = adminDb.collection('transactions').doc();
+  const transferNow = new Date().toISOString();
   const tx = {
     userId,
     amount,
