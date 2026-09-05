@@ -3865,6 +3865,7 @@ export async function wipeAllUserData(userId: string, token: string) {
   await deleteQuery('marketDirectory', userDoc.collection('marketDirectory'));
   await deleteQuery('salaryCycles', userDoc.collection('salaryCycles'));
   await deleteQuery('salaryIncomeGuards', userDoc.collection('salaryIncomeGuards'));
+  await deleteQuery('incomeGuards', userDoc.collection('incomeGuards'));
   await deleteQuery('savingsVaultAdjustments', userDoc.collection('savingsVaultAdjustments'));
   await deleteQuery('meta', userDoc.collection('meta'));
   await deleteQuery('treasurer', userDoc.collection('treasurer'));
