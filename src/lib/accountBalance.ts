@@ -1,7 +1,7 @@
 import { parseFiniteAmount } from './amount';
-import { normalizeAccount, type Balances } from './balanceCalc';
+import { normalizeAccount, normalizeLedgerAccount, type Balances } from './balanceCalc';
 
-export type AccountBalanceDelta = { cash: number; palPay: number; debt: number };
+export type AccountBalanceDelta = { cash: number; palPay: number; debt: number; vault: number };
 
 export function roundBalance(value: number): number {
   return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
