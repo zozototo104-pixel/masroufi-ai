@@ -12,6 +12,7 @@ import {
 } from '../lib/dataUtils';
 import { auth } from '../lib/firebase';
 import { set as idbSet } from 'idb-keyval';
+import { clearPendingOpsForUser } from '../lib/offlineQueue';
 
 interface DataBackupModalProps {
   isOpen: boolean;
