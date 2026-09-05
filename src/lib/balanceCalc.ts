@@ -25,11 +25,19 @@ export function normalizeAccount(acc: any): 'cash' | 'palPay' | 'debt' {
   return 'cash';
 }
 
+export type LedgerAccount = 'cash' | 'palPay' | 'debt' | 'vault';
+
+export function normalizeLedgerAccount(acc: any): LedgerAccount {
+  if (isVaultAccount(acc)) return 'vault';
+  return normalizeAccount(acc);
+}
+
 export interface Balances {
   cash: number;
   palPay: number;
   debt: number;
-  total: number; // cash + palPay (debt excluded from liquidity)
+  vault: number;
+  total: number; // available liquidity only: cash + palPay (vault/debt excluded)
 }
 
 export interface BalanceBreakdown {
