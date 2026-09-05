@@ -1,13 +1,13 @@
 # Manual CI verification trigger
 
-Verification requested after fixing expired Firebase token handling in backup workflows.
+Verification requested after fixing the root cause of Wipe reporting success while data remained.
 
-Scope:
-- DataBackupModal refreshes Firebase ID token before export/import/wipe
-- backup fetch retries once on HTTP 401 / expired token
-- CSV export uses full /api/data/export, not bounded /api/transactions
-- App dashboard refresh uses a fresh token after backup mutations
-- pending sync and targeted vault refresh use fresh tokens
-- regression tests AUTH-01/AUTH-02/EXPORT-01 added
+Root-cause fixes:
+- wipeAllUserData uses firebaseAdminDb, not getDb(token)
+- wipe no longer swallows deletion errors
+- wipe deletes root idempotency collections and savings contribution subcollections
+- wipe verifies every visible collection is empty before returning success
+- UI only shows success when verifiedEmpty=true and immediately zeros visible counters
+- regression test WIPE-01 added
 
-Timestamp: 2026-09-05T09:35:00+03:00
+Timestamp: 2026-09-05T10:05:00+03:00
