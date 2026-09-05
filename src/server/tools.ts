@@ -795,7 +795,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   if (type === 'income') {
     try {
-      const incomeGuardNow = new Date();
+      const incomeGuardCandidateDate = new Date(args.date || new Date().toISOString());
+      const incomeGuardNow = Number.isNaN(incomeGuardCandidateDate.getTime()) ? new Date() : incomeGuardCandidateDate;
       const incomeGuardMonth = incomeGuardNow.toISOString().slice(0, 7);
       const incomeGuardMonthStart = `${incomeGuardMonth}-01T00:00:00.000Z`;
       const incomeGuardNextMonthDate = new Date(Date.UTC(incomeGuardNow.getUTCFullYear(), incomeGuardNow.getUTCMonth() + 1, 1));
