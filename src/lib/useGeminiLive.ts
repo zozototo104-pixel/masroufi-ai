@@ -171,8 +171,14 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           return;
         }
         setIsConnected(true);
-        setIsRecording(true);
-        setStatus('listening');
+        setIsRecording(false);
+        setStatus('thinking');
+        liveReadyWatchdogRef.current = window.setTimeout(() => {
+          liveReadyWatchdogRef.current = null;
+          if (wsRef.current === ws && ws.readyState === WebSocket.OPEN && !liveReadyRef.current) {
+            setError('اتصلنا بالسيرفر، لكن جلسة Gemini Live لم تصبح جاهزة بعد. هذا غالباً تأخير/حصة في Gemini Live أو إعادة تشغيل Render. جرّب الكتابة مؤقتاً أو أعد المحاولة بعد قليل.');
+          }
+        }, 25000);
         
         try {
           // Input context for recording (Gemini needs 16kHz)
