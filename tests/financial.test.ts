@@ -702,6 +702,8 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('.limit(requestedLimit)'), 'notifications must use the requested limit directly');
   assert.ok(!toolsSrc.includes('Math.max(requestedLimit, 100)'), 'notifications must not read 100 docs for a small request');
+  assert.ok(toolsSrc.includes("where('date', '>=', monthStart)"), 'monthly budgets/savings calculations must use date-bounded queries');
+  assert.ok(toolsSrc.includes("where('date', '<', nextMonthStart)"), 'monthly budgets/savings calculations must use exclusive month end bounds');
   assert.ok(toolsSrc.includes('.limit(100)'), 'reports list must remain limited');
   assert.ok(liveSrc.includes('if (msg.refresh)'), 'Live should refresh only on explicit refresh messages');
   assert.ok(!liveSrc.includes("msg.refresh || msg.status === 'ready'"), 'status ready must not create a second dashboard refresh');
