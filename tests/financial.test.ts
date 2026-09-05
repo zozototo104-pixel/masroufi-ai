@@ -597,3 +597,122 @@ test('REP-07: import/export preserves transactionType and creditor fields', () =
   }
 });
 
+test('VAULT-01: July salary cycle is 27/06 → 26/07 and closes on 27/07', () => {
+  const cycle = buildSalaryCycleForMonth(2026, 7, new Date('2026-07-27T00:00:00.000Z'));
+  assert.equal(cycle.cycleId, 'vault_2026_07');
+  assert.equal(cycle.cycleStart, '2026-06-27');
+  assert.equal(cycle.cycleEnd, '2026-07-26');
+  assert.equal(cycle.cycleEndExclusive, '2026-07-27');
+  assert.equal(cycle.status, 'closed');
+});
+
+test('VAULT-02: August salary cycle is 27/07 → 26/08', () => {
+  const cycle = buildSalaryCycleForMonth(2026, 8, new Date('2026-08-20T12:00:00.000Z'));
+  assert.equal(cycle.cycleId, 'vault_2026_08');
+  assert.equal(cycle.cycleStart, '2026-07-27');
+  assert.equal(cycle.cycleEnd, '2026-08-26');
+  assert.equal(cycle.status, 'open');
+});
+
+test('VAULT-03: 26/07 belongs to July cycle and 27/07 belongs to August cycle', () => {
+  const july = getSalaryCycleForDate('2026-07-26T22:00:00.000Z', new Date('2026-09-05T00:00:00.000Z'));
+  const august = getSalaryCycleForDate('2026-07-27T00:00:00.000Z', new Date('2026-09-05T00:00:00.000Z'));
+  assert.equal(july.cycleId, 'vault_2026_07');
+  assert.equal(august.cycleId, 'vault_2026_08');
+});
+
+test('VAULT-04: salary-cycle summary counts real income and real expense only', () => {
+  const summary = summarizeSalaryCycleTransactions([
+    tx({ type: 'income', account: 'cash', amount: 3000, category: 'دخل', subcategory: 'راتب' }),
+    tx({ type: 'expense', account: 'cash', amount: 400, category: 'طعام' }),
+    tx({ type: 'expense', account: 'palPay', amount: 100, category: 'مواصلات' }),
+    tx({ type: 'transfer', amount: 250, fromAccount: 'cash', toAccount: 'palPay', category: 'تحويل داخلي' }),
+    tx({ type: 'transfer', amount: 50, fromAccount: 'cash', toAccount: 'debt', transactionType: 'DEBT_PAYMENT' }),
+    tx({ type: 'transfer', amount: 200, fromAccount: 'debt', toAccount: 'cash', transactionType: 'DEBT_BORROWING' }),
+  ]);
+  assert.equal(summary.totalIncome, 3000);
+  assert.equal(summary.totalExpense, 500);
+  assert.equal(summary.surplus, 2500);
+  assert.equal(summary.transferCount, 3);
+});
+
+test('VAULT-05: positive, zero, and deficit cycle surplus behavior is explicit', () => {
+  assert.equal(summarizeSalaryCycleTransactions([
+    tx({ type: 'income', amount: 1000 }),
+    tx({ type: 'expense', amount: 600 }),
+  ]).surplus, 400);
+  assert.equal(summarizeSalaryCycleTransactions([
+    tx({ type: 'income', amount: 1000 }),
+    tx({ type: 'expense', amount: 1000 }),
+  ]).surplus, 0);
+  assert.equal(summarizeSalaryCycleTransactions([
+    tx({ type: 'income', amount: 1000 }),
+    tx({ type: 'expense', amount: 1200 }),
+  ]).surplus, -200);
+});
+
+test('VAULT-06: Arabic month 7 resolves as salary cycle July, not calendar July', () => {
+  const cycle = resolveSalaryCycleFromArgs({ month: '7', year: 2026 }, new Date('2026-09-05T00:00:00.000Z'));
+  assert.equal(cycle.cycleId, 'vault_2026_07');
+  assert.equal(cycle.cycleStart, '2026-06-27');
+  assert.equal(cycle.cycleEnd, '2026-07-26');
+});
+
+test('VAULT-07: salary cycle query is bounded by start/end dates and never a full ledger scan', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(src.includes("where('date', '>=', period.startIso)"), 'cycle query must lower-bound date');
+  assert.ok(src.includes("where('date', '<', period.endExclusiveIso)"), 'cycle query must upper-bound date exclusively');
+  assert.ok(src.includes('readTransactionsForSalaryCycle'), 'cycle recalculation must use the bounded helper');
+  assert.ok(!src.includes('readTransactionsForSalaryCycle(period, userId, token, Infinity)'), 'cycle recalculation must not request unbounded reads');
+});
+
+test('VAULT-08: recalculating the same cycle is idempotent through one salaryCycles doc', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(src.includes("collection('salaryCycles').doc(period.cycleId)"), 'cycle must be stored at deterministic cycleId');
+  assert.ok(src.includes('previousVaultContribution'), 'recalculation must compare prior contribution');
+  assert.ok(src.includes('nextVaultContribution - previousVaultContribution'), 'vault meta update must use delta, not duplicate insertion');
+});
+
+test('VAULT-09: old transaction edits recalculate only affected cycles', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(src.includes('recalculateCyclesForTransactionChange'), 'transaction changes must route through affected-cycle recalculation');
+  assert.ok(src.includes('periods.set(period.cycleId, period)'), 'date moves must deduplicate to one or two cycles only');
+  assert.ok(src.includes('transaction_metadata_updated'), 'date-only/metadata updates must still refresh the affected vault cycle');
+  assert.ok(src.includes('transaction_financial_updated'), 'amount/account/type updates must refresh the affected vault cycle');
+});
+
+test('VAULT-10: voice month questions and explicit date ranges have separate contracts', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(src.includes('شهر 7 يعني 27/06→26/07'), 'voice declaration must document salary-cycle interpretation for month 7');
+  assert.ok(src.includes('calendarMonth'), 'calendar month override must exist for explicit الشهر الميلادي requests');
+  assert.ok(src.includes('CUSTOM_PERIOD_REQUIRES_DATES'), 'custom period without dates must not become a broad query');
+});
+
+test('VAULT-11: query_transactions summarizes by default and does not send full ledgers to Gemini', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(src.includes('transactions: detailsRequested ? filtered : undefined'), 'transactions array must be omitted unless details are requested');
+  assert.ok(src.includes('omittedTransactions'), 'tool response should reveal omitted detail count without sending all objects');
+  assert.ok(src.includes('summarizeTransactionsForTool(filtered)'), 'tool must return grouped summary');
+});
+
+test('VAULT-12: Firestore read-cost regressions are guarded for notifications, reports, and refresh', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const liveSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/useGeminiLive.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(toolsSrc.includes('.limit(requestedLimit)'), 'notifications must use the requested limit directly');
+  assert.ok(!toolsSrc.includes('Math.max(requestedLimit, 100)'), 'notifications must not read 100 docs for a small request');
+  assert.ok(toolsSrc.includes('.limit(100)'), 'reports list must remain limited');
+  assert.ok(liveSrc.includes('if (msg.refresh)'), 'Live should refresh only on explicit refresh messages');
+  assert.ok(!liveSrc.includes("msg.refresh || msg.status === 'ready'"), 'status ready must not create a second dashboard refresh');
+  assert.ok(appSrc.includes('refreshDebounceRef'), 'App refresh events must be debounced');
+});
+
+test('VAULT-13: Savings Vault is separated from cash, PalPay, debt, and Personal Voice', async () => {
+  const vaultSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/salaryCycle.ts'), 'utf8'));
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(vaultSrc.includes("type === 'transfer'"), 'internal transfers must be excluded from income/expense');
+  assert.ok(vaultSrc.includes("transactionType || '') === 'DEBT_BORROWING'"), 'debt borrowing must not become income');
+  assert.ok(toolsSrc.includes("collection('meta').doc('savingsVault')"), 'vault balance must be stored separately from financial accounts');
+  assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
+});
+
