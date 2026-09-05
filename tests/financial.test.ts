@@ -908,3 +908,15 @@ test('WIPE-01: destructive wipe fixes root cause by using Admin Firestore, no sw
   assert.ok(modalSrc.includes('setCountOverride({ transactions: 0'), 'UI counters must reflect verified empty state immediately');
 });
 
+test('READS-06: RESOURCE_EXHAUSTED must stop dashboard fan-out and be negative-cached', async () => {
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  assert.ok(appSrc.includes('dashboardRefreshInFlightRef'), 'dashboard refreshes must be coalesced');
+  assert.ok(appSrc.includes('firestoreQuotaCooldownUntilRef'), 'client must remember quota cooldown');
+  assert.ok(appSrc.includes('applyCachedDashboardData'), 'quota exhaustion must use cached dashboard data');
+  assert.ok(appSrc.includes('skipping fan-out refresh'), 'quota exhaustion must skip downstream endpoint fan-out');
+  assert.ok(appSrc.includes('cloudHealth?.quotaExhausted === true'), 'client must honor explicit quota exhausted health flag');
+  assert.ok(serverSrc.includes('quotaExhausted ? 10 * 60_000 : 60_000'), 'cloud-health must cache quota exhaustion longer than normal health');
+  assert.ok(serverSrc.includes('cachedCloudHealth = { cachedAtMs: nowMs, body: errorBody, quotaExhausted: true }'), 'server must negative-cache RESOURCE_EXHAUSTED');
+});
+
