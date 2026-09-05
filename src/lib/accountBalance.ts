@@ -8,7 +8,7 @@ export function roundBalance(value: number): number {
 }
 
 export function zeroBalanceDelta(): AccountBalanceDelta {
-  return { cash: 0, palPay: 0, debt: 0 };
+  return { cash: 0, palPay: 0, debt: 0, vault: 0 };
 }
 
 export function txBalanceDelta(tx: any): AccountBalanceDelta {
