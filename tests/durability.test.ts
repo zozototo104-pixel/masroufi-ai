@@ -68,10 +68,10 @@ test('DUR-05: getBalance marks offline-cache fallback as partial', async () => {
     src.indexOf('export async function getBalance'),
     src.indexOf('export async function transferMoney')
   );
-  assert.ok(getBalanceBlock.includes("source: 'firestore'"),
-    'getBalance must identify authoritative Firestore reads');
-  assert.ok(getBalanceBlock.includes("source: 'offline-cache'"),
-    'getBalance fallback must be explicitly display-only offline cache');
+  assert.ok(getBalanceBlock.includes("source: 'accountBalances'"),
+    'getBalance must identify authoritative account balance snapshot reads');
+  assert.ok(getBalanceBlock.includes("source: 'offline-cache-bounded'"),
+    'getBalance fallback must be explicitly display-only bounded offline cache');
   assert.ok(getBalanceBlock.includes('partial: true'),
     'getBalance fallback must propagate partial=true when cloud balance read fails');
   assert.ok(getBalanceBlock.includes('cloudStorageConfirmed: false'),
