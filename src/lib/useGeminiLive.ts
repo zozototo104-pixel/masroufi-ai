@@ -14,7 +14,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const inputCtxRef = useRef<AudioContext | null>(null);
   const outputCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const processorSinkRef = useRef<GainNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const connectingRef = useRef(false);
+  const connectionEpochRef = useRef(0);
   
   // Track playback time to schedule consecutive audio chunks properly
   const nextPlayTimeRef = useRef<number>(0);
