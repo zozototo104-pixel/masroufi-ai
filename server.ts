@@ -1649,6 +1649,26 @@ ${relationshipContext}
 
 const activeLiveSocketsByUser = new Map<string, WebSocket>();
 
+function classifyGeminiLiveError(err: any): { quotaExceeded: boolean; message: string; code?: any; status?: any } {
+  const raw = [
+    err?.message,
+    err?.details,
+    err?.status,
+    err?.code,
+    err?.name,
+    JSON.stringify(err || {}),
+  ].filter(Boolean).join(' ');
+  const quotaExceeded = /RESOURCE_EXHAUSTED|quota|rate.?limit|429|too many requests/i.test(raw);
+  return {
+    quotaExceeded,
+    code: err?.code,
+    status: err?.status,
+    message: quotaExceeded
+      ? 'انتهت أو تجاوزت حصة Gemini Live API حالياً، لذلك الصوت المباشر لن يرد الآن. جرّب لاحقاً أو استخدم الكتابة مؤقتاً.'
+      : 'انقطع مسار Gemini Live مؤقتاً دون تنفيذ تحديث مالي.',
+  };
+}
+
 function setupLiveApi(wss: WebSocketServer) {
   wss.on("connection", (clientWs: WebSocket, req) => {
     console.log("Client connected to /live");
