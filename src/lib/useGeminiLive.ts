@@ -166,7 +166,11 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           processorRef.current = processor;
           
           source.connect(processor);
-          processor.connect(inputCtx.destination);
+          const processorSink = inputCtx.createGain();
+          processorSink.gain.value = 0;
+          processorSinkRef.current = processorSink;
+          processor.connect(processorSink);
+          processorSink.connect(inputCtx.destination);
           
           let userSpeechCounter = 0;
           processor.onaudioprocess = (e) => {
