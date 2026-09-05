@@ -26,8 +26,17 @@ export type SavingsGoalPlan = SavingsGoalRecord & {
   monthlyRequired: number;
   monthlySavedAmount: number;
   monthlyNetAvailable: number;
+  savingsPeriodLabel?: string;
+  savingsPeriodStart?: string;
+  savingsPeriodEndExclusive?: string;
   alertLevel: 'completed' | 'critical' | 'warning' | 'safe';
   alertMessage: string;
+};
+
+export type SavingsPeriodWindow = {
+  startIso?: string;
+  endExclusiveIso?: string;
+  label?: string;
 };
 
 export function roundMoney(value: number): number {
