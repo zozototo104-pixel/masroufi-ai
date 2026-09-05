@@ -2257,8 +2257,14 @@ export async function deleteTransaction(args: any, userId: string, token: string
       const data = atomicResult.deleted;
       const accName = data?.account === 'palPay' ? 'PalPay' : data?.account === 'debt' ? 'الديون' : 'النقدي';
       await addNotification(userId, `تم حذف عملية (${data?.notes || data?.category || ''} بقيمة ${data?.amount} ₪ من ${accName}) بنجاح.`, 'success', adminDb);
+      let vaultRecalculation: any[] = [];
+      try {
+        vaultRecalculation = await recalculateCyclesForTransactionChange(userId, token, data, null, 'transaction_deleted');
+      } catch (vaultErr) {
+        console.warn('Savings Vault recalculation failed after direct delete:', vaultErr);
+      }
       const balances = await getBalance({}, userId, token);
-      return { success: true, message: "تم حذف العملية بنجاح.", currentBalances: balances.balances };
+      return { success: true, message: "تم حذف العملية بنجاح.", currentBalances: balances.balances, vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean) };
     }
   }
 
