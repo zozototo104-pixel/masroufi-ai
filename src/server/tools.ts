@@ -1927,7 +1927,8 @@ export async function getBalance(args:any,userId:string,token:string){
       const cash = roundMoney(Number(data.cash || 0));
       const palPay = roundMoney(Number(data.palPay || 0));
       const debt = roundMoney(Number(data.debt || 0));
-      const balances = { cash, palPay, debt, total: roundMoney(cash + palPay) };
+      const vault = roundMoney(Number(data.vault || 0));
+      const balances = { cash, palPay, debt, vault, total: roundMoney(cash + palPay) };
       return {
         balances,
         total: balances.total,
