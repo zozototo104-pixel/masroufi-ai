@@ -1,11 +1,10 @@
 # Manual CI verification trigger
 
-Rerun with detailed not-ok context enabled in CI.
+Rerun after fixing the unterminated string literal in VAULT-CURRENCY-02.
 
 Scope:
 - multi-currency Savings Vault carryover
-- per-currency UI display
 - vaultCurrency helper tests
-- detailed test failure reporting
+- TypeScript/build/runtime gates
 
-Timestamp: 2026-09-05T10:49:00+03:00
+Timestamp: 2026-09-05T10:56:00+03:00
