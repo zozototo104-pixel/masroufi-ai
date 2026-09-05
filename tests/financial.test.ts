@@ -892,3 +892,19 @@ test('EXPORT-01: CSV backup export must use the full export endpoint, not dashbo
   assert.ok(!csvBlock.includes("/api/transactions"), 'CSV export must not use the bounded dashboard transaction endpoint');
 });
 
+test('WIPE-01: destructive wipe fixes root cause by using Admin Firestore, no swallowed errors, and verification', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const modalSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/components/DataBackupModal.tsx'), 'utf8'));
+  const wipeBlock = toolsSrc.slice(toolsSrc.indexOf('export async function wipeAllUserData'), toolsSrc.indexOf('export async function generateTreasurerReport'));
+  assert.ok(wipeBlock.includes('const adminDb = firebaseAdminDb'), 'wipe must use authoritative Admin Firestore, not getDb(token)/fallback');
+  assert.equal(wipeBlock.includes('const adminDb = getDb(token)'), false, 'wipe must not use token-backed fallback db');
+  assert.ok(wipeBlock.includes('throw new Error(`WIPE_PARTIAL_READ'), 'wipe must fail closed on partial reads');
+  assert.ok(wipeBlock.includes('WIPE_VERIFICATION_FAILED'), 'wipe must verify emptiness before returning success');
+  assert.ok(wipeBlock.includes('verifiedEmpty: true'), 'wipe success response must include verifiedEmpty=true');
+  assert.ok(wipeBlock.includes("collection('idempotency_keys')"), 'wipe must remove root idempotency records for the user');
+  assert.ok(wipeBlock.includes("collection('receiptIdempotency')"), 'wipe must remove receipt idempotency records for the user');
+  assert.ok(wipeBlock.includes("goalDoc.ref.collection('contributions')"), 'wipe must remove savings goal contribution subcollections');
+  assert.ok(modalSrc.includes('data.verifiedEmpty !== true'), 'UI must not show wipe success unless the server verified emptiness');
+  assert.ok(modalSrc.includes('setCountOverride({ transactions: 0'), 'UI counters must reflect verified empty state immediately');
+});
+
