@@ -3045,27 +3045,60 @@ export async function queryTransactions(args: any, userId: string, token: string
   // Historical entry can create many documents quickly. Do not read the full
   // user ledger on every assistant turn; bounded Firestore reads prevent quota
   // exhaustion that leaves the UI stuck on "thinking".
+  const startedAt = Date.now();
   const now = new Date();
-  const limit = Math.max(1, Math.min(300, Number(args.limit) || 120));
+  const detailsRequested = Boolean(args.includeTransactions || args.returnTransactions || args.details || args.includeDetails);
+  const limit = Math.max(1, Math.min(detailsRequested ? 300 : 120, Number(args.limit) || (detailsRequested ? 120 : 80)));
   const period = String(args.period || '').trim();
+  const explicitCalendarMonth = Boolean(args.calendarMonth || args.useCalendarMonth || /الشهر\s+الميلادي/i.test(String(args.userText || args.currentUserText || '')));
   let startIso = '';
-  let endIso = '';
+  let endExclusiveIso = '';
+  let salaryCyclePeriod: SalaryCyclePeriod | null = null;
 
-  if (period === 'today') {
+  if (period === 'custom' && (!args.startDate || !args.endDate)) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: 'CUSTOM_PERIOD_REQUIRES_DATES',
+      message: 'إذا كانت الفترة custom فلازم تحدد startDate و endDate بوضوح حتى لا أقرأ نطاقاً واسعاً من السجل.',
+      bounded: true,
+    };
+  }
+
+  const monthRequested = parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber) !== null;
+  const salaryCycleRequested = Boolean(args.salaryCycle || args.cycleId || args.salaryMonth || args.monthNumber)
+    || period === 'salary_cycle'
+    || period === 'current_salary_cycle'
+    || period === 'previous_salary_cycle'
+    || (period === 'this_month' && !explicitCalendarMonth)
+    || (monthRequested && !explicitCalendarMonth);
+
+  if (salaryCycleRequested) {
+    const cycleArgs = period === 'previous_salary_cycle'
+      ? { ...(args || {}), period: 'previous' }
+      : args;
+    salaryCyclePeriod = resolveSalaryCycleFromArgs(cycleArgs || {}, now);
+    startIso = salaryCyclePeriod.startIso;
+    endExclusiveIso = salaryCyclePeriod.endExclusiveIso;
+  } else if (period === 'today') {
     const today = now.toISOString().split('T')[0];
     startIso = `${today}T00:00:00.000Z`;
-    endIso = `${today}T23:59:59.999Z`;
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    endExclusiveIso = `${tomorrow.toISOString().slice(0, 10)}T00:00:00.000Z`;
   } else if (period === 'this_week') {
     startIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   } else if (period === 'this_month') {
     const thisMonth = now.toISOString().slice(0, 7);
     startIso = `${thisMonth}-01T00:00:00.000Z`;
   } else if (args.startDate || args.endDate) {
-    if (args.startDate) startIso = new Date(args.startDate).toISOString();
+    if (args.startDate) startIso = new Date(`${String(args.startDate).slice(0, 10)}T00:00:00.000Z`).toISOString();
     if (args.endDate) {
       const end = new Date(args.endDate);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(String(args.endDate))) end.setUTCHours(23, 59, 59, 999);
-      endIso = end.toISOString();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(args.endDate))) {
+        end.setUTCHours(0, 0, 0, 0);
+        end.setUTCDate(end.getUTCDate() + 1);
+      }
+      endExclusiveIso = end.toISOString();
     }
   }
 
@@ -3074,30 +3107,32 @@ export async function queryTransactions(args: any, userId: string, token: string
   try {
     let q: any = firebaseAdminDb.collection('transactions').where('userId', '==', userId);
     if (startIso) q = q.where('date', '>=', startIso);
-    if (endIso) q = q.where('date', '<=', endIso);
-    if (startIso || endIso) q = q.orderBy('date', 'desc');
+    if (endExclusiveIso) q = q.where('date', '<', endExclusiveIso);
+    if (startIso || endExclusiveIso) q = q.orderBy('date', 'desc');
     q = q.limit(limit);
     const cloudSnap = await q.get();
     snapshot = { docs: cloudSnap.docs, partial: false };
   } catch (cloudErr: any) {
     try {
-      // If a date-range query needs a composite index, keep the app responsive by
-      // falling back to a small bounded read. Never fall back to the full ledger.
-      const fallbackSnap = await firebaseAdminDb.collection('transactions')
-        .where('userId', '==', userId)
-        .limit(limit)
-        .get();
+      // Keep fallbacks bounded by the same requested date window. A userId-only
+      // fallback would be cheaper than a full scan but could still return the
+      // wrong month for salary-cycle questions, so it is deliberately rejected.
+      if (!startIso && !endExclusiveIso) throw cloudErr;
+      const localDb = getDb(token);
+      let fallbackQuery: any = localDb.collection('transactions').where('userId', '==', userId);
+      if (startIso) fallbackQuery = fallbackQuery.where('date', '>=', startIso);
+      if (endExclusiveIso) fallbackQuery = fallbackQuery.where('date', '<', endExclusiveIso);
+      fallbackQuery = fallbackQuery.orderBy('date', 'desc').limit(limit);
+      const fallbackSnap = await fallbackQuery.get();
       snapshot = {
-        docs: fallbackSnap.docs,
+        docs: fallbackSnap.docs || [],
         partial: true,
         error: cloudErr?.message || 'Firestore bounded transaction read failed',
       };
       boundedFallback = true;
     } catch (fallbackErr: any) {
-      const localDb = getDb(token);
-      const cachedSnapshot: any = await localDb.collection('transactions').where('userId', '==', userId).limit(limit).get();
       snapshot = {
-        docs: cachedSnapshot.docs || [],
+        docs: [],
         partial: true,
         error: fallbackErr?.message || cloudErr?.message || 'Firestore transaction read failed',
       };
@@ -3124,17 +3159,39 @@ export async function queryTransactions(args: any, userId: string, token: string
   }
 
   if (startIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') >= startIso);
-  if (endIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') <= endIso);
+  if (endExclusiveIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') < endExclusiveIso);
 
   filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
 
-  const total = filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0);
+  const total = roundMoney(filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0));
+  const summary = summarizeTransactionsForTool(filtered);
+  logFirestoreReadDiagnostics('query_transactions', {
+    userId,
+    queryType: salaryCyclePeriod ? 'salary_cycle_transactions' : 'transactions_bounded',
+    period: salaryCyclePeriod?.cycleId || period || 'bounded_default',
+    start: startIso || null,
+    endExclusive: endExclusiveIso || null,
+    returnedDocs: filtered.length,
+    limit,
+    durationMs: Date.now() - startedAt,
+    fallback: boundedFallback,
+  });
   
   return { 
     success: true, 
     count: filtered.length,
     totalAmount: total,
-    transactions: filtered,
+    summary,
+    transactions: detailsRequested ? filtered : undefined,
+    omittedTransactions: detailsRequested ? 0 : filtered.length,
+    salaryCycle: salaryCyclePeriod ? {
+      cycleId: salaryCyclePeriod.cycleId,
+      name: salaryCyclePeriod.name,
+      cycleStart: salaryCyclePeriod.cycleStart,
+      cycleEnd: salaryCyclePeriod.cycleEnd,
+      status: salaryCyclePeriod.status,
+    } : undefined,
+    period: { startIso: startIso || null, endExclusiveIso: endExclusiveIso || null },
     partial: (snapshot as any).partial,
     bounded: true,
     limit,
