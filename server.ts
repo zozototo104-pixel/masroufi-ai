@@ -261,6 +261,7 @@ function normalizeToolAccount(value: any): string {
   const v = normalizeArabicForIntent(value);
   if (v.includes('pal') || v.includes('بال باي') || v.includes('محفظ')) return 'palPay';
   if (v.includes('دين') || v === 'debt') return 'debt';
+  if (v.includes('خزن') || v.includes('مقفل') || v.includes('مغلق') || v === 'vault') return 'vault';
   if (v.includes('كاش') || v.includes('نقد') || v === 'cash') return 'cash';
   return String(value || '').trim();
 }
