@@ -360,7 +360,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
 
       ws.onclose = (event) => {
         connectingRef.current = false;
+        liveReadyRef.current = false;
         clearResponseWatchdog();
+        clearLiveReadyWatchdog();
         if (wsRef.current !== ws) return;
         wsRef.current = null;
         stopPlayback();
