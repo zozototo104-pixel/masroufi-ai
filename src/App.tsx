@@ -3051,7 +3051,7 @@ export default function App() {
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                     >
                       {vaultCycleOptions.map((cycle: any) => (
-                        <option key={cycle.cycleId || cycle.id} value={cycle.cycleId || cycle.id}>{cycle.name || cycle.cycleId} · {cycle.cycleStart} → {cycle.cycleEnd}</option>
+                        <option key={cycle.cycleId || cycle.id} value={cycle.cycleId || cycle.id}>{cycle.name || cycle.cycleId} · من {cycle.cycleStart} إلى {cycle.cycleEnd}</option>
                       ))}
                     </select>
                   </div>
