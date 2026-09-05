@@ -1237,6 +1237,15 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (!showVault) return;
+    const initialCycleId = selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultData?.cycles?.[0]?.cycleId || vaultData?.cycles?.[0]?.id;
+    if (initialCycleId && !selectedVaultCycleDetails && !isVaultCycleLoading) {
+      void loadVaultCycleDetails(initialCycleId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVault, vaultData?.currentCycle?.cycleId]);
+
   const handleMicClick = async () => {
     if (isConnected) {
       disconnect();
