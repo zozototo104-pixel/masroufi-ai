@@ -1,14 +1,13 @@
 # Manual CI verification trigger
 
-Verification after fixing voice cutting/overlap/duplicate expert audio.
+Rerun after updating legacy tests for the voice overlap fix.
 
 Scope:
-- client blocks duplicate live WebSocket connects
-- client ignores stale websocket/audio events via connection epoch
-- microphone processor uses a silent sink to avoid monitoring/feedback
-- playback sources are stopped and disconnected
-- false barge-in threshold raised to reduce speaker echo interruptions
-- server closes previous live socket for the same authenticated user
-- LIVE-01 regression test added
+- client blocks duplicate live sessions
+- server closes previous live socket for the same user
+- stale websocket/audio events ignored
+- microphone processor uses silent sink
+- barge-in threshold is echo-resistant
+- wipe UI test scoped to wipe handler only
 
-Timestamp: 2026-09-05T12:58:00+03:00
+Timestamp: 2026-09-05T13:04:00+03:00
