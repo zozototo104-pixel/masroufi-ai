@@ -18,24 +18,28 @@ export function txBalanceDelta(tx: any): AccountBalanceDelta {
   if (!amount || !type) return delta;
 
   if (type === 'expense') {
-    const account = normalizeAccount(tx?.account);
+    const account = normalizeLedgerAccount(tx?.account);
     if (account === 'palPay') delta.palPay -= amount;
     else if (account === 'debt') delta.debt += amount;
+    else if (account === 'vault') delta.vault -= amount;
     else delta.cash -= amount;
   } else if (type === 'income') {
-    const account = normalizeAccount(tx?.account);
+    const account = normalizeLedgerAccount(tx?.account);
     if (account === 'palPay') delta.palPay += amount;
     else if (account === 'debt') delta.debt -= amount;
+    else if (account === 'vault') delta.vault += amount;
     else delta.cash += amount;
   } else if (type === 'transfer') {
-    const from = normalizeAccount(tx?.fromAccount || tx?.account);
-    const to = normalizeAccount(tx?.toAccount);
+    const from = normalizeLedgerAccount(tx?.fromAccount || tx?.account);
+    const to = normalizeLedgerAccount(tx?.toAccount);
     if (from === 'palPay') delta.palPay -= amount;
     else if (from === 'debt') delta.debt += amount;
+    else if (from === 'vault') delta.vault -= amount;
     else delta.cash -= amount;
 
     if (to === 'palPay') delta.palPay += amount;
     else if (to === 'debt') delta.debt -= amount;
+    else if (to === 'vault') delta.vault += amount;
     else delta.cash += amount;
   }
 
@@ -43,6 +47,7 @@ export function txBalanceDelta(tx: any): AccountBalanceDelta {
     cash: roundBalance(delta.cash),
     palPay: roundBalance(delta.palPay),
     debt: roundBalance(delta.debt),
+    vault: roundBalance(delta.vault),
   };
 }
 
