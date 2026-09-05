@@ -731,9 +731,12 @@ test('VAULT-13: Savings Vault refuses unsafe partial or saturated authoritative 
 test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal Voice', async () => {
   const vaultSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/salaryCycle.ts'), 'utf8'));
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   assert.ok(vaultSrc.includes("type === 'transfer'"), 'internal transfers must be excluded from income/expense');
   assert.ok(vaultSrc.includes("transactionType || '') === 'DEBT_BORROWING'"), 'debt borrowing must not become income');
   assert.ok(toolsSrc.includes("collection('meta').doc('savingsVault')"), 'vault balance must be stored separately from financial accounts');
+  assert.ok(appSrc.includes('المتاح للصرف اليومي بعد عزل الخزنة'), 'UI must separate spendable balance from actual cash/PalPay balances');
+  assert.ok(appSrc.includes('Number(cash || 0) + Number(palPay || 0) - Number(vaultData?.vaultBalance || 0)'), 'spendable balance must reserve vault funds without mutating accounts');
   assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
 });
 
