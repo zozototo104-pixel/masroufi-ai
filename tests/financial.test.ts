@@ -699,6 +699,7 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   const liveSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/useGeminiLive.ts'), 'utf8'));
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('.limit(requestedLimit)'), 'notifications must use the requested limit directly');
   assert.ok(!toolsSrc.includes('Math.max(requestedLimit, 100)'), 'notifications must not read 100 docs for a small request');
   assert.ok(toolsSrc.includes('.limit(100)'), 'reports list must remain limited');
