@@ -327,14 +327,20 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         connectingRef.current = false;
+        clearResponseWatchdog();
         if (wsRef.current !== ws) return;
         wsRef.current = null;
         stopPlayback();
         setIsConnected(false);
         setIsRecording(false);
         setStatus('idle');
+        const abnormalClose = event.code !== 1000 && event.code !== 1005;
+        if (abnormalClose) {
+          const reason = event.reason || (event.code === 1011 ? 'فشل داخلي في مسار Gemini Live أو انتهت الحصة.' : 'انقطع اتصال الصوت المباشر.');
+          setError(`انقطع الصوت المباشر (${event.code}). ${reason}`);
+        }
         // A voice socket close is not a financial mutation. Do not refresh the
         // whole dashboard here; the server sends scoped refresh only after tools.
       };
