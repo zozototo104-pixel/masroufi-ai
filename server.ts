@@ -2101,6 +2101,9 @@ ${relationshipContext}
         authTimeout = null;
       }
       clearInterval(pingInterval);
+      if (userId && activeLiveSocketsByUser.get(userId) === clientWs) {
+        activeLiveSocketsByUser.delete(userId);
+      }
       if (session) {
         try { session.close(); } catch (e) { /* ignore */ }
       }
