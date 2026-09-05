@@ -2841,6 +2841,20 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+
+            {(vaultData?.manualAdjustments || []).length > 0 && (
+              <div className="mt-4 bg-slate-950/70 border border-slate-800 rounded-2xl p-4">
+                <h3 className="text-sm font-bold text-white mb-3">رصيد مرحل / إضافات يدوية للخزنة</h3>
+                <div className="space-y-2 max-h-32 overflow-auto">
+                  {(vaultData.manualAdjustments || []).map((adj: any) => (
+                    <div key={adj.id || adj.operationId} className="flex items-center justify-between gap-3 text-xs border-b border-slate-800 last:border-0 pb-2 last:pb-0">
+                      <span className="text-slate-300">{adj.source || 'رصيد قديم'}{adj.notes ? ` · ${adj.notes}` : ''}</span>
+                      <span className="font-bold text-cyan-300">+{Number(adj.amount || 0).toLocaleString()} ₪</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
