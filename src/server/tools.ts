@@ -1762,6 +1762,7 @@ export async function importUserData(payload: any, userId: string, token: string
       };
     }
 
+    const balanceRepair = await repairAccountBalanceSnapshot({ reason: 'import_replace_completed' }, userId, token);
     clearAllLocalUserData(userId);
     return {
       success: true,
@@ -1772,6 +1773,8 @@ export async function importUserData(payload: any, userId: string, token: string
       importedCommitments: commitmentEntries.length,
       importedReports: reportEntries.length,
       importedMemory: memoryEntries.length,
+      accountBalanceSnapshotRepaired: balanceRepair.success === true,
+      accountBalanceRepairDocsRead: balanceRepair.transactionDocsRead || 0,
     };
   }
 
