@@ -246,6 +246,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
               userSpeechCounter = 0;
             }
 
+            if (!liveReadyRef.current) {
+              return;
+            }
+
             if (ws.readyState === WebSocket.OPEN) {
               const base64 = pcmToBase64(channelData);
               ws.send(JSON.stringify({ audio: base64 }));
