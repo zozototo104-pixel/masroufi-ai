@@ -1,15 +1,16 @@
 # Manual CI verification trigger
 
-Verification after safe multi-currency Savings Vault carryover patch.
+Final verification after multi-currency Savings Vault carryover patch.
+
+No further code changes after this trigger unless CI reports a failure.
 
 Scope:
-- restored src/server/tools.ts from last known good before continuing
-- added src/lib/vaultCurrency.ts helper
-- add_savings_vault_adjustment accepts single currency or amounts[] entries
-- preserves original ILS/USD/EUR balances in balanceByCurrency
-- stores ILS equivalent for summary display only
-- fails safely if FX rate is unavailable and no user-provided exchange rate exists
-- UI displays per-currency vault balances
-- regression tests VAULT-CURRENCY-* added
+- tools.ts restored and stable
+- src/lib/vaultCurrency.ts added
+- add_savings_vault_adjustment supports amount/currency and amounts[]
+- original ILS/USD/EUR amounts retained in currencyDelta/balanceByCurrency
+- ILS equivalent is only a summary field
+- UI shows per-currency vault balances
+- VAULT-CURRENCY-* regression tests added
 
-Timestamp: 2026-09-05T10:36:00+03:00
+Timestamp: 2026-09-05T10:42:00+03:00
