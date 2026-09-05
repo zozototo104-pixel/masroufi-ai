@@ -33,8 +33,8 @@ test('OFF-03: queue keyed by userId (survives Cloud Run restart, client-side)', 
 
 test('OFF-04: syncPendingOps attempts to sync on fetchData', async () => {
   const src = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
-  assert.ok(src.includes('syncPendingOps(user.uid, idToken)'),
-    'fetchData calls syncPendingOps at start');
+  assert.ok(src.includes('syncPendingOps(user.uid, currentToken)'),
+    'fetchData calls syncPendingOps with a freshly refreshed token');
 });
 
 test('OFF-05: retry does not duplicate after the operation completed', () => {
