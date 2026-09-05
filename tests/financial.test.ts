@@ -705,6 +705,8 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   assert.ok(toolsSrc.includes("where('date', '>=', monthStart)"), 'monthly budgets/savings calculations must use date-bounded queries');
   assert.ok(toolsSrc.includes("where('date', '<', nextMonthStart)"), 'monthly budgets/savings calculations must use exclusive month end bounds');
   assert.ok(toolsSrc.includes('.limit(100)'), 'reports list must remain limited');
+  assert.ok(toolsSrc.includes('txQuery = txQuery.where'), 'time-scoped report generation must push date filtering into Firestore');
+  assert.ok(toolsSrc.includes('txQuery = txQuery.orderBy'), 'time-scoped report generation must use ordered bounded reads');
   assert.ok(liveSrc.includes('if (msg.refresh)'), 'Live should refresh only on explicit refresh messages');
   assert.ok(!liveSrc.includes("msg.refresh || msg.status === 'ready'"), 'status ready must not create a second dashboard refresh');
   assert.ok(serverSrc.includes('liveRefreshScopeForTools'), 'server must classify Live refresh scope by tool effect');
