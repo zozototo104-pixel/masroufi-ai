@@ -1176,6 +1176,67 @@ export default function App() {
     }
   };
 
+  const getFreshAuthToken = async () => {
+    let currentToken = idToken;
+    try {
+      if (user && typeof user.getIdToken === 'function') {
+        currentToken = await user.getIdToken(true);
+        setIdToken(currentToken);
+      }
+    } catch (e) {
+      console.warn('Failed to refresh token', e);
+    }
+    return currentToken;
+  };
+
+  const loadVaultCycleDetails = async (cycleId?: string) => {
+    const targetCycleId = cycleId || selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultData?.cycles?.[0]?.cycleId || vaultData?.cycles?.[0]?.id;
+    if (!targetCycleId) return;
+    try {
+      setIsVaultCycleLoading(true);
+      setVaultCycleMessage('');
+      setSelectedVaultCycleId(targetCycleId);
+      const token = await getFreshAuthToken();
+      const res = await fetch(`/api/salary-cycles/${encodeURIComponent(targetCycleId)}?limit=500`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر تحميل دورة الراتب');
+      setSelectedVaultCycleDetails(data);
+    } catch (err: any) {
+      setVaultCycleMessage(err?.message || 'تعذر تحميل تفاصيل دورة الراتب');
+    } finally {
+      setIsVaultCycleLoading(false);
+    }
+  };
+
+  const deleteSelectedVaultCycle = async () => {
+    const cycleId = selectedVaultCycleDetails?.period?.cycleId || selectedVaultCycleId;
+    if (!cycleId) return;
+    const periodText = `${selectedVaultCycleDetails?.period?.cycleStart || ''} → ${selectedVaultCycleDetails?.period?.cycleEnd || ''}`;
+    const ok = window.confirm(`سيتم حذف معاملات دورة الراتب فقط: ${periodText}\nلن يتم حذف باقي الأشهر. هل أنت متأكد؟`);
+    if (!ok) return;
+    try {
+      setIsVaultCycleLoading(true);
+      setVaultCycleMessage('');
+      const token = await getFreshAuthToken();
+      const res = await fetch(`/api/salary-cycles/${encodeURIComponent(cycleId)}/transactions`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirmation: 'DELETE_SALARY_CYCLE', limit: 300 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر حذف دورة الراتب');
+      setVaultCycleMessage(`تم حذف ${data.deletedCount || 0} معاملة من هذه الدورة فقط.`);
+      await loadVaultCycleDetails(cycleId);
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', reason: 'salary_cycle_deleted' } }));
+    } catch (err: any) {
+      setVaultCycleMessage(err?.message || 'تعذر حذف دورة الراتب');
+    } finally {
+      setIsVaultCycleLoading(false);
+    }
+  };
+
   const handleMicClick = async () => {
     if (isConnected) {
       disconnect();
