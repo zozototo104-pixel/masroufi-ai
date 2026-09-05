@@ -2069,11 +2069,11 @@ export async function transferMoney(args: any, userId: string, token: string) {
     if (!atomicResult.ok) {
       const failReason = (atomicResult as any).reason as string;
       const failAvailable = (atomicResult as any).available as number | undefined;
-      if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
+      if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC' || failReason === 'INSUFFICIENT_VAULT_FUNDS_ATOMIC') {
         return {
           success: false,
           needsClarification: true,
-          reason: 'INSUFFICIENT_FUNDS',
+          reason: failReason === 'INSUFFICIENT_VAULT_FUNDS_ATOMIC' ? 'INSUFFICIENT_VAULT_FUNDS' : 'INSUFFICIENT_FUNDS',
           message: `الرصيد المتاح في ${fromName} هو ${failAvailable} ₪ فقط. التحويل مرفوض لمنع تجاوز الرصيد.`,
         };
       }
