@@ -115,7 +115,18 @@ jobs:
               file="${pair#*:}"
               echo "## $name"
               echo '```text'
-              if [ -f "$file" ]; then tail -n 160 "$file"; else echo "not run"; fi
+              if [ -f "$file" ]; then
+                if [ "$name" = "tests" ] && [ "$TEST_OUTCOME" != "success" ]; then
+                  echo "--- tests log head ---"
+                  head -n 220 "$file"
+                  echo "--- tests log tail ---"
+                  tail -n 220 "$file"
+                else
+                  tail -n 160 "$file"
+                fi
+              else
+                echo "not run"
+              fi
               echo '```'
               echo
             done
