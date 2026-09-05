@@ -3035,7 +3035,7 @@ export default function App() {
                   <div className="flex-1 text-center bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-3 py-2">
                     <p className="text-[11px] text-cyan-200">الدورة المختارة</p>
                     <p className="text-sm font-black text-white">{selectedVaultCycleDetails?.period?.name || selectedVaultCycleOption?.name || 'دورة الراتب'}</p>
-                    <p className="text-[11px] text-slate-400">{selectedVaultCycleDetails?.period?.cycleStart || selectedVaultCycleOption?.cycleStart || '—'} → {selectedVaultCycleDetails?.period?.cycleEnd || selectedVaultCycleOption?.cycleEnd || '—'}</p>
+                    <p className="text-[11px] text-slate-400" dir="ltr">{selectedVaultCycleDetails?.period?.cycleStart || selectedVaultCycleOption?.cycleStart || '—'} → {selectedVaultCycleDetails?.period?.cycleEnd || selectedVaultCycleOption?.cycleEnd || '—'}</p>
                   </div>
                   <button onClick={() => navigateVaultCycle('next')} disabled={isVaultCycleLoading || selectedVaultCycleIndex <= 0} className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold disabled:opacity-40">
                     الشهر التالي
