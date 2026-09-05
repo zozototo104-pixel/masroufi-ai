@@ -3009,6 +3009,7 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
         transactionQueryLimit: readResult.limit,
         salaryCycleDocsRead: 1,
         metaDocsRead: 1,
+        metaBootstrapCyclesRead,
         fallback: false,
         transactionalCommit: true,
       },
