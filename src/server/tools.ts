@@ -1903,6 +1903,7 @@ export async function repairAccountBalanceSnapshot(args:any,userId:string,token:
       cash: roundMoney(Number(balances.cash || 0)),
       palPay: roundMoney(Number(balances.palPay || 0)),
       debt: roundMoney(Number(balances.debt || 0)),
+      vault: roundMoney(Number(balances.vault || 0)),
       total: roundMoney(Number(balances.cash || 0) + Number(balances.palPay || 0)),
       source: 'repair_full_ledger',
       repairedAt: now,
