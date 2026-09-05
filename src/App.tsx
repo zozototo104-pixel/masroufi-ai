@@ -754,12 +754,33 @@ export default function App() {
       setTimeout(() => setInterruptedFeedback(false), 2500);
     };
 
+    const handleDataWiped = () => {
+      setTransactions([]);
+      setReportsList([]);
+      setCommitments([]);
+      setSavingsGoals([]);
+      setUserMemory({});
+      setBudgetsData({ budgets: [], totalBudget: 0, totalSpent: 0 });
+      setVaultData({ success: true, vaultBalance: 0, vaultBalanceByCurrency: {}, cycles: [], manualAdjustments: [] });
+      setCash(0);
+      setPalPay(0);
+      setDebt(0);
+      setBalance(0);
+      setPendingCount(0);
+      setNotifications(prev => {
+        const withoutOld = prev.filter((n: any) => n.id !== 'firestore-quota-exhausted');
+        return [...withoutOld, { id: 'data-wiped-local', message: 'تم تصفير البيانات محليًا وسحابيًا بعد تحقق السيرفر.', type: 'success' }];
+      });
+    };
+
     window.addEventListener('masrofi:refresh', handleRefresh);
     window.addEventListener('masrofi:user-interrupted', handleInterrupted);
+    window.addEventListener('masrofi:data-wiped', handleDataWiped);
     return () => {
       
       window.removeEventListener('masrofi:refresh', handleRefresh);
       window.removeEventListener('masrofi:user-interrupted', handleInterrupted);
+      window.removeEventListener('masrofi:data-wiped', handleDataWiped);
     };
   }, [idToken]);
 
