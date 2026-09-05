@@ -550,19 +550,27 @@ export default function App() {
         
         if (finalTx.length > 0) {
           setTransactions(finalTx);
-          // V6.1: use canonical balance calculator (mirrors backend calculateBalancesFromDocs).
-          // This eliminates UI-vs-Backend-vs-Report divergence.
-          const balances = calculateBalances(finalTx);
+          // Prefer server canonical balances because the visible transaction list is now
+          // intentionally bounded to the current salary cycle for Firestore efficiency.
+          const balances = txData?.currentBalances || calculateBalances(finalTx);
           setCash(balances.cash);
           setPalPay(balances.palPay);
           setDebt(balances.debt);
           setBalance(balances.total);
         } else {
           setTransactions([]);
-          setCash(0);
-          setPalPay(0);
-          setDebt(0);
-          setBalance(0);
+          const balances = txData?.currentBalances;
+          if (balances) {
+            setCash(balances.cash);
+            setPalPay(balances.palPay);
+            setDebt(balances.debt);
+            setBalance(balances.total);
+          } else {
+            setCash(0);
+            setPalPay(0);
+            setDebt(0);
+            setBalance(0);
+          }
         }
 
         const repRes = await fetch('/api/reports', { headers });
