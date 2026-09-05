@@ -3464,11 +3464,18 @@ export async function addSavingsVaultAdjustment(args: any, userId: string, token
 export async function repairSavingsVaultMeta(args: any, userId: string, token: string) {
   const cycleLimit = Math.max(1, Math.min(1000, Number(args?.limit) || 1000));
   const now = new Date().toISOString();
-  const cyclesSnap = await firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles')
-    .limit(cycleLimit)
-    .get();
+  const adjustmentLimit = Math.max(1, Math.min(VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT, Number(args?.adjustmentLimit) || VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT));
+  const [cyclesSnap, adjustmentsSnap] = await Promise.all([
+    firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles')
+      .limit(cycleLimit)
+      .get(),
+    firebaseAdminDb.collection('users').doc(userId).collection('savingsVaultAdjustments')
+      .limit(adjustmentLimit)
+      .get(),
+  ]);
   const cycles = cyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  if ((cyclesSnap as any).partial || cycles.length >= cycleLimit) {
+  const manualAdjustments = adjustmentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  if ((cyclesSnap as any).partial || (adjustmentsSnap as any).partial || cycles.length >= cycleLimit || manualAdjustments.length >= adjustmentLimit) {
     return {
       success: false,
       retryable: true,
