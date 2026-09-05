@@ -1,20 +1,17 @@
 # Manual CI verification trigger
 
-Verify salary-cycle navigation UI and bounded cycle operations.
+Verify the salary-cycle details fix after the user hit Firestore index error.
 
-User request:
-- navigate between salary cycles/months
-- view income items, expense items, transfers, and vault carryover per cycle
-- see current cycle period clearly in the UI
-- delete one salary cycle safely without touching other months
+Observed production error:
+- FAILED_PRECONDITION: The query requires an index
+- triggered by عرض البنود in Savings Vault salary cycle details
 
-Changes:
-- dashboard vault card now says دورات الراتب
-- current salary cycle period is clearer on dashboard
-- vault modal has الشهر السابق / الشهر التالي buttons
-- selected cycle card is pinned above the picker
-- cycle details show income, expenses, internal transfers, vault carryover, and category summary
-- backend existing bounded cycle APIs remain in use
+Fixes:
+- added firestore.indexes.json for proper composite indexes
+- readTransactionsForSalaryCycle now has an index-free bounded fallback
+- fallback queries only the selected 27→26 date range, then filters userId server-side
+- cycle detail dates render left-to-right in RTL UI
+- picker uses من/إلى instead of arrow-only formatting
 
 Expected gates:
 - install
@@ -24,4 +21,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T20:54:00+03:00
+Timestamp: 2026-09-05T21:03:00+03:00
