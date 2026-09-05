@@ -55,7 +55,8 @@ export function addBalanceDelta(balance: Balances | AccountBalanceDelta, delta: 
   const cash = roundBalance(Number((balance as any).cash || 0) + delta.cash);
   const palPay = roundBalance(Number((balance as any).palPay || 0) + delta.palPay);
   const debt = roundBalance(Number((balance as any).debt || 0) + delta.debt);
-  return { cash, palPay, debt, total: roundBalance(cash + palPay) };
+  const vault = roundBalance(Number((balance as any).vault || 0) + delta.vault);
+  return { cash, palPay, debt, vault, total: roundBalance(cash + palPay) };
 }
 
 export function subtractBalanceDelta(a: AccountBalanceDelta, b: AccountBalanceDelta): AccountBalanceDelta {
@@ -63,6 +64,7 @@ export function subtractBalanceDelta(a: AccountBalanceDelta, b: AccountBalanceDe
     cash: roundBalance(a.cash - b.cash),
     palPay: roundBalance(a.palPay - b.palPay),
     debt: roundBalance(a.debt - b.debt),
+    vault: roundBalance(a.vault - b.vault),
   };
 }
 
