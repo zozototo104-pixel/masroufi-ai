@@ -3494,10 +3494,12 @@ export async function getSalaryCycleDetails(args: any, userId: string, token: st
   const summary = summarizeSalaryCycleTransactions(readResult.transactions);
   const lists = summarizeCycleTransactionLists(readResult.transactions);
   const cycleDoc = cycleSnap.exists ? (cycleSnap.data() || {}) : null;
+  const detailsPartial = Boolean(readResult.partial || readResult.limitReached);
   return {
-    success: !readResult.partial && !readResult.boundedFallback,
-    partial: Boolean(readResult.partial || readResult.boundedFallback || readResult.limitReached),
-    reason: readResult.limitReached ? 'SALARY_CYCLE_DETAILS_LIMIT_REACHED' : readResult.error || null,
+    success: !detailsPartial,
+    partial: detailsPartial,
+    fallbackUsed: Boolean(readResult.boundedFallback),
+    reason: readResult.limitReached ? 'SALARY_CYCLE_DETAILS_LIMIT_REACHED' : (readResult.partial ? 'SALARY_CYCLE_DETAILS_PARTIAL' : null),
     period,
     salaryCycle: cycleDoc ? { id: period.cycleId, ...cycleDoc } : null,
     summary,
