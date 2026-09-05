@@ -2069,6 +2069,7 @@ ${relationshipContext}
 
           try {
             await connectGeminiSession(activeApiKey);
+            console.log('[live-audio] live_ready sent', { requestId });
             safeSend({ type: "live_ready", status: "listening" });
             if (session && isActive && pendingAudio.length > 0) {
               for (const buf of pendingAudio.splice(0)) {
