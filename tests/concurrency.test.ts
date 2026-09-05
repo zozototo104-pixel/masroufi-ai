@@ -363,14 +363,12 @@ test('CONC-25: reviewed receipt import records through direct preparation and bo
     'reviewed receipt import response must not be blocked by quota-heavy per-item side effects');
   assert.ok(receiptCommitBlock.includes('stableReceiptItemDocId'),
     'receipt import commit must use deterministic item ids for idempotent retries');
-  assert.ok(receiptCommitBlock.includes('if (receiptId && opts.skipLedgerBalanceCheck)'),
-    'full-ledger balance scan skip must be limited to receipt imports with receipt idempotency');
-  assert.ok(receiptCommitBlock.includes('const batch = adminDb.batch()') && receiptCommitBlock.includes("receiptCommitMode: 'write-batch-no-ledger-scan'"),
-    'reviewed receipt imports must use bounded WriteBatch instead of a transaction that can exceed the UI timeout');
-  const importFastPath = receiptCommitBlock.slice(
-    receiptCommitBlock.indexOf('if (receiptId && opts.skipLedgerBalanceCheck)'),
-    receiptCommitBlock.indexOf('return adminDb.runTransaction')
-  );
-  assert.equal(importFastPath.includes('.get()'), false,
-    'reviewed receipt import fast path must be write-only and avoid Firestore pre-reads under quota pressure');
+  assert.ok(receiptCommitBlock.includes('readOrBootstrapBalanceSnapshot'),
+    'reviewed receipt imports must use account balance snapshot instead of scanning the full ledger on every receipt');
+  assert.ok(receiptCommitBlock.includes('balanceScope: \'account-balance-snapshot\''),
+    'receipt idempotency record must mark the account-balance-snapshot scope');
+  assert.ok(receiptCommitBlock.includes('stableReceiptItemDocId'),
+    'reviewed receipt imports must keep deterministic item ids for idempotent retries');
+  assert.ok(receiptCommitBlock.includes('RECEIPT_OPERATION_CONFLICT'),
+    'receipt import must still reject deterministic item id conflicts');
 });
