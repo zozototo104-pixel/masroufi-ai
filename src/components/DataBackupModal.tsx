@@ -282,17 +282,9 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     setStatusMessage(null);
 
     try {
-      const res = await fetch('/api/data/wipe', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${idToken}`
-        }
-      });
+      const res = await backupFetch('/api/data/wipe', { method: 'DELETE' });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'فشل مسح البيانات.');
-      }
+      const data = await readApiPayload(res);
 
       setStatusMessage({
         type: 'success',
