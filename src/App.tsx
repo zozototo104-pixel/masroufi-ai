@@ -510,7 +510,7 @@ export default function App() {
           try {
             // V6.2 (FINDING-05): migrate any legacy pending ops from V6.1 schema.
             await migrateLegacyPendingOps(user.uid);
-            const syncResult = await syncPendingOps(user.uid, idToken);
+            const syncResult = await syncPendingOps(user.uid, currentToken);
             if (syncResult.synced > 0) {
               console.log(`[offline] synced ${syncResult.synced} pending ops, ${syncResult.failed} failed, ${syncResult.remaining} remaining`);
             }
