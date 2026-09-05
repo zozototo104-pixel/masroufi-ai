@@ -983,18 +983,26 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   const isSalaryIncomeForGuard = type === 'income' && /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''} ${args.userText || ''}`);
   const salaryCycleForGuard = isSalaryIncomeForGuard ? getSalaryCycleForDate(dateResult.date, transactionNow) : null;
-  const salaryUniqueGuard = salaryCycleForGuard ? {
-    ref: firebaseAdminDb.collection('users').doc(userId).collection('salaryIncomeGuards').doc(stableDocId(`${salaryCycleForGuard.cycleId}:${account}:${amount}`)),
-    reason: 'DUPLICATE_SALARY_INCOME',
+  const incomeGuardDate = dateResult.date.slice(0, 10);
+  const incomeGuardCollection = isSalaryIncomeForGuard ? 'salaryIncomeGuards' : 'incomeGuards';
+  const incomeGuardKey = isSalaryIncomeForGuard && salaryCycleForGuard
+    ? `${salaryCycleForGuard.cycleId}:${account}:${amount}`
+    : `income:${incomeGuardDate}:${account}:${amount}:${category}:${subcategory}`;
+  const incomeUniqueGuard = type === 'income' ? {
+    ref: firebaseAdminDb.collection('users').doc(userId).collection(incomeGuardCollection).doc(stableDocId(incomeGuardKey)),
+    reason: isSalaryIncomeForGuard ? 'DUPLICATE_SALARY_INCOME' : 'POSSIBLE_DUPLICATE_INCOME',
     payload: {
-      cycleId: salaryCycleForGuard.cycleId,
-      cycleStart: salaryCycleForGuard.startIso,
-      cycleEnd: salaryCycleForGuard.cycleEnd,
+      cycleId: salaryCycleForGuard?.cycleId || null,
+      cycleStart: salaryCycleForGuard?.startIso || null,
+      cycleEnd: salaryCycleForGuard?.cycleEnd || null,
+      dateKey: incomeGuardDate,
       account,
       amount,
+      category,
+      subcategory,
       date: dateResult.date,
       operationId,
-      source: 'salary_cycle_guard',
+      source: isSalaryIncomeForGuard ? 'salary_cycle_guard' : 'income_day_guard',
     },
   } : null;
 
