@@ -135,7 +135,8 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           streamRef.current = stream;
           
           const source = inputCtx.createMediaStreamSource(stream);
-          const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+          // Smaller buffers reduce perceived voice latency and make barge-in feel smoother.
+          const processor = inputCtx.createScriptProcessor(2048, 1, 1);
           processorRef.current = processor;
           
           source.connect(processor);
