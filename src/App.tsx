@@ -473,6 +473,15 @@ export default function App() {
   useEffect(() => {
     if (!idToken) return;
 
+    const getFreshDashboardToken = async () => {
+      if (user && typeof user.getIdToken === 'function') {
+        const fresh = await user.getIdToken(true);
+        if (fresh && fresh !== idToken) setIdToken(fresh);
+        return fresh || idToken;
+      }
+      return idToken;
+    };
+
     const fetchVaultData = async (headers: Record<string, string>) => {
       const vaultRes = await fetch('/api/savings-vault?limit=12', { headers });
       const vaultPayload = await vaultRes.json().catch(() => ({}));
