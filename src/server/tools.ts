@@ -2237,7 +2237,8 @@ export async function auditFinancialDuplicates(args: any, userId: string, token:
     duplicateLedgerFingerprints: duplicateLedgerFingerprints.map(g => ({ key: g.key, count: g.count, transactionIds: g.items.map((t: any) => t.id), sample: g.items.map((t: any) => ({ id: t.id, amount: t.amount, account: t.account, merchant: t.merchant, purchaseItem: t.purchaseItem, beneficiary: t.beneficiary, category: t.category, subcategory: t.subcategory, createdAt: t.createdAt })) })),
     successNotificationsWithoutTransactionId: orphanSuccessNotifications.map((n: any) => ({ id: n.id, message: n.message, createdAt: n.createdAt })),
     multipleNotificationsForSameTransaction: notificationsByTransaction.map(g => ({ transactionId: g.key, count: g.count, notificationIds: g.items.map((n: any) => n.id), messages: g.items.map((n: any) => n.message) })),
-    partial: (txSnap as any).partial || (notifSnap as any).partial
+    partial: Boolean((txSnap as any).partial || (notifSnap as any).partial || (args?.full !== true && transactions.length >= txLimit) || notifications.length >= notifLimit),
+    readEfficiency: { transactionDocsRead: transactions.length, transactionLimit: args?.full === true ? null : txLimit, notificationDocsRead: notifications.length, notificationLimit: notifLimit }
   };
 }
 
