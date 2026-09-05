@@ -3020,12 +3020,18 @@ export async function getSavingsGoals(args: any, userId: string, token: string) 
         .get();
       contributions = contributionSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     } catch {}
-    const plan = buildSavingsGoalPlan({ goal, transactions: txs, contributions, now });
+    const plan = buildSavingsGoalPlan({
+      goal,
+      transactions: txs,
+      contributions,
+      now,
+      period: { startIso: savingsCycle.startIso, endExclusiveIso: savingsCycle.endExclusiveIso, label: savingsCycle.name },
+    });
     goals.push(plan);
     if (plan.alertLevel === 'critical') {
       await addNotification(userId, plan.alertMessage, 'danger', adminDb, {
-        idempotencyKey: `savings-critical:${goal.id}:${monthKey(now)}`,
-        metadata: { goalId: goal.id, monthlyRequired: plan.monthlyRequired, monthlyNetAvailable: plan.monthlyNetAvailable }
+        idempotencyKey: `savings-critical:${goal.id}:${savingsCycle.cycleId}`,
+        metadata: { goalId: goal.id, monthlyRequired: plan.monthlyRequired, monthlyNetAvailable: plan.monthlyNetAvailable, salaryCycleId: savingsCycle.cycleId }
       });
     }
   }
