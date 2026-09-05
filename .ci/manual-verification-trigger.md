@@ -1,13 +1,14 @@
 # Manual CI verification trigger
 
-Verification after fixing wipe not deleting/appearing not deleted.
+Verification after fixing voice cutting/overlap/duplicate expert audio.
 
 Scope:
-- server wipe remains Admin Firestore + verifiedEmpty
-- backup modal clears IndexedDB LKGS caches after verified wipe
-- backup modal clears pending offline queues after verified wipe
-- backup modal no longer triggers full masrofi:refresh after wipe
-- App listens to masrofi:data-wiped and clears in-memory dashboard state
-- regression tests updated for local cache/pending queue wipe
+- client blocks duplicate live WebSocket connects
+- client ignores stale websocket/audio events via connection epoch
+- microphone processor uses a silent sink to avoid monitoring/feedback
+- playback sources are stopped and disconnected
+- false barge-in threshold raised to reduce speaker echo interruptions
+- server closes previous live socket for the same authenticated user
+- LIVE-01 regression test added
 
-Timestamp: 2026-09-05T11:43:00+03:00
+Timestamp: 2026-09-05T12:58:00+03:00
