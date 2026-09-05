@@ -3094,7 +3094,32 @@ export default function App() {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
                 <p className="text-xs text-slate-400 mb-1">آلية الفصل</p>
                 <p className="text-sm font-bold text-white">فائض الدورة ≠ الرصيد النقدي</p>
-                <p className="text-xs text-slate-500 mt-1">الخزنة ملخص مستقل ولا تُنشئ دخلاً جديداً.</p>
+                <p className="text-xs text-slate-500 mt-1">الخزنة حساب مقفل: لا تُحسب دخلاً جديداً ولا تظهر ضمن الرصيد المتاح.</p>
+              </div>
+            </div>
+
+            <div className="mb-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+              <h3 className="text-sm font-black text-emerald-200 mb-2">فتح الخزنة للحاجة</h3>
+              <p className="text-xs text-slate-400 mb-3">استخدمها فقط لإخراج مبلغ من الخزنة إلى نقدي أو PalPay. هذه حركة تحويل داخلية وليست دخلاً جديداً.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  value={vaultReleaseAmount}
+                  onChange={(e) => setVaultReleaseAmount(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="المبلغ بالشيكل"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+                <select
+                  value={vaultReleaseTarget}
+                  onChange={(e) => setVaultReleaseTarget(e.target.value as 'cash' | 'palPay')}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                >
+                  <option value="cash">إلى النقدي</option>
+                  <option value="palPay">إلى PalPay</option>
+                </select>
+                <button onClick={releaseFromVault} disabled={isVaultReleaseLoading || Number(vaultReleaseAmount || 0) <= 0} className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-100 text-xs font-black disabled:opacity-50">
+                  {isVaultReleaseLoading ? 'جارٍ الفتح...' : 'فتح مبلغ من الخزنة'}
+                </button>
               </div>
             </div>
 
