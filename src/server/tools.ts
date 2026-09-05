@@ -2563,7 +2563,8 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
     month: thisMonth,
     customBudgetCount: customBudgetDocs.length,
     defaultBudgetCount: Object.keys(DEFAULT_BUDGETS).length,
-    partial: false
+    partial,
+    queryError: partial ? queryError : undefined
   };
 }
 
