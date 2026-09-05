@@ -273,6 +273,26 @@ test('HIST-02: historical month requires a day so the assistant cannot invent da
   }
 });
 
+test('HIST-03: short 27/6 salary date is accepted and belongs to July salary cycle', () => {
+  const result = normalizeHistoricalTransactionDate({
+    date: '27/6',
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.date, '2026-06-27T10:13:00.000Z');
+    assert.equal(result.source, 'short-explicit-date');
+    assert.equal(getSalaryCycleForDate(result.date, new Date('2026-09-02T00:00:00.000Z')).cycleId, 'vault_2026_07');
+  }
+
+  const arabicDigits = normalizeHistoricalTransactionDate({
+    date: '٢٧/٦',
+    now: new Date('2026-09-02T10:13:00.000Z'),
+  });
+  assert.equal(arabicDigits.ok, true);
+  if (arabicDigits.ok) assert.equal(arabicDigits.date, '2026-06-27T10:13:00.000Z');
+});
+
 test('IMP-FILE-01: CSV expense import creates dated review drafts without saving', () => {
   const csv = 'date,notes,amount,category,subcategory,merchant\n2026-06-05,خبز,12,طعام ومشتريات منزل,مخبوزات,مخبز\n2026-06-06,مواصلات,8,مواصلات,تكسي,تاكسي';
   const preview = parseExpenseImportFile({
