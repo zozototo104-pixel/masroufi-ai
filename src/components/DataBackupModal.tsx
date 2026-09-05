@@ -10,6 +10,7 @@ import {
   parseCSVToTransactions,
   BackupDataPayload 
 } from '../lib/dataUtils';
+import { auth } from '../lib/firebase';
 
 interface DataBackupModalProps {
   isOpen: boolean;
