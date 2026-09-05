@@ -1257,6 +1257,75 @@ export default function App() {
     if (target?.cycleId || target?.id) void loadVaultCycleDetails(target.cycleId || target.id);
   };
 
+  const closeSelectedVaultCycle = async () => {
+    const cycleId = selectedVaultCycleDetails?.period?.cycleId || selectedVaultCycleId;
+    if (!cycleId) return;
+    const ok = window.confirm('سيتم إقفال فائض هذه الدورة وتحويله للخزنة كتحويل داخلي مقفل. لن يُحسب كدخل جديد. هل تريد المتابعة؟');
+    if (!ok) return;
+    try {
+      setIsVaultCycleLoading(true);
+      setVaultCycleMessage('');
+      const token = await getFreshAuthToken();
+      const res = await fetch('/api/salary-cycles/recalculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cycleId, lockVault: true, reason: 'user_closed_salary_cycle_from_vault_ui' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر إقفال الدورة');
+      setVaultCycleMessage(`تم إقفال الدورة وترحيل ${Number(data?.salaryCycle?.vaultContribution || 0).toLocaleString()} ₪ إلى الخزنة.`);
+      await loadVaultCycleDetails(cycleId);
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', reason: 'salary_cycle_locked_to_vault' } }));
+    } catch (err: any) {
+      setVaultCycleMessage(err?.message || 'تعذر إقفال الدورة وترحيلها للخزنة');
+    } finally {
+      setIsVaultCycleLoading(false);
+    }
+  };
+
+  const releaseFromVault = async () => {
+    const amount = Number(String(vaultReleaseAmount || '').replace(',', '.'));
+    if (!amount || amount <= 0) {
+      setVaultCycleMessage('أدخل مبلغاً صحيحاً لفتح الخزنة.');
+      return;
+    }
+    const ok = window.confirm(`سيتم فتح ${amount} ₪ من الخزنة إلى ${vaultReleaseTarget === 'palPay' ? 'PalPay' : 'النقدي'}. هل تريد المتابعة؟`);
+    if (!ok) return;
+    try {
+      setIsVaultReleaseLoading(true);
+      setVaultCycleMessage('');
+      const operationId = `vault_release_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const token = await getFreshAuthToken();
+      const res = await fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          command: {
+            commandType: 'TRANSFER_MONEY',
+            operationId,
+            args: {
+              amount,
+              fromAccount: 'vault',
+              toAccount: vaultReleaseTarget,
+              notes: `فتح مبلغ ${amount} ₪ من الخزنة إلى ${vaultReleaseTarget === 'palPay' ? 'PalPay' : 'النقدي'} للحاجة`,
+              operationId,
+              riskConfirmed: false,
+            },
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر فتح الخزنة');
+      setVaultReleaseAmount('');
+      setVaultCycleMessage('تم فتح المبلغ من الخزنة وتحويله للحساب المختار.');
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', reason: 'vault_release' } }));
+    } catch (err: any) {
+      setVaultCycleMessage(err?.message || 'تعذر فتح الخزنة');
+    } finally {
+      setIsVaultReleaseLoading(false);
+    }
+  };
+
   const deleteSelectedVaultCycle = async () => {
     const cycleId = selectedVaultCycleDetails?.period?.cycleId || selectedVaultCycleId;
     if (!cycleId) return;
