@@ -1836,6 +1836,7 @@ ${relationshipContext}
                   liveAudioChunksForwarded += 1;
                   liveAudioSinceLastToolResponse += 1;
                   if (awaitingPostToolAudio) awaitingPostToolAudio = false;
+                  aiOutputActive = true;
                   safeSend({ audio });
                 }
               }
