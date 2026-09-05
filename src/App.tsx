@@ -683,11 +683,16 @@ export default function App() {
     const handleRefresh = (event: Event) => {
       const scope = (event as CustomEvent)?.detail?.scope || 'all';
       if (refreshDebounceRef.current) window.clearTimeout(refreshDebounceRef.current);
-      refreshDebounceRef.current = window.setTimeout(() => {
+      refreshDebounceRef.current = window.setTimeout(async () => {
         refreshDebounceRef.current = null;
-        const headers = { 'Authorization': `Bearer ${idToken}` };
         if (scope === 'vault') {
-          fetchVaultData(headers).catch(err => console.warn('Vault refresh failed:', err));
+          try {
+            const currentToken = await getFreshDashboardToken();
+            const headers = { 'Authorization': `Bearer ${currentToken}` };
+            await fetchVaultData(headers);
+          } catch (err) {
+            console.warn('Vault refresh failed:', err);
+          }
           return;
         }
         fetchData();
