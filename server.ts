@@ -2065,9 +2065,27 @@ ${relationshipContext}
           return;
         }
 
+        if (msg.interrupt && session && isActive) {
+          // Explicit barge-in from the client. Open a short window where clean
+          // mic frames may pass after client-side playback has been stopped.
+          clientInterruptOverrideUntilMs = Date.now() + 2200;
+          aiOutputActive = false;
+          safeSend({ interrupted: true });
+          return;
+        }
+
         if (msg.audio) {
           if (!authState.authenticated || !session) {
-            pendingAudio.push(msg.audio);
+            if (pendingAudio.length < 12) pendingAudio.push(msg.audio);
+            return;
+          }
+
+          const echoGateActive = aiOutputActive && Date.now() > clientInterruptOverrideUntilMs;
+          if (echoGateActive) {
+            droppedEchoAudioChunks += 1;
+            if (droppedEchoAudioChunks <= 5 || droppedEchoAudioChunks % 25 === 0) {
+              console.log('[live-audio] dropped mic chunk during AI output', { requestId, droppedEchoAudioChunks });
+            }
             return;
           }
 
@@ -2080,12 +2098,6 @@ ${relationshipContext}
               console.warn("Failed sending audio chunk:", audioSendErr);
             }
           }
-        }
-
-        if (msg.interrupt && session && isActive) {
-          // The Live API interruption is primarily handled by input audio/barge-in.
-          // Keep this branch so future SDK versions can hook explicit interruption.
-          safeSend({ interrupted: true });
         }
       } catch (err) {
         console.error("Error parsing WS message:", err);
