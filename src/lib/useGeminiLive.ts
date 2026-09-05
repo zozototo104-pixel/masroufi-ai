@@ -74,6 +74,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const stopPlayback = useCallback(() => {
     activeSourcesRef.current.forEach(source => {
       try { source.stop(); } catch (e) { /* ignore */ }
+      try { source.disconnect(); } catch (e) { /* ignore */ }
     });
     activeSourcesRef.current = [];
     if (outputCtxRef.current) {
