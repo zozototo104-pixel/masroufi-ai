@@ -236,21 +236,41 @@ export async function recordTransactionCommittedSideEffects(
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
-  const txSnap = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  const txs = txSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  const balances = calculateBalancesFromDocs(txs);
-  const budgets = await getUserBudgets(userId, adminDb);
-  const commitmentSnap = await adminDb.collection('commitments').where('userId', '==', userId).get();
+  const nowIso = now.toISOString();
+  const horizon90Iso = new Date(now.getTime() - 90 * 86400000).toISOString();
+  const thisMonth = nowIso.slice(0,7);
+  const monthStart = `${thisMonth}-01T00:00:00.000Z`;
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const nextMonthStart = `${nextMonth.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const next30Iso = new Date(now.getTime() + 30 * 86400000).toISOString();
+
+  const [balanceResult, recentSnap, monthExpenseSnap, budgets, commitmentSnap] = await Promise.all([
+    getBalance({}, userId, token),
+    adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .where('date', '>=', horizon90Iso)
+      .where('date', '<', nowIso)
+      .limit(500)
+      .get(),
+    adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .where('date', '>=', monthStart)
+      .where('date', '<', nextMonthStart)
+      .where('type', '==', 'expense')
+      .limit(1000)
+      .get(),
+    getUserBudgets(userId, adminDb),
+    adminDb.collection('commitments')
+      .where('userId', '==', userId)
+      .where('dueDate', '<=', next30Iso)
+      .limit(200)
+      .get(),
+  ]);
+
+  const balances = balanceResult.balances;
+  const recent = recentSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const commitments = commitmentSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  const horizon90 = now.getTime() - 90 * 86400000;
-  const recent = txs.filter((t: any) => {
-    const d = new Date(t.date || t.createdAt || 0).getTime();
-    return Number.isFinite(d) && d >= horizon90 && d <= now.getTime();
-  });
-  const expenseTxs = recent.filter((t: any) => t.type === 'expense');
-  // V6: exclude CREDIT_PURCHASE from dailyExpense so projected forecast doesn't
-  // double-count purchases that didn't actually deduct cash.
-  const realExpenseTxs = expenseTxs.filter((t: any) => t.transactionType !== 'CREDIT_PURCHASE');
+  const realExpenseTxs = recent.filter((t: any) => t.type === 'expense' && t.transactionType !== 'CREDIT_PURCHASE');
   const incomeTxs = recent.filter((t: any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING');
   const firstTs = recent.length ? Math.min(...recent.map((t: any) => new Date(t.date || t.createdAt).getTime()).filter(Number.isFinite)) : now.getTime();
   const historyDays = recent.length ? Math.max(7, Math.min(90, Math.ceil((now.getTime() - firstTs) / 86400000) + 1)) : 7;
@@ -258,21 +278,16 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   const incomeTotal = incomeTxs.reduce((a: number, t: any) => a + parsePositiveFinancialAmount(t.amount), 0);
   const dailyExpense = expenseTotal / historyDays;
   const dailyIncome = incomeTotal / historyDays;
-  const next30 = now.getTime() + 30 * 86400000;
-  // V6 (MF-1): exclude paid/cancelled commitments from the forecast subtraction.
-  const due30 = commitments.filter((c: any) => {
-    if (c.status === 'paid' || c.status === 'cancelled') return false;
-    const d = new Date(c.dueDate).getTime();
-    return Number.isFinite(d) && d <= next30;
-  }).reduce((a: number, c: any) => a + (Number(c.amount) || 0), 0);
+  const due30 = commitments.filter((c: any) => c.status !== 'paid' && c.status !== 'cancelled')
+    .reduce((a: number, c: any) => a + (Number(c.amount) || 0), 0);
   const projected30 = Math.round((balances.total || 0) + dailyIncome * 30 - dailyExpense * 30 - due30);
-  const thisMonth = now.toISOString().slice(0,7);
-  const monthExpenses = txs.filter((t:any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth));
+  const monthExpenses = monthExpenseSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const budgetStatus = Object.entries(budgets).map(([category, limitRaw]) => {
     const limit = Number(limitRaw) || 0;
     const spent = monthExpenses.filter((t:any)=>t.category===category).reduce((a:number,t:any)=>a+parsePositiveFinancialAmount(t.amount),0);
     return { category, limit, spent, remaining: limit-spent, percentage: limit>0?Math.round(spent/limit*100):0 };
   });
+  const saturated = recent.length >= 500 || monthExpenses.length >= 1000 || commitments.length >= 200;
   return {
     success: true,
     balances,
@@ -281,11 +296,11 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
     projected30DayBalance: projected30,
     dueCommitments30Days: due30,
     historyDays,
-    confidence: recent.length >= 30 ? 'good' : recent.length >= 10 ? 'medium' : 'initial',
+    confidence: saturated ? 'partial' : recent.length >= 30 ? 'good' : recent.length >= 10 ? 'medium' : 'initial',
     budgetStatus,
     commitments: commitments.filter((c:any)=>c.status!=='paid' && c.status!=='cancelled').map((c:any)=>({id:c.id,title:c.title,amount:c.amount,dueDate:c.dueDate,category:c.category,status:c.status||'pending'})),
-    // V6: propagate partial flag so AI/UI refuses decisions on partial data.
-    partial: Boolean((txSnap as any).partial || (commitmentSnap as any).partial)
+    partial: Boolean(balanceResult.partial || (recentSnap as any).partial || (monthExpenseSnap as any).partial || (commitmentSnap as any).partial || saturated),
+    readEfficiency: { accountBalanceDocsRead: 1, recentTransactionLimit: 500, monthExpenseLimit: 1000, commitmentsLimit: 200 }
   };
 }
 
