@@ -1,20 +1,25 @@
 # Manual CI verification trigger
 
-Final run after fixing the current user-reported blockers.
+Verify live audio self-interruption fix from Render logs.
 
-Issues:
-- salary dated 27/6 for July salary cycle was still not saving to cloud
-- voice was cutting/overlapping like duplicate expert audio
+Observed logs:
+- forwarded audio chunks total 1/2
+- immediately serverContent.interrupted
+- no RESOURCE_EXHAUSTED shown
 
-Final fixes included:
-- addTransaction now normalizes transaction date before income safety guards
-- duplicate late transaction date normalization was removed
-- salary duplicate guard uses the normalized salary-cycle window 27→26
-- 27/6 and Arabic digits ٢٧/٦ are accepted
-- voice buffer changed to 4096 for stability
-- barge-in no longer sends the echo frame that triggered interruption
-- duplicate/stale live sessions are still guarded
+Fixes:
+- server marks AI output active when forwarding audio
+- server drops microphone chunks during AI output to prevent Gemini self-interruption
+- explicit client interrupt opens a short override window
+- pre-auth pending audio is bounded
+- tests assert server-side echo gate
 
-No code changes should follow this trigger unless CI fails.
+Expected gates:
+- install
+- audit
+- tests
+- TypeScript
+- build
+- runtime smoke
 
-Timestamp: 2026-09-05T14:04:00+03:00
+Timestamp: 2026-09-05T14:18:00+03:00
