@@ -9,8 +9,21 @@ function isValidDateParts(year: number, month: number, day: number): boolean {
   return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
 }
 
-function parseDateString(value: unknown): { year: number; month: number; day: number } | null {
-  const raw = String(value || '').trim();
+function normalizeDigitsLocal(value: unknown): string {
+  return String(value || '')
+    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .trim();
+}
+
+function inferShortDateYear(month: number, day: number, now: Date, explicitYear?: unknown): number {
+  const year = Number(normalizeDigitsLocal(explicitYear));
+  if (Number.isInteger(year) && year >= 2000 && year <= 2100) return year;
+  return now.getUTCFullYear();
+}
+
+function parseDateString(value: unknown, opts: { now: Date; year?: unknown } = { now: new Date() }): { year: number; month: number; day: number; short: boolean } | null {
+  const raw = normalizeDigitsLocal(value);
   if (!raw) return null;
 
   const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
