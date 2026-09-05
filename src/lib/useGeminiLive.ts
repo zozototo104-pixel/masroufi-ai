@@ -258,9 +258,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
                 responseWatchdogRef.current = window.setTimeout(() => {
                   responseWatchdogRef.current = null;
                   if (wsRef.current === ws && ws.readyState === WebSocket.OPEN && receivedAudioFramesRef.current === 0) {
-                    setError('الصوت متصل والمايك يرسل، لكن لم يصل رد صوتي من Gemini Live بعد. قد تكون حصة Gemini Live منتهية أو الخدمة بطيئة؛ جرّب الكتابة مؤقتاً أو أعد المحاولة بعد قليل.');
+                    console.warn('[live] microphone frames were sent but no Gemini audio has returned yet', {
+                      sentAudioFrames: sentAudioFramesRef.current,
+                      receivedAudioFrames: receivedAudioFramesRef.current,
+                      liveReady: liveReadyRef.current,
+                    });
                   }
-                }, 18000);
+                }, 45000);
               }
             }
           };
