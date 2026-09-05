@@ -671,6 +671,8 @@ test('VAULT-08: recalculating the same cycle is idempotent through one salaryCyc
   assert.ok(src.includes("collection('salaryCycles').doc(period.cycleId)"), 'cycle must be stored at deterministic cycleId');
   assert.ok(src.includes('previousVaultContribution'), 'recalculation must compare prior contribution');
   assert.ok(src.includes('nextVaultContribution - previousVaultContribution'), 'vault meta update must use delta, not duplicate insertion');
+  assert.ok(src.includes('firebaseAdminDb.runTransaction'), 'cycle and vault meta must commit atomically to avoid concurrent balance races');
+  assert.ok(src.includes('transactionalCommit: true'), 'vault records should mark transactional durability');
 });
 
 test('VAULT-09: old transaction edits recalculate only affected cycles', async () => {
