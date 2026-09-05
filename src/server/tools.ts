@@ -3497,10 +3497,11 @@ export async function repairSavingsVaultMeta(args: any, userId: string, token: s
       currentBalance: repairedBalance,
       updatedAt: now,
       repairedAt: now,
-      repairSource: 'salaryCycles',
+      repairSource: 'salaryCycles+savingsVaultAdjustments',
       repairedCycleCount: cycles.length,
-      source: 'salaryCycles',
-      version: 3,
+      repairedAdjustmentCount: manualAdjustments.length,
+      source: 'salaryCycles+manualAdjustments',
+      version: 4,
       transactionalCommit: true,
     }, { merge: true });
   });
