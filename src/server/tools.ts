@@ -4191,6 +4191,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   update_savings_goal: updateSavingsGoal,
   get_savings_vault: getSavingsVault,
   get_salary_cycle_summary: getSalaryCycleSummary,
+  get_salary_cycle_details: getSalaryCycleDetails,
+  delete_salary_cycle_transactions: deleteSalaryCycleTransactions,
   recalculate_salary_cycle: recalculateSalaryCycle,
   add_savings_vault_adjustment: addSavingsVaultAdjustment,
   repair_savings_vault_meta: repairSavingsVaultMeta,
