@@ -1033,6 +1033,23 @@ export async function addTransaction(args: any, userId: string, token: string) {
     createdAt: transactionNow.toISOString()
   };
 
+  const isSalaryIncomeForGuard = type === 'income' && /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''} ${args.userText || ''}`);
+  const salaryCycleForGuard = isSalaryIncomeForGuard ? getSalaryCycleForDate(dateResult.date, transactionNow) : null;
+  const salaryUniqueGuard = salaryCycleForGuard ? {
+    ref: firebaseAdminDb.collection('users').doc(userId).collection('salaryIncomeGuards').doc(stableDocId(`${salaryCycleForGuard.cycleId}:${account}:${amount}`)),
+    reason: 'DUPLICATE_SALARY_INCOME',
+    payload: {
+      cycleId: salaryCycleForGuard.cycleId,
+      cycleStart: salaryCycleForGuard.startIso,
+      cycleEnd: salaryCycleForGuard.endIso,
+      account,
+      amount,
+      date: dateResult.date,
+      operationId,
+      source: 'salary_cycle_guard',
+    },
+  } : null;
+
   // V6.1+ (CONC-01..CONC-05): every real add_transaction write goes through
   // atomicAddTransaction. Balance-sensitive ops keep projected-balance checks;
   // non-sensitive adds skip the balance check but still require a confirmed
