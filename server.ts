@@ -1118,9 +1118,19 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
 
   app.get("/api/salary-cycles/:cycleId", authMiddleware, async (req: any, res: any) => {
     try {
-      const { getSalaryCycleSummary } = await import('./src/server/tools');
+      const { getSalaryCycleDetails } = await import('./src/server/tools');
       const token = req.headers.authorization.split('Bearer ')[1];
-      res.json(await getSalaryCycleSummary({ ...(req.query || {}), cycleId: req.params.cycleId }, req.user.uid, token));
+      res.json(await getSalaryCycleDetails({ ...(req.query || {}), cycleId: req.params.cycleId }, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/salary-cycles/:cycleId/transactions", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { deleteSalaryCycleTransactions } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await deleteSalaryCycleTransactions({ ...(req.body || {}), cycleId: req.params.cycleId }, req.user.uid, token));
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
