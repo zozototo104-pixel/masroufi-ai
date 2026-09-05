@@ -1320,6 +1320,17 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/account-balances/repair", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { repairAccountBalanceSnapshot } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await repairAccountBalanceSnapshot(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error("Repair account balance snapshot API error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/reports", authMiddleware, async (req: any, res: any) => {
     const { getReports } = await import('./src/server/tools');
     const token = req.headers.authorization.split('Bearer ')[1];
