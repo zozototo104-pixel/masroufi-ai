@@ -62,7 +62,7 @@ const IMPORT_REPLACE_ATOMIC_MUTATION_LIMIT = FIRESTORE_WRITE_BATCH_LIMIT - IMPOR
 
 // Persistent notification center. Notifications are stored per-user so Cloud Run restarts do not erase them.
 // The UI still renders short-lived toasts, but persistence is the source of truth.
-export async function getNotifications(userId: string, token: string, limit: number = 50) {
+export async function getNotifications(userId: string, token: string, limit: number = 10) {
   const adminDb = getDb(token);
   const requestedLimit = Math.max(1, Math.min(100, limit));
   const snap = await adminDb.collection('users').doc(userId).collection('notifications')
