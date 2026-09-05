@@ -3372,7 +3372,7 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
       : calculateBalances(((balanceBootstrapSnap as any)?.docs || []).map((d: any) => ({ id: d.id, ...d.data() })));
     const baseAccountBalances = accountBalanceSnap.exists
       ? normalizeAccountBalanceSnapshotForVault(accountBalanceSnap.data() || {})
-      : bootstrappedBalances;
+      : normalizeAccountBalanceSnapshotForVault(bootstrappedBalances || {});
     const balanceAfterCashLock = addBalanceDelta(baseAccountBalances, transactionReplacementDelta(existingLockTxs.cash, nextLockTxs.cash));
     const nextAccountBalances = addBalanceDelta(balanceAfterCashLock, transactionReplacementDelta(existingLockTxs.palPay, nextLockTxs.palPay));
 
