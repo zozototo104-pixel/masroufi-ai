@@ -25,6 +25,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore tools.ts from last known good commit if corrupted
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          if [ -s src/server/tools.ts ]; then
+            echo "src/server/tools.ts is not empty; no restore needed."
+            exit 0
+          fi
+          GOOD_COMMIT="1ab26ecc4958af24275c13818154d8235bd00fcc"
+          git show "$GOOD_COMMIT:src/server/tools.ts" > src/server/tools.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/server/tools.ts
+          git commit -m "restore(tools): restore last known good tools.ts"
+          git push
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
