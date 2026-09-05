@@ -3036,7 +3036,13 @@ export async function getSavingsGoals(args: any, userId: string, token: string) 
     }
   }
 
-  return { success: true, goals, partial: (snap as any).partial || (txSnap as any).partial };
+  return {
+    success: true,
+    goals,
+    salaryCycle: savingsCycle,
+    partial: Boolean((snap as any).partial || (txSnap as any).partial || snap.docs.length >= 100 || txs.length >= 300),
+    readEfficiency: { savingsGoalLimit: 100, transactionDocsRead: txs.length, transactionLimit: 300, salaryCycleId: savingsCycle.cycleId },
+  };
 }
 
 export async function createSavingsGoal(args: any, userId: string, token: string) {
