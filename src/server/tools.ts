@@ -1830,6 +1830,9 @@ export async function importUserData(payload: any, userId: string, token: string
   }
 
   const balanceRepair = await repairAccountBalanceSnapshot({ reason: 'import_merge_completed' }, userId, token);
+  if (balanceRepair.success !== true) {
+    await firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances').delete().catch(() => {});
+  }
   await addNotification(userId, `تم استيراد ${importedTxCount} عملية مالية و ${importedBudgetsCount} موازنة بنجاح.`, 'success', adminDb);
 
   return {
