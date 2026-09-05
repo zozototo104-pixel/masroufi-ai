@@ -706,6 +706,8 @@ test('VAULT-12: Firestore read-cost regressions are guarded for notifications, r
   assert.ok(!toolsSrc.includes('Math.max(requestedLimit, 100)'), 'notifications must not read 100 docs for a small request');
   assert.ok(toolsSrc.includes("where('date', '>=', monthStart)"), 'monthly budgets/savings calculations must use date-bounded queries');
   assert.ok(toolsSrc.includes("where('date', '<', nextMonthStart)"), 'monthly budgets/savings calculations must use exclusive month end bounds');
+  assert.ok(toolsSrc.includes('incomeGuardMonthStart'), 'income duplicate guard must be month-bounded, not a full-ledger scan');
+  assert.ok(toolsSrc.includes('incomeGuardNextMonthStart'), 'income duplicate guard must use an exclusive month end bound');
   assert.ok(toolsSrc.includes('.limit(100)'), 'reports list must remain limited');
   assert.ok(toolsSrc.includes('txQuery = txQuery.where'), 'time-scoped report generation must push date filtering into Firestore');
   assert.ok(toolsSrc.includes('txQuery = txQuery.orderBy'), 'time-scoped report generation must use ordered bounded reads');
