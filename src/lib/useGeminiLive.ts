@@ -162,8 +162,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           streamRef.current = stream;
           
           const source = inputCtx.createMediaStreamSource(stream);
-          // Smaller buffers reduce perceived voice latency and make barge-in feel smoother.
-          const processor = inputCtx.createScriptProcessor(2048, 1, 1);
+          // A 4096-frame buffer is more stable on mobile/Render/WebSocket jitter.
+          // 2048 had lower latency but caused audible chopping on some devices.
+          const processor = inputCtx.createScriptProcessor(4096, 1, 1);
           processorRef.current = processor;
           
           source.connect(processor);
