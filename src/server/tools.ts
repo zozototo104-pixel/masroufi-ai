@@ -3652,7 +3652,7 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   const adminDb = getDb(token);
   console.log('TOOL CALL: generateTreasurerReport', args);
   const now = new Date();
-  const timeframe = String(args?.timeframe || 'month');
+  const timeframe = String(args?.timeframe || args?.period || 'month');
   if (timeframe === 'all' && !args?.allowFullLedgerReport) {
     return {
       success: false,
