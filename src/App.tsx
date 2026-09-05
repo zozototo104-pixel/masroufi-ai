@@ -723,6 +723,8 @@ export default function App() {
         }
       } catch (err) {
         console.error("Failed to fetch data", err);
+      } finally {
+        dashboardRefreshInFlightRef.current = false;
       }
     };
     
