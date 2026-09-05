@@ -136,8 +136,8 @@ test('TOOL-07: budget read failure propagates error (HF-6)', async () => {
 
 test('TOOL-08: getFinancialDecisionContext propagates partial flag (DUR-04/28)', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('partial: Boolean((txSnap as any).partial || (commitmentSnap as any).partial)'),
-    'getFinancialDecisionContext must propagate partial flag');
+  assert.ok(src.includes('partial: Boolean(balanceResult.partial || (recentSnap as any).partial || (monthExpenseSnap as any).partial || (commitmentSnap as any).partial || saturated)'),
+    'getFinancialDecisionContext must propagate partial flags from bounded reads and saturation');
 });
 
 test('TOOL-09: commitments support paid/cancelled status (MF-1)', async () => {
