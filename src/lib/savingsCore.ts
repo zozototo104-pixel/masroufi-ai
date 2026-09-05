@@ -125,8 +125,10 @@ export function buildSavingsGoalPlan(input: {
   transactions?: SavingsContributionRecord[];
   contributions?: SavingsContributionRecord[];
   now?: Date;
+  period?: SavingsPeriodWindow;
 }): SavingsGoalPlan {
   const now = input.now || new Date();
+  const savingsPeriod = input.period || {};
   const targetAmount = parsePositiveFinancialAmount(input.goal.targetAmount);
   const savedAmount = Math.min(targetAmount, parsePositiveFinancialAmount(input.goal.savedAmount));
   const remainingAmount = roundMoney(Math.max(0, targetAmount - savedAmount));
