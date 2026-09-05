@@ -1,14 +1,16 @@
 # Manual CI verification trigger
 
-Final verification after the last live watchdog commits.
+Verify current fixes for user-reported blockers.
 
-Must verify current HEAD, not previous successful run.
+Live audio fix:
+- server sends type=live_ready only after Gemini Live session connects
+- client distinguishes WebSocket open from Gemini Live readiness
+- client does not send microphone audio until live_ready arrives
+- no-response watchdog only applies after mic frames are actually sent
 
-Current fixes:
+Finance fix:
 - PalPay income uses incomeGuards inside atomicAddTransaction
-- live no-response watchdog surfaces mic-sent/no-audio-return failures
-- abnormal WebSocket close reason is shown to the user
-- tests include live watchdog assertions
+- cash and PalPay income share the same safe write path
 
 Expected gates:
 - install
@@ -18,4 +20,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T16:36:00+03:00
+Timestamp: 2026-09-05T16:44:00+03:00
