@@ -3542,6 +3542,19 @@ export async function deleteSalaryCycleTransactions(args: any, userId: string, t
     };
   }
   const transactionIds = readResult.transactions.map((tx: any) => tx.id).filter(Boolean);
+  if (transactionIds.length === 0) {
+    const recalculated = await recalculateSalaryCycle({ __period: period, reason: 'delete_empty_salary_cycle_transactions' }, userId, token);
+    return {
+      success: true,
+      period,
+      deletedCount: 0,
+      deletedTransactionIds: [],
+      recalculated,
+      bounded: true,
+      message: 'هذه الدورة لا تحتوي معاملات للحذف.',
+      query: { collection: 'transactions', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    };
+  }
   const now = new Date();
   const guardRefs = readResult.transactions.map((tx: any) => incomeGuardRefForTransaction(userId, tx, now)).filter(Boolean);
   const deleteResult = await atomicDeleteTransactions(userId, transactionIds, { guardRefs, reason: `delete_salary_cycle:${period.cycleId}` });
