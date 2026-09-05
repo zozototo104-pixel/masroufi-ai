@@ -124,6 +124,11 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       nextPlayTimeRef.current = outputCtx.currentTime;
 
       ws.onopen = async () => {
+        connectingRef.current = false;
+        if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) {
+          try { ws.close(); } catch (e) { /* ignore */ }
+          return;
+        }
         // V6: send the auth message FIRST. Server will not process audio until auth_ok arrives.
         if (activeToken) {
           try {
