@@ -3989,7 +3989,8 @@ export const functionDeclarations = [
         category: { type: "string", description: "بند رئيسي أو فرعي مثل الأبناء، الزيارات، الطعام" },
         type: { type: "string", description: "expense أو income أو transfer" },
         necessity: { type: "string", description: "ضروري أو كمالي" },
-        save: { type: "boolean", description: "احفظ التقرير في حافظة التقارير، الافتراضي true" }
+        save: { type: "boolean", description: "احفظ التقرير في حافظة التقارير، الافتراضي true" },
+        allowFullLedgerReport: { type: "boolean", description: "true فقط إذا أكد المستخدم صراحة أنه يريد تقرير كل التاريخ رغم تكلفة القراءة" }
       }
     }
   },
