@@ -291,10 +291,14 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       const res = await backupFetch('/api/data/wipe', { method: 'DELETE' });
 
       const data = await readApiPayload(res);
+      if (data.verifiedEmpty !== true) {
+        throw new Error('لم يؤكد السيرفر أن قاعدة البيانات أصبحت فارغة، لذلك لن أعرض نجاح التصفير.');
+      }
+      setCountOverride({ transactions: 0, budgets: 0, commitments: 0, reports: 0 });
 
       setStatusMessage({
         type: 'success',
-        text: 'تم مسح وتصفير كافة البيانات بنجاح، والنظام الآن فارغ ونظيف بالكامل.'
+        text: `تم مسح وتصفير كافة البيانات بنجاح، والنظام الآن فارغ ونظيف بالكامل. المحذوف: ${data.deletedCounts?.transactions || 0} عملية.`
       });
 
       onRefreshData();
