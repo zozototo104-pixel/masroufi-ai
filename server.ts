@@ -1679,6 +1679,9 @@ function setupLiveApi(wss: WebSocketServer) {
     let liveAudioSinceLastToolResponse = 0;
     let liveInterruptions = 0;
     let awaitingPostToolAudio = false;
+    let aiOutputActive = false;
+    let clientInterruptOverrideUntilMs = 0;
+    let droppedEchoAudioChunks = 0;
 
     let authTimeout: NodeJS.Timeout | null = setTimeout(() => {
       if (!authState.authenticated) {
