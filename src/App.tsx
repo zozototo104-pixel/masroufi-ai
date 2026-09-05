@@ -1218,7 +1218,7 @@ export default function App() {
   };
 
   const loadVaultCycleDetails = async (cycleId?: string) => {
-    const targetCycleId = cycleId || selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultData?.cycles?.[0]?.cycleId || vaultData?.cycles?.[0]?.id;
+    const targetCycleId = cycleId || selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultCycleOptions?.[0]?.cycleId || vaultCycleOptions?.[0]?.id;
     if (!targetCycleId) return;
     try {
       setIsVaultCycleLoading(true);
