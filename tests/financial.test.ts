@@ -293,6 +293,16 @@ test('HIST-03: short 27/6 salary date is accepted and belongs to July salary cyc
   if (arabicDigits.ok) assert.equal(arabicDigits.date, '2026-06-27T10:13:00.000Z');
 });
 
+test('INCOME-DATE-01: salary duplicate guard uses the normalized 27/6 date and salary-cycle window', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const addBlock = toolsSrc.slice(toolsSrc.indexOf('export async function addTransaction'), toolsSrc.indexOf('export async function queryTransactions'));
+  assert.ok(addBlock.indexOf('const dateResult = normalizeHistoricalTransactionDate') < addBlock.indexOf('if (type === \'income\')'), 'addTransaction must normalize historical/short dates before income guard');
+  assert.ok(addBlock.includes('const incomeGuardCandidateDate = new Date(dateResult.date)'), 'income guard must use the normalized transaction date');
+  assert.ok(addBlock.includes('incomeGuardCycle?.startIso'), 'salary duplicate guard must query the salary-cycle start, not calendar month only');
+  assert.ok(addBlock.includes('incomeGuardCycle?.endExclusiveIso'), 'salary duplicate guard must query the salary-cycle end, not calendar month only');
+  assert.ok(addBlock.includes('sameSalaryCycle'), 'salary duplicate comparison must use salary cycle identity');
+});
+
 test('IMP-FILE-01: CSV expense import creates dated review drafts without saving', () => {
   const csv = 'date,notes,amount,category,subcategory,merchant\n2026-06-05,خبز,12,طعام ومشتريات منزل,مخبوزات,مخبز\n2026-06-06,مواصلات,8,مواصلات,تكسي,تاكسي';
   const preview = parseExpenseImportFile({
