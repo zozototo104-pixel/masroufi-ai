@@ -141,6 +141,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
       liveReadyRef.current = false;
+      pendingMicFramesRef.current = [];
       clientAudioAckSentRef.current = false;
       sentAudioFramesRef.current = 0;
       receivedAudioFramesRef.current = 0;
