@@ -230,6 +230,15 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             if (ws.readyState === WebSocket.OPEN) {
               const base64 = pcmToBase64(channelData);
               ws.send(JSON.stringify({ audio: base64 }));
+              sentAudioFramesRef.current += 1;
+              if (sentAudioFramesRef.current === 8 && receivedAudioFramesRef.current === 0 && responseWatchdogRef.current === null) {
+                responseWatchdogRef.current = window.setTimeout(() => {
+                  responseWatchdogRef.current = null;
+                  if (wsRef.current === ws && isConnected && receivedAudioFramesRef.current === 0) {
+                    setError('الصوت متصل والمايك يرسل، لكن لم يصل رد صوتي من Gemini Live بعد. قد تكون الحصة منتهية أو الخدمة بطيئة؛ جرّب الكتابة مؤقتاً أو أعد المحاولة بعد قليل.');
+                  }
+                }, 18000);
+              }
             }
           };
         } catch (err: any) {
