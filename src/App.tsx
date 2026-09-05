@@ -2260,8 +2260,8 @@ export default function App() {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl relative my-auto">
+        <div className="mobile-modal-backdrop bg-black/75 backdrop-blur-md z-[100]">
+          <div className="mobile-modal-panel bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg flex flex-col shadow-2xl relative">
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0">
               <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
