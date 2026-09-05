@@ -2789,7 +2789,7 @@ export async function getCommitments(args: any, userId: string, token: string) {
   });
 
   enriched.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-  return { commitments: enriched, partial: (snapshot as any).partial };
+  return { commitments: enriched, partial: Boolean((snapshot as any).partial || commitments.length >= limit), limit, readEfficiency: { commitmentDocsRead: commitments.length, limit } };
 }
 
 export async function createCommitment(args: any, userId: string, token: string) {
