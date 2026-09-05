@@ -32,7 +32,15 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          if ! grep -q "if (cur === '\\" src/server/tools.ts && [ -s src/server/tools.ts ]; then
+          if python - <<'PY'
+          from pathlib import Path
+          s = Path('src/server/tools.ts').read_text(encoding='utf-8') if Path('src/server/tools.ts').exists() else ''
+          marker = "if (cur === '\n  if (amount <= 0)"
+          raise SystemExit(0 if (not s.strip() or marker in s) else 1)
+          PY
+          then
+            echo "src/server/tools.ts is corrupted; restoring from Git."
+          else
             echo "src/server/tools.ts does not match the known corruption marker; no restore needed."
             exit 0
           fi
