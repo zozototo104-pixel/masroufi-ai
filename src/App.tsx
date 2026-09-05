@@ -1875,8 +1875,8 @@ export default function App() {
                 <HardDrive className="w-4 h-4 text-cyan-400" />
                 الخزنة
               </h3>
-              <button onClick={() => setShowVault(true)} className="text-[11px] text-cyan-300 hover:text-cyan-200 font-bold">
-                التفاصيل
+              <button onClick={() => { setShowVault(true); setTimeout(() => loadVaultCycleDetails(selectedVaultCycleId || vaultData?.currentCycle?.cycleId), 0); }} className="text-[11px] text-cyan-300 hover:text-cyan-200 font-bold">
+                دورات الراتب
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
