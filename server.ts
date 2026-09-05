@@ -1293,10 +1293,17 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
 
   app.get("/api/transactions", authMiddleware, async (req: any, res: any) => {
     try {
-      const { queryTransactions } = await import('./src/server/tools');
+      const { queryTransactions, getBalance } = await import('./src/server/tools');
       const token = req.headers.authorization.split('Bearer ')[1];
-      const result = await queryTransactions({ period: 'custom' }, req.user.uid, token); 
-      res.json(result);
+      const [recentTransactions, balanceResult] = await Promise.all([
+        queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 300 }, req.user.uid, token),
+        getBalance({}, req.user.uid, token),
+      ]);
+      res.json({
+        ...recentTransactions,
+        currentBalances: balanceResult?.balances || null,
+        balanceReadStrategy: 'canonical_full_ledger_balance_guard',
+      });
     } catch (e: any) {
       fs.appendFileSync("app-errors.log", "Transactions Error: " + e.message + "\n"); console.error("Transactions Error:", e.message);
       res.status(500).json({ error: e.message });
