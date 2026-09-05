@@ -4037,8 +4037,16 @@ export const functionDeclarations = [
       type: "object",
       properties: {
         title: { type: "string", description: "عنوان التقرير (مثال: 'التقرير المالي التفصيلي الشامل', 'تقرير مصروفات الأبناء', 'تقرير زيارات وضيافة')" },
-        timeframe: { type: "string", description: "الفترة: 'all' لكافة العمليات, 'month' للشهر الحالي, 'today' لليوم, 'week' للأسبوع" },
-        category: { type: "string", description: "التصنيف إن كان التقرير مخصصاً لتصنيف محدد مثل 'الأبناء' أو 'زيارات' (اختياري، اتركه فارغاً للتقرير الشامل لكافة البنود)" }
+        timeframe: { type: "string", description: "الفترة: 'current_salary_cycle' أو 'salary_cycle' أو 'custom' أو 'today' أو 'week' أو 'all'. أي شهر يعني دورة راتب 27→26 وليس شهر ميلادي إلا إذا calendarMonth=true" },
+        month: { type: "string", description: "رقم/اسم شهر دورة الراتب للتقرير؛ شهر 7 يعني 27/06→26/07" },
+        year: { type: "number", description: "سنة دورة الراتب أو التقرير" },
+        startDate: { type: "string", description: "بداية فترة مخصصة YYYY-MM-DD، مطلوبة إذا timeframe=custom" },
+        endDate: { type: "string", description: "نهاية فترة مخصصة YYYY-MM-DD، مطلوبة إذا timeframe=custom" },
+        calendarMonth: { type: "boolean", description: "true فقط إذا قال المستخدم صراحة الشهر الميلادي" },
+        type: { type: "string", description: "expense أو income أو transfer" },
+        category: { type: "string", description: "التصنيف الرئيسي مثل الأبناء أو الطعام أو الزيارات" },
+        subcategory: { type: "string", description: "البند الفرعي مثل ملابس، علاج، ضيافة، تموين" },
+        allowFullLedgerReport: { type: "boolean", description: "true فقط إذا أكد المستخدم صراحة تقرير كل التاريخ" }
       },
       required: ["title"]
     }
