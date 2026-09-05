@@ -3159,6 +3159,48 @@ export async function getSalaryCycleSummary(args: any, userId: string, token: st
   };
 }
 
+export async function repairSavingsVaultMeta(args: any, userId: string, token: string) {
+  const cycleLimit = Math.max(1, Math.min(1000, Number(args?.limit) || 1000));
+  const now = new Date().toISOString();
+  const cyclesSnap = await firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles')
+    .limit(cycleLimit)
+    .get();
+  const cycles = cyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  if ((cyclesSnap as any).partial || cycles.length >= cycleLimit) {
+    return {
+      success: false,
+      retryable: true,
+      partial: true,
+      bounded: true,
+      reason: 'VAULT_META_REPAIR_LIMIT_REACHED',
+      message: 'لم أصلح رصيد الخزنة لأن عدد دورات الراتب وصل حد القراءة أو كانت القراءة جزئية. لن أحفظ رصيداً قد يكون ناقصاً.',
+      readEfficiency: { salaryCycleDocsRead: cycles.length, transactionDocsRead: 0, limit: cycleLimit },
+    };
+  }
+  const repairedBalance = roundMoney(cycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
+  const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
+  await firebaseAdminDb.runTransaction(async (tx: any) => {
+    tx.set(metaRef as any, {
+      userId,
+      currentBalance: repairedBalance,
+      updatedAt: now,
+      repairedAt: now,
+      repairSource: 'salaryCycles',
+      repairedCycleCount: cycles.length,
+      source: 'salaryCycles',
+      version: 3,
+      transactionalCommit: true,
+    }, { merge: true });
+  });
+  return {
+    success: true,
+    vaultBalance: repairedBalance,
+    repairedCycleCount: cycles.length,
+    bounded: true,
+    readEfficiency: { salaryCycleDocsRead: cycles.length, transactionDocsRead: 0, limit: cycleLimit },
+  };
+}
+
 export async function getSavingsVault(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const limit = Math.max(1, Math.min(VAULT_HISTORY_MAX_LIMIT, Number(args?.limit) || VAULT_HISTORY_DEFAULT_LIMIT));
