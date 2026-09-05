@@ -283,7 +283,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) return;
         const msg = JSON.parse(event.data);
         
