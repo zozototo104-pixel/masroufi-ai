@@ -1010,3 +1010,15 @@ test('LIVE-01: voice path prevents duplicate expert playback and echo feedback l
   assert.ok(serverSrc.includes("previousLiveSocket.close(4000, 'new live session opened')"), 'server must close the old live socket when a new one opens for the same user');
 });
 
+test('LIVE-02: Gemini Live quota exhaustion is classified and surfaced to the user', async () => {
+  const liveSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/useGeminiLive.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  assert.ok(serverSrc.includes('classifyGeminiLiveError'), 'server must classify Live API errors');
+  assert.ok(serverSrc.includes('RESOURCE_EXHAUSTED') && serverSrc.includes('rate.?limit') && serverSrc.includes('429'), 'quota classifier must catch RESOURCE_EXHAUSTED/rate-limit/429 variants');
+  assert.ok(serverSrc.includes('liveQuotaExceeded: classified.quotaExceeded'), 'server must send an explicit liveQuotaExceeded flag');
+  assert.ok(serverSrc.includes('gemini live quota exceeded'), 'server close reason must distinguish quota exhaustion');
+  assert.ok(liveSrc.includes('if (msg.liveQuotaExceeded)'), 'client must handle Live quota exhaustion explicitly');
+  assert.ok(liveSrc.includes('انتهت حصة Gemini Live API'), 'client must show a clear Arabic quota message');
+  assert.ok(liveSrc.includes("setStatus('idle')") && liveSrc.includes('setIsRecording(false)'), 'client must stop the voice UI when Live quota is exhausted');
+});
+
