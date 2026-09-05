@@ -1,12 +1,13 @@
 # Manual CI verification trigger
 
-Rerun after fixing TypeScript field name in salary guard payload.
+Final stable verification after confirming code on main.
 
-Previous failure:
-- src/server/tools.ts: Property 'endIso' does not exist on SalaryCyclePeriod
-
-Fix:
-- use salaryCycleForGuard.cycleEnd
+Current code includes:
+- salaryIncomeGuards atomic guard for salary income
+- salary guard uses salaryCycleForGuard.cycleEnd, not endIso
+- salary writes skip index-sensitive range-query preflight
+- safe Live tool outcome logging
+- Gemini Live quota classification
 
 Expected gates:
 - install
@@ -16,4 +17,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T15:05:00+03:00
+Timestamp: 2026-09-05T15:11:00+03:00
