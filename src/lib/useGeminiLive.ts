@@ -267,6 +267,8 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
 
         if (msg.audio && outputCtxRef.current) {
+          receivedAudioFramesRef.current += 1;
+          clearResponseWatchdog();
           if (!clientAudioAckSentRef.current && ws.readyState === WebSocket.OPEN) {
             clientAudioAckSentRef.current = true;
             ws.send(JSON.stringify({
