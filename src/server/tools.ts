@@ -68,7 +68,7 @@ export async function getNotifications(userId: string, token: string, limit: num
   const requestedLimit = Math.max(1, Math.min(100, limit));
   const snap = await adminDb.collection('users').doc(userId).collection('notifications')
     .orderBy('createdAt', 'desc')
-    .limit(Math.max(requestedLimit, 100))
+    .limit(requestedLimit)
     .get();
   const allItems = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const items = allItems.filter((n: any) => !n.delivered).slice(0, requestedLimit);
