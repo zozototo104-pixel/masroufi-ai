@@ -3807,6 +3807,10 @@ export async function wipeAllUserData(userId: string, token: string) {
     for (const d of salaryCycleSnap.docs) {
       await adminDb.collection('users').doc(userId).collection('salaryCycles').doc(d.id).delete();
     }
+    const vaultAdjustmentSnap = await adminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').get();
+    for (const d of vaultAdjustmentSnap.docs) {
+      await adminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').doc(d.id).delete();
+    }
   } catch (e) {}
   try {
     const metaSnap = await adminDb.collection('users').doc(userId).collection('meta').get();
