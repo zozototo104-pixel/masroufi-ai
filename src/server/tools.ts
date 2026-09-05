@@ -3151,12 +3151,16 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
   let vaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0) || 0);
   let balanceSource = metaSnap.exists ? 'meta' : 'salaryCycles_bootstrap';
   let balanceCycleDocsRead = 0;
+  let balancePartial = false;
+  let balanceLimitReached = false;
   if (!metaSnap.exists) {
     const allCyclesSnap = await adminDb.collection('users').doc(userId).collection('salaryCycles')
       .limit(1000)
       .get();
     const allCycles = allCyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     balanceCycleDocsRead = allCycles.length;
+    balancePartial = Boolean((allCyclesSnap as any).partial);
+    balanceLimitReached = balanceCycleDocsRead >= 1000;
     vaultBalance = roundMoney(allCycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
   }
   const currentCycle = getCurrentSalaryCycle(new Date());
