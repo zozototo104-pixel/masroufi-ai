@@ -2333,13 +2333,20 @@ export async function deleteTransaction(args: any, userId: string, token: string
     const deletedData = atomicResult.deleted;
     const accName = deletedData.account === 'palPay' ? 'PalPay' : deletedData.account === 'debt' ? 'الديون' : 'النقدي';
     await addNotification(userId, `تم حذف عملية (${toDelete.notes || toDelete.category || ''} بقيمة ${toDelete.amount} ₪ من حساب ${accName}) بنجاح.`, 'success', adminDb);
+    let vaultRecalculation: any[] = [];
+    try {
+      vaultRecalculation = await recalculateCyclesForTransactionChange(userId, token, deletedData || toDelete, null, 'transaction_deleted');
+    } catch (vaultErr) {
+      console.warn('Savings Vault recalculation failed after smart delete:', vaultErr);
+    }
     
     const balances = await getBalance({}, userId, token);
     return { 
       success: true, 
       deletedTransaction: toDelete, 
       message: `تم حذف عملية بقيمة ${toDelete.amount} ₪ من حساب ${accName} بنجاح.`,
-      currentBalances: balances.balances 
+      currentBalances: balances.balances,
+      vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean) 
     };
   }
 
