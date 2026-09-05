@@ -30,7 +30,7 @@ function parseDateString(value: unknown, opts: { now: Date; year?: unknown } = {
   if (iso) {
     const [, y, m, d] = iso;
     const year = Number(y), month = Number(m), day = Number(d);
-    return isValidDateParts(year, month, day) ? { year, month, day } : null;
+    return isValidDateParts(year, month, day) ? { year, month, day, short: false } : null;
   }
 
   const slash = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
