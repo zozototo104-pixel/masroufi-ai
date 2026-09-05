@@ -828,40 +828,77 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch) {
     try {
-      [preUserBudgets, preTxSnapshot] = await Promise.all([
-        getUserBudgets(userId, adminDb),
-        adminDb.collection('transactions').where('userId', '==', userId).get()
-      ]);
-      // V6.2 (FINDING-07): if the snapshot is partial (Firestore quota/network failure),
-      // we MUST NOT issue a balance-sensitive mutation on incomplete state.
-      // The operation becomes pending (client-side queue) or rejected.
-      if ((preTxSnapshot as any).partial === true) {
+      const preflightDate = new Date(args.date || new Date().toISOString());
+      const safePreflightDate = Number.isNaN(preflightDate.getTime()) ? new Date() : preflightDate;
+      const thisMonth = safePreflightDate.toISOString().slice(0,7);
+      const monthStart = `${thisMonth}-01T00:00:00.000Z`;
+      const nextMonthDate = new Date(Date.UTC(safePreflightDate.getUTCFullYear(), safePreflightDate.getUTCMonth() + 1, 1));
+      const nextMonthStart = `${nextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
+      const last30Start = new Date(safePreflightDate.getTime() - 30 * 86400000).toISOString();
+      const last90Start = new Date(safePreflightDate.getTime() - 90 * 86400000).toISOString();
+
+      const balanceResult = await getBalance({}, userId, token);
+      if (balanceResult.partial === true) {
         return {
           success: false,
           retryable: true,
           reason: 'PARTIAL_STATE_UNSAFE',
-          message: 'تعذّر التحقق من رصيدك الحالي بدقة (البيانات الجزئية). لا يمكن تنفيذ عملية مالية حساسة الآن. حاول مرة أخرى عند استعادة الاتصال الكامل.',
+          message: 'تعذّر التحقق من رصيدك الحالي بدقة. لا يمكن تنفيذ عملية مالية حساسة الآن. حاول مرة أخرى عند استعادة الاتصال الكامل.',
           operationId: String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
         };
       }
-      const existing = preTxSnapshot.docs.map((d:any)=>d.data());
-      const balances = calculateBalancesFromDocs(existing);
-      // V6 (HF-7): for debt purchases, available is no longer Infinity. We compute
-      // projected debt-to-income ratio and require confirmation if it exceeds a threshold.
+      const balances = balanceResult.balances;
+
+      const [budgetMap, categoryMonthSnap, recentExpenseSnap, income90dSnap] = await Promise.all([
+        getUserBudgets(userId, adminDb),
+        adminDb.collection('transactions')
+          .where('userId', '==', userId)
+          .where('date', '>=', monthStart)
+          .where('date', '<', nextMonthStart)
+          .where('category', '==', category)
+          .get(),
+        adminDb.collection('transactions')
+          .where('userId', '==', userId)
+          .where('date', '>=', last30Start)
+          .where('date', '<', safePreflightDate.toISOString())
+          .where('type', '==', 'expense')
+          .limit(300)
+          .get(),
+        account === 'debt'
+          ? adminDb.collection('transactions')
+              .where('userId', '==', userId)
+              .where('date', '>=', last90Start)
+              .where('date', '<', safePreflightDate.toISOString())
+              .where('type', '==', 'income')
+              .limit(300)
+              .get()
+          : Promise.resolve({ docs: [] } as any),
+      ]);
+      preUserBudgets = budgetMap;
+      preTxSnapshot = categoryMonthSnap;
+
+      if ((categoryMonthSnap as any).partial === true || (recentExpenseSnap as any).partial === true || (income90dSnap as any).partial === true) {
+        return {
+          success: false,
+          retryable: true,
+          reason: 'PARTIAL_STATE_UNSAFE',
+          message: 'تعذّر التحقق من مؤشرات الميزانية/الدخل بدقة. لن أنفذ العملية المالية من بيانات جزئية.',
+          operationId: String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
+        };
+      }
+
       if (account !== 'debt') {
         const available = account === 'cash' ? Number(balances.cash||0) : account === 'palPay' ? Number(balances.palPay||0) : 0;
         if (amount > available + 0.0001) {
           return { success:false, needsClarification:true, reason:'INSUFFICIENT_FUNDS', message:`المبلغ ${amount} ₪ أكبر من رصيد ${account === 'palPay' ? 'PalPay' : 'الكاش'} المتاح (${available} ₪). لن أنفذ العملية قبل أن تحدد طريقة دفع أخرى أو تعدل المبلغ.` };
         }
       } else {
-        // Debt purchase guard.
-        // A credit purchase is one expense on account=debt. We must not block a later real purchase
-        // just because it has the same creditor and amount; real shops can sell two separate items
-        // for the same price. Duplicate prevention belongs to operationId/idempotency only.
         const projectedDebt = Number(balances.debt || 0) + amount;
-        const monthlyIncome90d = existing
-          .filter((t:any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING')
+        const income90d = income90dSnap.docs
+          .map((d:any) => d.data())
+          .filter((t:any) => t.transactionType !== 'DEBT_BORROWING')
           .reduce((s:number, t:any) => s + parsePositiveFinancialAmount(t.amount), 0);
+        const monthlyIncome90d = income90d / 3;
         const debtToIncomeRatio = monthlyIncome90d > 0 ? projectedDebt / monthlyIncome90d : Infinity;
         if (!args.riskConfirmed && (debtToIncomeRatio > 1.0 || amount > 5000)) {
           return {
@@ -878,11 +915,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
           };
         }
       }
-      const thisMonth = new Date().toISOString().slice(0,7);
-      const spent = existing.filter((t:any)=>t.type==='expense' && String(t.date||'').startsWith(thisMonth) && t.category===category).reduce((a:number,t:any)=>a+parsePositiveFinancialAmount(t.amount),0);
+      const spent = categoryMonthSnap.docs.map((d:any)=>d.data()).filter((t:any)=>t.type==='expense').reduce((a:number,t:any)=>a+parsePositiveFinancialAmount(t.amount),0);
       const limit = Number((preUserBudgets as any)?.[category] || DEFAULT_BUDGETS[category] || 0);
       const projected = spent + amount;
-      const recentExpenses = existing.filter((t:any) => t.type === 'expense' && new Date(t.date || t.createdAt || 0).getTime() >= Date.now() - 30 * 86400000);
+      const recentExpenses = recentExpenseSnap.docs.map((d:any)=>d.data()).filter((t:any) => t.type === 'expense');
       const dailyExpenseAverage = recentExpenses.reduce((a:number,t:any)=>a+parsePositiveFinancialAmount(t.amount),0) / 30;
       let profileReserveTarget = Number(args.savingsReserveTarget || 0);
       try {
