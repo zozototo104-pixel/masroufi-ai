@@ -3572,8 +3572,8 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
     balanceSource,
     balanceNeedsMetaCommit: !metaSnap.exists,
     balanceLimitReached,
-    partial: Boolean((metaSnap as any).partial || (cyclesSnap as any).partial || balancePartial || balanceLimitReached),
-    readEfficiency: { metaDocsRead: 1, salaryCycleDocsRead: cycles.length, balanceCycleDocsRead, transactionDocsRead: 0 },
+    partial: Boolean((metaSnap as any).partial || (cyclesSnap as any).partial || (adjustmentsSnap as any).partial || balancePartial || balanceLimitReached),
+    readEfficiency: { metaDocsRead: 1, salaryCycleDocsRead: cycles.length, adjustmentDocsRead: manualAdjustments.length, balanceCycleDocsRead, balanceAdjustmentDocsRead, transactionDocsRead: 0 },
   };
 }
 
