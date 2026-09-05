@@ -1,12 +1,15 @@
 # Manual CI verification trigger
 
-Rerun after updating legacy source-level tests for quota/backoff and account balance snapshot design.
+Verification after safe multi-currency Savings Vault carryover patch.
 
 Scope:
-- dashboard coalesces refreshes and honors quota cooldown
-- /api/cloud-health negative-caches RESOURCE_EXHAUSTED
-- notification dashboard limit reduced
-- wipe remains verified and authoritative
-- tests updated for snapshot balance, fresh-token sync, and quota backoff
+- restored src/server/tools.ts from last known good before continuing
+- added src/lib/vaultCurrency.ts helper
+- add_savings_vault_adjustment accepts single currency or amounts[] entries
+- preserves original ILS/USD/EUR balances in balanceByCurrency
+- stores ILS equivalent for summary display only
+- fails safely if FX rate is unavailable and no user-provided exchange rate exists
+- UI displays per-currency vault balances
+- regression tests VAULT-CURRENCY-* added
 
-Timestamp: 2026-09-05T10:40:00+03:00
+Timestamp: 2026-09-05T10:36:00+03:00
