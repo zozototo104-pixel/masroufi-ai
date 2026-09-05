@@ -204,9 +204,9 @@ export async function atomicAddTransaction(
     const type = String(newTx.type || '');
 
     if (!opts.skipBalanceCheck && !opts.riskConfirmed) {
-      let affectedAccount: 'cash' | 'palPay' | null = null;
-      if (type === 'expense' && (account === 'cash' || account === 'palPay')) affectedAccount = account;
-      else if (type === 'transfer' && newTx.fromAccount && newTx.fromAccount !== 'debt') affectedAccount = newTx.fromAccount === 'palPay' ? 'palPay' : 'cash';
+      let affectedAccount: 'cash' | 'palPay' | 'vault' | null = null;
+      if (type === 'expense' && (account === 'cash' || account === 'palPay' || account === 'vault')) affectedAccount = account as any;
+      else if (type === 'transfer' && newTx.fromAccount && newTx.fromAccount !== 'debt') affectedAccount = newTx.fromAccount === 'palPay' ? 'palPay' : newTx.fromAccount === 'vault' ? 'vault' : 'cash';
       if (affectedAccount) {
         const insufficient = insufficientSourceFailure(snapshot.balances, amount, affectedAccount, opts.riskConfirmed);
         if (insufficient) return insufficient;
