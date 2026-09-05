@@ -3281,6 +3281,29 @@ function vaultLockTransactionForCycle(userId: string, period: SalaryCyclePeriod,
   };
 }
 
+function normalizeAccountBalanceSnapshotForVault(data: any = {}) {
+  const cash = roundMoney(Number(data.cash || 0));
+  const palPay = roundMoney(Number(data.palPay || 0));
+  const debt = roundMoney(Number(data.debt || 0));
+  const vault = roundMoney(Number(data.vault || 0));
+  return { cash, palPay, debt, vault, total: roundMoney(cash + palPay) };
+}
+
+function accountBalanceSnapshotPayloadForVault(userId: string, balances: any, source: string, extra: any = {}) {
+  return {
+    userId,
+    cash: roundMoney(Number(balances.cash || 0)),
+    palPay: roundMoney(Number(balances.palPay || 0)),
+    debt: roundMoney(Number(balances.debt || 0)),
+    vault: roundMoney(Number(balances.vault || 0)),
+    total: roundMoney(Number(balances.cash || 0) + Number(balances.palPay || 0)),
+    source,
+    updatedAt: new Date().toISOString(),
+    version: 2,
+    ...extra,
+  };
+}
+
 async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: SalaryCyclePeriod, summary: any, readResult: any) {
   const now = new Date().toISOString();
   const cycleRef = firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').doc(period.cycleId);
