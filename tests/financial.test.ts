@@ -796,5 +796,7 @@ test('READS-04: common tools must not contain unbounded user transaction scans',
   assert.ok(toolsSrc.includes('FULL_LEDGER_AUDIT_REQUIRES_CONFIRMATION'), 'duplicate audit must not scan all history without explicit confirmation');
   assert.ok(toolsSrc.includes('PALPAY_ATOMIC_WRITE_FAILED'), 'PalPay payment must use atomic balance snapshot writes');
   assert.ok(toolsSrc.includes('orderBy(\'dueDate\', \'asc\')'), 'commitments endpoint must be paginated/order-bounded');
+  assert.ok(toolsSrc.includes("collection('meta').get()"), 'wipe must remove derived account/vault meta snapshots');
+  assert.ok(toolsSrc.includes("collection('salaryCycles').get()"), 'wipe must remove derived salary cycle summaries');
 });
 
