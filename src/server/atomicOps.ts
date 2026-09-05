@@ -208,6 +208,14 @@ export async function atomicAddTransaction(
 
     const newRef = adminDb.collection('transactions').doc();
     tx.set(newRef, { ...newTx, userId, id: newRef.id });
+    if (opts.uniqueGuard?.ref) {
+      tx.set(opts.uniqueGuard.ref, {
+        ...(opts.uniqueGuard.payload || {}),
+        userId,
+        transactionId: newRef.id,
+        createdAt: new Date().toISOString(),
+      }, { merge: false });
+    }
     tx.set(snapshot.ref, balanceSnapshotPayload(userId, balances, 'atomic_add_transaction', {
       lastTransactionId: newRef.id,
       balanceReadSource: snapshot.source,
