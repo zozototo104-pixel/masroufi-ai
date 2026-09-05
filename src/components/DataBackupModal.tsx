@@ -131,7 +131,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     setStatusMessage(null);
     try {
       // CSV export is a backup/export action, so it must use the full export API.
-      // /api/transactions is intentionally bounded for dashboard efficiency.
+      // The dashboard transaction endpoint is intentionally bounded for efficiency.
       const res = await backupFetch('/api/data/export');
       const data: BackupDataPayload = await readApiPayload(res);
       const transactions = data.transactions || [];
