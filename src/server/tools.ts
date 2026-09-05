@@ -3789,6 +3789,8 @@ export async function wipeAllUserData(userId: string, token: string) {
   await deleteQuery('transactions', adminDb.collection('transactions').where('userId', '==', userId));
   await deleteQuery('commitments', adminDb.collection('commitments').where('userId', '==', userId));
   await deleteQuery('reports', adminDb.collection('reports').where('userId', '==', userId));
+  await deleteQuery('idempotency_keys', adminDb.collection('idempotency_keys').where('userId', '==', userId));
+  await deleteQuery('receiptIdempotency', adminDb.collection('receiptIdempotency').where('userId', '==', userId));
   await deleteQuery('notifications', userDoc.collection('notifications'));
   await deleteQuery('memory', userDoc.collection('memory'));
   await deleteQuery('budgets', userDoc.collection('budgets'));
