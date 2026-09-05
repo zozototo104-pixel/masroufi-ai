@@ -656,6 +656,16 @@ export default function App() {
         }
         setSavingsGoals(finalSavings);
 
+        const vaultRes = await fetch('/api/savings-vault?limit=12', { headers });
+        const vaultPayload = await vaultRes.json().catch(() => ({}));
+        if (vaultRes.ok && vaultPayload?.success && !vaultPayload.partial) {
+          setVaultData(vaultPayload);
+          await idbSet('lkgs_savings_vault', vaultPayload);
+        } else {
+          const cachedVault = await idbGet<any>('lkgs_savings_vault');
+          if (cachedVault) setVaultData(cachedVault);
+        }
+
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
         if (memData && memData.memory) {
