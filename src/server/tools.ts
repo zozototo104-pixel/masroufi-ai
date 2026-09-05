@@ -340,7 +340,10 @@ function marketOfferToResult(offer: any, item: string): MarketResult {
 async function searchSavedMarketOffers(adminDb: any, userId: string, item: string, model?: string): Promise<MarketResult[]> {
   try {
     await refreshExchangeRatesToIls();
-    const snap = await adminDb.collection('users').doc(userId).collection('marketDirectory').get();
+    const snap = await adminDb.collection('users').doc(userId).collection('marketDirectory')
+      .orderBy('checkedAt', 'desc')
+      .limit(300)
+      .get();
     const q = normalizeMarketSearchText(`${item} ${model || ''}`);
     const terms = q.split(' ').filter(Boolean);
     return snap.docs
