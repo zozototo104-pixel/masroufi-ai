@@ -891,7 +891,7 @@ test('READS-05: salary-cycle reports, transfers, market memory, live audio, and 
   assert.ok(toolsSrc.includes('affectsCash: false'), 'manual vault carryover must not mutate cash');
   assert.ok(toolsSrc.includes('savingsVaultAdjustments'), 'manual vault carryovers must be stored separately');
   assert.ok(serverSrc.includes('search_local_market') && !serverSrc.includes('search_market_information للبحث عن سعره'), 'voice/chat prompt must use the real market tool, not the deprecated fake one');
-  assert.ok(liveSrc.includes('createScriptProcessor(2048'), 'voice input buffer should be low-latency');
+  assert.ok(liveSrc.includes('createScriptProcessor(4096'), 'voice input buffer should favor stable playback over ultra-low-latency chopping');
   assert.ok(!liveSrc.includes("window.dispatchEvent(new CustomEvent('masrofi:refresh'))"), 'voice socket close/error must not trigger full dashboard refresh');
 });
 
