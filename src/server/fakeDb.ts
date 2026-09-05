@@ -280,8 +280,7 @@ export class FakeCollection {
         let pass = true;
         for (const w of this._where) {
           const itemVal = item.data?.[w.field];
-          // User matching: match all variants of the user id or if not specified
-          if (w.field === 'userId') { if (typeof itemVal !== 'string' || itemVal !== w.val) { pass = false; break; } } else if (itemVal !== w.val) {
+          if (!matchesWhereClause(itemVal, w.op, w.val, w.field)) {
             pass = false;
             break;
           }
