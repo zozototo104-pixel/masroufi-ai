@@ -3594,7 +3594,7 @@ function summarizeCycleTransactionLists(transactions: any[]) {
       date: tx.date || tx.createdAt || '',
       amount,
       type,
-      account: normalizeAccount(tx.account || tx.toAccount || tx.fromAccount),
+      account: normalizeLedgerAccount(tx.account || tx.toAccount || tx.fromAccount),
       category,
       subcategory: tx.subcategory || '',
       merchant: tx.merchant || '',
