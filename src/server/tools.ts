@@ -30,7 +30,7 @@ import {
   summarizeSalaryCycleTransactions,
   type SalaryCyclePeriod,
 } from '../lib/salaryCycle';
-import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc';
+import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey, normalizeLedgerAccount } from '../lib/balanceCalc';
 export { normalizeAccount } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
 import { runIdempotent } from './idempotency';
