@@ -80,7 +80,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       try { outputCtxRef.current.close(); } catch (e) { /* ignore */ }
       outputCtxRef.current = null;
     }
-  }, []);
+  }, [clearResponseWatchdog]);
 
   const stopPlayback = useCallback(() => {
     activeSourcesRef.current.forEach(source => {
