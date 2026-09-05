@@ -213,7 +213,7 @@ test('FIN-17: non-finite amounts cannot poison canonical balances or breakdowns'
     tx({ type: 'transfer', fromAccount: 'debt', toAccount: 'cash', amount: -Infinity as any }),
     tx({ type: 'income', account: 'cash', amount: 25 }),
   ]);
-  assert.deepEqual(r, { cash: 25, palPay: 0, debt: 0, total: 25 });
+  assert.deepEqual(r, { cash: 25, palPay: 0, debt: 0, vault: 0, total: 25 });
 
   const breakdown = calculateBreakdown([
     tx({ type: 'expense', account: 'debt', amount: Infinity as any, creditor: 'أحمد' }),
