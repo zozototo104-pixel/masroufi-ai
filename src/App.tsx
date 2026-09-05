@@ -545,29 +545,10 @@ export default function App() {
           /RESOURCE_EXHAUSTED|Quota exceeded/i.test(String(cloudHealth?.error || cloudHealth?.details || cloudHealth?.staleDueTo || ''))
         );
         if (cloudQuotaExhausted) {
+          const ttlMs = Math.max(60_000, Math.min(10 * 60_000, Number(cloudHealth?.cacheTtlMs) || 10 * 60_000));
+          firestoreQuotaCooldownUntilRef.current = Date.now() + ttlMs;
           console.warn('[firestore] quota exhausted; using cached dashboard data and skipping fan-out refresh');
-          const [cachedTx, cachedRep, cachedBudgets, cachedCommitments, cachedSavings] = await Promise.all([
-            idbGet<any[]>('lkgs_transactions'),
-            idbGet<any[]>('lkgs_reports'),
-            idbGet<any>('lkgs_budgets'),
-            idbGet<any[]>('lkgs_commitments'),
-            idbGet<any[]>('lkgs_savings_goals'),
-          ]);
-          const safeTx = Array.isArray(cachedTx) ? cachedTx.filter(t => !t.deleted) : [];
-          setTransactions(safeTx);
-          const balances = calculateBalances(safeTx);
-          setCash(balances.cash);
-          setPalPay(balances.palPay);
-          setDebt(balances.debt);
-          setBalance(balances.total);
-          setReportsList(Array.isArray(cachedRep) ? cachedRep : []);
-          setBudgetsData(cachedBudgets || { budgets: [], totalBudget: 0, totalSpent: 0, partial: true, quotaExhausted: true });
-          setCommitments(Array.isArray(cachedCommitments) ? cachedCommitments : []);
-          setSavingsGoals(Array.isArray(cachedSavings) ? cachedSavings : []);
-          setNotifications(prev => {
-            if (prev.some((n: any) => n.id === 'firestore-quota-exhausted')) return prev;
-            return [...prev, { id: 'firestore-quota-exhausted', message: 'انتهت حصة Firestore اليوم. أوقفت التحديثات السحابية مؤقتًا واستخدمت آخر نسخة محفوظة لتجنب استهلاك إضافي.', type: 'warning' }];
-          });
+          await applyCachedDashboardData();
           return;
         }
 
