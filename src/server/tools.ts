@@ -799,6 +799,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     date: args.date,
     historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth,
     day: args.day || args.transactionDay,
+    year: args.year || args.salaryYear,
     now: transactionNow,
   } as any);
   if (dateResult.ok === false) {
