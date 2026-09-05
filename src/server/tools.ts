@@ -4488,16 +4488,19 @@ export const functionDeclarations = [
   },
   {
     name: "add_savings_vault_adjustment",
-    description: "يضيف رصيد خزنة قديم/مرحل أو مبلغ محفوظ سابقاً للخزنة كـ manual carryover. لا يغير cash أو PalPay أو debt ولا ينشئ transaction مالية. استخدمه فقط عندما يقول المستخدم إن لديه مبلغاً قديماً محفوظاً في الخزنة أو يريد ترحيل رصيد سابق.",
+    description: "يضيف رصيد خزنة قديم/مرحل أو مبلغ محفوظ سابقاً للخزنة كـ manual carryover. يدعم شيكل ILS ودولار USD ويورو EUR، ويحفظ العملة الأصلية مع مكافئ شيكل تقديري. لا يغير cash أو PalPay أو debt ولا ينشئ transaction مالية. استخدمه فقط عندما يقول المستخدم إن لديه مبلغاً قديماً محفوظاً في الخزنة أو يريد ترحيل رصيد سابق.",
     parameters: {
       type: "object",
       properties: {
-        amount: { type: "number", description: "المبلغ القديم/المرحل المراد إضافته للخزنة" },
+        amount: { type: "number", description: "المبلغ إن كان الإدخال بعملة واحدة" },
+        currency: { type: "string", description: "ILS أو USD أو EUR أو شيكل/دولار/يورو عند الإدخال بعملة واحدة" },
+        amounts: { type: "array", description: "قائمة مبالغ متعددة العملات، مثال: [{amount:1000,currency:'ILS'}, {amount:300,currency:'USD'}, {amount:200,currency:'EUR'}]", items: { type: "object", properties: { amount: { type: "number" }, currency: { type: "string" }, source: { type: "string" }, notes: { type: "string" } } } },
+        exchangeRate: { type: "number", description: "سعر صرف يدوي إلى الشيكل عند عدم توفر السعر؛ استخدم exchangeRates للأكثر من عملة" },
+        exchangeRates: { type: "object", description: "أسعار صرف يدوية إلى الشيكل، مثال: { USD: 3.7, EUR: 4.0 } عند الحاجة" },
         source: { type: "string", description: "مصدر المبلغ: رصيد قديم، مدخرات سابقة، صندوق البيت..." },
         notes: { type: "string", description: "ملاحظات اختيارية" },
         operationId: { type: "string", description: "معرف idempotency إن توفر" }
-      },
-      required: ["amount"]
+      }
     }
   },
   {
