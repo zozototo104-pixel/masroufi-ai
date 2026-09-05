@@ -2491,12 +2491,11 @@ export async function deleteTransaction(args: any, userId: string, token: string
       console.warn('Savings Vault recalculation failed after smart delete:', vaultErr);
     }
     
-    const balances = await getBalance({}, userId, token);
     return { 
       success: true, 
       deletedTransaction: toDelete, 
       message: `تم حذف عملية بقيمة ${toDelete.amount} ₪ من حساب ${accName} بنجاح.`,
-      currentBalances: balances.balances,
+      currentBalances: atomicResult.balances,
       vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean) 
     };
   }
