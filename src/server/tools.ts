@@ -1214,22 +1214,44 @@ export async function generateReport(args: any, userId: string, token: string) {
   console.log("TOOL CALL: generateReport", args);
   
   const now = new Date();
-  const timeframe = args.timeframe || 'all';
+  const requestedTimeframe = String(args.timeframe || args.period || '').trim();
+  const hasExplicitRange = Boolean(args.startDate && args.endDate);
+  const hasMonth = parseSalaryCycleMonth(args.month || args.salaryMonth || args.monthNumber) !== null;
+  const timeframe = requestedTimeframe || (hasExplicitRange ? 'custom' : hasMonth ? 'salary_cycle' : 'current_salary_cycle');
   const categoryQuery = args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود' ? args.category : '';
+  const subcategoryQuery = String(args.subcategory || '').trim();
+  const typeQuery = String(args.type || '').trim();
   let startIso = '';
   let endExclusiveIso = '';
-  if (timeframe === 'today') {
+  let salaryCycleForReport: SalaryCyclePeriod | null = null;
+  if (timeframe === 'all' && !args.allowFullLedgerReport) {
+    return { success: false, needsConfirmation: true, reason: 'FULL_LEDGER_REPORT_REQUIRES_CONFIRMATION', message: 'تقرير كل التاريخ يحتاج قراءة واسعة. حدد فترة/دورة راتب أو أكد allowFullLedgerReport=true.' };
+  }
+  if (timeframe === 'custom') {
+    if (!args.startDate || !args.endDate) {
+      return { success: false, needsClarification: true, reason: 'CUSTOM_REPORT_REQUIRES_DATES', message: 'للتقرير بتاريخ مخصص لازم تحدد startDate و endDate بوضوح.' };
+    }
+    startIso = new Date(`${String(args.startDate).slice(0, 10)}T00:00:00.000Z`).toISOString();
+    const end = new Date(`${String(args.endDate).slice(0, 10)}T00:00:00.000Z`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    endExclusiveIso = end.toISOString();
+  } else if (timeframe === 'today') {
     const today = now.toISOString().slice(0, 10);
     const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
     startIso = `${today}T00:00:00.000Z`;
     endExclusiveIso = `${tomorrow.toISOString().slice(0, 10)}T00:00:00.000Z`;
   } else if (timeframe === 'week') {
     startIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  } else if (timeframe === 'month') {
+    endExclusiveIso = now.toISOString();
+  } else if (timeframe === 'month' && args.calendarMonth === true) {
     const thisMonth = now.toISOString().slice(0, 7);
     const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     startIso = `${thisMonth}-01T00:00:00.000Z`;
     endExclusiveIso = `${nextMonth.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  } else if (timeframe === 'month' || timeframe === 'salary_cycle' || timeframe === 'current_salary_cycle' || hasMonth) {
+    salaryCycleForReport = resolveSalaryCycleFromArgs({ ...args, period: timeframe === 'current_salary_cycle' ? undefined : args.period }, now);
+    startIso = salaryCycleForReport.startIso;
+    endExclusiveIso = salaryCycleForReport.endExclusiveIso;
   }
 
   let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
@@ -1238,6 +1260,9 @@ export async function generateReport(args: any, userId: string, token: string) {
   if (startIso || endExclusiveIso) txQuery = txQuery.orderBy('date', 'desc').limit(1000);
   const txSnapshot = await txQuery.get();
   const allUserTxs = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  if ((txSnapshot as any).partial === true || ((startIso || endExclusiveIso) && allUserTxs.length >= 1000)) {
+    return { success: false, retryable: true, partial: true, reason: 'REPORT_QUERY_INCOMPLETE', message: 'لم أحفظ التقرير لأن قراءة الفترة جزئية أو وصلت حدها. استخدم فترة أصغر أو pagination حتى لا أعطي تقريراً ناقصاً.' };
+  }
 
   // 1. First attempt: filter by category and timeframe
   let filtered = allUserTxs.filter((t: any) => {
