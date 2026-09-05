@@ -1,17 +1,14 @@
 # Manual CI verification trigger
 
-Verify after package-lock was regenerated for security overrides.
+Verify salary income date saving fix.
 
-Current lockfile includes:
-- qs 6.16.0
-- uuid 11.1.1
+Scenario:
+- User says: سجل راتب بتاريخ 27/6 وهو راتب شهر 7
 
-Expected:
-- npm ci succeeds
-- tests pass
-- TypeScript passes
-- build passes
-- runtime smoke passes
-- npm audit shows no remaining moderate findings or only documented non-fixable findings
+Fixes to verify:
+- short date 27/6 and Arabic digits ٢٧/٦ are accepted
+- addTransaction normalizes date before income duplicate guard
+- salary duplicate guard uses salary cycle 27→26 instead of calendar month
+- install/tests/TypeScript/build/runtime/audit remain green
 
-Timestamp: 2026-09-05T14:36:00+03:00
+Timestamp: 2026-09-05T15:15:00+03:00
