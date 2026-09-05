@@ -1,15 +1,15 @@
 # Manual CI verification trigger
 
-Verify explicit Gemini Live quota handling.
-
-Reason:
-- User confirmed the same behavior previously happened when Gemini Live API quota was exhausted.
+Integrated verification after user-reported blockers.
 
 Fixes:
-- server classifies RESOURCE_EXHAUSTED / quota / rate-limit / 429 Live API errors
-- server sends liveQuotaExceeded=true to the client
-- client stops voice UI and shows a clear Arabic quota message
-- existing echo/self-interruption gate remains intact
+- salary income on 27/6 no longer depends on index-sensitive preflight range query
+- salary duplicate protection uses users/{uid}/salaryIncomeGuards guard doc inside atomicAddTransaction
+- atomicAddTransaction reads/writes uniqueness guard in the same Firestore transaction
+- wipe deletes and verifies salaryIncomeGuards
+- Live tool logs safe outcome fields: success/reason/retryable/transactionCommitted without financial details
+- full financial tool response logging is redacted
+- live quota classifier and echo gate remain intact
 
 Expected gates:
 - install
@@ -19,4 +19,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T14:40:00+03:00
+Timestamp: 2026-09-05T14:58:00+03:00
