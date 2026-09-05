@@ -678,7 +678,13 @@ export default function App() {
     
     fetchData();
     
-    const handleRefresh = () => fetchData();
+    const handleRefresh = () => {
+      if (refreshDebounceRef.current) window.clearTimeout(refreshDebounceRef.current);
+      refreshDebounceRef.current = window.setTimeout(() => {
+        refreshDebounceRef.current = null;
+        fetchData();
+      }, 150);
+    };
     const handleInterrupted = () => {
       setInterruptedFeedback(true);
       setTimeout(() => setInterruptedFeedback(false), 2500);
