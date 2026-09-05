@@ -123,6 +123,10 @@ export default function App() {
   const [commitments, setCommitments] = useState<any[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
   const [vaultData, setVaultData] = useState<any>({ vaultBalance: 0, currentCycle: null, cycles: [] });
+  const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
+  const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
+  const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
+  const [vaultCycleMessage, setVaultCycleMessage] = useState<string>('');
   const refreshDebounceRef = useRef<number | null>(null);
 
   // Helper to extract relevant transactions for a report dynamically and strictly
