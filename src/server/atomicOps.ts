@@ -160,7 +160,8 @@ export async function atomicTransferMoney(
     const amount = parsePositiveFinancialAmount(newTx.amount);
     const fromAccount = String(newTx.fromAccount || 'cash');
     if (fromAccount !== 'debt') {
-      const insufficient = insufficientSourceFailure(snapshot.balances, amount, fromAccount === 'palPay' ? 'palPay' : 'cash', opts.riskConfirmed);
+      const sourceAccount = fromAccount === 'palPay' ? 'palPay' : fromAccount === 'vault' ? 'vault' : 'cash';
+      const insufficient = insufficientSourceFailure(snapshot.balances, amount, sourceAccount, opts.riskConfirmed);
       if (insufficient) return insufficient;
     }
 
