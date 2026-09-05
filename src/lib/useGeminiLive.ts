@@ -250,12 +250,16 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
               userSpeechCounter = 0;
             }
 
+            const base64 = pcmToBase64(channelData);
             if (!liveReadyRef.current) {
+              pendingMicFramesRef.current.push(base64);
+              if (pendingMicFramesRef.current.length > 24) {
+                pendingMicFramesRef.current.splice(0, pendingMicFramesRef.current.length - 24);
+              }
               return;
             }
 
             if (ws.readyState === WebSocket.OPEN) {
-              const base64 = pcmToBase64(channelData);
               ws.send(JSON.stringify({ audio: base64 }));
               sentAudioFramesRef.current += 1;
               if (sentAudioFramesRef.current === 8 && receivedAudioFramesRef.current === 0 && responseWatchdogRef.current === null) {
