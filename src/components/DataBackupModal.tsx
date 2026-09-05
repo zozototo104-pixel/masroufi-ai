@@ -346,7 +346,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-2xl mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
           <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
             <span className="text-slate-400 block text-[11px]">العمليات الحالية</span>
-            <strong className="text-white text-sm font-mono">{transactionsCount}</strong>
+            <strong className="text-white text-sm font-mono">{countOverride?.transactions ?? transactionsCount}</strong>
           </div>
           <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
             <span className="text-slate-400 block text-[11px]">الموازنات</span>
