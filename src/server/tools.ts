@@ -3213,9 +3213,17 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
     let previousVaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
     if (!metaSnap.exists) {
       const bootstrapSnap = await tx.get(firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').limit(1000) as any);
+      const adjustmentSnap = await tx.get(firebaseAdminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').limit(VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT) as any);
       const bootstrapDocs = (bootstrapSnap as any).docs || [];
+      const adjustmentDocs = (adjustmentSnap as any).docs || [];
+      if (bootstrapDocs.length >= 1000 || adjustmentDocs.length >= VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT) {
+        throw new Error('VAULT_META_BOOTSTRAP_LIMIT_REACHED');
+      }
       metaBootstrapCyclesRead = bootstrapDocs.length;
-      previousVaultBalance = roundMoney(bootstrapDocs
+      const manualAdjustmentsTotal = roundMoney(adjustmentDocs
+        .map((d: any) => d.data())
+        .reduce((sum: number, adjustment: any) => sum + Number(adjustment.amount || 0), 0));
+      previousVaultBalance = roundMoney(manualAdjustmentsTotal + bootstrapDocs
         .map((d: any) => ({ id: d.id, ...d.data() }))
         .filter((cycle: any) => cycle.id !== period.cycleId && cycle.cycleId !== period.cycleId)
         .reduce((sum: number, cycle: any) => sum + Number(cycle.vaultContribution || 0), 0));
