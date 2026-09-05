@@ -187,9 +187,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             // If AI is currently talking and user speaks into mic (barge-in):
             const isAiTalking = activeSourcesRef.current.length > 0;
             if (isAiTalking) {
-              if (rms > 0.04) {
+              if (rms > 0.08) {
                 userSpeechCounter++;
-                if (userSpeechCounter >= 2) {
+                if (userSpeechCounter >= 6) {
                   // User is actively interrupting: instantly halt audio playback
                   stopPlayback();
                   setStatus('listening');
