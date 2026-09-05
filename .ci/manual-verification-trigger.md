@@ -1,17 +1,13 @@
 # Manual CI verification trigger
 
-Verify PalPay income cloud-save fix.
+Final run after PalPay income cloud-save fix.
 
-User confirmed:
-- salary/income cash saves successfully
-- income on PalPay still reports cloud save problem
-
-Fix:
-- removed index-sensitive preflight duplicate query for all income writes
-- generic income now uses users/{uid}/incomeGuards guard document inside atomicAddTransaction
-- salary income still uses users/{uid}/salaryIncomeGuards by salary cycle
-- duplicateConfirmed can bypass existing income guard intentionally
-- wipe deletes/verifies both income guard collections
+Current fix:
+- all income writes skip index-sensitive preflight range query
+- salary income uses salaryIncomeGuards by 27→26 salary cycle
+- generic income including PalPay uses incomeGuards by date/account/amount/category/subcategory
+- atomicAddTransaction commits the transaction and guard together
+- wipe deletes/verifies salaryIncomeGuards and incomeGuards
 
 Expected gates:
 - install
@@ -21,4 +17,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T15:18:00+03:00
+Timestamp: 2026-09-05T15:24:00+03:00
