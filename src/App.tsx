@@ -158,6 +158,8 @@ export default function App() {
     if (id) vaultCycleMap.set(id, cycle);
   });
   const vaultCycleOptions: any[] = Array.from(vaultCycleMap.values());
+  const selectedVaultCycleIndex = Math.max(0, vaultCycleOptions.findIndex((cycle: any) => String(cycle.cycleId || cycle.id) === String(selectedVaultCycleId || vaultData?.currentCycle?.cycleId || '')));
+  const selectedVaultCycleOption = vaultCycleOptions[selectedVaultCycleIndex] || vaultCycleOptions[0] || vaultData?.currentCycle || null;
   const refreshDebounceRef = useRef<number | null>(null);
 
   // Helper to extract relevant transactions for a report dynamically and strictly
