@@ -3173,7 +3173,8 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
     limit,
     balanceSource,
     balanceNeedsMetaCommit: !metaSnap.exists,
-    partial: Boolean((metaSnap as any).partial || (cyclesSnap as any).partial),
+    balanceLimitReached,
+    partial: Boolean((metaSnap as any).partial || (cyclesSnap as any).partial || balancePartial || balanceLimitReached),
     readEfficiency: { metaDocsRead: 1, salaryCycleDocsRead: cycles.length, balanceCycleDocsRead, transactionDocsRead: 0 },
   };
 }
