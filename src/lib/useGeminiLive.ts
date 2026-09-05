@@ -224,6 +224,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       };
 
       ws.onmessage = (event) => {
+        if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) return;
         const msg = JSON.parse(event.data);
         
         if (msg.status) {
