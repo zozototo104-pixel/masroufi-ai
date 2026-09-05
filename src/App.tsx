@@ -606,32 +606,12 @@ export default function App() {
         if (!budRes.ok || !budData || !budData.budgets) {
           finalBudData = (await idbGet<any>('lkgs_budgets')) || { budgets: [], totalBudget: 0, totalSpent: 0 };
         } else if (budData.partial) {
-          // If partial, the server couldn't read all transactions, so spendings are wrong.
-          // We must recalculate spendings using our full local finalTx.
-          const thisMonth = new Date().toISOString().slice(0, 7);
-          const monthExpenses = finalTx.filter((t: any) => t.type === 'expense' && (t.date || '').startsWith(thisMonth));
-          
-          let totalBudget = 0;
-          let totalSpent = 0;
-          
-          budData.budgets = budData.budgets.map((b: any) => {
-             totalBudget += Number(b.limit) || 0;
-             const catExpenses = monthExpenses.filter((t: any) => t.category === b.category);
-             const spent = catExpenses.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
-             totalSpent += spent;
-             
-             const limit = Number(b.limit) || 0;
-             const ratio = limit > 0 ? spent / limit : 0;
-             const percentage = Math.round(ratio * 100);
-             const status = ratio >= 1.0 ? 'exceeded' : ratio >= 0.8 ? 'warning' : 'safe';
-             
-             return { ...b, spent, remaining: Math.max(0, limit - spent), percentage, status };
-          });
-          budData.totalBudget = totalBudget;
-          budData.totalSpent = totalSpent;
-          
-          finalBudData = budData;
-          await idbSet('lkgs_budgets', finalBudData);
+          // Do not recompute monthly budget spend from finalTx: the visible
+          // transaction list is intentionally bounded to the current salary cycle,
+          // while budgets are calendar-month based. Using it here would publish
+          // mixed-period totals. Keep last-known-good values, or show the partial
+          // server response as non-authoritative if no cache exists yet.
+          finalBudData = (await idbGet<any>('lkgs_budgets')) || { ...budData, nonAuthoritative: true };
         } else {
           await idbSet('lkgs_budgets', budData);
         }
