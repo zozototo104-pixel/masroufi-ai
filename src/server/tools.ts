@@ -3320,6 +3320,8 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
     const accountBalanceSnap = await tx.get(accountBalanceRef as any);
     const existingCashLockSnap = await tx.get(vaultLockRefs.cash as any);
     const existingPalPayLockSnap = await tx.get(vaultLockRefs.palPay as any);
+    const balanceBootstrapSnap = accountBalanceSnap.exists ? null : await tx.get(firebaseAdminDb.collection('transactions').where('userId', '==', userId).limit(5000) as any);
+    if (balanceBootstrapSnap && ((balanceBootstrapSnap as any).docs || []).length >= 5000) throw new Error('ACCOUNT_BALANCE_BOOTSTRAP_LIMIT_REACHED');
     const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
     const previousVaultContribution = roundMoney(Number(existing.vaultContribution || 0));
     const requestedVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
