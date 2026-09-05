@@ -1,20 +1,12 @@
 # Manual CI verification trigger
 
-Verify typed salary cycle navigation UI and bounded delete implementation.
+Verify salary-cycle navigation/details/delete after confirming atomicDeleteTransactions exists on current HEAD.
 
-Current changes:
-- current + 12 previous salary cycles shown in Vault picker even before cycle docs exist
-- selected cycle details load from /api/salary-cycles/:cycleId
-- bounded delete uses /api/salary-cycles/:cycleId/transactions with explicit confirmation
-- backend has getSalaryCycleDetails and deleteSalaryCycleTransactions
-- atomicDeleteTransactions added for balance-aware bulk cycle delete
+Scope:
+- Vault cycle picker current + previous cycles
+- GET /api/salary-cycles/:cycleId details
+- DELETE /api/salary-cycles/:cycleId/transactions bounded delete
+- atomicDeleteTransactions import and implementation
+- tests, TypeScript, build, runtime smoke
 
-Expected gates:
-- install
-- audit
-- tests
-- TypeScript
-- build
-- runtime smoke
-
-Timestamp: 2026-09-05T21:06:00+03:00
+Timestamp: 2026-09-05T21:14:00+03:00
