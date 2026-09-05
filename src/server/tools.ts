@@ -2402,8 +2402,7 @@ export async function deleteTransaction(args: any, userId: string, token: string
       } catch (vaultErr) {
         console.warn('Savings Vault recalculation failed after direct delete:', vaultErr);
       }
-      const balances = await getBalance({}, userId, token);
-      return { success: true, message: "تم حذف العملية بنجاح.", currentBalances: balances.balances, vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean) };
+      return { success: true, message: "تم حذف العملية بنجاح.", currentBalances: atomicResult.balances, vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean) };
     }
   }
 
