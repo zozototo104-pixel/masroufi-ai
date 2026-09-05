@@ -3565,6 +3565,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_savings_vault: getSavingsVault,
   get_salary_cycle_summary: getSalaryCycleSummary,
   recalculate_salary_cycle: recalculateSalaryCycle,
+  repair_savings_vault_meta: repairSavingsVaultMeta,
   query_transactions: queryTransactions,
   memory_save: memorySave,
   memory_search: memorySearch,
