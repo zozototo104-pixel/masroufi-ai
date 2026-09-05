@@ -124,7 +124,7 @@ jobs:
               echo '```'
               echo
             fi
-            for pair in install:/tmp/install.log tests:/tmp/tests.log lint:/tmp/lint.log build:/tmp/build.log; do
+            for pair in install:/tmp/install.log audit:/tmp/audit.log tests:/tmp/tests.log lint:/tmp/lint.log build:/tmp/build.log; do
               name="${pair%%:*}"
               file="${pair#*:}"
               echo "## $name"
