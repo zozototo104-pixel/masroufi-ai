@@ -1041,3 +1041,21 @@ test('LIVE-02: Gemini Live quota exhaustion is classified and surfaced to the us
   assert.ok(liveSrc.includes("setStatus('idle')") && liveSrc.includes('setIsRecording(false)'), 'client must stop the voice UI when Live quota is exhausted');
 });
 
+test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bounded delete', async () => {
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const atomicSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8'));
+  assert.ok(appSrc.includes('buildLocalSalaryCycleOptions(12)'), 'Vault UI must offer current and previous salary cycles even before cycle docs exist');
+  assert.ok(appSrc.includes('اختر دورة راتب للمعاينة'), 'Vault UI must include a salary-cycle picker');
+  assert.ok(appSrc.includes('loadVaultCycleDetails'), 'Vault UI must load one selected cycle details on demand');
+  assert.ok(appSrc.includes('deleteSelectedVaultCycle'), 'Vault UI must expose a bounded selected-cycle delete action');
+  assert.ok(serverSrc.includes('app.get("/api/salary-cycles/:cycleId"'), 'server must expose a cycle-details API');
+  assert.ok(serverSrc.includes('app.delete("/api/salary-cycles/:cycleId/transactions"'), 'server must expose a bounded cycle transaction delete API');
+  assert.ok(toolsSrc.includes('export async function getSalaryCycleDetails'), 'tools must implement salary cycle details');
+  assert.ok(toolsSrc.includes('export async function deleteSalaryCycleTransactions'), 'tools must implement bounded salary cycle delete');
+  assert.ok(toolsSrc.includes('readTransactionsForSalaryCycle(period'), 'cycle details/delete must use the bounded 27→26 query helper');
+  assert.ok(toolsSrc.includes('confirmation=DELETE_SALARY_CYCLE') || toolsSrc.includes("confirmation: 'DELETE_SALARY_CYCLE'"), 'cycle delete must require explicit confirmation');
+  assert.ok(atomicSrc.includes('export async function atomicDeleteTransactions'), 'bulk cycle delete must be atomic and balance-aware');
+});
+
