@@ -136,8 +136,8 @@ export function buildSavingsGoalPlan(input: {
   const monthsRemaining = monthsRemainingUntil(input.goal.dueDate, now);
   const divisor = monthsRemaining > 0 ? monthsRemaining : 1;
   const monthlyRequired = remainingAmount > 0 ? roundMoney(remainingAmount / divisor) : 0;
-  const monthlySavedAmount = calculateMonthlyContributions(input.contributions || [], now);
-  const monthlyNetAvailable = calculateMonthlyNetAvailable(input.transactions || [], now);
+  const monthlySavedAmount = calculateMonthlyContributions(input.contributions || [], now, savingsPeriod);
+  const monthlyNetAvailable = calculateMonthlyNetAvailable(input.transactions || [], now, savingsPeriod);
   const progressPercentage = targetAmount > 0 ? Math.min(100, Math.round((savedAmount / targetAmount) * 100)) : 0;
 
   let alertLevel: SavingsGoalPlan['alertLevel'] = 'safe';
