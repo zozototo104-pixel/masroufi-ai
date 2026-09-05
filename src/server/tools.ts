@@ -3644,6 +3644,7 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
   return {
     success: true,
     vaultBalance,
+    vaultBalanceByCurrency,
     currentCycle,
     cycles,
     manualAdjustments,
