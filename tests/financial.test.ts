@@ -876,6 +876,15 @@ test('AUTH-01: backup import/export/wipe refresh Firebase token before sensitive
   assert.ok(!modalSrc.includes("fetch('/api/data/wipe'"), 'wipe must not call fetch directly with a stale prop token');
 });
 
+test('AUTH-02: dashboard refresh uses a fresh token after backup mutations', async () => {
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(appSrc.includes('getFreshDashboardToken'), 'App data refresh must have a token refresh helper');
+  assert.ok(appSrc.includes('user.getIdToken(true)'), 'App data refresh must force-refresh Firebase token');
+  assert.ok(appSrc.includes('const currentToken = await getFreshDashboardToken()'), 'fetchData must use the refreshed token');
+  assert.ok(appSrc.includes('syncPendingOps(user.uid, currentToken)'), 'pending sync must not use stale idToken after refresh');
+  assert.ok(appSrc.includes('window.setTimeout(async () =>'), 'targeted refresh must be able to await token refresh');
+});
+
 test('EXPORT-01: CSV backup export must use the full export endpoint, not dashboard transactions', async () => {
   const modalSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/components/DataBackupModal.tsx'), 'utf8'));
   const csvBlock = modalSrc.slice(modalSrc.indexOf('const handleExportCSV'), modalSrc.indexOf('// Handle JSON File selection'));
