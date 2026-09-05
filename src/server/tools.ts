@@ -2282,52 +2282,44 @@ export async function updateTransaction(args: any, userId: string, token: string
     };
   }
 
-  // 5. Snapshot all transactions (excluding the doc being updated) to compute resulting balance.
-  const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  if ((snap as any).partial === true) {
-    return {
-      success: false,
-      retryable: true,
-      reason: 'PARTIAL_STATE_UNSAFE',
-      message: 'لا يمكن تعديل العملية الآن لأن قراءة السحابة جزئية، ولا أستطيع ضمان الرصيد الناتج بأمان.'
-    };
-  }
-  const otherDocs = snap.docs.filter((d: any) => d.id !== args.id);
-  // Apply projected doc to the set.
-  const projectedDoc = { id: args.id, data: () => projected };
-  const combinedDocs = [...otherDocs, projectedDoc as any];
-  const resultingBalances = calculateBalancesFromDocs(combinedDocs);
-
-  // 6. If the resulting cash or palPay would go negative (excluding debt), block unless riskConfirmed.
-  if (!args.riskConfirmed) {
-    if (resultingBalances.cash < -0.0001) {
-      return { success: false, needsConfirmation: true, reason: 'NEGATIVE_CASH_RESULT', message: `هذا التعديل سيجعل رصيد الكاش سالباً (${resultingBalances.cash} ₪). هل تريد المتابعة؟`, financialImpact: { cashAfter: resultingBalances.cash } };
-    }
-    if (resultingBalances.palPay < -0.0001) {
-      return { success: false, needsConfirmation: true, reason: 'NEGATIVE_PALPAY_RESULT', message: `هذا التعديل سيجعل رصيد PalPay سالباً (${resultingBalances.palPay} ₪). هل تريد المتابعة؟`, financialImpact: { palPayAfter: resultingBalances.palPay } };
-    }
-  }
-
-  // 7. If amount/category changed for an expense, re-check budget ceiling.
-  if (projected.type === 'expense' && (updates.amount !== undefined || updates.category !== undefined)) {
+  // 5. For balance-sensitive edits, do not read the full ledger here.
+  // atomicUpdateTransaction applies the replacement delta to the account balance
+  // snapshot inside one Firestore transaction and rejects negative cash/PalPay.
+  // Budget UX checks below are bounded by the affected month/category only.
+  if (projected.type === 'expense' && (updates.amount !== undefined || updates.category !== undefined || updates.date !== undefined)) {
     try {
       const userBudgets = await getUserBudgets(userId, adminDb);
-      const thisMonth = new Date().toISOString().slice(0, 7);
-      const sameCategoryThisMonth = combinedDocs
-        .map((d: any) => typeof d.data === 'function' ? d.data() : d)
-        .filter((t: any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth) && t.category === projected.category);
-      const spent = sameCategoryThisMonth.reduce((s: number, t: any) => s + parsePositiveFinancialAmount(t.amount), 0);
+      const projectedDate = new Date(projected.date || new Date().toISOString());
+      const safeDate = Number.isNaN(projectedDate.getTime()) ? new Date() : projectedDate;
+      const thisMonth = safeDate.toISOString().slice(0, 7);
+      const monthStart = `${thisMonth}-01T00:00:00.000Z`;
+      const nextMonthDate = new Date(Date.UTC(safeDate.getUTCFullYear(), safeDate.getUTCMonth() + 1, 1));
+      const nextMonthStart = `${nextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
+      const categorySnap = await adminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .where('date', '>=', monthStart)
+        .where('date', '<', nextMonthStart)
+        .where('category', '==', projected.category)
+        .limit(300)
+        .get();
+      if ((categorySnap as any).partial === true || categorySnap.docs.length >= 300) {
+        return { success: false, retryable: true, reason: 'BUDGET_CHECK_BOUNDED_QUERY_UNCERTAIN', message: 'لا يمكن تأكيد أثر التعديل على الميزانية من قراءة محدودة/جزئية. حاول لاحقاً أو أكد المخاطرة صراحة.' };
+      }
+      const existingSameCategory = categorySnap.docs
+        .filter((d: any) => d.id !== args.id)
+        .map((d: any) => d.data())
+        .filter((t: any) => t.type === 'expense');
+      const spent = existingSameCategory.reduce((s: number, t: any) => s + parsePositiveFinancialAmount(t.amount), 0) + parsePositiveFinancialAmount(projected.amount);
       const limit = Number(userBudgets?.[projected.category] || DEFAULT_BUDGETS[projected.category] || 0);
       if (limit > 0 && spent >= limit && !args.riskConfirmed) {
         return { success: false, needsConfirmation: true, reason: 'BUDGET_WILL_BE_EXCEEDED', message: `التعديل سيرفع بند [${projected.category}] إلى ${spent} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة؟` };
       }
     } catch (e) {
-      // Preflight failures are non-fatal — we don't want to block updates when budget check is unavailable.
-      console.error('update_transaction preflight budget check failed:', e);
+      console.error('update_transaction bounded budget check failed:', e);
     }
   }
 
-  // 8. Apply the update with the recomputed derived fields.
+  // 6. Apply the update with the recomputed derived fields.
   const finalUpdates: any = { ...updates };
   if (updates.account !== undefined || updates.type !== undefined) {
     finalUpdates.transactionType = projected.transactionType;
