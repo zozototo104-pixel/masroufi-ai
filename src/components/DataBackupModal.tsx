@@ -96,11 +96,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     setIsExporting(true);
     setStatusMessage(null);
     try {
-      const res = await fetch('/api/data/export', {
-        headers: { 'Authorization': `Bearer ${idToken}` }
-      });
-      if (!res.ok) throw new Error('فشل جلب النسخة الاحتياطية من السحابة.');
-      const data: BackupDataPayload = await res.json();
+      const res = await backupFetch('/api/data/export');
+      const data: BackupDataPayload = await readApiPayload(res);
       
       const dateStr = new Date().toISOString().slice(0, 10);
       const fileName = `masrofi-backup-${dateStr}.json`;
