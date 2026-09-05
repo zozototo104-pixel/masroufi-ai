@@ -3118,6 +3118,7 @@ export async function updateSavingsGoal(args: any, userId: string, token: string
 const SALARY_CYCLE_TRANSACTION_QUERY_LIMIT = 2000;
 const VAULT_HISTORY_DEFAULT_LIMIT = 12;
 const VAULT_HISTORY_MAX_LIMIT = 60;
+const VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT = 1000;
 
 function logFirestoreReadDiagnostics(event: string, meta: Record<string, any>) {
   try {
