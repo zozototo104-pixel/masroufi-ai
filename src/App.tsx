@@ -1639,7 +1639,11 @@ export default function App() {
                   {fitness.grade} ({fitness.score}%)
                 </div>
               </div>
-              <h2 className="text-5xl font-bold mb-6 text-white tracking-tight">{balance} <span className="text-2xl font-normal text-slate-500">₪</span></h2>
+              <h2 className="text-5xl font-bold mb-3 text-white tracking-tight">{balance} <span className="text-2xl font-normal text-slate-500">₪</span></h2>
+              <div className="mb-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-3 py-2">
+                <p className="text-[11px] text-cyan-200/80 mb-0.5">المتاح للصرف اليومي بعد عزل الخزنة</p>
+                <p className="text-lg font-black text-cyan-100">{Math.max(0, Number(cash || 0) + Number(palPay || 0) - Number(vaultData?.vaultBalance || 0)).toLocaleString()} ₪</p>
+              </div>
               
               <div className="grid grid-cols-3 gap-2 border-t border-slate-800 pt-5">
                 <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
