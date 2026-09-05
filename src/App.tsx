@@ -3018,10 +3018,7 @@ export default function App() {
                     onChange={(e) => loadVaultCycleDetails(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                   >
-                    {vaultData?.currentCycle?.cycleId && (
-                      <option value={vaultData.currentCycle.cycleId}>الدورة الحالية · {vaultData.currentCycle.cycleStart} → {vaultData.currentCycle.cycleEnd}</option>
-                    )}
-                    {(vaultData?.cycles || []).map((cycle: any) => (
+                    {vaultCycleOptions.map((cycle: any) => (
                       <option key={cycle.cycleId || cycle.id} value={cycle.cycleId || cycle.id}>{cycle.name || cycle.cycleId} · {cycle.cycleStart} → {cycle.cycleEnd}</option>
                     ))}
                   </select>
