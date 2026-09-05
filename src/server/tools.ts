@@ -3607,7 +3607,9 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
   ]);
   const cycles = cyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const manualAdjustments = adjustmentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  let vaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0) || 0);
+  const metaData = metaSnap.exists ? (metaSnap.data() || {}) : {};
+  let vaultBalance = roundMoney(Number(metaData.currentBalance || 0) || 0);
+  let vaultBalanceByCurrency: Record<string, number> = metaData.balanceByCurrency || {};
   let balanceSource = metaSnap.exists ? 'meta' : 'salaryCycles_bootstrap';
   let balanceCycleDocsRead = 0;
   let balanceAdjustmentDocsRead = 0;
