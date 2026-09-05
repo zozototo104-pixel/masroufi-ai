@@ -2063,57 +2063,80 @@ function calculateOpenCreditorDebts(docs: any[]) {
 }
 
 export async function payDebt(args:any,userId:string,token:string){
- const adminDb=getDb(token), amount=parsePositiveFinancialAmount(args.amount); if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'}; let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');if(fromAccount==='debt')fromAccount='cash';const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
- const snap=await adminDb.collection('transactions').where('userId','==',userId).get();
- // V6.2 (FINDING-07): refuse debt payment on partial state — could produce wrong creditor/debt math.
- if ((snap as any).partial === true) {
-   return { success:false, retryable:true, reason:'PARTIAL_STATE_UNSAFE', message:'تعذّر التحقق من ديونك الحالية بدقة. لا يمكن تنفيذ السداد الآن.' };
- }
- const debts=calculateOpenCreditorDebts(snap.docs);
- const selection=selectOpenCreditorDebt({ debts, requestedCreditor: args.creditor||args.person||args.merchant, amount });
- if(selection.ok === false)return{success:false,needsClarification:true,reason:selection.reason,options:selection.options,message:selection.message};
- const selected=selection.selected;
- if(amount>selected.remaining+0.0001)return{success:false,needsClarification:true,reason:'OVERPAYMENT',creditor:selected.creditor,remaining:selected.remaining,message:`المتبقي لـ ${selected.creditor} هو ${selected.remaining} ₪ فقط.`};
- const beforeBalances=calculateBalancesFromDocs(snap.docs); const available=Number(beforeBalances[fromAccount]||0); if(amount>available+0.0001)return{success:false,needsClarification:true,reason:'INSUFFICIENT_FUNDS',available,message:`الرصيد المتاح في ${fromName} هو ${available} ₪ فقط. لا يمكن تنفيذ سداد ${amount} ₪.`};
- const operationId=String(args.operationId||`debtpay_${Date.now()}_${Math.random().toString(36).slice(2,10)}`), txRef=adminDb.collection('transactions').doc(); const tx={userId,operationId,amount,type:'transfer',account:fromAccount,fromAccount,toAccount:'debt',transactionType:'DEBT_PAYMENT',creditor:selected.creditor,creditorKey:selected.key,category:'سداد ديون والتزامات',subcategory:`سداد دين - ${selected.creditor}`,notes:args.notes||`سداد دين بقيمة ${amount} ₪ من ${fromName} لصالح ${selected.creditor}`,merchant:selected.creditor,necessity:'ضروري',date:new Date().toISOString(),createdAt:new Date().toISOString()};
- // V6.1 (CONC-03): atomic debt payment prevents concurrent payments from exceeding the creditor's remaining debt.
- // V6.2 (FINDING-01): ATOMIC FAILURE MUST NEVER DOWNGRADE TO NON-ATOMIC WRITE.
- // If atomicPayDebt fails (contention/network/quota/transaction failure), we MUST NOT
- // fall back to direct txRef.set(). The operation becomes FAILED, and the client can
- // retry or queue it offline. A direct write would bypass the financial validation
- // engine and could create a debt that exceeds the creditor's remaining balance.
- let atomicResult: { ok: true; docId: string } | { ok: false; reason: string; remaining?: number; available?: number };
- try {
-   atomicResult = await atomicPayDebt(userId, tx, selected.key, { riskConfirmed: Boolean(args.riskConfirmed) });
- } catch (atomicErr: any) {
-   // V6.2: NO direct write fallback. Surface as FAILED with retryable status.
-   console.error('[payDebt] atomic transaction FAILED — refusing direct write fallback:', atomicErr?.message);
-   const isRetryable = atomicErr?.code === 8 || /RESOURCE_EXHAUSTED|quota|contention|aborted/i.test(String(atomicErr?.message || ''));
-   return {
-     success: false,
-     needsClarification: !isRetryable,
-     retryable: isRetryable,
-     reason: isRetryable ? 'ATOMIC_FAILED_RETRYABLE' : 'ATOMIC_FAILED',
-     message: isRetryable
-       ? 'تعذّر تنفيذ سداد الدين الآن بسبب ضغط مؤقت على قاعدة البيانات. حاول مرة أخرى خلال لحظات.'
-       : `تعذّر تنفيذ سداد الدين بشكل آمن: ${atomicErr?.message || 'unknown error'}`,
-     operationId,
-   };
- }
- if (!atomicResult.ok) {
-   const failReason = (atomicResult as any).reason as string;
-   const failRemaining = (atomicResult as any).remaining as number | undefined;
-   const failAvailable = (atomicResult as any).available as number | undefined;
-   if (failReason === 'OVERPAYMENT_ATOMIC') {
-     return { success: false, needsClarification: true, reason: 'OVERPAYMENT', creditor: selected.creditor, remaining: failRemaining, message: `المتبقي لـ ${selected.creditor} هو ${failRemaining} ₪ فقط (تم رصد محاولة سداد متزامنة).` };
-   }
-   if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') {
-     return { success: false, needsClarification: true, reason: 'INSUFFICIENT_FUNDS', available: failAvailable, message: `الرصيد المتاح في ${fromName} هو ${failAvailable} ₪ فقط.` };
-   }
-   return { success: false, error: failReason };
- }
- const finalTxId = atomicResult.docId;
- await addNotification(userId,`تم سداد ${amount} ₪ من دين ${selected.creditor} من ${fromName}.`, 'success', adminDb); const balances=calculateBalancesFromDocs([...snap.docs,tx]); return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:Math.max(0,Math.round((selected.remaining-amount)*100)/100),message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}.`,currentBalances:balances};
+  const adminDb=getDb(token), amount=parsePositiveFinancialAmount(args.amount);
+  if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'};
+  let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');
+  if(fromAccount==='debt')fromAccount='cash';
+  const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
+  const requestedCreditor = String(args.creditor||args.person||args.merchant||'').trim();
+  const requestedCreditorKey = normalizeCreditorName(requestedCreditor);
+  if (!requestedCreditorKey) {
+    const recentDebtSnap = await adminDb.collection('transactions')
+      .where('userId','==',userId)
+      .where('account','==','debt')
+      .limit(50)
+      .get()
+      .catch(() => ({ docs: [], partial: true } as any));
+    const options = calculateOpenCreditorDebts(recentDebtSnap.docs).slice(0, 8);
+    return {
+      success:false,
+      needsClarification:true,
+      reason:'MISSING_CREDITOR_BOUNDED',
+      options,
+      partial: Boolean((recentDebtSnap as any).partial),
+      message:'لأي دائن تريد سداد الدين؟ اذكر اسم الشخص أو المحل حتى أتحقق باستعلام محدود بدل قراءة كل السجل.'
+    };
+  }
+
+  const [creditorSnap, balanceResult] = await Promise.all([
+    adminDb.collection('transactions')
+      .where('userId','==',userId)
+      .where('creditorKey','==',requestedCreditorKey)
+      .get(),
+    getBalance({}, userId, token),
+  ]);
+  if ((creditorSnap as any).partial === true || balanceResult.partial === true) {
+    return { success:false, retryable:true, reason:'PARTIAL_STATE_UNSAFE', message:'تعذّر التحقق من ديونك أو رصيدك الحالي بدقة. لا يمكن تنفيذ السداد الآن.' };
+  }
+
+  const debts=calculateOpenCreditorDebts(creditorSnap.docs);
+  const selection=selectOpenCreditorDebt({ debts, requestedCreditor, amount });
+  if(selection.ok === false)return{success:false,needsClarification:true,reason:selection.reason,options:selection.options,message:selection.message};
+  const selected=selection.selected;
+  if(amount>selected.remaining+0.0001)return{success:false,needsClarification:true,reason:'OVERPAYMENT',creditor:selected.creditor,remaining:selected.remaining,message:`المتبقي لـ ${selected.creditor} هو ${selected.remaining} ₪ فقط.`};
+  const available=Number(balanceResult?.balances?.[fromAccount]||0);
+  if(amount>available+0.0001)return{success:false,needsClarification:true,reason:'INSUFFICIENT_FUNDS',available,message:`الرصيد المتاح في ${fromName} هو ${available} ₪ فقط. لا يمكن تنفيذ سداد ${amount} ₪.`};
+
+  const operationId=String(args.operationId||`debtpay_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
+  const tx={userId,operationId,amount,type:'transfer',account:fromAccount,fromAccount,toAccount:'debt',transactionType:'DEBT_PAYMENT',creditor:selected.creditor,creditorKey:selected.key,category:'سداد ديون والتزامات',subcategory:`سداد دين - ${selected.creditor}`,notes:args.notes||`سداد دين بقيمة ${amount} ₪ من ${fromName} لصالح ${selected.creditor}`,merchant:selected.creditor,necessity:'ضروري',date:new Date().toISOString(),createdAt:new Date().toISOString()};
+  let atomicResult: Awaited<ReturnType<typeof atomicPayDebt>>;
+  try {
+    atomicResult = await atomicPayDebt(userId, tx, selected.key, { riskConfirmed: Boolean(args.riskConfirmed) });
+  } catch (atomicErr: any) {
+    console.error('[payDebt] atomic transaction FAILED — refusing direct write fallback:', atomicErr?.message);
+    const isRetryable = atomicErr?.code === 8 || /RESOURCE_EXHAUSTED|quota|contention|aborted/i.test(String(atomicErr?.message || ''));
+    return {
+      success: false,
+      needsClarification: !isRetryable,
+      retryable: isRetryable,
+      reason: isRetryable ? 'ATOMIC_FAILED_RETRYABLE' : 'ATOMIC_FAILED',
+      message: isRetryable
+        ? 'تعذّر تنفيذ سداد الدين الآن بسبب ضغط مؤقت على قاعدة البيانات. حاول مرة أخرى خلال لحظات.'
+        : `تعذّر تنفيذ سداد الدين بشكل آمن: ${atomicErr?.message || 'unknown error'}`,
+      operationId,
+    };
+  }
+  if (!atomicResult.ok) {
+    const failReason = (atomicResult as any).reason as string;
+    const failRemaining = (atomicResult as any).remaining as number | undefined;
+    const failAvailable = (atomicResult as any).available as number | undefined;
+    if (failReason === 'OVERPAYMENT_ATOMIC') return { success: false, needsClarification: true, reason: 'OVERPAYMENT', creditor: selected.creditor, remaining: failRemaining, message: `المتبقي لـ ${selected.creditor} هو ${failRemaining} ₪ فقط (تم رصد محاولة سداد متزامنة).` };
+    if (failReason === 'INSUFFICIENT_FUNDS_ATOMIC') return { success: false, needsClarification: true, reason: 'INSUFFICIENT_FUNDS', available: failAvailable, message: `الرصيد المتاح في ${fromName} هو ${failAvailable} ₪ فقط.` };
+    return { success: false, error: failReason };
+  }
+  const finalTxId = atomicResult.docId;
+  await addNotification(userId,`تم سداد ${amount} ₪ من دين ${selected.creditor} من ${fromName}.`, 'success', adminDb);
+  return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:(atomicResult as any).remaining ?? Math.max(0,Math.round((selected.remaining-amount)*100)/100),message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}.`,currentBalances:(atomicResult as any).balances, readEfficiency:{ creditorDocsRead: creditorSnap.docs.length, accountBalanceDocsRead: 1 }};
 }
 
 export async function getRecentTransactions(args: any, userId: string, token: string) {
