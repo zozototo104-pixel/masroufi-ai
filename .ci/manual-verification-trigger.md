@@ -1,17 +1,18 @@
 # Manual CI verification trigger
 
-Verify the salary-cycle details fix after the user hit Firestore index error.
+Verify salary-cycle details after fixing fallback response semantics.
 
-Observed production error:
-- FAILED_PRECONDITION: The query requires an index
-- triggered by عرض البنود in Savings Vault salary cycle details
+Observed production issue:
+- Savings Vault عرض البنود still showed FAILED_PRECONDITION: query requires an index
+- Render had deployed the fallback commit
 
-Fixes:
-- added firestore.indexes.json for proper composite indexes
-- readTransactionsForSalaryCycle now has an index-free bounded fallback
-- fallback queries only the selected 27→26 date range, then filters userId server-side
-- cycle detail dates render left-to-right in RTL UI
-- picker uses من/إلى instead of arrow-only formatting
+Root cause:
+- readTransactionsForSalaryCycle fallback returned data, but getSalaryCycleDetails marked boundedFallback as partial/error and surfaced the original index message
+
+Fix:
+- getSalaryCycleDetails now treats bounded fallback as success when the bounded date-range fallback did not hit the limit
+- reason is only set for true partial/limit cases
+- fallbackUsed is returned as metadata, not as user-facing failure
 
 Expected gates:
 - install
@@ -21,4 +22,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T21:03:00+03:00
+Timestamp: 2026-09-05T21:24:00+03:00
