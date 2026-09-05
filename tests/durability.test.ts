@@ -159,8 +159,8 @@ test('DUR-10: transaction delete is durability-safe through atomic Firestore del
 
 test('DUR-11: transaction update refuses balance-sensitive decisions on partial state', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes("message: 'لا يمكن تعديل العملية الآن لأن قراءة السحابة جزئية، ولا أستطيع ضمان الرصيد الناتج بأمان.'"),
-    'updateTransaction must refuse partial-state balance computation');
+  assert.ok(src.includes('atomicUpdateTransaction(userId, args.id, finalUpdates') && src.includes('BUDGET_CHECK_BOUNDED_QUERY_UNCERTAIN'),
+    'updateTransaction must use atomic snapshot balance updates and fail closed on uncertain bounded budget reads');
 });
 
 test('DUR-12: restore validates the full backup before replace deletes existing state', async () => {
