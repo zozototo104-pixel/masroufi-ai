@@ -107,6 +107,7 @@ function aggregateDelta(items: any[]): AccountBalanceDelta {
       cash: roundBalance(sum.cash + delta.cash),
       palPay: roundBalance(sum.palPay + delta.palPay),
       debt: roundBalance(sum.debt + delta.debt),
+      vault: roundBalance(sum.vault + delta.vault),
     };
   }, zeroBalanceDelta());
 }
