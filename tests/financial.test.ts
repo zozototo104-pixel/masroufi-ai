@@ -1007,10 +1007,14 @@ test('LIVE-01: voice path prevents duplicate expert playback and echo feedback l
   assert.ok(liveSrc.includes('createScriptProcessor(4096'), 'voice capture buffer must favor stability over chopping');
   assert.ok(liveSrc.includes('rms > 0.08') && liveSrc.includes('userSpeechCounter >= 6'), 'barge-in threshold must resist speaker echo false positives');
   assert.ok(liveSrc.includes('Do not send the same frame that triggered barge-in'), 'barge-in must not send the echo frame that triggered interruption');
-  assert.ok(liveSrc.includes('responseWatchdogRef'), 'client must detect mic-sent/no-audio-return silence');
+  assert.ok(liveSrc.includes('liveReadyRef'), 'client must distinguish websocket-open from Gemini-live-ready');
+  assert.ok(liveSrc.includes("msg.type === 'live_ready'"), 'client must wait for server live_ready before recording/sending');
+  assert.ok(liveSrc.includes('if (!liveReadyRef.current)'), 'client must not send microphone audio before Gemini is ready');
+  assert.ok(liveSrc.includes('responseWatchdogRef'), 'client must detect mic-sent/no-audio-return silence after readiness');
   assert.ok(liveSrc.includes('receivedAudioFramesRef.current === 0'), 'watchdog must only fire when no Live audio returns');
   assert.ok(liveSrc.includes('الصوت متصل والمايك يرسل'), 'client must show a clear no-response message instead of silent failure');
   assert.ok(liveSrc.includes('source.disconnect()'), 'stopped playback sources must be disconnected');
+  assert.ok(serverSrc.includes('type: "live_ready"'), 'server must tell the client when Gemini Live is connected');
   assert.ok(serverSrc.includes('aiOutputActive = true'), 'server must mark AI audio output as active when forwarding voice');
   assert.ok(serverSrc.includes('dropped mic chunk during AI output'), 'server must drop microphone echo chunks while the expert is speaking');
   assert.ok(serverSrc.includes('clientInterruptOverrideUntilMs'), 'explicit client barge-in must have a short override window');
