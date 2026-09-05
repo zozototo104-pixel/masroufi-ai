@@ -15,6 +15,13 @@ import {
 import { parseAbsoluteFinancialAmount, parsePositiveFinancialAmount } from '../lib/amount';
 import { normalizeHistoricalTransactionDate } from '../lib/historicalDate';
 import {
+  addVaultCurrencyAmount,
+  deriveVaultAdjustmentCurrencyDelta,
+  mergeVaultCurrencyDeltas,
+  normalizeVaultAdjustmentEntries,
+  type VaultAdjustmentEntry,
+} from '../lib/vaultCurrency';
+import {
   buildSalaryCycleForMonth,
   getCurrentSalaryCycle,
   getSalaryCycleForDate,
