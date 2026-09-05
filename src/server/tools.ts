@@ -3519,14 +3519,20 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
   const adminDb = getDb(token);
   const limit = Math.max(1, Math.min(VAULT_HISTORY_MAX_LIMIT, Number(args?.limit) || VAULT_HISTORY_DEFAULT_LIMIT));
   const metaRef = adminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
-  const [metaSnap, cyclesSnap] = await Promise.all([
+  const adjustmentLimit = Math.max(1, Math.min(60, Number(args?.adjustmentLimit) || 12));
+  const [metaSnap, cyclesSnap, adjustmentsSnap] = await Promise.all([
     metaRef.get(),
     adminDb.collection('users').doc(userId).collection('salaryCycles')
       .orderBy('cycleEnd', 'desc')
       .limit(limit)
       .get(),
+    adminDb.collection('users').doc(userId).collection('savingsVaultAdjustments')
+      .orderBy('createdAt', 'desc')
+      .limit(adjustmentLimit)
+      .get(),
   ]);
   const cycles = cyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const manualAdjustments = adjustmentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   let vaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0) || 0);
   let balanceSource = metaSnap.exists ? 'meta' : 'salaryCycles_bootstrap';
   let balanceCycleDocsRead = 0;
