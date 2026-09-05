@@ -658,6 +658,23 @@ export async function addTransaction(args: any, userId: string, token: string) {
     necessity = necessitySuggestion.necessity;
   }
 
+  const transactionNow = new Date();
+  const dateResult = normalizeHistoricalTransactionDate({
+    date: args.date,
+    historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth,
+    day: args.day || args.transactionDay,
+    year: args.year || args.salaryYear,
+    now: transactionNow,
+  } as any);
+  if (dateResult.ok === false) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: dateResult.reason,
+      message: dateResult.message,
+    };
+  }
+
   // Treasurer Mode: income must not be silently dumped into cash.
   // Salary/income needs an explicit destination or a split between cash and PalPay.
   if (type === 'income') {
