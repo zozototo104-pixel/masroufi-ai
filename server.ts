@@ -1854,7 +1854,8 @@ ${relationshipContext}
 
               if (message.serverContent?.interrupted) {
                 liveInterruptions += 1;
-                console.log('[live-audio] interrupted', { requestId, interruptions: liveInterruptions, awaitingPostToolAudio, audioSinceLastToolResponse: liveAudioSinceLastToolResponse });
+                aiOutputActive = false;
+                console.log('[live-audio] interrupted', { requestId, interruptions: liveInterruptions, awaitingPostToolAudio, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, droppedEchoAudioChunks });
                 safeSend({ interrupted: true });
               }
 
