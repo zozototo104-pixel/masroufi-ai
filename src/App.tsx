@@ -3069,7 +3069,7 @@ export default function App() {
               {selectedVaultCycleDetails?.period && (
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                   <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الدورة</p><p className="font-bold text-white">{selectedVaultCycleDetails.period.name}</p></div>
-                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الفترة</p><p className="font-bold text-white">{selectedVaultCycleDetails.period.cycleStart} → {selectedVaultCycleDetails.period.cycleEnd}</p></div>
+                  <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الفترة</p><p className="font-bold text-white" dir="ltr">{selectedVaultCycleDetails.period.cycleStart} → {selectedVaultCycleDetails.period.cycleEnd}</p></div>
                   <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">الدخل</p><p className="font-bold text-emerald-300">{Number(selectedVaultCycleDetails.summary?.totalIncome || 0).toLocaleString()} ₪</p></div>
                   <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">المصروف</p><p className="font-bold text-rose-300">{Number(selectedVaultCycleDetails.summary?.totalExpense || 0).toLocaleString()} ₪</p></div>
                   <div className="bg-slate-900 rounded-xl p-2 border border-slate-800"><p className="text-slate-400">للخزنة</p><p className="font-bold text-cyan-300">{Number(selectedVaultCycleDetails.vaultContribution || 0).toLocaleString()} ₪</p></div>
