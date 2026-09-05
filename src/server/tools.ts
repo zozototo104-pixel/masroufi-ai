@@ -15,6 +15,15 @@ import {
 } from '../lib/savingsCore';
 import { parseAbsoluteFinancialAmount, parsePositiveFinancialAmount } from '../lib/amount';
 import { normalizeHistoricalTransactionDate } from '../lib/historicalDate';
+import {
+  buildSalaryCycleForMonth,
+  getCurrentSalaryCycle,
+  getSalaryCycleForDate,
+  parseSalaryCycleMonth,
+  resolveSalaryCycleFromArgs,
+  summarizeSalaryCycleTransactions,
+  type SalaryCyclePeriod,
+} from '../lib/salaryCycle';
 import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey } from '../lib/balanceCalc';
 export { normalizeAccount } from '../lib/balanceCalc';
 import { GoogleGenAI } from '@google/genai';
