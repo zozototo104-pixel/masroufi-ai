@@ -2582,21 +2582,38 @@ export async function repairDuplicateCreditPurchase(args: any, userId: string, t
   const targetCreditor = normalizeCreditorName(args.creditor || args.merchant || args.seller || '');
   const targetDate = String(args.date || '').slice(0, 10);
   const targetMonth = String(args.month || '').slice(0, 7);
-  const snap = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  if ((snap as any).partial === true) {
-    return { success: false, retryable: true, reason: 'PARTIAL_STATE_UNSAFE', message: 'لا يمكن إصلاح تكرار الشراء بالدين الآن لأن قراءة السحابة جزئية وغير آمنة.' };
+  const repairNow = new Date();
+  let startIso = '';
+  let endIso = '';
+  if (targetDate) {
+    const start = new Date(`${targetDate}T00:00:00.000Z`);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 1);
+    startIso = start.toISOString();
+    endIso = end.toISOString();
+  } else if (targetMonth) {
+    const start = new Date(`${targetMonth}-01T00:00:00.000Z`);
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    startIso = start.toISOString();
+    endIso = end.toISOString();
+  } else {
+    startIso = new Date(repairNow.getTime() - 90 * 86400000).toISOString();
+    endIso = repairNow.toISOString();
+  }
+  let q: any = adminDb.collection('transactions')
+    .where('userId', '==', userId)
+    .where('date', '>=', startIso)
+    .where('date', '<', endIso);
+  if (targetCreditor) q = q.where('creditorKey', '==', targetCreditor);
+  const snap = await q.limit(300).get();
+  if ((snap as any).partial === true || snap.docs.length >= 300) {
+    return { success: false, retryable: true, reason: 'REPAIR_DUPLICATE_CREDIT_QUERY_UNCERTAIN', message: 'لا يمكن إصلاح تكرار الشراء بالدين من قراءة جزئية أو مشبعة. حدّد تاريخاً/شهراً/دائناً أضيق.' };
   }
   const purchases = snap.docs
     .map((d: any) => ({ id: d.id, ...d.data() }))
     .filter((t: any) => t.type === 'expense' && (t.account === 'debt' || t.transactionType === 'CREDIT_PURCHASE'))
     .filter((t: any) => targetAmount === null || Math.abs(parsePositiveFinancialAmount(t.amount) - targetAmount) < 0.01)
-    .filter((t: any) => !targetCreditor || normalizeCreditorName(t.creditor || t.merchant || '') === targetCreditor)
-    .filter((t: any) => {
-      const dateStr = String(t.date || t.createdAt || '');
-      if (targetDate) return dateStr.startsWith(targetDate);
-      if (targetMonth) return dateStr.startsWith(targetMonth);
-      return true;
-    });
+    .filter((t: any) => !targetCreditor || normalizeCreditorName(t.creditor || t.merchant || '') === targetCreditor);
 
   const groups = new Map<string, any[]>();
   for (const t of purchases) {
