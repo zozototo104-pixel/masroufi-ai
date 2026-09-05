@@ -198,9 +198,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
                   window.dispatchEvent(new CustomEvent('masrofi:user-interrupted'));
                   if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ interrupt: true }));
-                    // Send this interrupt voice chunk
-                    const base64 = pcmToBase64(channelData);
-                    ws.send(JSON.stringify({ audio: base64 }));
+                    // Do not send the same frame that triggered barge-in; it may
+                    // contain speaker echo from the expert. After playback stops,
+                    // subsequent clean mic frames are sent normally.
                   }
                   userSpeechCounter = 0;
                 }
