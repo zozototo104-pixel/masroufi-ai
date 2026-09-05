@@ -39,6 +39,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
     }
   }, []);
 
+  const clearLiveReadyWatchdog = useCallback(() => {
+    if (liveReadyWatchdogRef.current !== null) {
+      window.clearTimeout(liveReadyWatchdogRef.current);
+      liveReadyWatchdogRef.current = null;
+    }
+  }, []);
+
   const disconnect = useCallback(() => {
     clearResponseWatchdog();
     connectionEpochRef.current += 1;
