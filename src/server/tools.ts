@@ -4667,6 +4667,20 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "get_salary_cycle_details",
+    description: "يعرض تفاصيل دورة راتب واحدة 27→26: بنود الدخل، المصروفات، التحويلات، ملخص الفئات، وما تم تحويله للخزنة. لا يقرأ كل التاريخ؛ يستعلم نفس نطاق الدورة فقط.",
+    parameters: {
+      type: "object",
+      properties: {
+        month: { type: "string", description: "رقم أو اسم شهر دورة الراتب؛ 7/يوليو يعني 27/06→26/07" },
+        year: { type: "number", description: "سنة دورة الراتب" },
+        cycleId: { type: "string", description: "معرف دورة مثل vault_2026_07" },
+        period: { type: "string", description: "current_salary_cycle أو previous_salary_cycle" },
+        limit: { type: "number", description: "حد البنود، افتراضياً 500 وبحد أعلى مضبوط" }
+      }
+    }
+  },
+  {
     name: "memory_save",
     description: "يحفظ معلومة طويلة الأمد (مثل راتب، قرار مالي، التزام) للرجوع إليها لاحقاً.",
     parameters: {
