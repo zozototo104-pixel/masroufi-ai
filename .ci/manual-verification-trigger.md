@@ -1,16 +1,13 @@
 # Manual CI verification trigger
 
-Final verification after salary-cycle savings and financial behavior fixes.
+Verification requested after fixing expired Firebase token handling in backup workflows.
 
 Scope:
-- salary credited on 27/6 belongs to July salary cycle
-- expenses from 27/6 through 26/7 belong to July salary cycle
-- transfer dates are preserved for cash/PalPay/debt transfers
-- cash debt borrowing is inflow, not expense, and not vault-eligible surplus
-- savings goals use salary-cycle windows and bounded contribution reads
-- reports use salary-cycle month semantics unless calendarMonth is explicit
-- real local market tool only, with bounded saved market reads
-- voice path low-latency and no refresh storms on close/error
-- manual Savings Vault carryover adjustments
+- DataBackupModal refreshes Firebase ID token before export/import/wipe
+- backup fetch retries once on HTTP 401 / expired token
+- CSV export uses full /api/data/export, not bounded /api/transactions
+- App dashboard refresh uses a fresh token after backup mutations
+- pending sync and targeted vault refresh use fresh tokens
+- regression tests AUTH-01/AUTH-02/EXPORT-01 added
 
-Timestamp: 2026-09-05T06:45:00Z
+Timestamp: 2026-09-05T09:35:00+03:00
