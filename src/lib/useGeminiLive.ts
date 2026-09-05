@@ -38,6 +38,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   }, []);
 
   const disconnect = useCallback(() => {
+    clearResponseWatchdog();
     connectionEpochRef.current += 1;
     connectingRef.current = false;
     setIsConnected(false);
