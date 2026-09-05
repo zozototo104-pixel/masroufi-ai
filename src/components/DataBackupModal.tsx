@@ -262,6 +262,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       });
 
       setStagedFile(null);
+      setCountOverride(null);
       onRefreshData();
       window.dispatchEvent(new CustomEvent('masrofi:refresh'));
     } catch (err: any) {
