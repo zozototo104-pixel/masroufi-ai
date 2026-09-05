@@ -3017,7 +3017,7 @@ export default function App() {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
                 <p className="text-xs text-slate-400 mb-1">الدورة الحالية</p>
                 <p className="text-sm font-bold text-white">{vaultData?.currentCycle?.name || 'دورة الراتب الحالية'}</p>
-                <p className="text-xs text-slate-400 mt-1">{vaultData?.currentCycle?.cycleStart || '—'} → {vaultData?.currentCycle?.cycleEnd || '—'}</p>
+                <p className="text-xs text-slate-400 mt-1" dir="ltr">{vaultData?.currentCycle?.cycleStart || '—'} → {vaultData?.currentCycle?.cycleEnd || '—'}</p>
               </div>
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
                 <p className="text-xs text-slate-400 mb-1">آلية الفصل</p>
