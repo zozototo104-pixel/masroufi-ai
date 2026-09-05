@@ -504,6 +504,37 @@ export default function App() {
         if (cloudReady) await rememberCloudConnected();
         else await markCloudProbeFailed();
 
+        const cloudQuotaExhausted = !cloudReady && (
+          cloudHealth?.code === 8 ||
+          /RESOURCE_EXHAUSTED|Quota exceeded/i.test(String(cloudHealth?.error || cloudHealth?.details || cloudHealth?.staleDueTo || ''))
+        );
+        if (cloudQuotaExhausted) {
+          console.warn('[firestore] quota exhausted; using cached dashboard data and skipping fan-out refresh');
+          const [cachedTx, cachedRep, cachedBudgets, cachedCommitments, cachedSavings] = await Promise.all([
+            idbGet<any[]>('lkgs_transactions'),
+            idbGet<any[]>('lkgs_reports'),
+            idbGet<any>('lkgs_budgets'),
+            idbGet<any[]>('lkgs_commitments'),
+            idbGet<any[]>('lkgs_savings_goals'),
+          ]);
+          const safeTx = Array.isArray(cachedTx) ? cachedTx.filter(t => !t.deleted) : [];
+          setTransactions(safeTx);
+          const balances = calculateBalances(safeTx);
+          setCash(balances.cash);
+          setPalPay(balances.palPay);
+          setDebt(balances.debt);
+          setBalance(balances.total);
+          setReportsList(Array.isArray(cachedRep) ? cachedRep : []);
+          setBudgetsData(cachedBudgets || { budgets: [], totalBudget: 0, totalSpent: 0, partial: true, quotaExhausted: true });
+          setCommitments(Array.isArray(cachedCommitments) ? cachedCommitments : []);
+          setSavingsGoals(Array.isArray(cachedSavings) ? cachedSavings : []);
+          setNotifications(prev => {
+            if (prev.some((n: any) => n.id === 'firestore-quota-exhausted')) return prev;
+            return [...prev, { id: 'firestore-quota-exhausted', message: 'انتهت حصة Firestore اليوم. أوقفت التحديثات السحابية مؤقتًا واستخدمت آخر نسخة محفوظة لتجنب استهلاك إضافي.', type: 'warning' }];
+          });
+          return;
+        }
+
         // V6.1 (OFF-04, OFF-05): attempt to sync pending offline ops at start of every refresh.
         // Server-side idempotency (runIdempotent + operationId) prevents duplication.
         if (cloudReady && user?.uid) {
