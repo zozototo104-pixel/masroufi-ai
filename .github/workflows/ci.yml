@@ -55,6 +55,14 @@ jobs:
         continue-on-error: true
         run: set -o pipefail; npm run build 2>&1 | tee /tmp/build.log
 
+      - name: Audit dependencies
+        id: audit
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm audit --audit-level=moderate 2>&1 | tee /tmp/audit.log
+
       - name: Runtime smoke check
         id: runtime
         if: steps.build.outcome == 'success'
