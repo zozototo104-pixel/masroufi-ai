@@ -817,10 +817,11 @@ export async function addTransaction(args: any, userId: string, token: string) {
   let preUserBudgets: Record<string, number> | null = null;
 
   if (type === 'income') {
-    try {
+    const salaryLikePreflight = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''} ${args.userText || ''}`);
+    if (!salaryLikePreflight) try {
       const incomeGuardCandidateDate = new Date(dateResult.date);
       const incomeGuardNow = Number.isNaN(incomeGuardCandidateDate.getTime()) ? transactionNow : incomeGuardCandidateDate;
-      const isSalaryLike = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes}`);
+      const isSalaryLike = false;
       const incomeGuardCycle = isSalaryLike ? getSalaryCycleForDate(dateResult.date, incomeGuardNow) : null;
       const incomeGuardMonth = incomeGuardNow.toISOString().slice(0, 7);
       const incomeGuardMonthStart = incomeGuardCycle?.startIso || `${incomeGuardMonth}-01T00:00:00.000Z`;
