@@ -316,6 +316,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       if (data.verifiedEmpty !== true) {
         throw new Error('لم يؤكد السيرفر أن قاعدة البيانات أصبحت فارغة، لذلك لن أعرض نجاح التصفير.');
       }
+      await clearLocalBackupStateAfterVerifiedWipe();
       setCountOverride({ transactions: 0, budgets: 0, commitments: 0, reports: 0 });
 
       setStatusMessage({
@@ -323,8 +324,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         text: `تم مسح وتصفير كافة البيانات بنجاح، والنظام الآن فارغ ونظيف بالكامل. المحذوف: ${data.deletedCounts?.transactions || 0} عملية.`
       });
 
-      onRefreshData();
-      window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+      // Do not trigger a full cloud refresh here. The verified wipe event clears
+      // the UI locally; another fan-out would waste reads and may re-show stale cache.
     } catch (err: any) {
       console.error(err);
       setStatusMessage({
