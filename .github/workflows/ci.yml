@@ -109,6 +109,11 @@ jobs:
               ' /tmp/tests.log
               echo '```'
               echo
+              echo "## not-ok context"
+              echo '```text'
+              grep -n -C 12 "^not ok\|error:\|AssertionError\|ERR_ASSERTION" /tmp/tests.log || true
+              echo '```'
+              echo
             fi
             for pair in install:/tmp/install.log tests:/tmp/tests.log lint:/tmp/lint.log build:/tmp/build.log; do
               name="${pair%%:*}"
