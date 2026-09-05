@@ -3775,6 +3775,7 @@ export async function addSavingsVaultAdjustment(args: any, userId: string, token
   const adjustmentId = stableDocId(`${userId}:savingsVaultAdjustment:${operationId}`);
   const adjustmentRef = firebaseAdminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').doc(adjustmentId);
   const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
+  const accountBalanceRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances');
   const now = new Date().toISOString();
   const amountIlsEquivalent = roundMoney(convertedEntries.reduce((sum: number, entry: any) => sum + Number(entry.normalizedAmountIls || 0), 0));
   const currencyDelta = convertedEntries.reduce((map: Record<string, number>, entry: any) => addVaultCurrencyAmount(map, entry.currency, entry.amount), {} as Record<string, number>);
