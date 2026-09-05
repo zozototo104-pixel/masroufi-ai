@@ -3401,6 +3401,66 @@ export async function getSalaryCycleSummary(args: any, userId: string, token: st
   };
 }
 
+export async function addSavingsVaultAdjustment(args: any, userId: string, token: string) {
+  const amount = roundMoney(parsePositiveFinancialAmount(args.amount));
+  if (amount <= 0) {
+    return { success: false, needsClarification: true, reason: 'INVALID_VAULT_ADJUSTMENT_AMOUNT', message: 'كم المبلغ القديم/المرحل الذي تريد إضافته للخزنة؟' };
+  }
+  const source = String(args.source || args.reason || 'manual_carryover').trim();
+  const notes = String(args.notes || '').trim();
+  const operationId = String(args.operationId || `vault_adjustment_${source}_${amount}_${args.date || new Date().toISOString().slice(0, 10)}`);
+  const adjustmentId = stableDocId(`${userId}:savingsVaultAdjustment:${operationId}`);
+  const adjustmentRef = firebaseAdminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').doc(adjustmentId);
+  const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
+  const now = new Date().toISOString();
+  const result = await firebaseAdminDb.runTransaction(async (tx: any) => {
+    const [existingAdjustmentSnap, metaSnap] = await Promise.all([
+      tx.get(adjustmentRef as any),
+      tx.get(metaRef as any),
+    ]);
+    if (existingAdjustmentSnap.exists) {
+      const existing = existingAdjustmentSnap.data() || {};
+      return { replay: true, vaultBalance: roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : existing.cumulativeVaultBalance || amount)), adjustment: existing };
+    }
+    const previousBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
+    const nextBalance = roundMoney(previousBalance + amount);
+    const adjustment = {
+      userId,
+      amount,
+      type: 'manual_carryover',
+      source,
+      notes,
+      operationId,
+      createdAt: now,
+      updatedAt: now,
+      affectsCash: false,
+      affectsPalPay: false,
+      affectsDebt: false,
+      cumulativeVaultBalance: nextBalance,
+    };
+    tx.set(adjustmentRef as any, adjustment);
+    tx.set(metaRef as any, {
+      userId,
+      currentBalance: nextBalance,
+      updatedAt: now,
+      lastAdjustment: amount,
+      lastAdjustmentId: adjustmentId,
+      source: 'salaryCycles+manualAdjustments',
+      version: 4,
+      transactionalCommit: true,
+    }, { merge: true });
+    return { replay: false, vaultBalance: nextBalance, adjustment };
+  });
+  return {
+    success: true,
+    id: adjustmentId,
+    idempotentReplay: result.replay,
+    vaultBalance: result.vaultBalance,
+    adjustment: result.adjustment,
+    message: result.replay ? 'هذا المبلغ المرحل محفوظ سابقاً ولم أكرره.' : `أضفت ${amount} ₪ كرصد/رصيد قديم للخزنة بدون تغيير أرصدة الكاش أو PalPay أو الديون.`,
+  };
+}
+
 export async function repairSavingsVaultMeta(args: any, userId: string, token: string) {
   const cycleLimit = Math.max(1, Math.min(1000, Number(args?.limit) || 1000));
   const now = new Date().toISOString();
