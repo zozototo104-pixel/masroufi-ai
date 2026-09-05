@@ -1010,6 +1010,9 @@ test('LIVE-01: voice path prevents duplicate expert playback and echo feedback l
   assert.ok(liveSrc.includes('liveReadyRef'), 'client must distinguish websocket-open from Gemini-live-ready');
   assert.ok(liveSrc.includes("msg.type === 'live_ready'"), 'client must wait for server live_ready before recording/sending');
   assert.ok(liveSrc.includes('if (!liveReadyRef.current)'), 'client must not send microphone audio before Gemini is ready');
+  assert.ok(liveSrc.includes('pendingMicFramesRef'), 'client must buffer early user speech instead of dropping it before live_ready');
+  assert.ok(liveSrc.includes('flushed buffered microphone frames after live_ready'), 'client must flush buffered speech as soon as Gemini is ready');
+  assert.ok(liveSrc.includes("outputCtxRef.current.state === 'suspended'"), 'client must resume suspended output audio context when Gemini audio arrives');
   assert.ok(liveSrc.includes('responseWatchdogRef'), 'client must detect mic-sent/no-audio-return silence after readiness');
   assert.ok(liveSrc.includes('receivedAudioFramesRef.current === 0'), 'watchdog must only fire when no Live audio returns');
   assert.equal(liveSrc.includes('الصوت متصل والمايك يرسل'), false, 'client must not show the noisy no-audio watchdog message to users');
