@@ -3335,7 +3335,10 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
     if (balanceBootstrapSnap && ((balanceBootstrapSnap as any).docs || []).length >= 5000) throw new Error('ACCOUNT_BALANCE_BOOTSTRAP_LIMIT_REACHED');
     const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
     const previousVaultContribution = roundMoney(Number(existing.vaultContribution || 0));
-    const requestedVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
+    const explicitVaultLock = Boolean(args?.lockVault || args?.closeCycle || args?.transferToVault || args?.commitVault || args?.vaultLock || args?.finalize);
+    const previouslyLocked = Boolean(previousVaultContribution > 0 || existing.vaultLedgerLocked || existingCashLockSnap.exists || existingPalPayLockSnap.exists);
+    const shouldLockVault = explicitVaultLock || previouslyLocked;
+    const requestedVaultContribution = shouldLockVault && period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
     const vaultLockAllocation = calculateVaultLockAllocations(readResult.transactions, requestedVaultContribution);
     const nextVaultContribution = vaultLockAllocation.lockedTotal;
     const adjustmentDelta = roundMoney(nextVaultContribution - previousVaultContribution);
