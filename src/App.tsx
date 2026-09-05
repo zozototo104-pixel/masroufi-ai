@@ -2809,7 +2809,7 @@ export default function App() {
                   <tr>
                     <th className="p-3">دورة الراتب</th>
                     <th className="p-3">الفترة</th>
-                    <th className="p-3">الدخل</th>
+                    <th className="p-3">الدخل / الداخل</th>
                     <th className="p-3">المصروفات</th>
                     <th className="p-3">فائض الدورة</th>
                     <th className="p-3">للخزنة</th>
