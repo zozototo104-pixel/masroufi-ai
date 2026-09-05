@@ -1041,7 +1041,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     payload: {
       cycleId: salaryCycleForGuard.cycleId,
       cycleStart: salaryCycleForGuard.startIso,
-      cycleEnd: salaryCycleForGuard.endIso,
+      cycleEnd: salaryCycleForGuard.cycleEnd,
       account,
       amount,
       date: dateResult.date,
