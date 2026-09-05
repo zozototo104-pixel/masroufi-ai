@@ -1312,7 +1312,7 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       res.json({
         ...recentTransactions,
         currentBalances: balanceResult?.balances || null,
-        balanceReadStrategy: 'canonical_full_ledger_balance_guard',
+        balanceReadStrategy: balanceResult?.source || 'accountBalances',
       });
     } catch (e: any) {
       fs.appendFileSync("app-errors.log", "Transactions Error: " + e.message + "\n"); console.error("Transactions Error:", e.message);
