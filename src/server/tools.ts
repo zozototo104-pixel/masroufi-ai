@@ -2410,10 +2410,23 @@ export async function deleteTransaction(args: any, userId: string, token: string
   const targetAccount = (args.account || args.fromAccount) ? normalizeAccount(args.account || args.fromAccount) : null;
   const targetAmount = args.amount ? parsePositiveFinancialAmount(args.amount) : null;
 
-  const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const snapshot = await adminDb.collection('transactions')
+    .where('userId', '==', userId)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .get();
   let userTxs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  if ((snapshot as any).partial === true || userTxs.length >= 100) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: 'SMART_DELETE_REQUIRES_ID_OR_MORE_DETAILS',
+      message: 'لمنع حرق Firestore reads، بحثت فقط في آخر 100 عملية. حدّد العملية بالمعرّف أو أعطني تفاصيل أدق قبل الحذف.',
+      candidates: userTxs.slice(0, 5).map((t:any) => ({ id:t.id, amount:t.amount, category:t.category, subcategory:t.subcategory, merchant:t.merchant, date:t.date, account:t.account, notes:t.notes }))
+    };
+  }
 
-  // Sort descending by date/createdAt
+  // Sort descending by date/createdAt within the bounded candidate set.
   userTxs.sort((a: any, b: any) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
 
   if (targetAccount) {
