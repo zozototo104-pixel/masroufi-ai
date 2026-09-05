@@ -11,6 +11,7 @@ import {
   BackupDataPayload 
 } from '../lib/dataUtils';
 import { auth } from '../lib/firebase';
+import { set as idbSet } from 'idb-keyval';
 
 interface DataBackupModalProps {
   isOpen: boolean;
