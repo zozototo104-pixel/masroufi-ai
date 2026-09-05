@@ -350,7 +350,7 @@ function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
 }
 
 function isFinancialToolName(name: string): boolean {
-  return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'query_transactions', 'get_salary_cycle_summary', 'get_savings_vault', 'recalculate_salary_cycle'].includes(name);
+  return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'repair_account_balance_snapshot', 'query_transactions', 'get_salary_cycle_summary', 'get_savings_vault', 'recalculate_salary_cycle'].includes(name);
 }
 
 function liveRefreshScopeForTools(functionResponses: Array<{ name: string; response: any }>): { refresh: boolean; scope: string } {
