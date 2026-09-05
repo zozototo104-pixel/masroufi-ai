@@ -2943,107 +2943,121 @@ async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId:
   return { transactions, partial: Boolean(snapshot.partial), boundedFallback, error, limit: boundedLimit };
 }
 
-async function upsertSavingsVaultMeta(userId: string, token: string, cycleId: string, previousVaultContribution: number, nextVaultContribution: number) {
-  const adminDb = getDb(token);
+async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: SalaryCyclePeriod, summary: any, readResult: any) {
   const now = new Date().toISOString();
-  const metaRef = adminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
-  const metaSnap = await metaRef.get();
-  let readCount = 1;
-  const delta = roundMoney(nextVaultContribution - previousVaultContribution);
-  let currentBalance = 0;
-  if (metaSnap.exists) {
-    currentBalance = roundMoney(Number(metaSnap.data()?.currentBalance || 0) + delta);
-  } else {
-    const cyclesSnap = await adminDb.collection('users').doc(userId).collection('salaryCycles')
-      .limit(1000)
-      .get();
-    readCount += cyclesSnap.docs.length;
-    const historicalTotal = cyclesSnap.docs
-      .map((d: any) => ({ id: d.id, ...d.data() }))
-      .filter((cycle: any) => cycle.id !== cycleId && cycle.cycleId !== cycleId)
-      .reduce((sum: number, cycle: any) => sum + Number(cycle.vaultContribution || 0), 0);
-    currentBalance = roundMoney(historicalTotal + nextVaultContribution);
-  }
-  await metaRef.set({
-    userId,
-    currentBalance,
-    updatedAt: now,
-    lastCycleId: cycleId,
-    lastAdjustment: delta,
-    source: 'salaryCycles',
-    version: 1,
+  const cycleRef = firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').doc(period.cycleId);
+  const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
+
+  return firebaseAdminDb.runTransaction(async (tx: any) => {
+    const existingSnap = await tx.get(cycleRef as any);
+    const metaSnap = await tx.get(metaRef as any);
+    const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
+    const previousVaultContribution = roundMoney(Number(existing.vaultContribution || 0));
+    const nextVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
+    const adjustmentDelta = roundMoney(nextVaultContribution - previousVaultContribution);
+    const previousVaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
+    const currentBalance = roundMoney(previousVaultBalance + adjustmentDelta);
+    const adjustments = Array.isArray(existing.adjustments) ? existing.adjustments.slice(-20) : [];
+    if (Math.abs(adjustmentDelta) >= 0.005) {
+      adjustments.push({
+        at: now,
+        reason: String(args?.reason || 'cycle_recalculation'),
+        previousVaultContribution,
+        newVaultContribution: nextVaultContribution,
+        delta: adjustmentDelta,
+      });
+    }
+    const record = {
+      userId,
+      cycleId: period.cycleId,
+      name: period.name,
+      year: period.year,
+      month: period.month,
+      cycleStart: period.cycleStart,
+      cycleEnd: period.cycleEnd,
+      cycleEndExclusive: period.cycleEndExclusive,
+      totalIncome: summary.totalIncome,
+      totalExpense: summary.totalExpense,
+      surplus: summary.surplus,
+      deficit: summary.surplus < 0 ? roundMoney(Math.abs(summary.surplus)) : 0,
+      vaultContribution: nextVaultContribution,
+      transferDate: nextVaultContribution > 0 ? (existing.transferDate || now) : null,
+      transferSource: nextVaultContribution > 0 ? 'salary_cycle_surplus' : null,
+      status: period.status,
+      calculatedAt: now,
+      updatedAt: now,
+      transactionCount: summary.transactionCount,
+      incomeCount: summary.incomeCount,
+      expenseCount: summary.expenseCount,
+      transferCount: summary.transferCount,
+      sourceVersion: stableDocId(`${period.cycleId}:${summary.totalIncome}:${summary.totalExpense}:${summary.transactionCount}:${nextVaultContribution}`),
+      adjustments,
+      cumulativeVaultBalance: currentBalance,
+      readEfficiency: {
+        boundedByDateRange: true,
+        transactionDocsRead: readResult.transactions.length,
+        transactionQueryLimit: readResult.limit,
+        salaryCycleDocsRead: 1,
+        metaDocsRead: 1,
+        fallback: false,
+        transactionalCommit: true,
+      },
+    };
+    tx.set(cycleRef as any, record, { merge: true });
+    tx.set(metaRef as any, {
+      userId,
+      currentBalance,
+      updatedAt: now,
+      lastCycleId: period.cycleId,
+      lastAdjustment: adjustmentDelta,
+      source: 'salaryCycles',
+      version: 2,
+      transactionalCommit: true,
+    }, { merge: true });
+    return { record, currentBalance, delta: adjustmentDelta };
   });
-  return { currentBalance, delta, readCount };
 }
 
 export async function recalculateSalaryCycle(args: any, userId: string, token: string) {
   const period: SalaryCyclePeriod = args?.__period || resolveSalaryCycleFromArgs(args || {}, new Date());
   const readResult = await readTransactionsForSalaryCycle(period, userId, token, args?.limit);
-  const summary = summarizeSalaryCycleTransactions(readResult.transactions);
-  const adminDb = getDb(token);
-  const now = new Date().toISOString();
-  const cycleRef = adminDb.collection('users').doc(userId).collection('salaryCycles').doc(period.cycleId);
-  const existingSnap = await cycleRef.get();
-  const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
-  const previousVaultContribution = roundMoney(Number(existing.vaultContribution || 0));
-  const nextVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
-  const adjustments = Array.isArray(existing.adjustments) ? existing.adjustments.slice(-20) : [];
-  const adjustmentDelta = roundMoney(nextVaultContribution - previousVaultContribution);
-  if (Math.abs(adjustmentDelta) >= 0.005) {
-    adjustments.push({
-      at: now,
-      reason: String(args?.reason || 'cycle_recalculation'),
-      previousVaultContribution,
-      newVaultContribution: nextVaultContribution,
-      delta: adjustmentDelta,
-    });
+  if (readResult.partial || readResult.boundedFallback) {
+    return {
+      success: false,
+      retryable: true,
+      partial: true,
+      bounded: true,
+      reason: 'AUTHORITATIVE_FIRESTORE_READ_REQUIRED',
+      message: 'لم أُحدّث الخزنة لأن قراءة معاملات دورة الراتب لم تكن مؤكدة من Firestore. هذا يمنع تسجيل فائض غير صحيح من بيانات جزئية.',
+      query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    };
   }
-  const meta = await upsertSavingsVaultMeta(userId, token, period.cycleId, previousVaultContribution, nextVaultContribution);
-  const record = {
-    userId,
-    cycleId: period.cycleId,
-    name: period.name,
-    year: period.year,
-    month: period.month,
-    cycleStart: period.cycleStart,
-    cycleEnd: period.cycleEnd,
-    cycleEndExclusive: period.cycleEndExclusive,
-    totalIncome: summary.totalIncome,
-    totalExpense: summary.totalExpense,
-    surplus: summary.surplus,
-    deficit: summary.surplus < 0 ? roundMoney(Math.abs(summary.surplus)) : 0,
-    vaultContribution: nextVaultContribution,
-    transferDate: nextVaultContribution > 0 ? (existing.transferDate || now) : null,
-    transferSource: nextVaultContribution > 0 ? 'salary_cycle_surplus' : null,
-    status: period.status,
-    calculatedAt: now,
-    updatedAt: now,
-    transactionCount: summary.transactionCount,
-    incomeCount: summary.incomeCount,
-    expenseCount: summary.expenseCount,
-    transferCount: summary.transferCount,
-    sourceVersion: stableDocId(`${period.cycleId}:${summary.totalIncome}:${summary.totalExpense}:${summary.transactionCount}:${nextVaultContribution}`),
-    adjustments,
-    cumulativeVaultBalance: meta.currentBalance,
-    readEfficiency: {
-      boundedByDateRange: true,
-      transactionDocsRead: readResult.transactions.length,
-      transactionQueryLimit: readResult.limit,
-      salaryCycleDocsRead: existingSnap.exists ? 1 : 0,
-      metaDocsRead: meta.readCount,
-      fallback: readResult.boundedFallback,
-    },
-  };
-  await cycleRef.set(record);
-  return {
-    success: true,
-    salaryCycle: record,
-    vaultBalance: meta.currentBalance,
-    adjustment: meta.delta,
-    partial: readResult.partial,
-    bounded: true,
-    query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
-  };
+  const summary = summarizeSalaryCycleTransactions(readResult.transactions);
+  try {
+    const committed = await commitSalaryCycleAndVaultMeta(args, userId, period, summary, readResult);
+    return {
+      success: true,
+      salaryCycle: committed.record,
+      vaultBalance: committed.currentBalance,
+      adjustment: committed.delta,
+      partial: false,
+      durability: 'committed',
+      bounded: true,
+      query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    };
+  } catch (commitErr: any) {
+    return {
+      success: false,
+      retryable: true,
+      partial: false,
+      bounded: true,
+      durability: 'failed',
+      reason: 'VAULT_TRANSACTION_COMMIT_FAILED',
+      message: 'تم حساب الدورة من Firestore، لكن لم أُحدّث الخزنة لأن commit الذري فشل. لم يتم حفظ رصيد خزنة غير مؤكد.',
+      error: commitErr?.message || 'Savings Vault transaction commit failed',
+      query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    };
+  }
 }
 
 async function recalculateCyclesForTransactionChange(userId: string, token: string, beforeTx: any | null, afterTx: any | null, reason: string) {
