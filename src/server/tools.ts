@@ -1136,13 +1136,31 @@ export async function generateReport(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: generateReport", args);
   
-  // Fetch transactions based on user
-  const txSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
-  const allUserTxs = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  
   const now = new Date();
   const timeframe = args.timeframe || 'all';
   const categoryQuery = args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود' ? args.category : '';
+  let startIso = '';
+  let endExclusiveIso = '';
+  if (timeframe === 'today') {
+    const today = now.toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    startIso = `${today}T00:00:00.000Z`;
+    endExclusiveIso = `${tomorrow.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  } else if (timeframe === 'week') {
+    startIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  } else if (timeframe === 'month') {
+    const thisMonth = now.toISOString().slice(0, 7);
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    startIso = `${thisMonth}-01T00:00:00.000Z`;
+    endExclusiveIso = `${nextMonth.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  }
+
+  let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
+  if (startIso) txQuery = txQuery.where('date', '>=', startIso);
+  if (endExclusiveIso) txQuery = txQuery.where('date', '<', endExclusiveIso);
+  if (startIso || endExclusiveIso) txQuery = txQuery.orderBy('date', 'desc').limit(1000);
+  const txSnapshot = await txQuery.get();
+  const allUserTxs = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
   // 1. First attempt: filter by category and timeframe
   let filtered = allUserTxs.filter((t: any) => {
