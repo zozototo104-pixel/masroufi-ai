@@ -1686,7 +1686,7 @@ export default function App() {
                 <p className="text-[10px] text-slate-500 mt-1">27 إلى 26 · {vaultData?.currentCycle?.status === 'closed' ? 'مغلقة' : 'مفتوحة'}</p>
               </div>
             </div>
-            <p className="text-[11px] text-slate-500 mt-3">الخزنة تعرض فوائض دورات الراتب فقط ولا تغيّر أرصدة الكاش أو PalPay أو الديون.</p>
+            <p className="text-[11px] text-slate-500 mt-3">الخزنة تعزل فوائض دورات الراتب عن المتاح للصرف، بدون تعديل العمليات الأصلية أو خلطها مع دخل جديد.</p>
           </div>
 
           {/* Quick Expense & Income stats */}
