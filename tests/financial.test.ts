@@ -632,8 +632,11 @@ test('VAULT-04: salary-cycle summary counts real income and real expense only', 
     tx({ type: 'transfer', amount: 200, fromAccount: 'debt', toAccount: 'cash', transactionType: 'DEBT_BORROWING' }),
   ]);
   assert.equal(summary.totalIncome, 3000);
+  assert.equal(summary.debtCashInflow, 200);
+  assert.equal(summary.totalInflow, 3200);
   assert.equal(summary.totalExpense, 500);
   assert.equal(summary.surplus, 2500);
+  assert.equal(summary.debtBorrowingCount, 1);
   assert.equal(summary.transferCount, 3);
 });
 
