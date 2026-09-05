@@ -90,11 +90,11 @@ export function normalizeHistoricalTransactionDate(input: {
 }): HistoricalDateResult {
   const now = input.now || new Date();
   if (input.date !== undefined && String(input.date || '').trim()) {
-    const parsed = parseDateString(input.date);
+    const parsed = parseDateString(input.date, { now, year: (input as any).year || (input as any).salaryYear });
     if (!parsed) {
-      return { ok: false, reason: 'INVALID_TRANSACTION_DATE', message: 'التاريخ غير صالح. استخدم صيغة مثل 2026-06-15 أو 15/06/2026.' };
+      return { ok: false, reason: 'INVALID_TRANSACTION_DATE', message: 'التاريخ غير صالح. استخدم صيغة مثل 2026-06-15 أو 15/06/2026 أو 27/6.' };
     }
-    return { ok: true, date: toIsoLocalDate(parsed.year, parsed.month, parsed.day, now), source: 'explicit-date' };
+    return { ok: true, date: toIsoLocalDate(parsed.year, parsed.month, parsed.day, now), source: parsed.short ? 'short-explicit-date' : 'explicit-date' };
   }
 
   if (input.historicalMonth !== undefined && String(input.historicalMonth || '').trim()) {
