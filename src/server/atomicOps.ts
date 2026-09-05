@@ -61,7 +61,8 @@ function normalizeBalanceSnapshot(data: any = {}): BalanceSnapshot {
   const cash = roundBalance(Number(data.cash || 0));
   const palPay = roundBalance(Number(data.palPay || 0));
   const debt = roundBalance(Number(data.debt || 0));
-  return { cash, palPay, debt, total: roundBalance(cash + palPay) };
+  const vault = roundBalance(Number(data.vault || 0));
+  return { cash, palPay, debt, vault, total: roundBalance(cash + palPay) };
 }
 
 function balanceSnapshotPayload(userId: string, balances: BalanceSnapshot, source: string, extra: Record<string, unknown> = {}) {
