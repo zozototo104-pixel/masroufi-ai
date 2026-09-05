@@ -817,12 +817,14 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   if (type === 'income') {
     try {
-      const incomeGuardCandidateDate = new Date(args.date || new Date().toISOString());
-      const incomeGuardNow = Number.isNaN(incomeGuardCandidateDate.getTime()) ? new Date() : incomeGuardCandidateDate;
+      const incomeGuardCandidateDate = new Date(dateResult.date);
+      const incomeGuardNow = Number.isNaN(incomeGuardCandidateDate.getTime()) ? transactionNow : incomeGuardCandidateDate;
+      const isSalaryLike = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes}`);
+      const incomeGuardCycle = isSalaryLike ? getSalaryCycleForDate(dateResult.date, incomeGuardNow) : null;
       const incomeGuardMonth = incomeGuardNow.toISOString().slice(0, 7);
-      const incomeGuardMonthStart = `${incomeGuardMonth}-01T00:00:00.000Z`;
+      const incomeGuardMonthStart = incomeGuardCycle?.startIso || `${incomeGuardMonth}-01T00:00:00.000Z`;
       const incomeGuardNextMonthDate = new Date(Date.UTC(incomeGuardNow.getUTCFullYear(), incomeGuardNow.getUTCMonth() + 1, 1));
-      const incomeGuardNextMonthStart = `${incomeGuardNextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
+      const incomeGuardNextMonthStart = incomeGuardCycle?.endExclusiveIso || `${incomeGuardNextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
       preTxSnapshot = await adminDb.collection('transactions')
         .where('userId', '==', userId)
         .where('date', '>=', incomeGuardMonthStart)
