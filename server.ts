@@ -1949,11 +1949,11 @@ ${relationshipContext}
           },
           onerror: (err: any) => {
             console.error("Gemini Live session error:", err);
-            safeSend({ status: "ready", refresh: true });
+            safeSend({ status: "ready", liveError: true, message: "انقطع مسار الصوت الحي مؤقتاً دون تنفيذ تحديث مالي." });
           },
           onclose: () => {
             console.log("Gemini Live session closed");
-            safeSend({ status: "ready", refresh: true });
+            safeSend({ status: "ready", liveClosed: true });
           }
         },
       });
