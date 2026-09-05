@@ -2762,7 +2762,12 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
 
 export async function getCommitments(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
-  const snapshot = await adminDb.collection('commitments').where('userId', '==', userId).get();
+  const limit = Math.max(1, Math.min(300, Number(args?.limit) || 100));
+  const snapshot = await adminDb.collection('commitments')
+    .where('userId', '==', userId)
+    .orderBy('dueDate', 'asc')
+    .limit(limit)
+    .get();
   const commitments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   
   const now = new Date();
