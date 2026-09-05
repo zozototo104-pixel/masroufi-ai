@@ -350,7 +350,35 @@ function sameToolAmount(a: FunctionCall, b: FunctionCall): boolean {
 }
 
 function isFinancialToolName(name: string): boolean {
-  return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase'].includes(name);
+  return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'recalculate_salary_cycle'].includes(name);
+}
+
+function liveRefreshScopeForTools(functionResponses: Array<{ name: string; response: any }>): { refresh: boolean; scope: string } {
+  const names = functionResponses.map(r => r.name).filter(Boolean);
+  if (names.length === 0) return { refresh: false, scope: 'none' };
+  const hasSuccessfulMutation = functionResponses.some((r: any) => r?.response?.success === true && !r?.response?.skipped);
+  if (names.some(name => ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase'].includes(name)) && hasSuccessfulMutation) {
+    return { refresh: true, scope: 'financial' };
+  }
+  if (names.some(name => ['recalculate_salary_cycle', 'get_salary_cycle_summary', 'get_savings_vault'].includes(name))) {
+    return { refresh: true, scope: 'vault' };
+  }
+  if (names.some(name => ['create_savings_goal', 'add_savings_contribution', 'update_savings_goal'].includes(name)) && hasSuccessfulMutation) {
+    return { refresh: true, scope: 'savings' };
+  }
+  if (names.some(name => ['set_category_budget'].includes(name)) && hasSuccessfulMutation) {
+    return { refresh: true, scope: 'budgets' };
+  }
+  if (names.some(name => ['create_commitment', 'update_commitment_status', 'delete_commitment'].includes(name)) && hasSuccessfulMutation) {
+    return { refresh: true, scope: 'commitments' };
+  }
+  if (names.some(name => ['generate_report', 'generate_treasurer_report', 'delete_report', 'clear_all_reports'].includes(name)) && hasSuccessfulMutation) {
+    return { refresh: true, scope: 'reports' };
+  }
+  if (names.some(name => ['memory_save'].includes(name)) && hasSuccessfulMutation) {
+    return { refresh: true, scope: 'memory' };
+  }
+  return { refresh: false, scope: 'read_only' };
 }
 
 function looksLikeFinancialIntent(text: string): boolean {
