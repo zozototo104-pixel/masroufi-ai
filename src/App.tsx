@@ -541,6 +541,7 @@ export default function App() {
         else await markCloudProbeFailed();
 
         const cloudQuotaExhausted = !cloudReady && (
+          cloudHealth?.quotaExhausted === true ||
           cloudHealth?.code === 8 ||
           /RESOURCE_EXHAUSTED|Quota exceeded/i.test(String(cloudHealth?.error || cloudHealth?.details || cloudHealth?.staleDueTo || ''))
         );
