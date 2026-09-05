@@ -67,6 +67,8 @@ export default function App() {
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const scannerHasMissingDates = Boolean(showScannerResult?.items?.some((item: any) => !isCompleteScannedReceiptDate(item?.date)));
   const cloudProbeFailuresRef = useRef(0);
+  const dashboardRefreshInFlightRef = useRef(false);
+  const firestoreQuotaCooldownUntilRef = useRef(0);
 
   const rememberCloudConnected = async () => {
     cloudProbeFailuresRef.current = 0;
