@@ -1996,6 +1996,7 @@ export async function transferMoney(args: any, userId: string, token: string) {
       return { success: false, error: failReason };
     }
     actualTxId = atomicResult.docId;
+    committedBalances = (atomicResult as any).balances;
     writeResult = { durability: 'committed', synced: true, pending: false };
   } catch (atomicErr: any) {
     // V6.2 (FINDING-04): NO direct write fallback. Surface as FAILED.
