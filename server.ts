@@ -652,8 +652,9 @@ async function startServer() {
   let cachedCloudHealth: any = null;
   app.get("/api/cloud-health", async (req, res) => {
     const nowMs = Date.now();
-    if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < 60_000) {
-      return res.json({ ...cachedCloudHealth.body, cached: true });
+    const cacheTtlMs = cachedCloudHealth?.quotaExhausted ? 10 * 60_000 : 60_000;
+    if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < cacheTtlMs) {
+      return res.json({ ...cachedCloudHealth.body, cached: true, cacheTtlMs });
     }
     try {
       const { adminDb, firebaseAdminDiagnostics } = await import('./src/server/firebaseAdmin');
