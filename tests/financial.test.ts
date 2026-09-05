@@ -22,6 +22,12 @@ import { normalizeAiExpenseItems, parseExpenseImportFile } from '../src/lib/expe
 import { buildReportSnapshotRecord } from '../src/lib/reportUtils.ts';
 import { buildSavingsGoalPlan, buildSavingsGoalRecord, selectSavingsGoalForContribution } from '../src/lib/savingsCore.ts';
 import { normalizeHistoricalTransactionDate } from '../src/lib/historicalDate.ts';
+import {
+  buildSalaryCycleForMonth,
+  getSalaryCycleForDate,
+  resolveSalaryCycleFromArgs,
+  summarizeSalaryCycleTransactions,
+} from '../src/lib/salaryCycle.ts';
 import { calculateBalances, calculateBreakdown, calculateCreditorRemaining, normalizeAccount, normalizeCreditorKey } from '../src/lib/balanceCalc.ts';
 import { buildCompletedIdempotencyRecord, decideIdempotencyClaim } from '../src/server/idempotencyCore.ts';
 import { IDEMPOTENCY_COLLECTION } from '../src/server/idempotencyConfig.ts';
