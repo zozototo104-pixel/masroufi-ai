@@ -1978,7 +1978,7 @@ ${relationshipContext}
                 );
 
                 if (session && isActive) {
-                  console.log("Sending Tool Response:", functionResponses);
+                  console.log("Sending Tool Response:", functionResponses.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed') })));
                   try {
                     await session.sendToolResponse({ functionResponses });
                     liveToolResponsesSent += 1;
