@@ -864,3 +864,22 @@ test('READS-05: salary-cycle reports, transfers, market memory, live audio, and 
   assert.ok(!liveSrc.includes("window.dispatchEvent(new CustomEvent('masrofi:refresh'))"), 'voice socket close/error must not trigger full dashboard refresh');
 });
 
+test('AUTH-01: backup import/export/wipe refresh Firebase token before sensitive requests', async () => {
+  const modalSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/components/DataBackupModal.tsx'), 'utf8'));
+  assert.ok(modalSrc.includes('getIdToken(true)'), 'backup modal must force-refresh Firebase token before sensitive operations');
+  assert.ok(modalSrc.includes('backupFetch'), 'backup modal must centralize authenticated backup fetches');
+  assert.ok(modalSrc.includes('res.status === 401'), 'backup fetch must retry once when the server rejects an expired token');
+  assert.ok(modalSrc.includes('auth/id-token-expired'), 'expired token errors must be converted to a user-readable Arabic message');
+  assert.ok(modalSrc.includes("backupFetch('/api/data/wipe'"), 'wipe must use a freshly refreshed token');
+  assert.ok(modalSrc.includes("backupFetch('/api/data/import'"), 'import must use a freshly refreshed token');
+  assert.ok(modalSrc.includes("backupFetch('/api/data/export'"), 'export must use a freshly refreshed token');
+  assert.ok(!modalSrc.includes("fetch('/api/data/wipe'"), 'wipe must not call fetch directly with a stale prop token');
+});
+
+test('EXPORT-01: CSV backup export must use the full export endpoint, not dashboard transactions', async () => {
+  const modalSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/components/DataBackupModal.tsx'), 'utf8'));
+  const csvBlock = modalSrc.slice(modalSrc.indexOf('const handleExportCSV'), modalSrc.indexOf('// Handle JSON File selection'));
+  assert.ok(csvBlock.includes("backupFetch('/api/data/export')"), 'CSV export should export all backed-up transactions');
+  assert.ok(!csvBlock.includes("/api/transactions"), 'CSV export must not use the bounded dashboard transaction endpoint');
+});
+
