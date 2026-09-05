@@ -10,7 +10,6 @@ import {
   buildSavingsGoalRecord,
   normalizeSavingsDueDate,
   selectSavingsGoalForContribution,
-  monthKey,
   roundMoney,
 } from '../lib/savingsCore';
 import { parseAbsoluteFinancialAmount, parsePositiveFinancialAmount } from '../lib/amount';
