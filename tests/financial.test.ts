@@ -793,6 +793,8 @@ test('READS-04: common tools must not contain unbounded user transaction scans',
   assert.ok(toolsSrc.includes('FULL_LEDGER_REPORT_REQUIRES_CONFIRMATION'), 'all-history treasurer report must require explicit confirmation');
   assert.ok(toolsSrc.includes('REPAIR_DUPLICATE_INCOME_QUERY_UNCERTAIN'), 'duplicate income repair must use bounded date windows');
   assert.ok(toolsSrc.includes('REPAIR_DUPLICATE_CREDIT_QUERY_UNCERTAIN'), 'duplicate credit repair must use bounded date windows');
+  assert.ok(toolsSrc.includes('FULL_LEDGER_AUDIT_REQUIRES_CONFIRMATION'), 'duplicate audit must not scan all history without explicit confirmation');
+  assert.ok(toolsSrc.includes('PALPAY_ATOMIC_WRITE_FAILED'), 'PalPay payment must use atomic balance snapshot writes');
   assert.ok(toolsSrc.includes('orderBy(\'dueDate\', \'asc\')'), 'commitments endpoint must be paginated/order-bounded');
 });
 
