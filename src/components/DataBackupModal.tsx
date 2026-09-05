@@ -124,11 +124,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     setIsExporting(true);
     setStatusMessage(null);
     try {
-      const res = await fetch('/api/transactions', {
-        headers: { 'Authorization': `Bearer ${idToken}` }
-      });
-      if (!res.ok) throw new Error('فشل جلب العمليات المالية.');
-      const data = await res.json();
+      // CSV export is a backup/export action, so it must use the full export API.
+      // /api/transactions is intentionally bounded for dashboard efficiency.
+      const res = await backupFetch('/api/data/export');
+      const data: BackupDataPayload = await readApiPayload(res);
       const transactions = data.transactions || [];
       
       const csvData = exportTransactionsToCSV(transactions, userName);
