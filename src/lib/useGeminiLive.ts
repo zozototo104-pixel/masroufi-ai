@@ -293,6 +293,14 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           setIsConnected(true);
           setIsRecording(true);
           setStatus('listening');
+          if (pendingMicFramesRef.current.length > 0 && ws.readyState === WebSocket.OPEN) {
+            const framesToFlush = pendingMicFramesRef.current.splice(0);
+            framesToFlush.forEach((audio) => {
+              ws.send(JSON.stringify({ audio }));
+              sentAudioFramesRef.current += 1;
+            });
+            console.log('[live] flushed buffered microphone frames after live_ready', { frames: framesToFlush.length });
+          }
         }
 
         if (msg.status) {
