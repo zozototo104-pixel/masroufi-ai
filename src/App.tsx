@@ -766,7 +766,6 @@ export default function App() {
       setPalPay(0);
       setDebt(0);
       setBalance(0);
-      setPendingCount(0);
       setNotifications(prev => {
         const withoutOld = prev.filter((n: any) => n.id !== 'firestore-quota-exhausted');
         return [...withoutOld, { id: 'data-wiped-local', message: 'تم تصفير البيانات محليًا وسحابيًا بعد تحقق السيرفر.', type: 'success' }];
