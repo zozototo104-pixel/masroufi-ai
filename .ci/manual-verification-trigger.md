@@ -1,23 +1,20 @@
 # Manual CI verification trigger
 
-Verify current fixes for user-reported blockers.
+Final verification after fixing the false Live no-response watchdog.
 
-Live audio fix:
-- server sends type=live_ready only after Gemini Live session connects
-- client distinguishes WebSocket open from Gemini Live readiness
+Issue shown in screenshot:
+- app displayed: mic is sending but no Gemini Live audio response
+- this was triggered before Gemini Live readiness was explicitly confirmed
+
+Fix:
+- server sends type=live_ready only after Gemini Live connects
+- client tracks liveReadyRef separately from WebSocket open
 - client does not send microphone audio until live_ready arrives
-- no-response watchdog only applies after mic frames are actually sent
+- liveReadyWatchdog handles Gemini readiness delays separately
+- responseWatchdog only applies after audio is actually sent
 
-Finance fix:
-- PalPay income uses incomeGuards inside atomicAddTransaction
-- cash and PalPay income share the same safe write path
+Also verify:
+- PalPay income guard path remains intact
+- install/audit/tests/typecheck/build/runtime smoke all pass
 
-Expected gates:
-- install
-- audit
-- tests
-- TypeScript
-- build
-- runtime smoke
-
-Timestamp: 2026-09-05T16:44:00+03:00
+Timestamp: 2026-09-05T16:49:00+03:00
