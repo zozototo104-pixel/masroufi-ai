@@ -1,7 +1,10 @@
 # Safe npm audit fix trigger
 
-Run `npm audit fix --package-lock-only --audit-level=moderate` without `--force`.
+Generate package-lock.json from package.json overrides and run npm audit fix without --force.
 
-This time the workflow commits any safe lockfile changes even if npm exits non-zero because firebase-admin/uuid still requires force/breaking handling.
+Overrides:
+- body-parser 1.20.7
+- qs 6.16.0
+- uuid 11.1.1
 
-Timestamp: 2026-09-05T13:50:00+03:00
+Timestamp: 2026-09-05T14:02:00+03:00
