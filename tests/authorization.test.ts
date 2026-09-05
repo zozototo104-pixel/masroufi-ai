@@ -81,8 +81,8 @@ test('TOOL-01: search_market_information declaration REMOVED (HF-1)', async () =
 
 test('TOOL-02/03: addTransaction debt guard present (HF-7)', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
-  assert.ok(src.includes('V6 (HF-7): for debt purchases, available is no longer Infinity'),
-    'debt purchases must have available-finite guard');
+  assert.ok(src.includes('const projectedDebt = Number(balances.debt || 0) + amount'),
+    'debt purchases must compute projected debt from finite account balance snapshot');
   assert.ok(src.includes('DEBT_PURCHASE_RISK'),
     'debt purchases exceeding threshold must return DEBT_PURCHASE_RISK needsConfirmation');
   assert.ok(src.includes('debtToIncomeRatio > 1.0 || amount > 5000'),
