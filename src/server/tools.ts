@@ -775,7 +775,16 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   if (type === 'income') {
     try {
-      preTxSnapshot = await adminDb.collection('transactions').where('userId', '==', userId).get();
+      const incomeGuardNow = new Date();
+      const incomeGuardMonth = incomeGuardNow.toISOString().slice(0, 7);
+      const incomeGuardMonthStart = `${incomeGuardMonth}-01T00:00:00.000Z`;
+      const incomeGuardNextMonthDate = new Date(Date.UTC(incomeGuardNow.getUTCFullYear(), incomeGuardNow.getUTCMonth() + 1, 1));
+      const incomeGuardNextMonthStart = `${incomeGuardNextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
+      preTxSnapshot = await adminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .where('date', '>=', incomeGuardMonthStart)
+        .where('date', '<', incomeGuardNextMonthStart)
+        .get();
       if ((preTxSnapshot as any).partial === true) {
         return {
           success: false,
