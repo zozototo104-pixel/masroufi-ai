@@ -2512,6 +2512,8 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
   const nextMonthStart = nextMonthDate.toISOString().slice(0, 10);
 
   let txDocs: any[] = [];
+  let partial = false;
+  let queryError = '';
   try {
     const txSnapshot = await adminDb.collection('transactions')
       .where('userId', '==', userId)
@@ -2519,16 +2521,14 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
       .where('date', '<', nextMonthStart)
       .get();
     txDocs = txSnapshot.docs;
-  } catch (rangeErr) {
-    // If the range query needs a composite index, never fall back to the full
-    // ledger. A bounded recent read keeps quota use predictable while preserving
-    // all stored history.
-    console.warn('[budgets] monthly range query fallback:', rangeErr);
-    const fallbackSnapshot = await adminDb.collection('transactions')
-      .where('userId', '==', userId)
-      .limit(300)
-      .get();
-    txDocs = fallbackSnapshot.docs;
+  } catch (rangeErr: any) {
+    // If the range query needs a composite index or quota is exhausted, do not
+    // publish a partially sampled spending total as if it were authoritative.
+    // Returning partial=true lets the UI keep the last-known-good budget view.
+    console.warn('[budgets] monthly range query failed; returning partial budget totals:', rangeErr);
+    partial = true;
+    queryError = rangeErr?.message || 'monthly budget range query failed';
+    txDocs = [];
   }
 
   const monthExpenses = txDocs
