@@ -225,11 +225,19 @@ export function isRealSalaryCycleExpense(tx: any): boolean {
 
 export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCycleSummary {
   let totalIncome = 0;
+  let debtCashInflow = 0;
   let totalExpense = 0;
   let incomeCount = 0;
   let expenseCount = 0;
   let transferCount = 0;
+  let debtBorrowingCount = 0;
   for (const tx of transactions || []) {
+    if (isDebtCashBorrowing(tx)) {
+      debtCashInflow += parsePositiveFinancialAmount(tx?.amount);
+      debtBorrowingCount += 1;
+      transferCount += 1;
+      continue;
+    }
     if (isInternalTransfer(tx)) {
       transferCount += 1;
       continue;
@@ -243,14 +251,18 @@ export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCyc
     }
   }
   totalIncome = roundMoney(totalIncome);
+  debtCashInflow = roundMoney(debtCashInflow);
   totalExpense = roundMoney(totalExpense);
   return {
     totalIncome,
+    totalInflow: roundMoney(totalIncome + debtCashInflow),
+    debtCashInflow,
     totalExpense,
     surplus: roundMoney(totalIncome - totalExpense),
     transactionCount: (transactions || []).length,
     incomeCount,
     expenseCount,
     transferCount,
+    debtBorrowingCount,
   };
 }
