@@ -3431,11 +3431,12 @@ export async function addSavingsVaultAdjustment(args: any, userId: string, token
     const providedRate = Number(args?.exchangeRates?.[entry.currency] || args?.exchangeRates?.[entry.currency.toLowerCase()] || 0);
     const explicitRate = Number(args?.exchangeRate || args?.fxRate || 0);
     const manualRate = providedRate > 0 ? providedRate : explicitRate > 0 ? explicitRate : 0;
+    const autoConvertedIls = normalizeCurrencyToIls(entry.amount, entry.currency);
     const normalizedAmountIls = entry.currency === 'ILS'
       ? entry.amount
       : manualRate > 0
         ? roundMoney(entry.amount * manualRate)
-        : normalizeCurrencyToIls(entry.amount, entry.currency);
+        : Number(autoConvertedIls || 0);
     return {
       ...entry,
       normalizedAmountIls: roundMoney(normalizedAmountIls),
