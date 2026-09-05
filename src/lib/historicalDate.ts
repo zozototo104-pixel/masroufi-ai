@@ -52,7 +52,7 @@ function parseDateString(value: unknown, opts: { now: Date; year?: unknown } = {
 }
 
 function parseMonthString(value: unknown): { year: number; month: number } | null {
-  const raw = String(value || '').trim();
+  const raw = normalizeDigitsLocal(value);
   if (!raw) return null;
 
   const isoMonth = raw.match(/^(\d{4})-(\d{1,2})$/);
