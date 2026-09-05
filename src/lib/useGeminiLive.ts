@@ -26,6 +26,16 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   // One acknowledgement per connection is enough to prove whether server audio
   // reached the browser and what state Web Audio was in when it arrived.
   const clientAudioAckSentRef = useRef(false);
+  const responseWatchdogRef = useRef<number | null>(null);
+  const sentAudioFramesRef = useRef(0);
+  const receivedAudioFramesRef = useRef(0);
+
+  const clearResponseWatchdog = useCallback(() => {
+    if (responseWatchdogRef.current !== null) {
+      window.clearTimeout(responseWatchdogRef.current);
+      responseWatchdogRef.current = null;
+    }
+  }, []);
 
   const disconnect = useCallback(() => {
     connectionEpochRef.current += 1;
