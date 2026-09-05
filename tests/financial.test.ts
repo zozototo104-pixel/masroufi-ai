@@ -99,6 +99,33 @@ test('FIN-05: PalPay → Cash transfer → palPay -amount, cash +amount', () => 
   assert.equal(r.debt, 0);
 });
 
+test('FIN-05B: vault lock transfer removes liquidity and increases locked vault only', () => {
+  const r = calc([
+    tx({ type: 'income', account: 'cash', amount: 1000 }),
+    tx({ type: 'transfer', amount: 1000, fromAccount: 'cash', toAccount: 'vault', transactionType: 'VAULT_LOCK' }),
+  ]);
+  assert.equal(r.cash, 0);
+  assert.equal(r.palPay, 0);
+  assert.equal(r.vault, 1000);
+  assert.equal(r.total, 0, 'available total must exclude locked vault money');
+});
+
+test('FIN-05C: opening the vault is a transfer back to liquidity, not new income', () => {
+  const r = calc([
+    tx({ type: 'income', account: 'cash', amount: 1000 }),
+    tx({ type: 'transfer', amount: 1000, fromAccount: 'cash', toAccount: 'vault', transactionType: 'VAULT_LOCK' }),
+    tx({ type: 'transfer', amount: 250, fromAccount: 'vault', toAccount: 'palPay', transactionType: 'VAULT_RELEASE' }),
+  ]);
+  assert.equal(r.cash, 0);
+  assert.equal(r.palPay, 250);
+  assert.equal(r.vault, 750);
+  assert.equal(r.total, 250);
+  const breakdown = calculateBreakdown([
+    tx({ type: 'transfer', amount: 250, fromAccount: 'vault', toAccount: 'palPay', transactionType: 'VAULT_RELEASE' }),
+  ]);
+  assert.equal(breakdown.income, 0, 'opening vault must not count as income');
+});
+
 test('FIN-06: borrow debt → cash → debt +amount, cash +amount, income unchanged', () => {
   const r = calc([tx({
     type: 'transfer', amount: 100, fromAccount: 'debt', toAccount: 'cash',
