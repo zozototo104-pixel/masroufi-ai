@@ -44,6 +44,28 @@ function isCompleteScannedReceiptDate(value: unknown): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === normalized;
 }
 
+function buildLocalSalaryCycleOptions(monthsBack = 12) {
+  const now = new Date();
+  const currentLabel = now.getUTCDate() >= 27
+    ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  return Array.from({ length: monthsBack + 1 }, (_, index) => {
+    const label = new Date(Date.UTC(currentLabel.getUTCFullYear(), currentLabel.getUTCMonth() - index, 1));
+    const year = label.getUTCFullYear();
+    const month = label.getUTCMonth() + 1;
+    const start = new Date(Date.UTC(year, month - 2, 27));
+    const end = new Date(Date.UTC(year, month - 1, 26));
+    const id = `vault_${year}_${String(month).padStart(2, '0')}`;
+    return {
+      id,
+      cycleId: id,
+      name: `دورة راتب ${year}-${String(month).padStart(2, '0')}`,
+      cycleStart: start.toISOString().slice(0, 10),
+      cycleEnd: end.toISOString().slice(0, 10),
+    };
+  });
+}
+
 export default function App() {
   const [user, setUser] = useState<any | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
