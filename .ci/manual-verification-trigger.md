@@ -1,20 +1,13 @@
 # Manual CI verification trigger
 
-Verify salary cycle navigation and bounded delete UI.
+Verify typed salary cycle navigation UI and bounded delete implementation.
 
-User need:
-- navigate between salary cycles/months
-- view income and expense line items for a selected 27→26 cycle
-- see vault contribution for that cycle
-- delete one salary cycle's transactions only, after explicit confirmation
-
-Changes:
-- getSalaryCycleDetails backend tool/API
-- deleteSalaryCycleTransactions backend tool/API
-- atomicDeleteTransactions balance-aware helper
-- Vault UI cycle picker with current + 12 previous local cycles
-- cycle details panel for income/expenses/vault contribution
-- bounded selected-cycle delete action
+Current changes:
+- current + 12 previous salary cycles shown in Vault picker even before cycle docs exist
+- selected cycle details load from /api/salary-cycles/:cycleId
+- bounded delete uses /api/salary-cycles/:cycleId/transactions with explicit confirmation
+- backend has getSalaryCycleDetails and deleteSalaryCycleTransactions
+- atomicDeleteTransactions added for balance-aware bulk cycle delete
 
 Expected gates:
 - install
@@ -24,4 +17,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T21:02:00+03:00
+Timestamp: 2026-09-05T21:06:00+03:00
