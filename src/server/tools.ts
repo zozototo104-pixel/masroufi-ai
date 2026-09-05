@@ -3090,24 +3090,46 @@ async function recalculateCyclesForTransactionChange(userId: string, token: stri
 export async function getSalaryCycleSummary(args: any, userId: string, token: string) {
   const first = await recalculateSalaryCycle({ ...(args || {}), reason: 'salary_cycle_summary_tool' }, userId, token);
   const compareMonth = args?.compareToMonth || args?.secondMonth || args?.otherMonth;
-  if (compareMonth) {
-    const firstPeriod = first.salaryCycle;
-    const second = await recalculateSalaryCycle({ month: compareMonth, year: args?.compareToYear || args?.year, reason: 'salary_cycle_comparison_tool' }, userId, token);
+  if (!compareMonth) return first;
+  if (!first.success || !first.salaryCycle) {
     return {
-      success: true,
+      ...first,
+      success: false,
+      compareSkipped: true,
+      reason: first.reason || 'FIRST_SALARY_CYCLE_UNAVAILABLE',
+      message: first.message || 'تعذر حساب دورة الراتب الأولى، لذلك لم أجرِ المقارنة حتى لا أعرض فرقاً غير صحيح.',
+    };
+  }
+
+  const firstPeriod = first.salaryCycle;
+  const second = await recalculateSalaryCycle({ month: compareMonth, year: args?.compareToYear || args?.year, reason: 'salary_cycle_comparison_tool' }, userId, token);
+  if (!second.success || !second.salaryCycle) {
+    return {
+      success: false,
       salaryCycle: firstPeriod,
-      compareWith: second.salaryCycle,
-      difference: {
-        income: roundMoney(Number(firstPeriod.totalIncome || 0) - Number(second.salaryCycle.totalIncome || 0)),
-        expense: roundMoney(Number(firstPeriod.totalExpense || 0) - Number(second.salaryCycle.totalExpense || 0)),
-        surplus: roundMoney(Number(firstPeriod.surplus || 0) - Number(second.salaryCycle.surplus || 0)),
-        vaultContribution: roundMoney(Number(firstPeriod.vaultContribution || 0) - Number(second.salaryCycle.vaultContribution || 0)),
-      },
-      vaultBalance: second.vaultBalance,
+      compareWith: second.salaryCycle || null,
+      compareSkipped: true,
+      reason: second.reason || 'SECOND_SALARY_CYCLE_UNAVAILABLE',
+      message: second.message || 'تم حساب الدورة الأولى، لكن تعذر حساب دورة المقارنة من مصدر موثوق.',
+      first,
+      second,
       bounded: true,
     };
   }
-  return first;
+
+  return {
+    success: true,
+    salaryCycle: firstPeriod,
+    compareWith: second.salaryCycle,
+    difference: {
+      income: roundMoney(Number(firstPeriod.totalIncome || 0) - Number(second.salaryCycle.totalIncome || 0)),
+      expense: roundMoney(Number(firstPeriod.totalExpense || 0) - Number(second.salaryCycle.totalExpense || 0)),
+      surplus: roundMoney(Number(firstPeriod.surplus || 0) - Number(second.salaryCycle.surplus || 0)),
+      vaultContribution: roundMoney(Number(firstPeriod.vaultContribution || 0) - Number(second.salaryCycle.vaultContribution || 0)),
+    },
+    vaultBalance: second.vaultBalance,
+    bounded: true,
+  };
 }
 
 export async function getSavingsVault(args: any, userId: string, token: string) {
@@ -3122,16 +3144,29 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
       .get(),
   ]);
   const cycles = cyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  let vaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0) || 0);
+  let balanceSource = metaSnap.exists ? 'meta' : 'salaryCycles_bootstrap';
+  let balanceCycleDocsRead = 0;
+  if (!metaSnap.exists) {
+    const allCyclesSnap = await adminDb.collection('users').doc(userId).collection('salaryCycles')
+      .limit(1000)
+      .get();
+    const allCycles = allCyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    balanceCycleDocsRead = allCycles.length;
+    vaultBalance = roundMoney(allCycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
+  }
   const currentCycle = getCurrentSalaryCycle(new Date());
   return {
     success: true,
-    vaultBalance: roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : cycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0)) || 0),
+    vaultBalance,
     currentCycle,
     cycles,
     bounded: true,
     limit,
+    balanceSource,
+    balanceNeedsMetaCommit: !metaSnap.exists,
     partial: Boolean((metaSnap as any).partial || (cyclesSnap as any).partial),
-    readEfficiency: { metaDocsRead: 1, salaryCycleDocsRead: cycles.length, transactionDocsRead: 0 },
+    readEfficiency: { metaDocsRead: 1, salaryCycleDocsRead: cycles.length, balanceCycleDocsRead, transactionDocsRead: 0 },
   };
 }
 
