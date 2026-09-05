@@ -2208,8 +2208,8 @@ export default function App() {
 
       {/* Text Chat Drawer/Modal */}
       {showChat && (
-        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-slate-950/40 backdrop-blur-sm sm:p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col h-[80vh] sm:max-h-[600px] overflow-hidden">
+        <div className="mobile-modal-backdrop z-[70] items-end sm:items-center bg-slate-950/40 backdrop-blur-sm sm:p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col h-[min(82dvh,640px)] sm:max-h-[600px] overflow-hidden">
             <div className="bg-slate-800 p-4 flex justify-between items-center border-b border-slate-700 shadow-sm z-10 shrink-0">
               <h3 className="font-bold text-slate-200 flex items-center gap-2"><MessageSquare className="w-5 h-5 text-emerald-400" /> الدردشة مع {aiName}</h3>
               <button onClick={() => setShowChat(false)} className="text-slate-400 hover:text-white bg-slate-700/50 hover:bg-slate-700 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
