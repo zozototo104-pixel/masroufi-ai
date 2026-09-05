@@ -115,10 +115,11 @@ test('VOICE-05: interruption handling matches the original Gemini Live path', as
   assert.ok(live.includes('stopPlayback();\n          setStatus(\'listening\');'), 'client must stop playback and return to listening on interruption');
 });
 
-test('VOICE-06: mobile barge-in uses the pre-personal-voice sensitivity', async () => {
+test('VOICE-06: mobile barge-in resists speaker echo false positives', async () => {
   const live = await src('src/lib/useGeminiLive.ts');
-  assert.ok(live.includes('rms > 0.04'), 'barge-in must use the original speech threshold');
-  assert.ok(live.includes('userSpeechCounter >= 2'), 'barge-in must use the original sustained-speech threshold');
+  assert.ok(live.includes('rms > 0.08'), 'barge-in must use a higher speech threshold to avoid echo-triggered cuts');
+  assert.ok(live.includes('userSpeechCounter >= 6'), 'barge-in must require sustained speech before interrupting playback');
+  assert.ok(live.includes('processorSink.gain.value = 0'), 'microphone processing must be silent and avoid speaker monitoring feedback');
 });
 
 test('VOICE-07: websocket connect reads the latest selected voice', async () => {
