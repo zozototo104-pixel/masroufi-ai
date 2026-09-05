@@ -3186,17 +3186,25 @@ async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId:
   } catch (cloudErr: any) {
     boundedFallback = true;
     error = cloudErr?.message || 'salary cycle cloud query failed';
-    const adminDb = getDb(token);
-    const snap = await adminDb.collection('transactions')
-      .where('userId', '==', userId)
+    const requiresIndex = /FAILED_PRECONDITION|requires an index|index/i.test(error);
+    if (!requiresIndex) throw cloudErr;
+
+    // Index-free fallback: bound by the salary-cycle date range only, then filter
+    // by userId in memory. This avoids the userId+date composite index failure
+    // without scanning the full ledger. It is marked partial if the broad date
+    // window reaches the limit before filtering.
+    const fallbackLimit = Math.max(boundedLimit, Math.min(SALARY_CYCLE_TRANSACTION_QUERY_LIMIT, 2000));
+    const snap = await firebaseAdminDb.collection('transactions')
       .where('date', '>=', period.startIso)
       .where('date', '<', period.endExclusiveIso)
-      .orderBy('date', 'asc')
-      .limit(boundedLimit)
+      .limit(fallbackLimit)
       .get();
-    snapshot = { docs: snap.docs || [], partial: true, error };
+    const docs = (snap.docs || []).filter((doc: any) => doc.data()?.userId === userId);
+    snapshot = { docs, partial: (snap.docs || []).length >= fallbackLimit, error };
   }
-  const transactions = (snapshot.docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+  const transactions = (snapshot.docs || [])
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || '')));
   const limitReached = transactions.length >= boundedLimit;
   logFirestoreReadDiagnostics('salary_cycle_transactions_query', {
     userId,
