@@ -2020,16 +2020,15 @@ export async function transferMoney(args: any, userId: string, token: string) {
     metadata: { amount, fromAccount, toAccount }
   });
 
-  const balances = await getBalance({}, userId, token);
   return {
     success: true,
     transactionId: actualTxId,
     operationId: tx.operationId,
     message: `تم تحويل ${amount} ₪ من ${fromName} إلى ${toName} بنجاح. التحويل لا يؤثر على الدخل أو المصروف العام.`,
-    currentBalances: balances.balances,
+    currentBalances: committedBalances,
     durability: writeResult.durability,
     pending: writeResult.pending,
-    partial: balances.partial || writeResult.pending,
+    partial: writeResult.pending,
   };
 }
 
