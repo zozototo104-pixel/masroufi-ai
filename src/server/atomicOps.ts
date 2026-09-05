@@ -34,7 +34,7 @@ type FinancialTransactionInput = Record<string, unknown> & {
   receiptId?: unknown;
 };
 
-type BalanceSnapshot = { cash: number; palPay: number; debt: number; total: number };
+type BalanceSnapshot = { cash: number; palPay: number; debt: number; vault: number; total: number };
 
 type FirestoreDocLike = {
   id?: string;
