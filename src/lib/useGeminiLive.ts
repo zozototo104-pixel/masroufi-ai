@@ -202,10 +202,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
 
         // The server commonly sends { status: 'ready', refresh: true } together.
-        // Dispatch exactly once so one Live tool response cannot trigger two full
-        // Firestore refresh cycles on the client.
-        if (msg.refresh || msg.status === 'ready') {
-          window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+        // Dispatch only on the explicit refresh flag so status-only readiness
+        // cannot trigger an extra full Firestore refresh cycle.
+        if (msg.refresh) {
+          window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: msg.refreshScope || 'financial' } }));
         }
 
         if (msg.audio && outputCtxRef.current) {
