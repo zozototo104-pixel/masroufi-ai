@@ -2573,8 +2573,8 @@ export default function App() {
           : new Date().toLocaleDateString('ar-EG');
 
         return (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl relative">
+          <div className="mobile-modal-backdrop bg-black/80 backdrop-blur-md z-[110]">
+            <div className="mobile-modal-panel bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl flex flex-col shadow-2xl relative">
               <div className="p-4 sm:p-6 border-b border-slate-800 flex flex-wrap gap-3 items-center justify-between no-print">
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
