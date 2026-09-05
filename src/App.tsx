@@ -3077,17 +3077,40 @@ export default function App() {
               )}
               {selectedVaultCycleDetails && (
                 <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-52 overflow-auto">
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-56 overflow-auto">
                     <h4 className="font-bold text-emerald-300 mb-2">بنود الدخل</h4>
                     {(selectedVaultCycleDetails.income || []).length ? selectedVaultCycleDetails.income.map((tx: any) => (
-                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'دخل'} · {tx.account}</span><span className="font-bold text-emerald-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
+                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'دخل'} · {tx.account === 'palPay' ? 'PalPay' : 'نقدي'}</span><span className="font-bold text-emerald-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
                     )) : <p className="text-slate-500">لا يوجد دخل في هذه الدورة.</p>}
                   </div>
-                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-52 overflow-auto">
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-56 overflow-auto">
                     <h4 className="font-bold text-rose-300 mb-2">بنود المصروفات</h4>
                     {(selectedVaultCycleDetails.expenses || []).length ? selectedVaultCycleDetails.expenses.map((tx: any) => (
                       <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}</span><span className="font-bold text-rose-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
                     )) : <p className="text-slate-500">لا توجد مصروفات في هذه الدورة.</p>}
+                  </div>
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-44 overflow-auto">
+                    <h4 className="font-bold text-sky-300 mb-2">التحويلات الداخلية</h4>
+                    {(selectedVaultCycleDetails.transfers || []).length ? selectedVaultCycleDetails.transfers.map((tx: any) => (
+                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.notes || 'تحويل بين الحسابات'} · لا يُحتسب دخل/مصروف</span><span className="font-bold text-sky-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
+                    )) : <p className="text-slate-500">لا توجد تحويلات داخلية في هذه الدورة.</p>}
+                  </div>
+                  <div className="bg-slate-900/70 border border-cyan-500/20 rounded-2xl p-3">
+                    <h4 className="font-bold text-cyan-300 mb-2">ترحيل الخزنة</h4>
+                    <div className="flex justify-between py-1"><span className="text-slate-400">فائض الدورة</span><span className="font-bold text-cyan-200">{Number(selectedVaultCycleDetails.summary?.surplus || 0).toLocaleString()} ₪</span></div>
+                    <div className="flex justify-between py-1"><span className="text-slate-400">المحول للخزنة</span><span className="font-bold text-cyan-300">{Number(selectedVaultCycleDetails.vaultContribution || 0).toLocaleString()} ₪</span></div>
+                    <div className="flex justify-between py-1"><span className="text-slate-400">رصيد الخزنة التراكمي</span><span className="font-bold text-white">{Number(selectedVaultCycleDetails.cumulativeVaultBalance || 0).toLocaleString()} ₪</span></div>
+                    <p className="mt-2 text-[11px] text-slate-500">الخزنة هنا ملخص للدورة ولا تضيف دخلاً جديداً ولا تغيّر cash أو PalPay.</p>
+                  </div>
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 lg:col-span-2">
+                    <h4 className="font-bold text-amber-300 mb-2">تصنيف المصروفات داخل الدورة</h4>
+                    {Object.keys(selectedVaultCycleDetails.byCategory || {}).length ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {Object.entries(selectedVaultCycleDetails.byCategory || {}).map(([category, item]: any) => (
+                          <div key={category} className="flex justify-between gap-2 bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2"><span className="text-slate-300">{category} · {item.count} بند</span><span className="font-bold text-amber-300">{Number(item.totalAmount || 0).toLocaleString()} ₪</span></div>
+                        ))}
+                      </div>
+                    ) : <p className="text-slate-500">لا يوجد تصنيف مصروفات لهذه الدورة.</p>}
                   </div>
                 </div>
               )}
