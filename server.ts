@@ -1128,6 +1128,16 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/savings-vault/adjustments", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { addSavingsVaultAdjustment } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await addSavingsVaultAdjustment(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/savings-vault/repair-meta", authMiddleware, async (req: any, res: any) => {
     try {
       const { repairSavingsVaultMeta } = await import('./src/server/tools');
