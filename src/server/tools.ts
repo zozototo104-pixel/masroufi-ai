@@ -3781,11 +3781,13 @@ export async function addSavingsVaultAdjustment(args: any, userId: string, token
   const currencyDelta = convertedEntries.reduce((map: Record<string, number>, entry: any) => addVaultCurrencyAmount(map, entry.currency, entry.amount), {} as Record<string, number>);
 
   const result = await firebaseAdminDb.runTransaction(async (tx: any) => {
-    const [existingAdjustmentSnap, metaSnap] = await Promise.all([
+    const [existingAdjustmentSnap, metaSnap, accountBalanceSnap] = await Promise.all([
       tx.get(adjustmentRef as any),
       tx.get(metaRef as any),
+      tx.get(accountBalanceRef as any),
     ]);
     const metaData = metaSnap.exists ? (metaSnap.data() || {}) : {};
+    const accountBalances = normalizeAccountBalanceSnapshotForVault(accountBalanceSnap.exists ? (accountBalanceSnap.data() || {}) : {});
     if (existingAdjustmentSnap.exists) {
       const existing = existingAdjustmentSnap.data() || {};
       return {
