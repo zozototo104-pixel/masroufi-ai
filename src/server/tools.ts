@@ -2192,9 +2192,25 @@ function auditLedgerFingerprint(t: any): string {
 
 export async function auditFinancialDuplicates(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
-  const txSnap = await adminDb.collection('transactions').where('userId', '==', userId).get();
+  const txLimit = Math.max(1, Math.min(1000, Number(args?.limit) || 500));
+  const notifLimit = Math.max(1, Math.min(500, Number(args?.notificationLimit) || 200));
+  if (args?.full === true && !args?.allowFullLedgerAudit) {
+    return { success: false, needsConfirmation: true, reason: 'FULL_LEDGER_AUDIT_REQUIRES_CONFIRMATION', message: 'تدقيق كل التاريخ يحتاج قراءة واسعة. أكد صراحة allowFullLedgerAudit أو استخدم limit/فترة محددة.' };
+  }
+  let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
+  if (args?.startDate) txQuery = txQuery.where('date', '>=', new Date(`${String(args.startDate).slice(0, 10)}T00:00:00.000Z`).toISOString());
+  if (args?.endDate) {
+    const end = new Date(`${String(args.endDate).slice(0, 10)}T00:00:00.000Z`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    txQuery = txQuery.where('date', '<', end.toISOString());
+  }
+  if (args?.full !== true) txQuery = txQuery.orderBy('createdAt', 'desc').limit(txLimit);
+  const txSnap = await txQuery.get();
   const transactions = txSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  const notifSnap = await adminDb.collection('users').doc(userId).collection('notifications').get();
+  const notifSnap = await adminDb.collection('users').doc(userId).collection('notifications')
+    .orderBy('createdAt', 'desc')
+    .limit(notifLimit)
+    .get();
   const notifications = notifSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
   const group = (items: any[], keyFn: (x: any) => string) => {
