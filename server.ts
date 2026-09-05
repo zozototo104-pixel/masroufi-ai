@@ -1944,6 +1944,12 @@ ${relationshipContext}
                           requestId,
                           name: call.name,
                           durationMs: Date.now() - liveToolStartedAt,
+                          success: result?.success === true,
+                          reason: result?.reason || result?.error || null,
+                          retryable: result?.retryable === true,
+                          needsClarification: result?.needsClarification === true,
+                          needsConfirmation: result?.needsConfirmation === true,
+                          transactionCommitted: Boolean(result?.transactionId || result?.cloudStorageConfirmed === true || result?.durability === 'committed'),
                           timedOut: result?.error === 'LIVE_TOOL_TIMEOUT',
                         });
                         // A duplicate Live tool call can arrive while the first call is still
