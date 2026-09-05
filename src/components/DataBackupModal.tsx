@@ -239,22 +239,16 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     setStatusMessage(null);
 
     try {
-      const res = await fetch('/api/data/import', {
+      const res = await backupFetch('/api/data/import', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           payload: stagedFile.data,
           mode: importMode
         })
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'فشل استيراد البيانات إلى السحابة.');
-      }
+      const data = await readApiPayload(res);
 
       setStatusMessage({
         type: 'success',
