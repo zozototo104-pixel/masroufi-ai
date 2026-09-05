@@ -1013,7 +1013,7 @@ test('MOBILE-01: large app modals are iPhone-safe and scrollable', async () => {
   assert.ok(appSrc.includes('Savings Goals Modal') && appSrc.includes('mobile-modal-panel bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl'), 'Savings modal must use the mobile-safe scroll panel');
   assert.ok(appSrc.includes('Smart Budgets & Pre-Alerts Modal') && appSrc.includes('mobile-modal-backdrop bg-black/70 backdrop-blur-md z-[105]'), 'Budgets modal must use the mobile-safe backdrop');
   assert.ok(appSrc.includes('Commitments & Cash Flow Forecast Modal') && appSrc.includes('mobile-modal-backdrop bg-black/70 backdrop-blur-md z-[105]'), 'Commitments modal must use the mobile-safe backdrop');
-  assert.ok(appSrc.includes('Reports Inbox Modal') && appSrc.includes('Report Full Screen Modal'), 'Reports UI modals must be covered by the mobile-safe conversion');
+  assert.ok(appSrc.includes('Reports Inbox Modal') && appSrc.includes('Reports Modal (Print/Export version)') && appSrc.includes('mobile-modal-backdrop bg-black/80 backdrop-blur-md z-[110]'), 'Reports UI modals must be covered by the mobile-safe conversion');
   assert.equal(appSrc.includes('fixed inset-0 bg-black/70 backdrop-blur-md z-[105] flex items-center justify-center p-4'), false, 'old centered 90vh modal layout must not remain for financial modals');
 });
 
