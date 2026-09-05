@@ -1243,6 +1243,17 @@ export default function App() {
     }
   };
 
+  const navigateVaultCycle = (direction: 'previous' | 'next') => {
+    if (!vaultCycleOptions.length) return;
+    const currentIndex = vaultCycleOptions.findIndex((cycle: any) => String(cycle.cycleId || cycle.id) === String(selectedVaultCycleId || selectedVaultCycleOption?.cycleId || selectedVaultCycleOption?.id || ''));
+    const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = direction === 'previous'
+      ? Math.min(vaultCycleOptions.length - 1, safeIndex + 1)
+      : Math.max(0, safeIndex - 1);
+    const target = vaultCycleOptions[nextIndex];
+    if (target?.cycleId || target?.id) void loadVaultCycleDetails(target.cycleId || target.id);
+  };
+
   const deleteSelectedVaultCycle = async () => {
     const cycleId = selectedVaultCycleDetails?.period?.cycleId || selectedVaultCycleId;
     if (!cycleId) return;
