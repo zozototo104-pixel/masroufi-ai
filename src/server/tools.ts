@@ -3482,11 +3482,14 @@ export async function repairSavingsVaultMeta(args: any, userId: string, token: s
       partial: true,
       bounded: true,
       reason: 'VAULT_META_REPAIR_LIMIT_REACHED',
-      message: 'لم أصلح رصيد الخزنة لأن عدد دورات الراتب وصل حد القراءة أو كانت القراءة جزئية. لن أحفظ رصيداً قد يكون ناقصاً.',
-      readEfficiency: { salaryCycleDocsRead: cycles.length, transactionDocsRead: 0, limit: cycleLimit },
+      message: 'لم أصلح رصيد الخزنة لأن عدد دورات الراتب أو تعديلات الخزنة وصل حد القراءة أو كانت القراءة جزئية. لن أحفظ رصيداً قد يكون ناقصاً.',
+      readEfficiency: { salaryCycleDocsRead: cycles.length, vaultAdjustmentDocsRead: manualAdjustments.length, transactionDocsRead: 0, limit: cycleLimit, adjustmentLimit },
     };
   }
-  const repairedBalance = roundMoney(cycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
+  const repairedBalance = roundMoney(
+    cycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0)
+    + manualAdjustments.reduce((sum: number, a: any) => sum + Number(a.amount || 0), 0)
+  );
   const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
   await firebaseAdminDb.runTransaction(async (tx: any) => {
     tx.set(metaRef as any, {
