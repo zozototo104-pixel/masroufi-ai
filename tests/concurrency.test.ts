@@ -75,8 +75,8 @@ test('CONC-06: atomicAddTransaction exists in atomicOps.ts', async () => {
 
 test('CONC-07: atomicPayDebt recomputes creditor remaining through the shared domain core', async () => {
   const src = await readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8');
-  assert.ok(src.includes('calculateCreditorRemaining(transactions, creditorKey)'),
-    'atomicPayDebt recomputes creditor remaining at transaction time through the shared core');
+  assert.ok(src.includes('calculateCreditorRemaining(creditorTransactions, creditorKey)'),
+    'atomicPayDebt recomputes creditor remaining at transaction time through the shared core using a creditor-bounded query');
   assert.equal(src.includes('function recomputeCreditorRemaining'), false,
     'atomicOps must not keep a private duplicate creditor algorithm');
   assert.ok(src.includes('OVERPAYMENT_ATOMIC'),
