@@ -3421,31 +3421,72 @@ export async function getSalaryCycleSummary(args: any, userId: string, token: st
 }
 
 export async function addSavingsVaultAdjustment(args: any, userId: string, token: string) {
-  const amount = roundMoney(parsePositiveFinancialAmount(args.amount));
-  if (amount <= 0) {
-    return { success: false, needsClarification: true, reason: 'INVALID_VAULT_ADJUSTMENT_AMOUNT', message: 'كم المبلغ القديم/المرحل الذي تريد إضافته للخزنة؟' };
+  const entries = normalizeVaultAdjustmentEntries(args);
+  if (!entries.length) {
+    return { success: false, needsClarification: true, reason: 'INVALID_VAULT_ADJUSTMENT_AMOUNT', message: 'كم المبلغ القديم/المرحل الذي تريد إضافته للخزنة؟ اذكر المبلغ والعملة مثل: 1000 شيكل، 300 دولار، 200 يورو.' };
   }
-  const source = String(args.source || args.reason || 'manual_carryover').trim();
-  const notes = String(args.notes || '').trim();
-  const operationId = String(args.operationId || `vault_adjustment_${source}_${amount}_${args.date || new Date().toISOString().slice(0, 10)}`);
+
+  await refreshExchangeRatesToIls();
+  const convertedEntries = entries.map((entry: VaultAdjustmentEntry) => {
+    const providedRate = Number(args?.exchangeRates?.[entry.currency] || args?.exchangeRates?.[entry.currency.toLowerCase()] || 0);
+    const explicitRate = Number(args?.exchangeRate || args?.fxRate || 0);
+    const manualRate = providedRate > 0 ? providedRate : explicitRate > 0 ? explicitRate : 0;
+    const normalizedAmountIls = entry.currency === 'ILS'
+      ? entry.amount
+      : manualRate > 0
+        ? roundMoney(entry.amount * manualRate)
+        : normalizeCurrencyToIls(entry.amount, entry.currency);
+    return {
+      ...entry,
+      normalizedAmountIls: roundMoney(normalizedAmountIls),
+      fx: manualRate > 0 ? { source: 'user_provided', rateToIls: manualRate } : getFxConversionMetadata(entry.currency),
+    };
+  });
+
+  const missingFx = convertedEntries.find((entry: any) => entry.currency !== 'ILS' && (!Number.isFinite(Number(entry.normalizedAmountIls)) || Number(entry.normalizedAmountIls) <= 0));
+  if (missingFx) {
+    return { success: false, retryable: true, reason: 'VAULT_FX_RATE_UNAVAILABLE', message: `لا أستطيع حفظ ${missingFx.amount} ${missingFx.currency} في الخزنة الآن لأن سعر الصرف للشيكل غير متاح. أعطني سعر الصرف أو جرّب لاحقاً؛ لن أخزن قيمة مخترعة.` };
+  }
+
+  const source = String(args.source || args.reason || convertedEntries[0]?.source || 'manual_carryover').trim();
+  const notes = String(args.notes || convertedEntries.map((e: any) => e.notes).filter(Boolean).join(' | ') || '').trim();
+  const operationSeed = convertedEntries.map((e: any) => `${e.amount}:${e.currency}:${e.source}`).join('|');
+  const operationId = String(args.operationId || `vault_adjustment_${source}_${operationSeed}_${args.date || new Date().toISOString().slice(0, 10)}`);
   const adjustmentId = stableDocId(`${userId}:savingsVaultAdjustment:${operationId}`);
   const adjustmentRef = firebaseAdminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').doc(adjustmentId);
   const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
   const now = new Date().toISOString();
+  const amountIlsEquivalent = roundMoney(convertedEntries.reduce((sum: number, entry: any) => sum + Number(entry.normalizedAmountIls || 0), 0));
+  const currencyDelta = convertedEntries.reduce((map: Record<string, number>, entry: any) => addVaultCurrencyAmount(map, entry.currency, entry.amount), {} as Record<string, number>);
+
   const result = await firebaseAdminDb.runTransaction(async (tx: any) => {
     const [existingAdjustmentSnap, metaSnap] = await Promise.all([
       tx.get(adjustmentRef as any),
       tx.get(metaRef as any),
     ]);
+    const metaData = metaSnap.exists ? (metaSnap.data() || {}) : {};
     if (existingAdjustmentSnap.exists) {
       const existing = existingAdjustmentSnap.data() || {};
-      return { replay: true, vaultBalance: roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : existing.cumulativeVaultBalance || amount)), adjustment: existing };
+      return {
+        replay: true,
+        vaultBalance: roundMoney(Number(metaData.currentBalance ?? existing.cumulativeVaultBalance ?? amountIlsEquivalent)),
+        vaultBalanceByCurrency: metaData.balanceByCurrency || existing.cumulativeBalanceByCurrency || {},
+        adjustment: existing,
+      };
     }
-    const previousBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
-    const nextBalance = roundMoney(previousBalance + amount);
+    const previousBalance = roundMoney(Number(metaData.currentBalance || 0));
+    const previousByCurrency = (metaData.balanceByCurrency || {}) as Record<string, number>;
+    const nextBalance = roundMoney(previousBalance + amountIlsEquivalent);
+    const nextByCurrency = mergeVaultCurrencyDeltas(previousByCurrency, currencyDelta);
     const adjustment = {
       userId,
-      amount,
+      amount: amountIlsEquivalent,
+      amountIlsEquivalent,
+      currency: convertedEntries.length === 1 ? convertedEntries[0].currency : 'MIXED',
+      originalAmount: convertedEntries.length === 1 ? convertedEntries[0].amount : undefined,
+      originalCurrency: convertedEntries.length === 1 ? convertedEntries[0].currency : undefined,
+      entries: convertedEntries,
+      currencyDelta,
       type: 'manual_carryover',
       source,
       notes,
@@ -3456,27 +3497,35 @@ export async function addSavingsVaultAdjustment(args: any, userId: string, token
       affectsPalPay: false,
       affectsDebt: false,
       cumulativeVaultBalance: nextBalance,
+      cumulativeBalanceByCurrency: nextByCurrency,
     };
     tx.set(adjustmentRef as any, adjustment);
     tx.set(metaRef as any, {
       userId,
       currentBalance: nextBalance,
+      currentBalanceIlsEquivalent: nextBalance,
+      balanceByCurrency: nextByCurrency,
       updatedAt: now,
-      lastAdjustment: amount,
+      lastAdjustment: amountIlsEquivalent,
+      lastAdjustmentEntries: convertedEntries,
       lastAdjustmentId: adjustmentId,
       source: 'salaryCycles+manualAdjustments',
-      version: 4,
+      version: 5,
       transactionalCommit: true,
     }, { merge: true });
-    return { replay: false, vaultBalance: nextBalance, adjustment };
+    return { replay: false, vaultBalance: nextBalance, vaultBalanceByCurrency: nextByCurrency, adjustment };
   });
+
+  const details = convertedEntries.map((entry: any) => `${entry.amount} ${entry.currency}`).join(' + ');
   return {
     success: true,
     id: adjustmentId,
     idempotentReplay: result.replay,
     vaultBalance: result.vaultBalance,
+    vaultBalanceByCurrency: result.vaultBalanceByCurrency,
+    amountIlsEquivalent,
     adjustment: result.adjustment,
-    message: result.replay ? 'هذا المبلغ المرحل محفوظ سابقاً ولم أكرره.' : `أضفت ${amount} ₪ كرصد/رصيد قديم للخزنة بدون تغيير أرصدة الكاش أو PalPay أو الديون.`,
+    message: result.replay ? 'هذا المبلغ المرحل محفوظ سابقاً ولم أكرره.' : `أضفت للخزنة: ${details}. المكافئ التقديري ${amountIlsEquivalent} ₪، بدون تغيير أرصدة الكاش أو PalPay أو الديون.`,
   };
 }
 
