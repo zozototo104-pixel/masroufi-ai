@@ -2822,7 +2822,11 @@ export default function App() {
                     <tr key={cycle.cycleId || cycle.id} className="border-t border-slate-800 hover:bg-slate-800/40">
                       <td className="p-3 font-bold text-white">{cycle.name || cycle.cycleId}</td>
                       <td className="p-3 text-slate-300">{cycle.cycleStart} → {cycle.cycleEnd}</td>
-                      <td className="p-3 text-emerald-300">{Number(cycle.totalIncome || 0).toLocaleString()} ₪</td>
+                      <td className="p-3 text-emerald-300">
+                        <div>{Number(cycle.totalIncome || 0).toLocaleString()} ₪ دخل حقيقي</div>
+                        {Number(cycle.debtCashInflow || 0) > 0 && <div className="text-[10px] text-amber-300 mt-1">+ {Number(cycle.debtCashInflow || 0).toLocaleString()} ₪ دين نقدي داخل</div>}
+                        {Number(cycle.totalInflow || 0) > Number(cycle.totalIncome || 0) && <div className="text-[10px] text-slate-400">الإجمالي الداخل: {Number(cycle.totalInflow || 0).toLocaleString()} ₪</div>}
+                      </td>
                       <td className="p-3 text-rose-300">{Number(cycle.totalExpense || 0).toLocaleString()} ₪</td>
                       <td className={`p-3 font-bold ${Number(cycle.surplus || 0) >= 0 ? 'text-cyan-300' : 'text-amber-300'}`}>{Number(cycle.surplus || 0).toLocaleString()} ₪</td>
                       <td className="p-3 text-cyan-300 font-bold">{Number(cycle.vaultContribution || 0).toLocaleString()} ₪</td>
