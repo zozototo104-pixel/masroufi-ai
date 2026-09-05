@@ -293,6 +293,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       };
 
       ws.onclose = () => {
+        connectingRef.current = false;
+        if (wsRef.current !== ws) return;
+        wsRef.current = null;
+        stopPlayback();
         setIsConnected(false);
         setIsRecording(false);
         setStatus('idle');
@@ -302,7 +306,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
 
       ws.onerror = (event) => {
         console.warn("WebSocket connection state event:", event);
-        disconnect();
+        if (wsRef.current === ws) {
+          disconnect();
+        }
         // Avoid turning audio/network errors into Firestore read storms.
       };
       
