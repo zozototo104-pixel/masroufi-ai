@@ -58,8 +58,8 @@ test('DUR-04: addTransaction response includes durability + pending flags', asyn
     'addTransaction response must include durability');
   assert.ok(src.includes('pending: writeResult.pending'),
     'addTransaction response must include pending flag');
-  assert.ok(src.includes('partial: balances.partial || writeResult.pending'),
-    'addTransaction response must include partial flag');
+  assert.ok(src.includes('partial: writeResult!.pending'),
+    'addTransaction response must include partial flag without doing a post-commit balance read');
 });
 
 test('DUR-05: getBalance marks offline-cache fallback as partial', async () => {
