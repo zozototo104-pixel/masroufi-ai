@@ -1,18 +1,19 @@
 # Manual CI verification trigger
 
-Verify live audio self-interruption fix from Render logs.
+Final verification after server-side live echo gate.
 
-Observed logs:
+No further code changes after this trigger unless CI fails.
+
+Observed Render logs:
 - forwarded audio chunks total 1/2
-- immediately serverContent.interrupted
-- no RESOURCE_EXHAUSTED shown
+- Gemini serverContent.interrupted immediately afterwards
+- no RESOURCE_EXHAUSTED in the shown logs
 
-Fixes:
-- server marks AI output active when forwarding audio
-- server drops microphone chunks during AI output to prevent Gemini self-interruption
+Fixes to verify:
+- server gates microphone audio while AI audio output is active
 - explicit client interrupt opens a short override window
-- pre-auth pending audio is bounded
-- tests assert server-side echo gate
+- client still prevents duplicate sessions and stale audio
+- salary 27/6 date fix remains intact
 
 Expected gates:
 - install
@@ -22,4 +23,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T14:18:00+03:00
+Timestamp: 2026-09-05T14:24:00+03:00
