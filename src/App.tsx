@@ -1893,8 +1893,9 @@ export default function App() {
               </div>
               <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-3">
                 <p className="text-[11px] text-slate-400 mb-1">الدورة الحالية</p>
-                <p className="text-sm font-bold text-white">{vaultData?.currentCycle?.cycleStart || '—'} → {vaultData?.currentCycle?.cycleEnd || '—'}</p>
-                <p className="text-[10px] text-slate-500 mt-1">27 إلى 26 · {vaultData?.currentCycle?.status === 'closed' ? 'مغلقة' : 'مفتوحة'}</p>
+                <p className="text-sm font-bold text-white">{vaultData?.currentCycle?.name || 'دورة الراتب الحالية'}</p>
+                <p className="text-sm font-bold text-white mt-1">{vaultData?.currentCycle?.cycleStart || '—'} → {vaultData?.currentCycle?.cycleEnd || '—'}</p>
+                <p className="text-[10px] text-slate-500 mt-1">الشهر عندنا دورة راتب 27 إلى 26 · {vaultData?.currentCycle?.status === 'closed' ? 'مغلقة' : 'مفتوحة'}</p>
               </div>
             </div>
             <p className="text-[11px] text-slate-500 mt-3">الخزنة تعزل فوائض دورات الراتب عن المتاح للصرف، بدون تعديل العمليات الأصلية أو خلطها مع دخل جديد.</p>
