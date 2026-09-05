@@ -846,8 +846,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
           const ts = new Date(t.date || t.createdAt || 0).getTime();
           if (!Number.isFinite(ts)) return false;
           const sameDay = new Date(ts).toISOString().slice(0, 10) === incomeGuardNow.toISOString().slice(0, 10);
-          const sameMonth = new Date(ts).toISOString().slice(0, 7) === incomeGuardNow.toISOString().slice(0, 7);
-          return (nowTime - ts <= 30 * 60 * 1000) || (isSalaryLike && sameMonth) || sameDay;
+          const sameSalaryCycle = isSalaryLike && incomeGuardCycle
+            ? getSalaryCycleForDate(t.date || t.createdAt || 0, incomeGuardNow).cycleId === incomeGuardCycle.cycleId
+            : new Date(ts).toISOString().slice(0, 7) === incomeGuardNow.toISOString().slice(0, 7);
+          return (nowTime - ts <= 30 * 60 * 1000) || sameSalaryCycle || sameDay;
         });
       if (sameIncome.length > 0 && !args.duplicateConfirmed) {
         return {
