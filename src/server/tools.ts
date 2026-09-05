@@ -1066,6 +1066,15 @@ export async function addTransaction(args: any, userId: string, token: string) {
         duplicateGuard: (atomicResult as any).duplicateGuard || null,
       };
     }
+    if (failReason === 'POSSIBLE_DUPLICATE_INCOME') {
+      return {
+        success: false,
+        needsConfirmation: true,
+        reason: 'POSSIBLE_DUPLICATE_INCOME',
+        message: `يوجد دخل بنفس المبلغ ${amount} ₪ على نفس الحساب ونفس التاريخ. لن أكرره حتى تؤكد أنه دخل آخر.`,
+        duplicateGuard: (atomicResult as any).duplicateGuard || null,
+      };
+    }
     return { success: false, error: failReason, reason: failReason };
   }
   actualTxId = atomicResult.docId;
