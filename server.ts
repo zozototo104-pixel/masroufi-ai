@@ -1994,8 +1994,15 @@ ${relationshipContext}
             }
           },
           onerror: (err: any) => {
-            console.error("Gemini Live session error:", err);
-            safeSend({ status: "ready", liveError: true, message: "انقطع مسار الصوت الحي مؤقتاً دون تنفيذ تحديث مالي." });
+            const classified = classifyGeminiLiveError(err);
+            console.error("Gemini Live session error:", { requestId, quotaExceeded: classified.quotaExceeded, code: classified.code, status: classified.status, message: err?.message });
+            safeSend({
+              status: "ready",
+              liveError: true,
+              liveQuotaExceeded: classified.quotaExceeded,
+              code: classified.code || classified.status || null,
+              message: classified.message,
+            });
           },
           onclose: () => {
             console.log("Gemini Live session closed");
