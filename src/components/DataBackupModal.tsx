@@ -84,6 +84,25 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     return res;
   };
 
+  const clearLocalBackupStateAfterVerifiedWipe = async () => {
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await clearPendingOpsForUser(uid);
+    }
+    await Promise.all([
+      idbSet('lkgs_transactions', []),
+      idbSet('lkgs_reports', []),
+      idbSet('lkgs_commitments', []),
+      idbSet('lkgs_budgets', { budgets: [], totalBudget: 0, totalSpent: 0, partial: false }),
+      idbSet('lkgs_savings_goals', []),
+      idbSet('lkgs_savings_vault', { success: true, vaultBalance: 0, vaultBalanceByCurrency: {}, cycles: [], manualAdjustments: [] }),
+      idbSet('masrofi_pending_ops', []),
+      idbSet('masrofi_pending_ops_v6_1', []),
+      idbSet('masrofi_pending_ops_v6_2', []),
+    ]);
+    window.dispatchEvent(new CustomEvent('masrofi:data-wiped'));
+  };
+
   const readApiPayload = async (res: Response): Promise<any> => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) {
