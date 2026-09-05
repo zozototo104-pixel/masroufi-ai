@@ -939,6 +939,7 @@ test('WIPE-01: destructive wipe fixes root cause by using Admin Firestore, no sw
   assert.ok(wipeBlock.includes('verifiedEmpty: true'), 'wipe success response must include verifiedEmpty=true');
   assert.ok(wipeBlock.includes("collection('idempotency_keys')"), 'wipe must remove root idempotency records for the user');
   assert.ok(wipeBlock.includes("collection('receiptIdempotency')"), 'wipe must remove receipt idempotency records for the user');
+  assert.ok(wipeBlock.includes("collection('salaryIncomeGuards')"), 'wipe must remove salary-cycle duplicate guard records for the user');
   assert.ok(wipeBlock.includes("goalDoc.ref.collection('contributions')"), 'wipe must remove savings goal contribution subcollections');
   assert.ok(modalSrc.includes('data.verifiedEmpty !== true'), 'UI must not show wipe success unless the server verified emptiness');
   assert.ok(modalSrc.includes('clearLocalBackupStateAfterVerifiedWipe'), 'UI must clear local IndexedDB/cache state after a verified wipe');
