@@ -737,3 +737,11 @@ test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal
   assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
 });
 
+test('VAULT-15: budget partial fallback must not recompute calendar budgets from salary-cycle transaction slice', async () => {
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(appSrc.includes('mixed-period totals'), 'UI must document why partial budget totals are not recomputed from visible transactions');
+  assert.ok(appSrc.includes('nonAuthoritative'), 'partial budget display must be marked non-authoritative when no cache exists');
+  assert.ok(!appSrc.includes('monthExpenses = finalTx.filter'), 'UI must not calculate calendar monthly budget spend from bounded salary-cycle finalTx');
+  assert.ok(!appSrc.includes('We must recalculate spendings using our full local finalTx'), 'old unsafe fallback comment must not return');
+});
+
