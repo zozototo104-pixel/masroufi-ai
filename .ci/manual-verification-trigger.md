@@ -1,19 +1,15 @@
 # Manual CI verification trigger
 
-Final verification after server-side live echo gate.
+Verify explicit Gemini Live quota handling.
 
-No further code changes after this trigger unless CI fails.
+Reason:
+- User confirmed the same behavior previously happened when Gemini Live API quota was exhausted.
 
-Observed Render logs:
-- forwarded audio chunks total 1/2
-- Gemini serverContent.interrupted immediately afterwards
-- no RESOURCE_EXHAUSTED in the shown logs
-
-Fixes to verify:
-- server gates microphone audio while AI audio output is active
-- explicit client interrupt opens a short override window
-- client still prevents duplicate sessions and stale audio
-- salary 27/6 date fix remains intact
+Fixes:
+- server classifies RESOURCE_EXHAUSTED / quota / rate-limit / 429 Live API errors
+- server sends liveQuotaExceeded=true to the client
+- client stops voice UI and shows a clear Arabic quota message
+- existing echo/self-interruption gate remains intact
 
 Expected gates:
 - install
@@ -23,4 +19,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-05T14:24:00+03:00
+Timestamp: 2026-09-05T14:40:00+03:00
