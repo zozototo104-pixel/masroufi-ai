@@ -1,5 +1,5 @@
 export type HistoricalDateResult =
-  | { ok: true; date: string; source: 'explicit-date' | 'historical-month' | 'current-time' }
+  | { ok: true; date: string; source: 'explicit-date' | 'short-explicit-date' | 'salary-cycle-month-date' | 'historical-month' | 'current-time' }
   | { ok: false; reason: 'INVALID_TRANSACTION_DATE' | 'MISSING_HISTORICAL_DAY'; message: string };
 
 function isValidDateParts(year: number, month: number, day: number): boolean {
