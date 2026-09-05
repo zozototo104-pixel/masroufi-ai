@@ -169,7 +169,7 @@ export async function atomicTransferMoney(
       if (insufficient) return insufficient;
     }
 
-    const balances = addBalanceDelta(snapshot.balances, txBalanceDelta(newTx));
+    const balances = addBalanceDelta(snapshot.balances, transferDelta);
     const negative = negativeBalanceFailure(balances, opts.riskConfirmed);
     if (negative) return negative;
 
@@ -180,6 +180,19 @@ export async function atomicTransferMoney(
       balanceReadSource: snapshot.source,
       bootstrapLedgerDocsRead: snapshot.ledgerDocsRead,
     }), { merge: true });
+    if (vaultMetaRef) {
+      const previousVaultMetaBalance = roundBalance(Number(vaultMetaSnap?.exists ? vaultMetaSnap.data()?.currentBalance : 0));
+      tx.set(vaultMetaRef, {
+        userId,
+        currentBalance: roundBalance(previousVaultMetaBalance + vaultDelta),
+        updatedAt: new Date().toISOString(),
+        lastManualVaultTransferId: newRef.id,
+        lastManualVaultDelta: vaultDelta,
+        source: 'vault_transfer',
+        version: 2,
+        transactionalCommit: true,
+      }, { merge: true });
+    }
     return { ok: true, docId: newRef.id, balances, balanceReadSource: snapshot.source };
   });
 }
