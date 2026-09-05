@@ -3034,14 +3034,16 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
 export async function recalculateSalaryCycle(args: any, userId: string, token: string) {
   const period: SalaryCyclePeriod = args?.__period || resolveSalaryCycleFromArgs(args || {}, new Date());
   const readResult = await readTransactionsForSalaryCycle(period, userId, token, args?.limit);
-  if (readResult.partial || readResult.boundedFallback) {
+  if (readResult.partial || readResult.boundedFallback || readResult.limitReached) {
     return {
       success: false,
       retryable: true,
       partial: true,
       bounded: true,
-      reason: 'AUTHORITATIVE_FIRESTORE_READ_REQUIRED',
-      message: 'لم أُحدّث الخزنة لأن قراءة معاملات دورة الراتب لم تكن مؤكدة من Firestore. هذا يمنع تسجيل فائض غير صحيح من بيانات جزئية.',
+      reason: readResult.limitReached ? 'SALARY_CYCLE_TRANSACTION_LIMIT_REACHED' : 'AUTHORITATIVE_FIRESTORE_READ_REQUIRED',
+      message: readResult.limitReached
+        ? 'لم أُحدّث الخزنة لأن عدد معاملات دورة الراتب وصل حد الاستعلام، ولا يمكن ضمان أن الفائض كامل. زِد الحد أو استخدم مسار تجميع موثوق قبل حفظ الخزنة.'
+        : 'لم أُحدّث الخزنة لأن قراءة معاملات دورة الراتب لم تكن مؤكدة من Firestore. هذا يمنع تسجيل فائض غير صحيح من بيانات جزئية.',
       query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
     };
   }
