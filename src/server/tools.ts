@@ -1101,7 +1101,16 @@ export async function addTransaction(args: any, userId: string, token: string) {
         message: `المبلغ ${amount} ₪ أكبر من الرصيد المتاح (${failAvailable} ₪). العملية مرفوضة لمنع تجاوز الرصيد.`,
       };
     }
-    return { success: false, error: failReason };
+    if (failReason === 'DUPLICATE_SALARY_INCOME') {
+      return {
+        success: false,
+        needsConfirmation: true,
+        reason: 'DUPLICATE_SALARY_INCOME',
+        message: `راتب هذه الدورة مسجل سابقاً بنفس المبلغ ${amount} ₪ على نفس الحساب. لن أكرره حتى لا يتضاعف الرصيد.`,
+        duplicateGuard: (atomicResult as any).duplicateGuard || null,
+      };
+    }
+    return { success: false, error: failReason, reason: failReason };
   }
   actualTxId = atomicResult.docId;
   writeResult = { durability: 'committed', synced: true, pending: false };
