@@ -82,6 +82,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   }, []);
 
   const connect = useCallback(async (overrideToken?: string) => {
+    if (connectingRef.current || wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+      console.warn('[live] voice session already active; ignoring duplicate connect');
+      return;
+    }
+    connectingRef.current = true;
+    connectionEpochRef.current += 1;
+    const myEpoch = connectionEpochRef.current;
     try {
       setError(null);
       
