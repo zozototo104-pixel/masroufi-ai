@@ -2863,6 +2863,17 @@ export default function App() {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
                 <p className="text-xs text-slate-400 mb-1">رصيد الخزنة</p>
                 <p className="text-3xl font-black text-cyan-300">{Number(vaultData?.vaultBalance || 0).toLocaleString()} ₪</p>
+                {vaultData?.vaultBalanceByCurrency && Object.keys(vaultData.vaultBalanceByCurrency).length > 0 && (
+                  <div className="mt-3 space-y-1 text-xs">
+                    {Object.entries(vaultData.vaultBalanceByCurrency).map(([currency, amount]: any) => (
+                      <div key={currency} className="flex items-center justify-between bg-slate-900/70 border border-slate-800 rounded-xl px-2 py-1">
+                        <span className="text-slate-400">{currency}</span>
+                        <span className="text-cyan-200 font-bold">{Number(amount || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-slate-500 pt-1">الإجمالي أعلاه مكافئ تقديري بالشيكل، والعملات محفوظة بقيمتها الأصلية.</p>
+                  </div>
+                )}
               </div>
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
                 <p className="text-xs text-slate-400 mb-1">الدورة الحالية</p>
