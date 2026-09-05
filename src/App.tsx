@@ -2470,8 +2470,8 @@ export default function App() {
 
       {/* Reports Inbox Modal */}
       {showInbox && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 shadow-2xl relative">
+        <div className="mobile-modal-backdrop bg-black/60 backdrop-blur-md z-[100]">
+          <div className="mobile-modal-panel bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-4 sm:p-6 shadow-2xl relative">
             <button onClick={() => setShowInbox(false)} className="absolute top-4 left-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 transition-colors">
               <X className="w-5 h-5" />
             </button>
