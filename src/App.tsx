@@ -1557,6 +1557,16 @@ export default function App() {
               )}
             </button>
 
+            {/* Savings Vault Quick Button */}
+            <button 
+              onClick={() => setShowVault(true)} 
+              className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors relative flex items-center gap-1.5 text-xs font-semibold" 
+              title="الخزنة وفوائض دورات الراتب"
+            >
+              <HardDrive className="w-4 h-4 text-cyan-400" />
+              <span className="hidden sm:inline">الخزنة</span>
+            </button>
+
             {/* Commitments & Cash Flow Quick Button */}
             <button 
               onClick={() => setShowCommitments(true)} 
