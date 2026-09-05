@@ -148,8 +148,10 @@ test('PARTIAL-STATE-01: addTransaction rejects on partial snapshot', async () =>
   const src = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   assert.ok(src.includes('PARTIAL_STATE_UNSAFE'),
     'addTransaction returns PARTIAL_STATE_UNSAFE on partial snapshot');
-  assert.ok(src.includes("(preTxSnapshot as any).partial === true"),
-    'checks preTxSnapshot.partial flag');
+  assert.ok(src.includes("(categoryMonthSnap as any).partial === true"),
+    'checks bounded categoryMonthSnap.partial flag for expense safety reads');
+  assert.ok(src.includes('Income writes must not depend on an index-sensitive date-range preflight query'),
+    'income writes must avoid preflight query partial-state failures and rely on atomic guard docs instead');
 });
 
 test('PARTIAL-STATE-02: transferMoney rejects on partial balance', async () => {
