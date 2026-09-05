@@ -811,6 +811,16 @@ test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal
   assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
 });
 
+test('VAULT-14B: historical cycle recalculation must not auto-lock during data entry', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(toolsSrc.includes('explicitVaultLock'), 'vault locking must require an explicit close/lock signal');
+  assert.ok(toolsSrc.includes('previouslyLocked'), 'already locked cycles must remain idempotently adjustable');
+  assert.ok(toolsSrc.includes('shouldLockVault && period.status === \'closed\''), 'closed historical cycles must not lock automatically while the user is still entering them');
+  assert.ok(appSrc.includes('lockVault: true'), 'the UI close button must send the explicit vault lock flag');
+  assert.ok(toolsSrc.includes('VAULT_LOCK_MANUAL') && toolsSrc.includes('VAULT_RELEASE'), 'manual vault lock/release transfers must remain internal transfer types');
+});
+
 test('VAULT-15: budget partial fallback must not recompute calendar budgets from salary-cycle transaction slice', async () => {
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   assert.ok(appSrc.includes('mixed-period totals'), 'UI must document why partial budget totals are not recomputed from visible transactions');
