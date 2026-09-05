@@ -496,7 +496,8 @@ export default function App() {
 
     const fetchData = async () => {
       try {
-        const headers = { 'Authorization': `Bearer ${idToken}` };
+        const currentToken = await getFreshDashboardToken();
+        const headers = { 'Authorization': `Bearer ${currentToken}` };
         const cloudHealthRes = await fetch('/api/cloud-health', { cache: 'no-store' });
         const cloudHealth = await cloudHealthRes.json().catch(() => ({}));
         const cloudReady = cloudHealthRes.ok && cloudHealth?.firestore === 'read-write-ok';
