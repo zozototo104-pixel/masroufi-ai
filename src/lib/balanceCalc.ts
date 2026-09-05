@@ -55,26 +55,30 @@ export interface BalanceBreakdown {
  * handles both — this client version assumes plain objects.
  */
 export function calculateBalances(transactions: any[]): Balances {
-  let cash = 0, palPay = 0, debt = 0;
+  let cash = 0, palPay = 0, debt = 0, vault = 0;
   for (const tx of transactions || []) {
     const amount = parseFiniteAmount(tx?.amount);
-    const account = normalizeAccount(tx?.account);
+    const account = normalizeLedgerAccount(tx?.account);
     if (tx?.type === 'expense') {
       if (account === 'palPay') palPay -= amount;
       else if (account === 'debt') debt += amount;
+      else if (account === 'vault') vault -= amount;
       else cash -= amount;
     } else if (tx?.type === 'income') {
       if (account === 'palPay') palPay += amount;
       else if (account === 'debt') debt -= amount;
+      else if (account === 'vault') vault += amount;
       else cash += amount;
     } else if (tx?.type === 'transfer') {
-      const f = normalizeAccount(tx?.fromAccount || tx?.account);
-      const t = normalizeAccount(tx?.toAccount);
+      const f = normalizeLedgerAccount(tx?.fromAccount || tx?.account);
+      const t = normalizeLedgerAccount(tx?.toAccount);
       if (f === 'palPay') palPay -= amount;
       else if (f === 'debt') debt += amount;
+      else if (f === 'vault') vault -= amount;
       else cash -= amount;
       if (t === 'palPay') palPay += amount;
       else if (t === 'debt') debt -= amount;
+      else if (t === 'vault') vault += amount;
       else cash += amount;
     }
   }
@@ -82,7 +86,8 @@ export function calculateBalances(transactions: any[]): Balances {
   cash = Math.round(cash * 100) / 100;
   palPay = Math.round(palPay * 100) / 100;
   debt = Math.round(debt * 100) / 100;
-  return { cash, palPay, debt, total: cash + palPay };
+  vault = Math.round(vault * 100) / 100;
+  return { cash, palPay, debt, vault, total: Math.round((cash + palPay) * 100) / 100 };
 }
 
 /**
