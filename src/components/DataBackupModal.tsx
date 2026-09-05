@@ -54,6 +54,40 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  const getFreshIdToken = async (): Promise<string> => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      return currentUser.getIdToken(true);
+    }
+    if (idToken) return idToken;
+    throw new Error('انتهت جلسة تسجيل الدخول. أغلق النافذة وسجّل الدخول مجددًا.');
+  };
+
+  const backupFetch = async (url: string, options: RequestInit = {}, retry = true): Promise<Response> => {
+    const freshToken = await getFreshIdToken();
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${freshToken}`);
+    const res = await fetch(url, { ...options, headers });
+    if (retry && res.status === 401) {
+      const retriedToken = await getFreshIdToken();
+      headers.set('Authorization', `Bearer ${retriedToken}`);
+      return fetch(url, { ...options, headers });
+    }
+    return res;
+  };
+
+  const readApiPayload = async (res: Response): Promise<any> => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      const raw = String(data.error || data.message || `HTTP ${res.status}`);
+      if (res.status === 401 || raw.includes('auth/id-token-expired')) {
+        throw new Error('انتهت جلسة تسجيل الدخول أثناء العملية. تم تجديد المحاولة، وإذا استمر الخطأ سجّل الخروج ثم الدخول من جديد.');
+      }
+      throw new Error(raw);
+    }
+    return data;
+  };
+
   if (!isOpen) return null;
 
   // Export Full JSON
