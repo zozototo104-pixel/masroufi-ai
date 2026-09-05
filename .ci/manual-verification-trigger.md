@@ -1,13 +1,13 @@
 # Manual CI verification trigger
 
-Verification requested after global Firestore reads fixes based on AI Studio notes.
+Final verification after applying AI Studio Firestore-read notes globally.
 
 Scope:
-- account balance snapshot for daily financial mutations
+- account balance snapshot for daily mutations
 - getBalance O(1) snapshot read with explicit repair/bootstrap
-- expense/update/delete/payDebt/PalPay paths avoid full-ledger reads
-- bounded financial decision context, treasurer report, duplicate audit, duplicate repairs, commitments
-- import rebuilds account balance snapshot and clears stale snapshot if repair fails
-- regression tests READS-* added
+- bounded add/update/delete/payDebt/PalPay paths
+- bounded decision context, treasurer reports, duplicate audit, duplicate repairs, commitments
+- import/wipe keep account/vault snapshots consistent
+- READS-* regression tests
 
-Timestamp: 2026-09-05T07:05:00Z
+Timestamp: 2026-09-05T07:25:00Z
