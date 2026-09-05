@@ -874,8 +874,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch) {
     try {
-      const preflightDate = new Date(args.date || new Date().toISOString());
-      const safePreflightDate = Number.isNaN(preflightDate.getTime()) ? new Date() : preflightDate;
+      const preflightDate = new Date(dateResult.date);
+      const safePreflightDate = Number.isNaN(preflightDate.getTime()) ? transactionNow : preflightDate;
       const thisMonth = safePreflightDate.toISOString().slice(0,7);
       const monthStart = `${thisMonth}-01T00:00:00.000Z`;
       const nextMonthDate = new Date(Date.UTC(safePreflightDate.getUTCFullYear(), safePreflightDate.getUTCMonth() + 1, 1));
