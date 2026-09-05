@@ -1826,6 +1826,7 @@ export async function importUserData(payload: any, userId: string, token: string
     importedMemoryCount++;
   }
 
+  const balanceRepair = await repairAccountBalanceSnapshot({ reason: 'import_merge_completed' }, userId, token);
   await addNotification(userId, `تم استيراد ${importedTxCount} عملية مالية و ${importedBudgetsCount} موازنة بنجاح.`, 'success', adminDb);
 
   return {
@@ -1838,6 +1839,8 @@ export async function importUserData(payload: any, userId: string, token: string
       reports: importedReportsCount,
       memory: importedMemoryCount
     },
+    accountBalanceSnapshotRepaired: balanceRepair.success === true,
+    accountBalanceRepairDocsRead: balanceRepair.transactionDocsRead || 0,
     message: `تم بنجاح استيراد ${importedTxCount} عملية مالية، ${importedBudgetsCount} موازنة، و ${importedCommitmentsCount} التزام.`
   };
 }
