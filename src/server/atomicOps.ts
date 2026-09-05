@@ -116,7 +116,14 @@ function negativeBalanceFailure(balances: BalanceSnapshot, riskConfirmed?: boole
   if (riskConfirmed) return null;
   if (balances.cash < -0.0001) return { ok: false, reason: 'NEGATIVE_CASH_RESULT', balances };
   if (balances.palPay < -0.0001) return { ok: false, reason: 'NEGATIVE_PALPAY_RESULT', balances };
+  if (balances.vault < -0.0001) return { ok: false, reason: 'NEGATIVE_VAULT_RESULT', balances };
   return null;
+}
+
+function readAvailableBalance(balances: BalanceSnapshot, account: string): number {
+  if (account === 'palPay') return balances.palPay;
+  if (account === 'vault') return balances.vault;
+  return balances.cash;
 }
 
 function insufficientSourceFailure(balances: BalanceSnapshot, amount: number, account: string, riskConfirmed?: boolean): { ok: false; reason: string; available: number } | null {
