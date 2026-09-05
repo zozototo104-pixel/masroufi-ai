@@ -1048,8 +1048,11 @@ test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bo
   const atomicSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8'));
   assert.ok(appSrc.includes('buildLocalSalaryCycleOptions(12)'), 'Vault UI must offer current and previous salary cycles even before cycle docs exist');
   assert.ok(appSrc.includes('اختر دورة راتب للمعاينة'), 'Vault UI must include a salary-cycle picker');
+  assert.ok(appSrc.includes('الشهر السابق') && appSrc.includes('الشهر التالي'), 'Vault UI must include obvious previous/next cycle navigation buttons');
+  assert.ok(appSrc.includes('دورات الراتب'), 'dashboard card must make the salary-cycle entry point explicit');
   assert.ok(appSrc.includes('loadVaultCycleDetails'), 'Vault UI must load one selected cycle details on demand');
   assert.ok(appSrc.includes('deleteSelectedVaultCycle'), 'Vault UI must expose a bounded selected-cycle delete action');
+  assert.ok(appSrc.includes('التحويلات الداخلية') && appSrc.includes('ترحيل الخزنة') && appSrc.includes('تصنيف المصروفات داخل الدورة'), 'Vault UI must show income, expenses, transfers, category summary, and vault carryover details');
   assert.ok(serverSrc.includes('app.get("/api/salary-cycles/:cycleId"'), 'server must expose a cycle-details API');
   assert.ok(serverSrc.includes('app.delete("/api/salary-cycles/:cycleId/transactions"'), 'server must expose a bounded cycle transaction delete API');
   assert.ok(toolsSrc.includes('export async function getSalaryCycleDetails'), 'tools must implement salary cycle details');
