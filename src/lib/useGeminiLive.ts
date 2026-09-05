@@ -344,6 +344,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }
         
         if (msg.liveQuotaExceeded) {
+          liveReadyRef.current = false;
+          clearLiveReadyWatchdog();
+          clearResponseWatchdog();
           stopPlayback();
           setStatus('idle');
           setIsRecording(false);
