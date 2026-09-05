@@ -3581,6 +3581,7 @@ export async function repairSavingsVaultMeta(args: any, userId: string, token: s
   return {
     success: true,
     vaultBalance: repairedBalance,
+    vaultBalanceByCurrency: repairedBalanceByCurrency,
     repairedCycleCount: cycles.length,
     repairedAdjustmentCount: manualAdjustments.length,
     bounded: true,
