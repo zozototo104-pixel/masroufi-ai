@@ -2216,12 +2216,19 @@ export async function updateTransaction(args: any, userId: string, token: string
     }
     return { success: false, reason: atomicResult.reason, message: 'تعذر تعديل العملية بأمان لأنها تغيرت أو لم تعد موجودة.' };
   }
+  let vaultRecalculation: any[] = [];
+  try {
+    vaultRecalculation = await recalculateCyclesForTransactionChange(userId, token, existing, projected, 'transaction_financial_updated');
+  } catch (vaultErr) {
+    console.warn('Savings Vault recalculation failed after financial update:', vaultErr);
+  }
   return {
     success: true,
     currentBalances: atomicResult.balances,
     durability: 'cloud',
     pending: false,
     partial: false,
+    vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean),
   };
 }
 
