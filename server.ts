@@ -674,16 +674,23 @@ async function startServer() {
       if (body.firestore === 'read-write-ok') cachedCloudHealth = { cachedAtMs: nowMs, body };
       res.json(body);
     } catch (e: any) {
-      if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < 5 * 60_000) {
-        return res.json({ ...cachedCloudHealth.body, cached: true, staleDueTo: e?.code || e?.message || 'cloud-health probe failed' });
-      }
-      res.status(503).json({
+      const quotaExhausted = e?.code === 8 || /RESOURCE_EXHAUSTED|Quota exceeded/i.test(String(e?.message || e?.details || ''));
+      const errorBody = {
         status: 'degraded',
         firestore: 'read-write-failed',
         error: e?.message || 'Firestore unavailable',
         code: e?.code || null,
         details: e?.details || null,
-      });
+        quotaExhausted,
+      };
+      if (quotaExhausted) {
+        cachedCloudHealth = { cachedAtMs: nowMs, body: errorBody, quotaExhausted: true };
+        return res.status(503).json({ ...errorBody, cacheTtlMs: 10 * 60_000 });
+      }
+      if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < 5 * 60_000) {
+        return res.json({ ...cachedCloudHealth.body, cached: true, staleDueTo: e?.code || e?.message || 'cloud-health probe failed' });
+      }
+      res.status(503).json(errorBody);
     }
   });
 
