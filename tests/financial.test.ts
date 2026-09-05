@@ -1060,9 +1060,12 @@ test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bo
   assert.ok(toolsSrc.includes('export async function getSalaryCycleDetails'), 'tools must implement salary cycle details');
   assert.ok(toolsSrc.includes('export async function deleteSalaryCycleTransactions'), 'tools must implement bounded salary cycle delete');
   assert.ok(toolsSrc.includes('readTransactionsForSalaryCycle(period'), 'cycle details/delete must use the bounded 27→26 query helper');
-  assert.ok(toolsSrc.includes('requiresIndex'), 'cycle details must detect missing composite-index errors');
-  assert.ok(toolsSrc.includes(".where('date', '>=', period.startIso)") && toolsSrc.includes(".where('date', '<', period.endExclusiveIso)"), 'cycle index fallback must remain bounded to the selected 27→26 date range');
-  assert.ok(toolsSrc.includes('doc.data()?.userId === userId'), 'cycle index fallback must filter to the authenticated user after bounded date query');
+  const helperStart = toolsSrc.indexOf('async function readTransactionsForSalaryCycle');
+  const helperEnd = toolsSrc.indexOf('async function commitSalaryCycleAndVaultMeta');
+  const helperBlock = toolsSrc.slice(helperStart, helperEnd);
+  assert.equal(helperBlock.includes(".where('userId', '==', userId)"), false, 'cycle details must not issue the index-dependent userId+date Firestore query');
+  assert.ok(helperBlock.includes(".where('date', '>=', period.startIso)") && helperBlock.includes(".where('date', '<', period.endExclusiveIso)"), 'cycle query must remain bounded to the selected 27→26 date range');
+  assert.ok(helperBlock.includes('d.data()?.userId === userId'), 'cycle query must filter to the authenticated user after bounded date query');
   assert.ok(toolsSrc.includes('confirmation=DELETE_SALARY_CYCLE') || toolsSrc.includes("confirmation: 'DELETE_SALARY_CYCLE'"), 'cycle delete must require explicit confirmation');
   assert.ok(atomicSrc.includes('export async function atomicDeleteTransactions'), 'bulk cycle delete must be atomic and balance-aware');
 });
