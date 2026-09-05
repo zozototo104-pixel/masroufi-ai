@@ -360,7 +360,7 @@ function liveRefreshScopeForTools(functionResponses: Array<{ name: string; respo
   if (names.some(name => ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'repair_account_balance_snapshot'].includes(name)) && hasSuccessfulMutation) {
     return { refresh: true, scope: 'financial' };
   }
-  if (names.some(name => ['recalculate_salary_cycle', 'get_salary_cycle_summary', 'get_savings_vault'].includes(name))) {
+  if (names.some(name => ['recalculate_salary_cycle', 'get_salary_cycle_summary', 'get_savings_vault', 'add_savings_vault_adjustment', 'repair_savings_vault_meta'].includes(name))) {
     return { refresh: true, scope: 'vault' };
   }
   if (names.some(name => ['create_savings_goal', 'add_savings_contribution', 'update_savings_goal'].includes(name)) && hasSuccessfulMutation) {
