@@ -2966,7 +2966,7 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
         .filter((cycle: any) => cycle.id !== period.cycleId && cycle.cycleId !== period.cycleId)
         .reduce((sum: number, cycle: any) => sum + Number(cycle.vaultContribution || 0), 0));
     }
-    const currentBalance = roundMoney(previousVaultBalance + nextVaultContribution);
+    const currentBalance = roundMoney(previousVaultBalance + (metaSnap.exists ? adjustmentDelta : nextVaultContribution));
     const adjustments = Array.isArray(existing.adjustments) ? existing.adjustments.slice(-20) : [];
     if (Math.abs(adjustmentDelta) >= 0.005) {
       adjustments.push({
