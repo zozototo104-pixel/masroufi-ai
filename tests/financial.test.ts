@@ -11,6 +11,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { join } from 'node:path';
 
 // Import the pure financial domain directly. These tests must exercise behavior,
 // not the orchestration layer or source-code strings.
