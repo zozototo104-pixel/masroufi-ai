@@ -1,5 +1,5 @@
 import { parseFiniteAmount } from './amount';
-import { normalizeAccount, normalizeLedgerAccount, type Balances } from './balanceCalc';
+import { normalizeLedgerAccount, type Balances } from './balanceCalc';
 
 export type AccountBalanceDelta = { cash: number; palPay: number; debt: number; vault: number };
 
