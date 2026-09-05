@@ -184,6 +184,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           // Input context for recording (Gemini needs 16kHz)
           const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
           inputCtxRef.current = inputCtx;
+          if (inputCtx.state === 'suspended') await inputCtx.resume();
           
           const stream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
