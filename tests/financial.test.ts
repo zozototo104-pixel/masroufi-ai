@@ -725,6 +725,7 @@ test('VAULT-13: Savings Vault refuses unsafe partial or saturated authoritative 
   assert.ok(toolsSrc.includes('SALARY_CYCLE_TRANSACTION_LIMIT_REACHED'), 'limit saturation must not become an authoritative surplus');
   assert.ok(toolsSrc.includes('limitReached'), 'cycle transaction query must report when it hits its read limit');
   assert.ok(toolsSrc.includes('metaBootstrapCyclesRead'), 'missing vault meta must bootstrap from existing cycle docs, not from a limited history page');
+  assert.ok(toolsSrc.includes('balanceLimitReached'), 'missing-meta vault display must flag saturated cycle summary bootstrap reads');
 });
 
 test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal Voice', async () => {
