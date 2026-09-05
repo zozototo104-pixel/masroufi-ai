@@ -42,6 +42,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [countOverride, setCountOverride] = useState<null | {
+    transactions: number;
+    budgets: number;
+    commitments: number;
+    reports: number;
+  }>(null);
   
   // Staged File preview
   const [stagedFile, setStagedFile] = useState<{
