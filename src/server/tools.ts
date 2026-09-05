@@ -2022,8 +2022,9 @@ export async function transferMoney(args: any, userId: string, token: string) {
     transactionType: fromAccount === 'debt' ? 'DEBT_BORROWING' : 'INTERNAL_TRANSFER',
     operationId: String(args.operationId || `transfer_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
     necessity: '',
-    date: new Date().toISOString(),
-    createdAt: new Date().toISOString()
+    date: transferDateResult.date,
+    dateSource: transferDateResult.source,
+    createdAt: transferNow
   };
 
   // V6.2 (FINDING-02): atomic balance-sensitive transfer.
