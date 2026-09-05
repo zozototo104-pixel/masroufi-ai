@@ -3536,17 +3536,28 @@ export async function getSavingsVault(args: any, userId: string, token: string) 
   let vaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0) || 0);
   let balanceSource = metaSnap.exists ? 'meta' : 'salaryCycles_bootstrap';
   let balanceCycleDocsRead = 0;
+  let balanceAdjustmentDocsRead = 0;
   let balancePartial = false;
   let balanceLimitReached = false;
   if (!metaSnap.exists) {
-    const allCyclesSnap = await adminDb.collection('users').doc(userId).collection('salaryCycles')
-      .limit(1000)
-      .get();
+    const [allCyclesSnap, allAdjustmentsSnap] = await Promise.all([
+      adminDb.collection('users').doc(userId).collection('salaryCycles')
+        .limit(1000)
+        .get(),
+      adminDb.collection('users').doc(userId).collection('savingsVaultAdjustments')
+        .limit(VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT)
+        .get(),
+    ]);
     const allCycles = allCyclesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    const allAdjustments = allAdjustmentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     balanceCycleDocsRead = allCycles.length;
-    balancePartial = Boolean((allCyclesSnap as any).partial);
-    balanceLimitReached = balanceCycleDocsRead >= 1000;
-    vaultBalance = roundMoney(allCycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
+    balanceAdjustmentDocsRead = allAdjustments.length;
+    balancePartial = Boolean((allCyclesSnap as any).partial || (allAdjustmentsSnap as any).partial);
+    balanceLimitReached = balanceCycleDocsRead >= 1000 || balanceAdjustmentDocsRead >= VAULT_ADJUSTMENT_BOOTSTRAP_LIMIT;
+    vaultBalance = roundMoney(
+      allCycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0)
+      + allAdjustments.reduce((sum: number, a: any) => sum + Number(a.amount || 0), 0)
+    );
   }
   const currentCycle = getCurrentSalaryCycle(new Date());
   return {
