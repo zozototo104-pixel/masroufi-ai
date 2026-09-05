@@ -3559,7 +3559,8 @@ export async function deleteSalaryCycleTransactions(args: any, userId: string, t
   const guardRefs = readResult.transactions.map((tx: any) => incomeGuardRefForTransaction(userId, tx, now)).filter(Boolean);
   const deleteResult = await atomicDeleteTransactions(userId, transactionIds, { guardRefs, reason: `delete_salary_cycle:${period.cycleId}` });
   if (!deleteResult.ok) {
-    return { success: false, reason: deleteResult.reason, period, found: (deleteResult as any).found, requested: (deleteResult as any).requested };
+    const failedDeleteResult = deleteResult as { ok: false; reason: string; found?: number; requested?: number };
+    return { success: false, reason: failedDeleteResult.reason, period, found: failedDeleteResult.found, requested: failedDeleteResult.requested };
   }
   const recalculated = await recalculateSalaryCycle({ __period: period, reason: 'delete_salary_cycle_transactions' }, userId, token);
   return {
