@@ -261,13 +261,14 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         setIsConnected(false);
         setIsRecording(false);
         setStatus('idle');
-        window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+        // A voice socket close is not a financial mutation. Do not refresh the
+        // whole dashboard here; the server sends scoped refresh only after tools.
       };
 
       ws.onerror = (event) => {
         console.warn("WebSocket connection state event:", event);
         disconnect();
-        window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+        // Avoid turning audio/network errors into Firestore read storms.
       };
       
     } catch (err: any) {
