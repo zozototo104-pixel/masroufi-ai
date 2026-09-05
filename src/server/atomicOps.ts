@@ -128,9 +128,9 @@ function readAvailableBalance(balances: BalanceSnapshot, account: string): numbe
 
 function insufficientSourceFailure(balances: BalanceSnapshot, amount: number, account: string, riskConfirmed?: boolean): { ok: false; reason: string; available: number } | null {
   if (riskConfirmed) return null;
-  const available = account === 'palPay' ? balances.palPay : balances.cash;
+  const available = readAvailableBalance(balances, account);
   if (amount > available + 0.0001) {
-    return { ok: false, reason: 'INSUFFICIENT_FUNDS_ATOMIC', available: roundBalance(available) };
+    return { ok: false, reason: account === 'vault' ? 'INSUFFICIENT_VAULT_FUNDS_ATOMIC' : 'INSUFFICIENT_FUNDS_ATOMIC', available: roundBalance(available) };
   }
   return null;
 }
