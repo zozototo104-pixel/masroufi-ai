@@ -794,6 +794,22 @@ export async function addTransaction(args: any, userId: string, token: string) {
     return await transferMoney({ amount, fromAccount: fromAcc, toAccount: toAcc, notes: args.notes, date: args.date, historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth, day: args.day || args.transactionDay }, userId, token);
   }
 
+  const transactionNow = new Date();
+  const dateResult = normalizeHistoricalTransactionDate({
+    date: args.date,
+    historicalMonth: args.historicalMonth || args.monthContext || args.entryMonth,
+    day: args.day || args.transactionDay,
+    now: transactionNow,
+  } as any);
+  if (dateResult.ok === false) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: dateResult.reason,
+      message: dateResult.message,
+    };
+  }
+
   // V5 pre-execution guard: the same budget/transaction reads that used to happen after the write
   // are performed before it so the assistant can warn before damage, then reused below (no duplicate polling/read loop).
   let preTxSnapshot: any = null;
