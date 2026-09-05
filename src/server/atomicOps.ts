@@ -157,6 +157,10 @@ export async function atomicTransferMoney(
 ): Promise<{ ok: true; docId: string; balances: BalanceSnapshot; balanceReadSource: string } | { ok: false; reason: string; available?: number }> {
   return adminDb.runTransaction(async (tx: any) => {
     const snapshot = await readOrBootstrapBalanceSnapshot(tx, userId);
+    const transferDelta = txBalanceDelta(newTx);
+    const vaultDelta = roundBalance(transferDelta.vault);
+    const vaultMetaRef = vaultDelta !== 0 ? adminDb.collection('users').doc(userId).collection('meta').doc('savingsVault') : null;
+    const vaultMetaSnap = vaultMetaRef ? await tx.get(vaultMetaRef) : null;
     const amount = parsePositiveFinancialAmount(newTx.amount);
     const fromAccount = String(newTx.fromAccount || 'cash');
     if (fromAccount !== 'debt') {
