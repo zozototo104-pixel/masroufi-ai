@@ -60,6 +60,16 @@ function getDocKey(collectionPath: string, id: string) {
   return `${collectionPath}/${id}`;
 }
 
+function matchesWhereClause(itemVal: any, op: string, expected: any, field: string): boolean {
+  if (field === 'userId') return typeof itemVal === 'string' && itemVal === expected;
+  if (op === '==') return itemVal === expected;
+  if (op === '>=') return itemVal >= expected;
+  if (op === '>') return itemVal > expected;
+  if (op === '<=') return itemVal <= expected;
+  if (op === '<') return itemVal < expected;
+  return itemVal === expected;
+}
+
 function loadMemoryStoreFromDisk() {
   try {
     if (fs.existsSync(PERSISTENT_DB_FILE)) {
