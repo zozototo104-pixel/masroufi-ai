@@ -3755,87 +3755,87 @@ export async function queryTransactions(args: any, userId: string, token: string
 }
 
 export async function wipeAllUserData(userId: string, token: string) {
-  const adminDb = getDb(token);
-  
-  // 1. Delete all transactions
-  try {
-    const txSnap = await adminDb.collection('transactions').where('userId', '==', userId).get();
-    for (const d of txSnap.docs) {
-      await adminDb.collection('transactions').doc(d.id).delete();
-    }
-  } catch (e) {}
+  // Root-cause fix: wipe must use the authoritative Admin Firestore client and
+  // must not swallow errors. The previous implementation used getDb(token) and
+  // empty catch blocks, so it could return success after deleting nothing.
+  const adminDb = firebaseAdminDb;
+  const deletedCounts: Record<string, number> = {};
 
-  // 2. Delete all commitments
-  try {
-    const commSnap = await adminDb.collection('commitments').where('userId', '==', userId).get();
-    for (const d of commSnap.docs) {
-      await adminDb.collection('commitments').doc(d.id).delete();
+  const deleteRefs = async (label: string, refs: any[]) => {
+    deletedCounts[label] = (deletedCounts[label] || 0) + refs.length;
+    let batch = adminDb.batch();
+    let opCount = 0;
+    for (const ref of refs) {
+      batch.delete(ref);
+      opCount += 1;
+      if (opCount >= 450) {
+        await batch.commit();
+        batch = adminDb.batch();
+        opCount = 0;
+      }
     }
-  } catch (e) {}
+    if (opCount > 0) await batch.commit();
+  };
 
-  // 3. Delete all reports
-  try {
-    const repSnap = await adminDb.collection('reports').where('userId', '==', userId).get();
-    for (const d of repSnap.docs) {
-      await adminDb.collection('reports').doc(d.id).delete();
-    }
-  } catch (e) {}
+  const deleteQuery = async (label: string, query: any) => {
+    const snap = await query.get();
+    if ((snap as any).partial === true) throw new Error(`WIPE_PARTIAL_READ:${label}`);
+    await deleteRefs(label, snap.docs.map((d: any) => d.ref));
+    return snap.docs.length;
+  };
 
-  // 4. Delete all user memories from the same canonical path used by memory_save/search/delete.
-  try {
-    const memSnap = await adminDb.collection('users').doc(userId).collection('memory').get();
-    for (const d of memSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('memory').doc(d.id).delete();
-    }
-  } catch (e) {}
+  const userDoc = adminDb.collection('users').doc(userId);
 
-  // 5. Delete all custom budgets
-  try {
-    const budgetSnap = await adminDb.collection('users').doc(userId).collection('budgets').get();
-    for (const d of budgetSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('budgets').doc(d.id).delete();
-    }
-  } catch (e) {}
+  await deleteQuery('transactions', adminDb.collection('transactions').where('userId', '==', userId));
+  await deleteQuery('commitments', adminDb.collection('commitments').where('userId', '==', userId));
+  await deleteQuery('reports', adminDb.collection('reports').where('userId', '==', userId));
+  await deleteQuery('notifications', userDoc.collection('notifications'));
+  await deleteQuery('memory', userDoc.collection('memory'));
+  await deleteQuery('budgets', userDoc.collection('budgets'));
+  await deleteQuery('marketDirectory', userDoc.collection('marketDirectory'));
+  await deleteQuery('salaryCycles', userDoc.collection('salaryCycles'));
+  await deleteQuery('savingsVaultAdjustments', userDoc.collection('savingsVaultAdjustments'));
+  await deleteQuery('meta', userDoc.collection('meta'));
+  await deleteQuery('treasurer', userDoc.collection('treasurer'));
 
-  // 6. Delete all savings goals
-  try {
-    const savingsSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').get();
-    for (const d of savingsSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(d.id).delete();
-    }
-  } catch (e) {}
+  const savingsSnap = await userDoc.collection('savingsGoals').get();
+  if ((savingsSnap as any).partial === true) throw new Error('WIPE_PARTIAL_READ:savingsGoals');
+  for (const goalDoc of savingsSnap.docs) {
+    await deleteQuery(`savingsGoals/${goalDoc.id}/contributions`, goalDoc.ref.collection('contributions'));
+  }
+  await deleteRefs('savingsGoals', savingsSnap.docs.map((d: any) => d.ref));
 
-  // 7. Delete all saved market directory offers
-  try {
-    const marketSnap = await adminDb.collection('users').doc(userId).collection('marketDirectory').get();
-    for (const d of marketSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('marketDirectory').doc(d.id).delete();
-    }
-  } catch (e) {}
+  const verify = async (label: string, query: any) => {
+    const snap = await query.limit(1).get();
+    return [label, snap.docs.length] as const;
+  };
+  const remainingEntries = await Promise.all([
+    verify('transactions', adminDb.collection('transactions').where('userId', '==', userId)),
+    verify('commitments', adminDb.collection('commitments').where('userId', '==', userId)),
+    verify('reports', adminDb.collection('reports').where('userId', '==', userId)),
+    verify('notifications', userDoc.collection('notifications')),
+    verify('memory', userDoc.collection('memory')),
+    verify('budgets', userDoc.collection('budgets')),
+    verify('savingsGoals', userDoc.collection('savingsGoals')),
+    verify('marketDirectory', userDoc.collection('marketDirectory')),
+    verify('salaryCycles', userDoc.collection('salaryCycles')),
+    verify('savingsVaultAdjustments', userDoc.collection('savingsVaultAdjustments')),
+    verify('meta', userDoc.collection('meta')),
+    verify('treasurer', userDoc.collection('treasurer')),
+  ]);
+  const remaining = Object.fromEntries(remainingEntries);
+  const verifiedEmpty = Object.values(remaining).every((count) => Number(count) === 0);
+  if (!verifiedEmpty) {
+    throw new Error(`WIPE_VERIFICATION_FAILED:${JSON.stringify(remaining)}`);
+  }
 
-  // 8. Delete derived meta/snapshot documents so no stale balances survive a wipe.
-  try {
-    const salaryCycleSnap = await adminDb.collection('users').doc(userId).collection('salaryCycles').get();
-    for (const d of salaryCycleSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('salaryCycles').doc(d.id).delete();
-    }
-    const vaultAdjustmentSnap = await adminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').get();
-    for (const d of vaultAdjustmentSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('savingsVaultAdjustments').doc(d.id).delete();
-    }
-  } catch (e) {}
-  try {
-    const metaSnap = await adminDb.collection('users').doc(userId).collection('meta').get();
-    for (const d of metaSnap.docs) {
-      await adminDb.collection('users').doc(userId).collection('meta').doc(d.id).delete();
-    }
-  } catch (e) {}
-
-  // 9. Wipe local disk & memoryStore cache so zero residual data exists
   clearAllLocalUserData(userId);
 
   return {
     success: true,
+    verifiedEmpty: true,
+    deletedCounts,
+    remaining,
     message: "تم مسح وتصفير كافة البيانات من النظام والذاكرة والسحابة بنجاح."
   };
 }
