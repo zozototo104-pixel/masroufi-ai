@@ -412,11 +412,13 @@ export async function getMarketDirectory(args: any, userId: string, token: strin
   const item = String(args.item || args.product || '').trim();
   const results = item ? await searchSavedMarketOffers(adminDb, userId, item, args.model) : [];
   if (item) return { success: true, item, results, count: results.length };
-  const snap = await adminDb.collection('users').doc(userId).collection('marketDirectory').get();
-  const offers = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => String(b.checkedAt || b.createdAt || '').localeCompare(String(a.checkedAt || a.createdAt || '')))
-    .slice(0, 100);
-  return { success: true, offers, count: offers.length };
+  const limit = Math.max(1, Math.min(300, Number(args.limit) || 100));
+  const snap = await adminDb.collection('users').doc(userId).collection('marketDirectory')
+    .orderBy('checkedAt', 'desc')
+    .limit(limit)
+    .get();
+  const offers = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, offers, count: offers.length, limit, partial: Boolean((snap as any).partial || offers.length >= limit) };
 }
 
 // V6.1: real local-market lookup with source-backed result model, freshness,
