@@ -2071,13 +2071,14 @@ ${relationshipContext}
               }
             }
           } catch (err: any) {
-            console.error("Failed to connect to Gemini Live:", err);
-            if (err?.message && err.message.includes("resource_exhausted")) {
-              safeSend({ error: "استنفدت حصة الذكاء الاصطناعي المجانية (Quota)" });
-            } else {
-              safeSend({ error: "تعذر الاتصال بالصوت المباشر حالياً" });
-            }
-            try { clientWs.close(1011, "gemini live failed"); } catch (e) { /* ignore */ }
+            const classified = classifyGeminiLiveError(err);
+            console.error("Failed to connect to Gemini Live:", { requestId, quotaExceeded: classified.quotaExceeded, code: classified.code, status: classified.status, message: err?.message });
+            safeSend({
+              error: classified.message,
+              liveQuotaExceeded: classified.quotaExceeded,
+              code: classified.code || classified.status || null,
+            });
+            try { clientWs.close(1011, classified.quotaExceeded ? "gemini live quota exceeded" : "gemini live failed"); } catch (e) { /* ignore */ }
           }
           return;
         }
