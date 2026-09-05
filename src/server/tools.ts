@@ -3308,13 +3308,23 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
   const now = new Date().toISOString();
   const cycleRef = firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').doc(period.cycleId);
   const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
+  const accountBalanceRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances');
+  const vaultLockRefs = {
+    cash: firebaseAdminDb.collection('transactions').doc(stableDocId(`${userId}:vault_lock:${period.cycleId}:cash`)),
+    palPay: firebaseAdminDb.collection('transactions').doc(stableDocId(`${userId}:vault_lock:${period.cycleId}:palPay`)),
+  };
 
   return firebaseAdminDb.runTransaction(async (tx: any) => {
     const existingSnap = await tx.get(cycleRef as any);
     const metaSnap = await tx.get(metaRef as any);
+    const accountBalanceSnap = await tx.get(accountBalanceRef as any);
+    const existingCashLockSnap = await tx.get(vaultLockRefs.cash as any);
+    const existingPalPayLockSnap = await tx.get(vaultLockRefs.palPay as any);
     const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
     const previousVaultContribution = roundMoney(Number(existing.vaultContribution || 0));
-    const nextVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
+    const requestedVaultContribution = period.status === 'closed' && summary.surplus > 0 ? roundMoney(summary.surplus) : 0;
+    const vaultLockAllocation = calculateVaultLockAllocations(readResult.transactions, requestedVaultContribution);
+    const nextVaultContribution = vaultLockAllocation.lockedTotal;
     const adjustmentDelta = roundMoney(nextVaultContribution - previousVaultContribution);
     let metaBootstrapCyclesRead = 0;
     let previousVaultBalance = roundMoney(Number(metaSnap.exists ? metaSnap.data()?.currentBalance : 0));
