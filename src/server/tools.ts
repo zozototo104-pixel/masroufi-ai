@@ -3013,7 +3013,11 @@ export async function getSavingsGoals(args: any, userId: string, token: string) 
   for (const goal of rawGoals) {
     let contributions: any[] = [];
     try {
-      const contributionSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(goal.id).collection('contributions').get();
+      const contributionSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(goal.id).collection('contributions')
+        .where('createdAt', '>=', savingsCycle.startIso)
+        .where('createdAt', '<', savingsCycle.endExclusiveIso)
+        .limit(100)
+        .get();
       contributions = contributionSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     } catch {}
     const plan = buildSavingsGoalPlan({ goal, transactions: txs, contributions, now });
