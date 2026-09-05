@@ -3509,8 +3509,9 @@ export async function repairSavingsVaultMeta(args: any, userId: string, token: s
     success: true,
     vaultBalance: repairedBalance,
     repairedCycleCount: cycles.length,
+    repairedAdjustmentCount: manualAdjustments.length,
     bounded: true,
-    readEfficiency: { salaryCycleDocsRead: cycles.length, transactionDocsRead: 0, limit: cycleLimit },
+    readEfficiency: { salaryCycleDocsRead: cycles.length, vaultAdjustmentDocsRead: manualAdjustments.length, transactionDocsRead: 0, limit: cycleLimit, adjustmentLimit },
   };
 }
 
