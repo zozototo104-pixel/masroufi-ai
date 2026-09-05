@@ -2626,23 +2626,27 @@ export async function repairDuplicateCreditPurchase(args: any, userId: string, t
   }
 
   const deleted: any[] = [];
+  let currentBalances: any = undefined;
   for (const group of groups.values()) {
     if (group.length <= 1) continue;
     group.sort((a: any, b: any) => String(a.createdAt || a.date || '').localeCompare(String(b.createdAt || b.date || '')));
     const keep = group[0];
     for (const dup of group.slice(1)) {
-      await adminDb.collection('transactions').doc(dup.id).delete();
+      const deletion = await atomicDeleteTransaction(userId, dup.id, { riskConfirmed: Boolean(args.riskConfirmed) });
+      if ('reason' in deletion) {
+        return { success: false, needsConfirmation: true, reason: deletion.reason, message: 'توقف إصلاح تكرار الشراء بالدين لأن حذف إحدى النسخ سيؤثر على الأرصدة. أكد المخاطرة أو راجع العملية يدوياً.', deleted };
+      }
+      currentBalances = deletion.balances;
       deleted.push({ id: dup.id, amount: dup.amount, creditor: dup.creditor, merchant: dup.merchant, date: dup.date, keptId: keep.id });
     }
   }
 
-  const balances = await getBalance({}, userId, token);
   return {
     success: true,
     deletedCount: deleted.length,
     deleted,
     message: deleted.length ? `حذفت ${deleted.length} قيد شراء بالدين مكرر وأبقيت النسخة الأصلية.` : 'لم أجد تكرار شراء بالدين مطابقاً للمعايير.',
-    currentBalances: balances.balances
+    currentBalances
   };
 }
 
