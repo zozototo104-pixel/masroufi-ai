@@ -293,16 +293,17 @@ test('HIST-03: short 27/6 salary date is accepted and belongs to July salary cyc
   if (arabicDigits.ok) assert.equal(arabicDigits.date, '2026-06-27T10:13:00.000Z');
 });
 
-test('INCOME-DATE-01: salary save uses normalized 27/6 date and atomic salary guard, not a preflight range query', async () => {
+test('INCOME-DATE-01: income save uses normalized 27/6 date and atomic guards, not a preflight range query', async () => {
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   const atomicSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8'));
   const addBlock = toolsSrc.slice(toolsSrc.indexOf('export async function addTransaction'), toolsSrc.indexOf('export async function queryTransactions'));
   assert.ok(addBlock.indexOf('const dateResult = normalizeHistoricalTransactionDate') < addBlock.indexOf('// Treasurer Mode: income must not be silently dumped into cash.'), 'addTransaction must normalize historical/short dates before income guards');
-  assert.ok(addBlock.includes('if (!salaryLikePreflight) try'), 'salary income must skip the Firestore range-query duplicate preflight');
+  assert.ok(addBlock.includes('Income writes must not depend on an index-sensitive date-range preflight query'), 'income writes must not depend on a Firestore range-query duplicate preflight');
   assert.ok(addBlock.includes('salaryIncomeGuards'), 'salary income must use a fixed guard document instead of a date-range query');
+  assert.ok(addBlock.includes('incomeGuards'), 'generic cash/PalPay income must use a fixed guard document too');
   assert.ok(addBlock.includes('getSalaryCycleForDate(dateResult.date'), 'salary guard must be based on the normalized 27→26 salary cycle');
-  assert.ok(addBlock.includes('uniqueGuard: salaryUniqueGuard'), 'salary guard must be applied inside the atomic write');
-  assert.ok(addBlock.includes('DUPLICATE_SALARY_INCOME'), 'duplicate salary guard must return a clear user-facing reason');
+  assert.ok(addBlock.includes('uniqueGuard: incomeUniqueGuard'), 'income guard must be applied inside the atomic write');
+  assert.ok(addBlock.includes('DUPLICATE_SALARY_INCOME') && addBlock.includes('POSSIBLE_DUPLICATE_INCOME'), 'duplicate income guards must return clear user-facing reasons');
   assert.ok(atomicSrc.includes('opts.uniqueGuard?.ref') && atomicSrc.includes('tx.set(opts.uniqueGuard.ref'), 'atomicAddTransaction must read/write the uniqueness guard in the same Firestore transaction');
 });
 
