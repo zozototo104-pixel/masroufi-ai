@@ -753,3 +753,46 @@ test('VAULT-15: budget partial fallback must not recompute calendar budgets from
   assert.ok(!appSrc.includes('We must recalculate spendings using our full local finalTx'), 'old unsafe fallback comment must not return');
 });
 
+test('READS-01: account balance deltas match canonical full-ledger reconstruction', () => {
+  const items = [
+    tx({ type: 'income', account: 'cash', amount: 1000 }),
+    tx({ type: 'expense', account: 'cash', amount: 125 }),
+    tx({ type: 'income', account: 'palPay', amount: 200 }),
+    tx({ type: 'expense', account: 'palPay', amount: 50 }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'palPay', amount: 300 }),
+    tx({ type: 'expense', account: 'debt', amount: 90 }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', amount: 40 }),
+  ];
+  const byDelta = items.reduce((balance: any, item: any) => addBalanceDelta(balance, txBalanceDelta(item)), { cash: 0, palPay: 0, debt: 0, total: 0 });
+  assert.deepEqual(byDelta, calculateBalances(items));
+});
+
+test('READS-02: transaction replacement delta updates balance without rereading ledger', () => {
+  const before = tx({ type: 'expense', account: 'cash', amount: 100 });
+  const after = { ...before, account: 'palPay', amount: 150 };
+  const starting = calculateBalances([tx({ type: 'income', account: 'cash', amount: 500 }), tx({ type: 'income', account: 'palPay', amount: 300 }), before]);
+  const updated = addBalanceDelta(starting, transactionReplacementDelta(before, after));
+  assert.deepEqual(updated, calculateBalances([tx({ type: 'income', account: 'cash', amount: 500 }), tx({ type: 'income', account: 'palPay', amount: 300 }), after]));
+});
+
+test('READS-03: daily financial mutations must use account balance snapshots instead of full-ledger reads', async () => {
+  const atomicSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/atomicOps.ts'), 'utf8'));
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(atomicSrc.includes("collection('meta').doc('accountBalances')"), 'atomic mutations must use account balance snapshot doc');
+  assert.ok(atomicSrc.includes('bootstrap_full_ledger'), 'full-ledger balance reads must be isolated to one-time bootstrap/repair');
+  assert.ok(atomicSrc.includes('transactionReplacementDelta'), 'financial updates must apply replacement deltas');
+  assert.ok(toolsSrc.includes('source: \'accountBalances\''), 'getBalance must read accountBalances snapshot normally');
+  assert.ok(toolsSrc.includes('repairAccountBalanceSnapshot'), 'there must be an explicit reconciliation path');
+  assert.ok(toolsSrc.includes('PALPAY_ATOMIC_WRITE_FAILED'), 'PalPay payments must not bypass atomic writes');
+});
+
+test('READS-04: common tools must not contain unbounded user transaction scans', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('SMART_DELETE_REQUIRES_ID_OR_MORE_DETAILS'), 'smart delete must use bounded search and request details');
+  assert.ok(toolsSrc.includes('MISSING_CREDITOR_BOUNDED'), 'payDebt without creditor must not scan the whole ledger');
+  assert.ok(toolsSrc.includes('FULL_LEDGER_REPORT_REQUIRES_CONFIRMATION'), 'all-history treasurer report must require explicit confirmation');
+  assert.ok(toolsSrc.includes('REPAIR_DUPLICATE_INCOME_QUERY_UNCERTAIN'), 'duplicate income repair must use bounded date windows');
+  assert.ok(toolsSrc.includes('REPAIR_DUPLICATE_CREDIT_QUERY_UNCERTAIN'), 'duplicate credit repair must use bounded date windows');
+  assert.ok(toolsSrc.includes('orderBy(\'dueDate\', \'asc\')'), 'commitments endpoint must be paginated/order-bounded');
+});
+
