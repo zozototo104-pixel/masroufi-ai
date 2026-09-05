@@ -1,16 +1,27 @@
 # Manual CI verification trigger
 
-Verify real fix for expert not responding.
+Verify salary cycle navigation and bounded delete UI.
+
+User need:
+- navigate between salary cycles/months
+- view income and expense line items for a selected 27→26 cycle
+- see vault contribution for that cycle
+- delete one salary cycle's transactions only, after explicit confirmation
 
 Changes:
-- client buffers early microphone frames before Gemini live_ready instead of dropping them
-- client flushes buffered frames after live_ready
-- output AudioContext resumes again when Gemini audio arrives
-- client handles liveError/liveClosed explicitly
-- server logs when live_ready is sent
+- getSalaryCycleDetails backend tool/API
+- deleteSalaryCycleTransactions backend tool/API
+- atomicDeleteTransactions balance-aware helper
+- Vault UI cycle picker with current + 12 previous local cycles
+- cycle details panel for income/expenses/vault contribution
+- bounded selected-cycle delete action
 
-Also verify:
-- PalPay income guard path remains intact
-- install/audit/tests/TypeScript/build/runtime smoke all pass
+Expected gates:
+- install
+- audit
+- tests
+- TypeScript
+- build
+- runtime smoke
 
-Timestamp: 2026-09-05T17:14:00+03:00
+Timestamp: 2026-09-05T21:02:00+03:00
