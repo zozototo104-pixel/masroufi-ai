@@ -1,12 +1,12 @@
 # Manual CI verification trigger
 
-Savings Vault final verification requested after implementation changes and CI report race.
+Final verification requested after architecture/functional risk fixes.
 
-Latest feature scope:
-- Salary Cycle 27→26
-- Savings Vault summaries
-- bounded Firestore reads
-- Live refresh de-duplication and scoped refresh
-- regression tests
+Risk fixes included:
+- Savings Vault cycle + meta commit moved to Firestore transaction
+- no authoritative vault writes on partial/fallback reads
+- no authoritative vault writes when cycle query reaches its limit
+- missing vault meta bootstraps from salaryCycles, not from a limited history page
+- salary cycle comparison handles failed first/second cycle safely
 
-Timestamp: 2026-09-05T05:05:00Z
+Timestamp: 2026-09-05T05:35:00Z
