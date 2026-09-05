@@ -522,6 +522,15 @@ export default function App() {
     };
 
     const fetchData = async () => {
+      if (dashboardRefreshInFlightRef.current) {
+        console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
+        return;
+      }
+      if (Date.now() < firestoreQuotaCooldownUntilRef.current) {
+        await applyCachedDashboardData();
+        return;
+      }
+      dashboardRefreshInFlightRef.current = true;
       try {
         const currentToken = await getFreshDashboardToken();
         const headers = { 'Authorization': `Bearer ${currentToken}` };
