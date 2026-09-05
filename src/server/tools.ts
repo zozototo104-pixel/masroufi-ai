@@ -3554,9 +3554,12 @@ export async function repairSavingsVaultMeta(args: any, userId: string, token: s
       readEfficiency: { salaryCycleDocsRead: cycles.length, vaultAdjustmentDocsRead: manualAdjustments.length, transactionDocsRead: 0, limit: cycleLimit, adjustmentLimit },
     };
   }
-  const repairedBalance = roundMoney(
-    cycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0)
-    + manualAdjustments.reduce((sum: number, a: any) => sum + Number(a.amount || 0), 0)
+  const cycleVaultTotal = roundMoney(cycles.reduce((sum: number, c: any) => sum + Number(c.vaultContribution || 0), 0));
+  const manualAdjustmentTotalIls = roundMoney(manualAdjustments.reduce((sum: number, a: any) => sum + Number(a.amountIlsEquivalent ?? a.amount ?? 0), 0));
+  const repairedBalance = roundMoney(cycleVaultTotal + manualAdjustmentTotalIls);
+  const repairedBalanceByCurrency = manualAdjustments.reduce(
+    (map: Record<string, number>, adjustment: any) => mergeVaultCurrencyDeltas(map, deriveVaultAdjustmentCurrencyDelta(adjustment)),
+    cycleVaultTotal > 0 ? { ILS: cycleVaultTotal } : {} as Record<string, number>,
   );
   const metaRef = firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault');
   await firebaseAdminDb.runTransaction(async (tx: any) => {
