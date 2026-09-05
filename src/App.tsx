@@ -3027,26 +3027,42 @@ export default function App() {
             </div>
 
             <div className="mb-4 bg-slate-950/70 border border-cyan-500/20 rounded-2xl p-4">
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-end sm:justify-between">
-                <div className="flex-1">
-                  <label className="block text-xs text-slate-400 mb-1">اختر دورة راتب للمعاينة</label>
-                  <select
-                    value={selectedVaultCycleId || vaultData?.currentCycle?.cycleId || ''}
-                    onChange={(e) => loadVaultCycleDetails(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                  >
-                    {vaultCycleOptions.map((cycle: any) => (
-                      <option key={cycle.cycleId || cycle.id} value={cycle.cycleId || cycle.id}>{cycle.name || cycle.cycleId} · {cycle.cycleStart} → {cycle.cycleEnd}</option>
-                    ))}
-                  </select>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => navigateVaultCycle('previous')} disabled={isVaultCycleLoading || selectedVaultCycleIndex >= vaultCycleOptions.length - 1} className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold disabled:opacity-40">
+                    الشهر السابق
+                  </button>
+                  <div className="flex-1 text-center bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-3 py-2">
+                    <p className="text-[11px] text-cyan-200">الدورة المختارة</p>
+                    <p className="text-sm font-black text-white">{selectedVaultCycleDetails?.period?.name || selectedVaultCycleOption?.name || 'دورة الراتب'}</p>
+                    <p className="text-[11px] text-slate-400">{selectedVaultCycleDetails?.period?.cycleStart || selectedVaultCycleOption?.cycleStart || '—'} → {selectedVaultCycleDetails?.period?.cycleEnd || selectedVaultCycleOption?.cycleEnd || '—'}</p>
+                  </div>
+                  <button onClick={() => navigateVaultCycle('next')} disabled={isVaultCycleLoading || selectedVaultCycleIndex <= 0} className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold disabled:opacity-40">
+                    الشهر التالي
+                  </button>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => loadVaultCycleDetails()} disabled={isVaultCycleLoading} className="px-3 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-bold disabled:opacity-50">
-                    {isVaultCycleLoading ? 'جارٍ التحميل...' : 'عرض البنود'}
-                  </button>
-                  <button onClick={deleteSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-bold disabled:opacity-50 flex items-center gap-1">
-                    <Trash2 className="w-3 h-3" /> حذف هذه الدورة
-                  </button>
+
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-end sm:justify-between">
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-400 mb-1">اختر دورة راتب للمعاينة</label>
+                    <select
+                      value={selectedVaultCycleId || vaultData?.currentCycle?.cycleId || ''}
+                      onChange={(e) => loadVaultCycleDetails(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                    >
+                      {vaultCycleOptions.map((cycle: any) => (
+                        <option key={cycle.cycleId || cycle.id} value={cycle.cycleId || cycle.id}>{cycle.name || cycle.cycleId} · {cycle.cycleStart} → {cycle.cycleEnd}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => loadVaultCycleDetails()} disabled={isVaultCycleLoading} className="px-3 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-bold disabled:opacity-50">
+                      {isVaultCycleLoading ? 'جارٍ التحميل...' : 'عرض البنود'}
+                    </button>
+                    <button onClick={deleteSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-bold disabled:opacity-50 flex items-center gap-1">
+                      <Trash2 className="w-3 h-3" /> حذف هذه الدورة
+                    </button>
+                  </div>
                 </div>
               </div>
               {vaultCycleMessage && <p className="mt-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">{vaultCycleMessage}</p>}
