@@ -1,11 +1,6 @@
-name: Restore tools.ts
+name: Restore tools.ts manual rescue
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .ci/restore-tools-trigger.md
   workflow_dispatch:
 
 permissions:
