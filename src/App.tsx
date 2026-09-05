@@ -150,11 +150,14 @@ export default function App() {
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
   const [vaultCycleMessage, setVaultCycleMessage] = useState<string>('');
   const localSalaryCycleOptions = buildLocalSalaryCycleOptions(12);
-  const vaultCycleOptions = Array.from(new Map([
-    ...(vaultData?.currentCycle?.cycleId ? [[vaultData.currentCycle.cycleId, vaultData.currentCycle]] : []),
-    ...localSalaryCycleOptions.map((cycle: any) => [cycle.cycleId, cycle]),
-    ...(vaultData?.cycles || []).map((cycle: any) => [cycle.cycleId || cycle.id, cycle]),
-  ].filter(([id]) => Boolean(id))).values());
+  const vaultCycleMap = new Map<string, any>();
+  if (vaultData?.currentCycle?.cycleId) vaultCycleMap.set(vaultData.currentCycle.cycleId, vaultData.currentCycle);
+  localSalaryCycleOptions.forEach((cycle: any) => vaultCycleMap.set(cycle.cycleId, cycle));
+  (vaultData?.cycles || []).forEach((cycle: any) => {
+    const id = String(cycle.cycleId || cycle.id || '').trim();
+    if (id) vaultCycleMap.set(id, cycle);
+  });
+  const vaultCycleOptions: any[] = Array.from(vaultCycleMap.values());
   const refreshDebounceRef = useRef<number | null>(null);
 
   // Helper to extract relevant transactions for a report dynamically and strictly
