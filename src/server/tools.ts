@@ -1895,8 +1895,13 @@ export async function searchMarketInformation(args: any, userId: string, token: 
 
 export async function repairAccountBalanceSnapshot(args:any,userId:string,token:string){
   try {
-    const txSnap = await firebaseAdminDb.collection('transactions').where('userId','==',userId).get();
-    const balances = calculateBalancesFromDocs(txSnap.docs);
+    const [txSnap, vaultMetaSnap] = await Promise.all([
+      firebaseAdminDb.collection('transactions').where('userId','==',userId).get(),
+      firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('savingsVault').get(),
+    ]);
+    const ledgerBalances = calculateBalancesFromDocs(txSnap.docs);
+    const vaultMetaBalance = vaultMetaSnap.exists ? roundMoney(Number(vaultMetaSnap.data()?.currentBalance || 0)) : null;
+    const balances = { ...ledgerBalances, vault: vaultMetaBalance !== null ? vaultMetaBalance : roundMoney(Number(ledgerBalances.vault || 0)), total: roundMoney(Number(ledgerBalances.cash || 0) + Number(ledgerBalances.palPay || 0)) };
     const now = new Date().toISOString();
     await firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances').set({
       userId,
