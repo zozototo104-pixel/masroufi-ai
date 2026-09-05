@@ -3358,6 +3358,24 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
         delta: adjustmentDelta,
       });
     }
+
+    const existingLockTxs = {
+      cash: existingCashLockSnap.exists ? { id: vaultLockRefs.cash.id, ...(existingCashLockSnap.data() || {}) } : null,
+      palPay: existingPalPayLockSnap.exists ? { id: vaultLockRefs.palPay.id, ...(existingPalPayLockSnap.data() || {}) } : null,
+    };
+    const nextLockTxs = {
+      cash: vaultLockAllocation.cash > 0 ? vaultLockTransactionForCycle(userId, period, 'cash', vaultLockAllocation.cash, now, existingLockTxs.cash?.createdAt) : null,
+      palPay: vaultLockAllocation.palPay > 0 ? vaultLockTransactionForCycle(userId, period, 'palPay', vaultLockAllocation.palPay, now, existingLockTxs.palPay?.createdAt) : null,
+    };
+    const bootstrappedBalances = accountBalanceSnap.exists
+      ? null
+      : calculateBalances(((balanceBootstrapSnap as any)?.docs || []).map((d: any) => ({ id: d.id, ...d.data() })));
+    const baseAccountBalances = accountBalanceSnap.exists
+      ? normalizeAccountBalanceSnapshotForVault(accountBalanceSnap.data() || {})
+      : bootstrappedBalances;
+    const balanceAfterCashLock = addBalanceDelta(baseAccountBalances, transactionReplacementDelta(existingLockTxs.cash, nextLockTxs.cash));
+    const nextAccountBalances = addBalanceDelta(balanceAfterCashLock, transactionReplacementDelta(existingLockTxs.palPay, nextLockTxs.palPay));
+
     const record = {
       userId,
       cycleId: period.cycleId,
