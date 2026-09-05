@@ -288,6 +288,46 @@ export async function atomicDeleteTransaction(
   });
 }
 
+export async function atomicDeleteTransactions(
+  userId: string,
+  transactionIds: string[],
+  opts: { riskConfirmed?: boolean; guardRefs?: any[]; reason?: string } = {}
+): Promise<{ ok: true; deleted: any[]; balances: BalanceSnapshot; balanceReadSource: string } | { ok: false; reason: string; balances?: any; found?: number; requested?: number }> {
+  const ids = Array.from(new Set((transactionIds || []).map(id => String(id || '').trim()).filter(Boolean)));
+  if (ids.length === 0) return { ok: false, reason: 'NO_TRANSACTIONS_SELECTED', found: 0, requested: 0 };
+  if (ids.length > 430) return { ok: false, reason: 'BULK_DELETE_LIMIT_EXCEEDED', found: ids.length, requested: ids.length };
+
+  return adminDb.runTransaction(async (tx: any) => {
+    const snapshot = await readOrBootstrapBalanceSnapshot(tx, userId);
+    const refs = ids.map(id => adminDb.collection('transactions').doc(id));
+    const snaps = await Promise.all(refs.map(ref => tx.get(ref)));
+    const deleted = snaps.map((snap: any, index: number) => {
+      if (!snap.exists || snap.data()?.userId !== userId) return null;
+      return { id: ids[index], ...(snap.data() || {}) };
+    }).filter(Boolean) as any[];
+    if (deleted.length !== ids.length) {
+      return { ok: false, reason: 'BULK_DELETE_TARGET_CHANGED', found: deleted.length, requested: ids.length };
+    }
+
+    const delta = deleted.reduce((sum: AccountBalanceDelta, item: any) => addBalanceDelta(sum, transactionReplacementDelta(item, null)), zeroBalanceDelta());
+    const balances = addBalanceDelta(snapshot.balances, delta);
+    const negative = negativeBalanceFailure(balances, opts.riskConfirmed);
+    if (negative) return negative;
+
+    refs.forEach(ref => tx.delete(ref));
+    for (const guardRef of opts.guardRefs || []) {
+      if (guardRef) tx.delete(guardRef);
+    }
+    tx.set(snapshot.ref, balanceSnapshotPayload(userId, balances, 'atomic_delete_transactions', {
+      deletedTransactionCount: deleted.length,
+      balanceReadSource: snapshot.source,
+      bootstrapLedgerDocsRead: snapshot.ledgerDocsRead,
+      reason: opts.reason || 'bulk_delete',
+    }), { merge: true });
+    return { ok: true, deleted, balances, balanceReadSource: snapshot.source };
+  });
+}
+
 export async function atomicAddTransactions(
   userId: string,
   newTransactions: any[],
