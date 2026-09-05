@@ -1094,9 +1094,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     message: writeResult!.durability === 'committed'
       ? `تم حفظ القيد في السحابة بقيمة ${amount} ₪.`
       : undefined,
-    balanceWarning: balances.partial && writeResult!.durability === 'committed'
-      ? 'تم حفظ القيد سحابياً، لكن قراءة الرصيد بعد الحفظ كانت جزئية؛ حدّث الصفحة إذا لم يظهر الرصيد فوراً.'
-      : undefined,
+    balanceWarning: undefined,
     pendingReason: writeResult!.pending ? 'CLOUD_STORAGE_NOT_CONFIRMED' : undefined,
     pendingError: writeResult!.pending ? writeResult!.error : undefined,
     userFacingPendingMessage: writeResult!.pending
