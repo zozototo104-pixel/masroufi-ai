@@ -1012,7 +1012,8 @@ test('LIVE-01: voice path prevents duplicate expert playback and echo feedback l
   assert.ok(liveSrc.includes('if (!liveReadyRef.current)'), 'client must not send microphone audio before Gemini is ready');
   assert.ok(liveSrc.includes('responseWatchdogRef'), 'client must detect mic-sent/no-audio-return silence after readiness');
   assert.ok(liveSrc.includes('receivedAudioFramesRef.current === 0'), 'watchdog must only fire when no Live audio returns');
-  assert.ok(liveSrc.includes('الصوت متصل والمايك يرسل'), 'client must show a clear no-response message instead of silent failure');
+  assert.equal(liveSrc.includes('الصوت متصل والمايك يرسل'), false, 'client must not show the noisy no-audio watchdog message to users');
+  assert.ok(liveSrc.includes("console.warn('[live] microphone frames were sent but no Gemini audio has returned yet'"), 'no-audio watchdog must be diagnostic-only');
   assert.ok(liveSrc.includes('source.disconnect()'), 'stopped playback sources must be disconnected');
   assert.ok(serverSrc.includes('type: "live_ready"'), 'server must tell the client when Gemini Live is connected');
   assert.ok(serverSrc.includes('aiOutputActive = true'), 'server must mark AI audio output as active when forwarding voice');
