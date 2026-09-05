@@ -3417,6 +3417,151 @@ export async function getSalaryCycleSummary(args: any, userId: string, token: st
   };
 }
 
+function summarizeCycleTransactionLists(transactions: any[]) {
+  const income: any[] = [];
+  const expenses: any[] = [];
+  const transfers: any[] = [];
+  const debtBorrowing: any[] = [];
+  const byCategory: Record<string, { count: number; totalAmount: number }> = {};
+
+  for (const tx of transactions || []) {
+    const amount = parsePositiveFinancialAmount(tx.amount);
+    const type = String(tx.type || '');
+    const category = String(tx.category || 'غير مصنف');
+    const transactionType = String(tx.transactionType || '');
+    const item = {
+      id: tx.id,
+      date: tx.date || tx.createdAt || '',
+      amount,
+      type,
+      account: normalizeAccount(tx.account || tx.toAccount || tx.fromAccount),
+      category,
+      subcategory: tx.subcategory || '',
+      merchant: tx.merchant || '',
+      notes: tx.notes || '',
+      transactionType,
+    };
+    if (transactionType === 'DEBT_BORROWING') {
+      debtBorrowing.push(item);
+      continue;
+    }
+    if (type === 'transfer' || category === 'تحويل' || category === 'تحويل داخلي') {
+      transfers.push(item);
+      continue;
+    }
+    if (type === 'income') income.push(item);
+    if (type === 'expense') {
+      expenses.push(item);
+      byCategory[category] = byCategory[category] || { count: 0, totalAmount: 0 };
+      byCategory[category].count += 1;
+      byCategory[category].totalAmount = roundMoney(byCategory[category].totalAmount + amount);
+    }
+  }
+  return { income, expenses, transfers, debtBorrowing, byCategory };
+}
+
+function incomeGuardRefForTransaction(userId: string, tx: any, now: Date) {
+  if (String(tx?.type || '') !== 'income') return null;
+  const amount = parsePositiveFinancialAmount(tx.amount);
+  const account = normalizeAccount(tx.account || 'cash');
+  const category = String(tx.category || 'دخل');
+  const subcategory = String(tx.subcategory || '');
+  const notes = String(tx.notes || '');
+  const isSalary = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes}`);
+  if (isSalary) {
+    const cycle = getSalaryCycleForDate(tx.date || tx.createdAt, now);
+    return firebaseAdminDb.collection('users').doc(userId).collection('salaryIncomeGuards').doc(stableDocId(`${cycle.cycleId}:${account}:${amount}`));
+  }
+  const dateKey = String(tx.date || tx.createdAt || '').slice(0, 10);
+  return firebaseAdminDb.collection('users').doc(userId).collection('incomeGuards').doc(stableDocId(`income:${dateKey}:${account}:${amount}:${category}:${subcategory}`));
+}
+
+export async function getSalaryCycleDetails(args: any, userId: string, token: string) {
+  const period = resolveSalaryCycleFromArgs(args || {}, new Date());
+  const detailLimit = Math.max(1, Math.min(SALARY_CYCLE_TRANSACTION_QUERY_LIMIT, Number(args?.limit) || 500));
+  const [readResult, cycleSnap] = await Promise.all([
+    readTransactionsForSalaryCycle(period, userId, token, detailLimit),
+    firebaseAdminDb.collection('users').doc(userId).collection('salaryCycles').doc(period.cycleId).get(),
+  ]);
+  const summary = summarizeSalaryCycleTransactions(readResult.transactions);
+  const lists = summarizeCycleTransactionLists(readResult.transactions);
+  const cycleDoc = cycleSnap.exists ? (cycleSnap.data() || {}) : null;
+  return {
+    success: !readResult.partial && !readResult.boundedFallback,
+    partial: Boolean(readResult.partial || readResult.boundedFallback || readResult.limitReached),
+    reason: readResult.limitReached ? 'SALARY_CYCLE_DETAILS_LIMIT_REACHED' : readResult.error || null,
+    period,
+    salaryCycle: cycleDoc ? { id: period.cycleId, ...cycleDoc } : null,
+    summary,
+    vaultContribution: roundMoney(Number(cycleDoc?.vaultContribution || 0)),
+    cumulativeVaultBalance: roundMoney(Number(cycleDoc?.cumulativeVaultBalance || 0)),
+    income: lists.income,
+    expenses: lists.expenses,
+    transfers: lists.transfers,
+    debtBorrowing: lists.debtBorrowing,
+    byCategory: lists.byCategory,
+    counts: {
+      total: readResult.transactions.length,
+      income: lists.income.length,
+      expenses: lists.expenses.length,
+      transfers: lists.transfers.length,
+      debtBorrowing: lists.debtBorrowing.length,
+    },
+    bounded: true,
+    query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    readEfficiency: { transactionDocsRead: readResult.transactions.length, salaryCycleDocsRead: 1, limit: readResult.limit },
+  };
+}
+
+export async function deleteSalaryCycleTransactions(args: any, userId: string, token: string) {
+  const confirmed = args?.confirm === true || args?.confirmation === 'DELETE_SALARY_CYCLE' || args?.confirmation === 'حذف دورة الراتب';
+  const period = resolveSalaryCycleFromArgs(args || {}, new Date());
+  if (!confirmed) {
+    return {
+      success: false,
+      needsConfirmation: true,
+      reason: 'DELETE_SALARY_CYCLE_REQUIRES_CONFIRMATION',
+      message: `سيتم حذف معاملات دورة الراتب ${period.name} فقط (${period.cycleStart} → ${period.cycleEnd}). أرسل confirmation=DELETE_SALARY_CYCLE للتأكيد.`,
+      period,
+    };
+  }
+  const deleteLimit = Math.max(1, Math.min(430, Number(args?.limit) || 300));
+  const readResult = await readTransactionsForSalaryCycle(period, userId, token, deleteLimit);
+  if (readResult.partial || readResult.boundedFallback || readResult.limitReached) {
+    return {
+      success: false,
+      retryable: true,
+      partial: true,
+      bounded: true,
+      reason: readResult.limitReached ? 'SALARY_CYCLE_DELETE_LIMIT_REACHED' : 'AUTHORITATIVE_FIRESTORE_READ_REQUIRED',
+      message: readResult.limitReached
+        ? `الدورة تحتوي ${readResult.transactions.length} معاملة أو أكثر. لن أحذفها دفعة واحدة حتى لا نكسر الذرية. احذف على دفعات أصغر أو ارفع الحد بعد مراجعة.`
+        : 'لن أحذف دورة راتب من قراءة غير مؤكدة من Firestore. هذا يمنع حذف بيانات خاطئة أو جزئية.',
+      period,
+      query: { collection: 'transactions', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    };
+  }
+  const transactionIds = readResult.transactions.map((tx: any) => tx.id).filter(Boolean);
+  const now = new Date();
+  const guardRefs = readResult.transactions.map((tx: any) => incomeGuardRefForTransaction(userId, tx, now)).filter(Boolean);
+  const deleteResult = await atomicDeleteTransactions(userId, transactionIds, { guardRefs, reason: `delete_salary_cycle:${period.cycleId}` });
+  if (!deleteResult.ok) {
+    return { success: false, reason: deleteResult.reason, period, found: (deleteResult as any).found, requested: (deleteResult as any).requested };
+  }
+  const recalculated = await recalculateSalaryCycle({ __period: period, reason: 'delete_salary_cycle_transactions' }, userId, token);
+  return {
+    success: true,
+    period,
+    deletedCount: transactionIds.length,
+    deletedTransactionIds: transactionIds,
+    balances: deleteResult.balances,
+    recalculated,
+    bounded: true,
+    query: { collection: 'transactions', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
+    readEfficiency: { transactionDocsRead: readResult.transactions.length, guardDocsDeleted: guardRefs.length, atomicTransactionReads: transactionIds.length + 1 },
+  };
+}
+
 export async function addSavingsVaultAdjustment(args: any, userId: string, token: string) {
   const entries = normalizeVaultAdjustmentEntries(args);
   if (!entries.length) {
