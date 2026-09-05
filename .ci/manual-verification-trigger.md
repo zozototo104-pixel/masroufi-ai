@@ -1,13 +1,13 @@
 # Manual CI verification trigger
 
-Verification requested after auditing AI Studio notes against current main.
+Verification requested after global Firestore reads fixes based on AI Studio notes.
 
-Risk fixes included:
-- budget partial fallback no longer publishes sampled or mixed-period totals
-- UI no longer recomputes calendar budgets from salary-cycle transaction slices
-- income duplicate guard is month-bounded instead of full-ledger
-- budget warning side-effect is month/category-bounded when no pre-read ledger exists
-- vault spendable balance is displayed separately from cash/PalPay/debt
-- bounded idempotent repair path for stale savingsVault meta
+Scope:
+- account balance snapshot for daily financial mutations
+- getBalance O(1) snapshot read with explicit repair/bootstrap
+- expense/update/delete/payDebt/PalPay paths avoid full-ledger reads
+- bounded financial decision context, treasurer report, duplicate audit, duplicate repairs, commitments
+- import rebuilds account balance snapshot and clears stale snapshot if repair fails
+- regression tests READS-* added
 
-Timestamp: 2026-09-05T06:05:00Z
+Timestamp: 2026-09-05T07:05:00Z
