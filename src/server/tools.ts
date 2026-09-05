@@ -817,61 +817,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
   let preUserBudgets: Record<string, number> | null = null;
 
   if (type === 'income') {
-    const salaryLikePreflight = /راتب|salary|قبض/i.test(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''} ${args.userText || ''}`);
-    if (!salaryLikePreflight) try {
-      const incomeGuardCandidateDate = new Date(dateResult.date);
-      const incomeGuardNow = Number.isNaN(incomeGuardCandidateDate.getTime()) ? transactionNow : incomeGuardCandidateDate;
-      const isSalaryLike = false;
-      const incomeGuardCycle = isSalaryLike ? getSalaryCycleForDate(dateResult.date, incomeGuardNow) : null;
-      const incomeGuardMonth = incomeGuardNow.toISOString().slice(0, 7);
-      const incomeGuardMonthStart = incomeGuardCycle?.startIso || `${incomeGuardMonth}-01T00:00:00.000Z`;
-      const incomeGuardNextMonthDate = new Date(Date.UTC(incomeGuardNow.getUTCFullYear(), incomeGuardNow.getUTCMonth() + 1, 1));
-      const incomeGuardNextMonthStart = incomeGuardCycle?.endExclusiveIso || `${incomeGuardNextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
-      preTxSnapshot = await adminDb.collection('transactions')
-        .where('userId', '==', userId)
-        .where('date', '>=', incomeGuardMonthStart)
-        .where('date', '<', incomeGuardNextMonthStart)
-        .get();
-      if ((preTxSnapshot as any).partial === true) {
-        return {
-          success: false,
-          retryable: true,
-          reason: 'PARTIAL_STATE_UNSAFE',
-          message: 'لا أستطيع تسجيل دخل الآن لأن حالة السحابة غير مؤكدة. لن أسجل راتباً قد يتكرر أو يضيع حتى يرجع Firestore مؤكداً.',
-        };
-      }
-      const existingIncome = preTxSnapshot.docs.map((d:any)=>({ id: d.id, ...d.data() }));
-      const nowTime = Date.now();
-      const sameIncome = existingIncome
-        .filter((t:any) => t.type === 'income' && Math.abs(parsePositiveFinancialAmount(t.amount) - amount) < 0.01 && t.account === account)
-        .filter((t:any) => {
-          const ts = new Date(t.date || t.createdAt || 0).getTime();
-          if (!Number.isFinite(ts)) return false;
-          const sameDay = new Date(ts).toISOString().slice(0, 10) === incomeGuardNow.toISOString().slice(0, 10);
-          const sameSalaryCycle = isSalaryLike && incomeGuardCycle
-            ? getSalaryCycleForDate(t.date || t.createdAt || 0, incomeGuardNow).cycleId === incomeGuardCycle.cycleId
-            : new Date(ts).toISOString().slice(0, 7) === incomeGuardNow.toISOString().slice(0, 7);
-          return (nowTime - ts <= 30 * 60 * 1000) || sameSalaryCycle || sameDay;
-        });
-      if (sameIncome.length > 0 && !args.duplicateConfirmed) {
-        return {
-          success: false,
-          needsConfirmation: true,
-          reason: 'POSSIBLE_DUPLICATE_INCOME',
-          message: `انتبه يا كبير: يوجد دخل/راتب بنفس المبلغ ${amount} ₪ على نفس الحساب مسجل قريباً. لن أكرره حتى تؤكد أنه دخل آخر وليس تكراراً.`,
-          duplicateOf: sameIncome[0]?.id,
-          matches: sameIncome.slice(0, 3).map((t:any) => ({ id: t.id, amount: t.amount, account: t.account, date: t.date, category: t.category, subcategory: t.subcategory }))
-        };
-      }
-    } catch (incomePreErr) {
-      console.error('Income duplicate guard unavailable:', incomePreErr);
-      return {
-        success: false,
-        retryable: true,
-        reason: 'INCOME_DUPLICATE_GUARD_UNAVAILABLE',
-        message: 'لم أستطع التحقق من عدم تكرار الدخل في السحابة، لذلك لن أسجل الراتب حتى لا يتضاعف الرصيد.'
-      };
-    }
+    // Income writes must not depend on an index-sensitive date-range preflight query.
+    // Duplicate protection is applied below with a fixed guard document inside
+    // atomicAddTransaction, so cash and PalPay income follow the same safe path.
   }
 
   if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch) {
