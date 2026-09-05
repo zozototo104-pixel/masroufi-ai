@@ -1264,22 +1264,13 @@ export async function generateReport(args: any, userId: string, token: string) {
     return { success: false, retryable: true, partial: true, reason: 'REPORT_QUERY_INCOMPLETE', message: 'لم أحفظ التقرير لأن قراءة الفترة جزئية أو وصلت حدها. استخدم فترة أصغر أو pagination حتى لا أعطي تقريراً ناقصاً.' };
   }
 
-  // 1. First attempt: filter by category and timeframe
+  // 1. First attempt: category/type/subcategory filtering after the Firestore date window.
+  // Date filtering is already pushed into Firestore so salary-cycle months are not
+  // accidentally re-filtered as calendar months in Node.js.
   let filtered = allUserTxs.filter((t: any) => {
-    if (categoryQuery && !matchesArabicCategory(t, categoryQuery)) {
-      return false;
-    }
-    
-    if (timeframe === 'today') {
-      const today = now.toISOString().split('T')[0];
-      return (t.date || t.createdAt || '').startsWith(today);
-    } else if (timeframe === 'week') {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return new Date(t.date || t.createdAt || now) >= weekAgo;
-    } else if (timeframe === 'month') {
-      const thisMonth = now.toISOString().slice(0, 7);
-      return (t.date || t.createdAt || '').startsWith(thisMonth);
-    }
+    if (categoryQuery && !matchesArabicCategory(t, categoryQuery)) return false;
+    if (subcategoryQuery && !matchesArabicCategory({ category: t.subcategory || '', subcategory: t.subcategory || '', notes: t.notes || '' }, subcategoryQuery)) return false;
+    if (typeQuery && t.type !== typeQuery) return false;
     return true;
   });
 
