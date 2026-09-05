@@ -1647,6 +1647,8 @@ ${relationshipContext}
   }
 }
 
+const activeLiveSocketsByUser = new Map<string, WebSocket>();
+
 function setupLiveApi(wss: WebSocketServer) {
   wss.on("connection", (clientWs: WebSocket, req) => {
     console.log("Client connected to /live");
