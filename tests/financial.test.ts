@@ -1052,6 +1052,8 @@ test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bo
   assert.ok(appSrc.includes('دورات الراتب'), 'dashboard card must make the salary-cycle entry point explicit');
   assert.ok(appSrc.includes('loadVaultCycleDetails'), 'Vault UI must load one selected cycle details on demand');
   assert.ok(appSrc.includes('deleteSelectedVaultCycle'), 'Vault UI must expose a bounded selected-cycle delete action');
+  assert.ok(appSrc.includes('dir="ltr"'), 'Vault UI must render ISO salary-cycle dates left-to-right in Arabic RTL layout');
+  assert.ok(appSrc.includes('من {cycle.cycleStart} إلى {cycle.cycleEnd}'), 'cycle picker must avoid RTL arrow confusion');
   assert.ok(appSrc.includes('التحويلات الداخلية') && appSrc.includes('ترحيل الخزنة') && appSrc.includes('تصنيف المصروفات داخل الدورة'), 'Vault UI must show income, expenses, transfers, category summary, and vault carryover details');
   assert.ok(serverSrc.includes('app.get("/api/salary-cycles/:cycleId"'), 'server must expose a cycle-details API');
   assert.ok(serverSrc.includes('app.delete("/api/salary-cycles/:cycleId/transactions"'), 'server must expose a bounded cycle transaction delete API');
