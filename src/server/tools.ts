@@ -2593,6 +2593,17 @@ function parseSmartDeleteDateKey(value: unknown, now: Date = new Date()): string
   const raw = normalizeDigits(value);
   if (!raw) return null;
 
+  const embeddedIso = raw.match(/(?:^|\D)(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})(?=\D|$)/);
+  if (embeddedIso) {
+    const year = Number(embeddedIso[1]);
+    const month = Number(embeddedIso[2]);
+    const day = Number(embeddedIso[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (!Number.isNaN(date.getTime()) && date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month && date.getUTCDate() === day) {
+      return formatDateKey(date);
+    }
+  }
+
   const partial = raw.match(/(?:^|\D)(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?(?=\D|$)/);
   if (!partial) return null;
 
