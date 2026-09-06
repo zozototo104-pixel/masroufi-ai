@@ -367,24 +367,24 @@ function liveRefreshScopeForTools(functionResponses: Array<{ name: string; respo
     return { refresh: true, scope: 'financial', affectedCycleIds };
   }
   if (names.some(name => ['recalculate_salary_cycle', 'get_salary_cycle_summary', 'get_savings_vault', 'add_savings_vault_adjustment', 'repair_savings_vault_meta'].includes(name))) {
-    return { refresh: true, scope: 'vault' };
+    return { refresh: true, scope: 'vault', affectedCycleIds };
   }
   if (names.some(name => ['create_savings_goal', 'add_savings_contribution', 'update_savings_goal'].includes(name)) && hasSuccessfulMutation) {
-    return { refresh: true, scope: 'savings' };
+    return { refresh: true, scope: 'savings', affectedCycleIds };
   }
   if (names.some(name => ['set_category_budget'].includes(name)) && hasSuccessfulMutation) {
-    return { refresh: true, scope: 'budgets' };
+    return { refresh: true, scope: 'budgets', affectedCycleIds };
   }
   if (names.some(name => ['create_commitment', 'update_commitment_status', 'delete_commitment'].includes(name)) && hasSuccessfulMutation) {
-    return { refresh: true, scope: 'commitments' };
+    return { refresh: true, scope: 'commitments', affectedCycleIds };
   }
   if (names.some(name => ['generate_report', 'generate_treasurer_report', 'delete_report', 'clear_all_reports'].includes(name)) && hasSuccessfulMutation) {
-    return { refresh: true, scope: 'reports' };
+    return { refresh: true, scope: 'reports', affectedCycleIds };
   }
   if (names.some(name => ['memory_save'].includes(name)) && hasSuccessfulMutation) {
-    return { refresh: true, scope: 'memory' };
+    return { refresh: true, scope: 'memory', affectedCycleIds };
   }
-  return { refresh: false, scope: 'read_only' };
+  return { refresh: false, scope: 'read_only', affectedCycleIds };
 }
 
 function looksLikeFinancialIntent(text: string): boolean {
