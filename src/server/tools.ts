@@ -4053,32 +4053,63 @@ async function readTransactionsForSalaryCycle(period: SalaryCyclePeriod, userId:
   // firestore.indexes.json is deployed. This query is still bounded by one
   // salary cycle (27→26), never the full ledger. We filter ownership after
   // the bounded date read and mark the result partial if the broad date window
-  // reaches the limit.
-  const snap = await firebaseAdminDb.collection('transactions')
-    .where('date', '>=', period.startIso)
-    .where('date', '<', period.endExclusiveIso)
-    .limit(boundedLimit)
-    .get();
-  const broadDocs = snap.docs || [];
+  // reaches the limit. We intentionally query both date-key strings and local
+  // UTC instants because older rows may be stored as `YYYY-MM-DD`, ISO strings,
+  // or timestamps that display as the local Gaza financial day.
+  const docsById = new Map<string, any>();
+  const queryStats: any[] = [];
+  const localStartUtc = getFinancialLocalDayUtcStart(period.cycleStart);
+  const localEndUtc = getFinancialLocalDayUtcStart(period.cycleEndExclusive);
+
+  const runRangeQuery = async (label: string, startValue: any, endValue: any) => {
+    try {
+      const snap = await firebaseAdminDb.collection('transactions')
+        .where('date', '>=', startValue)
+        .where('date', '<', endValue)
+        .limit(boundedLimit)
+        .get();
+      queryStats.push({ label, docsRead: snap.docs.length });
+      for (const doc of snap.docs || []) docsById.set(doc.id, doc);
+      return snap.docs.length >= boundedLimit;
+    } catch (error: any) {
+      queryStats.push({ label, error: error?.message || String(error) });
+      return false;
+    }
+  };
+
+  const limitHits = [
+    await runRangeQuery('date_key_or_iso_string_range', period.cycleStart, period.cycleEndExclusive),
+  ];
+  if (localStartUtc && localEndUtc) {
+    limitHits.push(await runRangeQuery('local_day_iso_utc_range', localStartUtc.toISOString(), localEndUtc.toISOString()));
+    limitHits.push(await runRangeQuery('local_day_timestamp_range', localStartUtc, localEndUtc));
+  }
+
+  const broadDocs = Array.from(docsById.values());
   const transactions = broadDocs
     .filter((d: any) => d.data()?.userId === userId)
     .map((d: any) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || '')));
-  const limitReached = broadDocs.length >= boundedLimit;
+    .filter((t: any) => {
+      const key = transactionDateKey(t);
+      return key >= period.cycleStart && key < period.cycleEndExclusive;
+    })
+    .sort((a: any, b: any) => transactionDateKey(a).localeCompare(transactionDateKey(b)));
+  const limitReached = limitHits.some(Boolean);
   logFirestoreReadDiagnostics('salary_cycle_transactions_query', {
     userId,
-    queryType: 'transactions_by_date_range_then_user_filter_no_composite_index',
+    queryType: 'transactions_by_date_range_then_user_filter_no_composite_index_multi_storage_format',
     cycleId: period.cycleId,
     start: period.cycleStart,
     endExclusive: period.cycleEndExclusive,
     returnedDocs: transactions.length,
     scannedDateWindowDocs: broadDocs.length,
+    queryStats,
     limit: boundedLimit,
     limitReached,
     durationMs: Date.now() - startedAt,
     fallback: false,
   });
-  return { transactions, partial: limitReached, boundedFallback: false, error: '', limit: boundedLimit, limitReached };
+  return { transactions, partial: limitReached, boundedFallback: false, error: '', limit: boundedLimit, limitReached, queryStats };
 }
 
 function calculateVaultLockAllocations(transactions: any[], targetVaultAmount: number) {
