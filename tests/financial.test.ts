@@ -870,7 +870,7 @@ test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal
   assert.ok(appSrc.includes('refreshActiveSalaryCycle'), 'transaction/vault refresh must reload the active salary cycle details automatically');
   assert.ok(appSrc.includes('/api/salary-cycles/${encodeURIComponent(activeCycleId)}?limit=500'), 'active cycle refresh must query one bounded salary cycle, not the full ledger');
   assert.ok(appSrc.includes("scope === 'transactions+vault'") && appSrc.includes("scope.includes('transaction')"), 'transaction refresh scopes must update cycle totals immediately after adds/edits/deletes');
-  assert.ok(appSrc.includes('المتاح لهذه الدورة') && appSrc.includes('ولا يخصم خزنة دورة أخرى'), 'spendable card must be scoped to the active salary cycle, not global vault subtraction');
+  assert.ok(appSrc.includes('المتاح لهذه الدورة') && appSrc.includes('ولا يخصم سداد دين الدورة نفسها مرتين'), 'spendable card must be scoped to the active salary cycle and avoid same-cycle debt double-counting');
   assert.equal(appSrc.includes('Number(cash || 0) + Number(palPay || 0) - Number(vaultData?.vaultBalance || 0)'), false, 'dashboard must not subtract the whole vault balance from the active cycle spendable amount');
   assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
 });
