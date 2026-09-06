@@ -3349,6 +3349,29 @@ export default function App() {
               )}
               {selectedVaultCycleDetails && (
                 <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-slate-900/70 border border-amber-500/25 rounded-2xl p-3 lg:col-span-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                      <h4 className="font-bold text-amber-300">تتبع النقدي وPalPay لهذه الدورة</h4>
+                      <span className="text-[11px] text-slate-500">يفسر مصدر رقم النقدي: دخل، صرف، تحويل، سداد، خزنة</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+                      <div className="bg-slate-950/70 rounded-xl border border-slate-800 p-2"><p className="text-slate-400">داخل نقدي</p><p className="font-black text-emerald-300">{Number(selectedVaultCycleDetails.cashTrace?.cashIn || 0).toLocaleString()} ₪</p></div>
+                      <div className="bg-slate-950/70 rounded-xl border border-slate-800 p-2"><p className="text-slate-400">خارج نقدي</p><p className="font-black text-rose-300">{Number(selectedVaultCycleDetails.cashTrace?.cashOut || 0).toLocaleString()} ₪</p></div>
+                      <div className="bg-slate-950/70 rounded-xl border border-slate-800 p-2"><p className="text-slate-400">صافي النقدي</p><p className="font-black text-white">{Number(selectedVaultCycleDetails.cashTrace?.netCashDelta || 0).toLocaleString()} ₪</p></div>
+                      <div className="bg-slate-950/70 rounded-xl border border-slate-800 p-2"><p className="text-slate-400">صافي PalPay</p><p className="font-black text-sky-300">{Number(selectedVaultCycleDetails.cashTrace?.netPalPayDelta || 0).toLocaleString()} ₪</p></div>
+                      <div className="bg-slate-950/70 rounded-xl border border-slate-800 p-2"><p className="text-slate-400">دين لا يخصم نقدي</p><p className="font-black text-amber-200">{Number(selectedVaultCycleDetails.cashTrace?.ignoredDebtPurchases || 0).toLocaleString()} ₪</p></div>
+                    </div>
+                    <div className="max-h-44 overflow-auto space-y-1">
+                      {(selectedVaultCycleDetails.cashTrace?.rows || []).length ? selectedVaultCycleDetails.cashTrace.rows.map((tx: any) => (
+                        <div key={tx.id} className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 border-b border-slate-800 py-1 last:border-0">
+                          <span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.reason} · {tx.category || tx.transactionType || 'عملية'}{tx.merchant || tx.creditor ? ` · ${tx.merchant || tx.creditor}` : ''}</span>
+                          <span className={`${Number(tx.cashDelta || 0) < 0 ? 'text-rose-300' : Number(tx.cashDelta || 0) > 0 ? 'text-emerald-300' : 'text-slate-500'} font-bold`}>Cash {Number(tx.cashDelta || 0).toLocaleString()} ₪</span>
+                          <span className={`${Number(tx.palPayDelta || 0) < 0 ? 'text-rose-300' : Number(tx.palPayDelta || 0) > 0 ? 'text-emerald-300' : 'text-slate-500'} font-bold`}>PalPay {Number(tx.palPayDelta || 0).toLocaleString()} ₪</span>
+                        </div>
+                      )) : <p className="text-slate-500">لا توجد عمليات أثرت على النقدي أو PalPay في هذه الدورة.</p>}
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-500">إذا كان هناك فرق مثل 43 شيكل، ابحث هنا عن صف Cash سالب بنفس القيمة أو مجموع صفوف cash السالبة. مشتريات الدين تظهر هنا بقيمة Cash 0 لأنها لا تخصم من النقدي.</p>
+                  </div>
                   <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-56 overflow-auto">
                     <h4 className="font-bold text-emerald-300 mb-2">بنود الدخل</h4>
                     {(selectedVaultCycleDetails.income || []).length ? selectedVaultCycleDetails.income.map((tx: any) => (
