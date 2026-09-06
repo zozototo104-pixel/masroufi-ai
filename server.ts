@@ -2234,7 +2234,7 @@ ${activeSalaryCycleText}
                         }
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
-                        let toolArgs: Record<string, any> = stableOperationId ? { ...(call.args || {}), operationId: stableOperationId } : { ...(call.args || {}) };
+                        let toolArgs: Record<string, any> = stableOperationId ? { ...(effectiveCall.args || {}), operationId: stableOperationId } : { ...(effectiveCall.args || {}) };
                         if (activeSalaryCycleContext.cycleId || activeSalaryCycleContext.month) {
                           toolArgs = {
                             ...toolArgs,
