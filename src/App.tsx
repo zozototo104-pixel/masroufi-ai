@@ -1985,9 +1985,10 @@ export default function App() {
                 <div className="bg-rose-500/20 p-2 rounded-xl">
                   <TrendingDown className="w-5 h-5 text-rose-400" />
                 </div>
-                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">المصروف</p>
+                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">مصروف الدورة</p>
               </div>
-              <p className="text-xl font-bold text-white">{monthExpense} ₪</p>
+              <p className="text-xl font-bold text-white">{monthExpense.toLocaleString()} ₪</p>
+              <p className="text-[10px] text-slate-500 mt-1">{activeDashboardCycleName}</p>
             </div>
             <div className="bg-slate-900 p-5 rounded-3xl shadow-lg border border-slate-800 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-2">
