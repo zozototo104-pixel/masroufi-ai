@@ -1014,32 +1014,47 @@ Extract expense rows only. Do not register anything. Return ONLY a valid JSON ob
 }
 For Arabic/RTL tables, inspect the visual date column on the far right or far left and attach that date to the matching visual row. Build dateMap for every extracted item row that has a visible printed date anywhere aligned with it. If several consecutive rows are visually grouped under one printed date, add a dateMap entry for each affected row. Row numbers in dateMap must be 1-based and match the items array order. If a row has a month but no day, keep date empty and include day only if visible. If a date is not printed in the source, leave date empty; do not infer from upload date, current date, or today's date. If no line items can be broken down, provide a single item with the total amount.`;
 
-      const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
-      const parsed = parseJsonObjectFromModelText(generated.text);
-      let preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
-      if (!preview.ok) return res.status(422).json({ success: false, ...preview });
-      preview = applyExpenseImportDateMap(preview, parsed);
-      if (preview.items.some((item: any) => !item.date)) {
-        try {
-          preview = await repairMissingExpenseImportDates(ai, { payloadBase64, mimeType, preview });
-        } catch (repairError: any) {
-          console.warn('[expense-import] date repair pass failed; keeping manual review fallback', repairError?.message || repairError);
+      const analysis = await withGeminiKeyPool('scan-receipt', customApiKey, async (ai) => {
+        const generated = await generateExpenseImportJsonWithFallback(ai, { payloadBase64, mimeType, prompt });
+        const parsed = parseJsonObjectFromModelText(generated.text);
+        let preview = normalizeAiExpenseItems(parsed, { defaultMonth, fileName });
+        if (!preview.ok) {
+          const validationError: any = new Error('EXPENSE_IMPORT_NORMALIZATION_FAILED');
+          validationError.reason = 'EXPENSE_IMPORT_NORMALIZATION_FAILED';
+          validationError.preview = preview;
+          throw validationError;
         }
-      }
+        preview = applyExpenseImportDateMap(preview, parsed);
+        if (preview.items.some((item: any) => !item.date)) {
+          try {
+            preview = await repairMissingExpenseImportDates(ai, { payloadBase64, mimeType, preview });
+          } catch (repairError: any) {
+            console.warn('[expense-import] date repair pass failed; keeping manual review fallback', repairError?.message || repairError);
+          }
+        }
+        return { generated, parsed, preview };
+      });
 
-      res.json({
+      const responsePayload = {
         success: true,
         requiresConfirmation: true,
         reason: 'EXPENSE_IMPORT_PAYMENT_METHOD_REQUIRED',
         message: 'حللت الملف ولم أسجل أي شيء بعد. راجع البنود ثم اختر طريقة الدفع للحفظ.',
-        merchant: preview.merchant || parsed.merchant || 'استيراد مصروفات',
-        totalAmount: preview.totalAmount,
-        itemsCount: preview.items.length,
-        items: preview.items,
-        warnings: preview.warnings,
+        merchant: analysis.preview.merchant || analysis.parsed.merchant || 'استيراد مصروفات',
+        totalAmount: analysis.preview.totalAmount,
+        itemsCount: analysis.preview.items.length,
+        items: analysis.preview.items,
+        warnings: analysis.preview.warnings,
         sourceType: mimeType?.startsWith('image/') ? 'image' : (mimeType === 'application/pdf' ? 'pdf' : 'ai'),
+        geminiModel: analysis.generated.model,
+        geminiKeyId: analysis.geminiKeyId,
+        geminiKeySource: analysis.geminiKeySource,
+        modelFallbackUsed: analysis.generated.fallbackUsed,
+        keyFallbackUsed: analysis.keyFallbackUsed,
         nextStep: 'اعتمد البنود بعد المراجعة ليتم حفظها عبر مسار الفاتورة الذري.'
-      });
+      };
+      if (cacheKey) setScanReceiptCache(cacheKey, responsePayload);
+      res.json(responsePayload);
     } catch (error: any) {
       console.error("Expense import scan error:", error?.message || error, error?.modelErrors || '');
       const rateLimited = error?.reason === 'GEMINI_RATE_LIMIT_EXCEEDED' || isGeminiRateLimitError(error);
