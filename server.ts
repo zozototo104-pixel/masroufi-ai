@@ -18,7 +18,7 @@ import { dispatchFinancialCommand, isValidFinancialCommandType } from "./src/ser
 import { createCustomVoiceClone, deleteCustomVoice, getCustomVoiceProfile } from "./src/server/customVoice";
 import { normalizeAiExpenseItems, parseExpenseImportFile, type ExpenseImportPreview } from "./src/lib/expenseImport";
 import { normalizeHistoricalTransactionDate } from "./src/lib/historicalDate";
-import { getSalaryCycleForDate } from "./src/lib/salaryCycle";
+import { getSalaryCycleForDate, parseSalaryCycleMonth } from "./src/lib/salaryCycle";
 import { normalizeCreditorKey } from "./src/lib/balanceCalc";
 
 dotenv.config();
