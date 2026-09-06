@@ -1517,17 +1517,18 @@ export default function App() {
   const handleMicClick = async () => {
     if (isConnected) {
       disconnect();
-    } else {
-      let currentToken = idToken;
-      if (user && typeof user.getIdToken === 'function') {
-        try {
-          currentToken = await user.getIdToken(true);
-          setIdToken(currentToken);
-        } catch (e) {
-          console.warn("Failed to refresh token", e);
-        }
-      }
-      connect(currentToken || undefined);
+      return;
+    }
+    // On iPhone/Safari the microphone permission prompt must be triggered
+    // directly from the user's tap. Do not await token refresh before connect(),
+    // because that can consume the user gesture and prevent the permission UI.
+    connect(idToken || undefined);
+    if (user && typeof user.getIdToken === 'function') {
+      user.getIdToken(false)
+        .then((freshToken: string) => {
+          if (freshToken && freshToken !== idToken) setIdToken(freshToken);
+        })
+        .catch((e: any) => console.warn("Failed to refresh token after mic start", e));
     }
   };
 
