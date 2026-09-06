@@ -2802,6 +2802,103 @@ export async function deleteRecentTransactions(args: any, userId: string, token:
   };
 }
 
+function isMisroutedVaultCloseDebtCreditCandidate(tx: any): boolean {
+  const type = String(tx?.type || '');
+  const transactionType = String(tx?.transactionType || '');
+  const account = normalizeLedgerAccount(tx?.account);
+  const fromAccount = normalizeLedgerAccount(tx?.fromAccount || tx?.account);
+  const toAccount = normalizeLedgerAccount(tx?.toAccount);
+  const text = normalizeArabicText(`${tx?.category || ''} ${tx?.subcategory || ''} ${tx?.notes || ''} ${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.reason || ''} ${transactionType}`);
+  const looksLikeCreditorSurplus = text.includes('فائض سداد') || text.includes('دائن') || text.includes('overpayment') || text.includes('creditor_overpayment') || text.includes('debt_overpayment');
+  const touchesDebtAsCredit = account === 'debt' || toAccount === 'debt' || (type === 'transfer' && fromAccount !== 'debt' && text.includes('سداد'));
+  const looksLikeCloseVaultMistake = text.includes('خزنه') || text.includes('الخزنه') || text.includes('خزنة') || text.includes('الخزنة') || text.includes('اقفال') || text.includes('اقفل') || text.includes('close') || text.includes('vault');
+  return (looksLikeCreditorSurplus && touchesDebtAsCredit) || (looksLikeCloseVaultMistake && matchesRecentDeleteKind(tx, 'debt_payment'));
+}
+
+export async function repairMisroutedVaultClose(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log('TOOL CALL: repairMisroutedVaultClose', { ...args, userId: '[redacted]' });
+  const targetAmount = args?.amount !== undefined ? parsePositiveFinancialAmount(args.amount) : null;
+  const searchLimit = Math.max(25, Math.min(100, Number(args?.searchLimit) || 75));
+  const confirmed = args?.confirmed === true || args?.confirmation === 'REPAIR_MISROUTED_VAULT_CLOSE';
+  const snap = await adminDb.collection('transactions')
+    .where('userId', '==', userId)
+    .orderBy('createdAt', 'desc')
+    .limit(searchLimit)
+    .get();
+  let candidates = snap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((tx: any) => isMisroutedVaultCloseDebtCreditCandidate(tx));
+  if (targetAmount !== null && targetAmount > 0) {
+    candidates = candidates.filter((tx: any) => Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01);
+  }
+  candidates = candidates.slice(0, 5);
+  const preview = candidates.map((t: any) => ({
+    id: t.id,
+    amount: t.amount,
+    type: t.type,
+    account: t.account,
+    fromAccount: t.fromAccount,
+    toAccount: t.toAccount,
+    transactionType: t.transactionType,
+    category: t.category,
+    subcategory: t.subcategory,
+    merchant: t.merchant,
+    creditor: t.creditor,
+    date: t.date,
+    createdAt: t.createdAt,
+    notes: t.notes,
+  }));
+
+  if (candidates.length === 0) {
+    return {
+      success: false,
+      reason: 'NO_MISROUTED_VAULT_CLOSE_CANDIDATE',
+      message: `لم أجد عملية فائض دائن/سداد مشبوهة ضمن آخر ${searchLimit} عملية${targetAmount ? ` بقيمة ${targetAmount} ₪` : ''}. لن أغيّر الرصيد بدون دليل واضح.`,
+      candidates: [],
+      readEfficiency: { transactionDocsRead: snap.docs.length, limit: searchLimit },
+    };
+  }
+  if (candidates.length > 1 || !confirmed) {
+    return {
+      success: false,
+      needsConfirmation: true,
+      reason: candidates.length > 1 ? 'AMBIGUOUS_MISROUTED_VAULT_CLOSE' : 'CONFIRM_MISROUTED_VAULT_CLOSE_REPAIR',
+      message: candidates.length > 1
+        ? `وجدت ${candidates.length} عمليات مشبوهة. لن أحذف قبل اختيار/تأكيد العملية الصحيحة.`
+        : `وجدت عملية مشبوهة بقيمة ${Number(candidates[0].amount || 0).toLocaleString()} ₪. أكد التصحيح لحذفها ذرياً واسترجاع أثرها من الرصيد.`,
+      candidates: preview,
+      readEfficiency: { transactionDocsRead: snap.docs.length, limit: searchLimit },
+    };
+  }
+
+  const target = candidates[0];
+  const deleteResult = await atomicDeleteTransactions(userId, [target.id], { reason: 'repair_misrouted_vault_close' });
+  if (!deleteResult.ok) {
+    const failedDeleteResult = deleteResult as Extract<typeof deleteResult, { ok: false }>;
+    return { success: false, reason: failedDeleteResult.reason, message: 'تعذر تصحيح العملية بأمان؛ قد تكون تغيّرت قبل التنفيذ.' };
+  }
+  const affectedCycleId = getSalaryCycleForDate(target.date || target.createdAt || new Date().toISOString(), new Date()).cycleId;
+  let recalculated: any = null;
+  try {
+    recalculated = await recalculateSalaryCycle({ cycleId: affectedCycleId, reason: 'repair_misrouted_vault_close' }, userId, token);
+  } catch (err) {
+    console.warn('Savings Vault recalculation failed after misrouted vault repair:', err);
+  }
+  await addNotification(userId, `تم تصحيح عملية فائض دائن خاطئة بقيمة ${Number(target.amount || 0).toLocaleString()} ₪ وحذف أثرها.`, 'success', adminDb);
+  return {
+    success: true,
+    deletedCount: 1,
+    deleted: preview[0],
+    affectedCycleId,
+    affectedCycleIds: [affectedCycleId],
+    recalculatedCycle: recalculated?.salaryCycle?.cycleId || affectedCycleId,
+    currentBalances: deleteResult.balances,
+    message: `تم تصحيح العملية المشبوهة وحذف فائض الدائن الخاطئ بقيمة ${Number(target.amount || 0).toLocaleString()} ₪.`,
+    readEfficiency: { transactionDocsRead: snap.docs.length, deleteTransactionReads: 2, limit: searchLimit },
+  };
+}
+
 export async function repairDuplicateIncome(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log('TOOL CALL: repairDuplicateIncome', args);
