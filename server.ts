@@ -744,6 +744,12 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
   const isDelete = /(احذف|احذفي|امسح|اشطب|شطب)/.test(text);
   const isDebtPaymentDelete = isDelete && /(سداد|تسديد|سدد|سديت|دفعت دين|دفع دين)/.test(text);
   const isCreditPurchaseDelete = isDelete && /(دين|بالدين|اجل|آجل|على الحساب)/.test(text) && !isDebtPaymentDelete;
+  const deleteAmount = isDelete ? extractAmountFromFinancialText(userText) : null;
+  const deleteDate = isDelete ? extractDateKeyFromFinancialText(userText) : null;
+  if (isDelete && (deleteAmount || deleteDate) && !/(اخر|آخر)\s+(?:\d{1,2}\s+)?(?:عمليات|مصروفات|سداد|تسديد|دين)/.test(text)) {
+    const account = accountFromFinancialText(userText);
+    return { name: 'delete_transaction', args: { amount: deleteAmount || undefined, date: deleteDate || undefined, account: account || undefined, userText } } as any;
+  }
   if (isDebtPaymentDelete) {
     return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'debt_payment', confirmed: true, userText } } as any;
   }
