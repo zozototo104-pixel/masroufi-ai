@@ -950,6 +950,11 @@ export default function App() {
   const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+    if (isScanning) {
+      alert('تحليل ملف سابق ما زال جارياً. انتظر النتيجة قبل رفع ملف آخر حتى لا تتكرر الطلبات على Gemini.');
+      e.target.value = '';
+      return;
+    }
     if (file.size > 8 * 1024 * 1024) {
       alert('حجم الملف كبير. استخدم صورة/ملف أقل من 8MB أو قسم الجدول إلى أكثر من ملف.');
       e.target.value = '';
