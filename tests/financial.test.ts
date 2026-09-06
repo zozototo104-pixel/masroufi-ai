@@ -831,6 +831,7 @@ test('NLU-01: Arabic month and debt phrases route to salary-cycle tools without 
   assert.ok(toolsSrc.includes('effectiveTypeFilter = debtQueryRequested ?') && toolsSrc.includes('args.account && !debtQueryRequested'), 'query_transactions must infer expense/income filters but keep debt payments visible for debt questions');
   assert.ok(toolsSrc.includes('سديت') && toolsSrc.includes('debt_payment'), 'delete_recent_transactions must infer latest debt-payment deletion from Arabic text');
   assert.ok(serverSrc.includes('buildFallbackFinancialToolCall') && serverSrc.includes("name: 'query_transactions'") && serverSrc.includes("period: 'salary_cycle'"), 'server fallback must query salary-cycle totals even if Gemini does not call the tool');
+  assert.ok(serverSrc.includes("kind: 'debt_payment', confirmed: true"), 'explicit fallback phrase احذف آخر عملية سداد دين must execute debt-payment delete as a confirmed recent-delete command');
   assert.ok(serverSrc.includes('لا تستخدم get_balance وحده') && serverSrc.includes('kind=debt_payment'), 'voice prompt must not use global get_balance or expense deletion for month-scoped debt/debt-payment delete');
   assert.ok(serverSrc.includes('currentRemainingForCycleCreditors'), 'deterministic financial replies must prefer current remaining debt after repayments');
 });
