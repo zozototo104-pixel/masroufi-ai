@@ -598,14 +598,6 @@ function buildDeterministicFinancialReply(functionResponses: Array<{ name: strin
       return `${cycle.name || 'دورة الراتب'} (${cycle.cycleStart || response.period?.startIso?.slice(0, 10) || '—'} إلى ${cycle.cycleEnd || response.period?.endExclusiveIso?.slice(0, 10) || '—'}): المصروفات ${expense} ₪، الدخل ${income} ₪.`;
     }
   }
-  const committed = financial.filter(r => r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
-  if (committed.length > 0) {
-    const first = committed[0].response || {};
-    const amountText = first.amount ? ` بقيمة ${first.amount} ₪` : '';
-    const txText = first.transactionId ? `\nرقم القيد: ${first.transactionId}` : '';
-    const warn = first.balanceWarning ? `\nتنبيه: ${first.balanceWarning}` : '';
-    return first.message || `تم تنفيذ العملية المالية${amountText} وحفظها في السحابة.${txText}${warn}`;
-  }
   const skippedOnly = financial.every(r => r.response?.skipped === true || r.response?.deduped === true);
   if (skippedOnly) return 'لم أكرر التسجيل؛ هذه العملية عولجت قبل لحظات بنفس معرّف القيد.';
   return null;
