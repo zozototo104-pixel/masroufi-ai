@@ -2758,7 +2758,8 @@ export async function deleteRecentTransactions(args: any, userId: string, token:
 
   const deleteResult = await atomicDeleteTransactions(userId, recent.map((t: any) => t.id), { reason: `delete_recent:${kind}:${count}` });
   if (!deleteResult.ok) {
-    return { success: false, reason: deleteResult.reason, requested: count, found: deleteResult.found, message: 'تعذر حذف آخر العمليات بأمان؛ قد تكون تغيّرت قبل تنفيذ الحذف.' };
+    const failedDeleteResult = deleteResult as Extract<typeof deleteResult, { ok: false }>;
+    return { success: false, reason: failedDeleteResult.reason, requested: count, found: failedDeleteResult.found, message: 'تعذر حذف آخر العمليات بأمان؛ قد تكون تغيّرت قبل تنفيذ الحذف.' };
   }
 
   const affectedCycleIds = Array.from(new Set(recent.map((t: any) => getSalaryCycleForDate(t.date || t.createdAt || new Date().toISOString(), new Date()).cycleId)));
