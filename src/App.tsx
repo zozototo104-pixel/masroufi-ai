@@ -1992,7 +1992,7 @@ export default function App() {
               <div className="mb-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-3 py-2">
                 <p className="text-[11px] text-cyan-200/80 mb-0.5">المتاح لهذه الدورة ({activeDashboardCycleName})</p>
                 <p className="text-lg font-black text-cyan-100">{cycleSpendableBalance.toLocaleString()} ₪</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">يُحسب من دخل ومصروفات نفس دورة الراتب فقط، ولا يخصم خزنة دورة أخرى.</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">يُحسب من دخل ومصروفات وسداد ديون نفس دورة الراتب فقط، ولا يخصم خزنة دورة أخرى.</p>
               </div>
               
               <div className="grid grid-cols-3 gap-2 border-t border-slate-800 pt-5">
