@@ -1028,6 +1028,39 @@ test('IMPORT-01: image analysis retries temporary Gemini capacity but separates 
   assert.ok(appSrc.includes('for (let attempt = 1; attempt <= 3; attempt++)') && appSrc.includes('res.status === 503'), 'client must retry temporary scan failures without forcing the user to retry manually');
 });
 
+test('IMPORT-02: receipt record uses server balances and splits cash to PalPay before debt', async () => {
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.equal(appSrc.includes('currentBalances: { cash, palPay, debt, total: balance }'), false, 'receipt recording must not send stale client balances');
+  assert.ok(serverSrc.includes("collection('meta').doc('accountBalances')"), 'receipt recording must read the authoritative server-side account balance snapshot');
+  assert.ok(serverSrc.includes("const preferredAccounts = paymentMethod === 'palPay' ? ['palPay', 'cash'] : ['cash', 'palPay']"), 'receipt split must use selected liquid account first, then the other liquid account, before debt');
+  assert.ok(serverSrc.includes("paymentMethodOverride: 'debt'") && serverSrc.includes('overflow-to-debt-after-liquid-accounts'), 'only the remainder after cash/PalPay is exhausted should become debt');
+  assert.ok(serverSrc.includes('skipLedgerBalanceCheck: false'), 'receipt commit must still pass atomic balance validation');
+  assert.ok(serverSrc.includes('normalizeCreditorKey(lineMerchant)'), 'imported debt must use the canonical creditor key so later repayments are recognized');
+  assert.ok(appSrc.includes('affectedCycleIds: Array.isArray(data?.affectedCycleIds)'), 'receipt recording must refresh the affected salary cycle immediately');
+});
+
+test('DELETE-RECENT-01: voice can safely delete last N expenses or last debt payment without full ledger scan', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('export async function deleteRecentTransactions'), 'delete_recent_transactions tool must exist');
+  assert.ok(toolsSrc.includes("orderBy('createdAt', 'desc')") && toolsSrc.includes('limit(searchLimit)'), 'recent delete must read only a bounded recent window');
+  assert.ok(toolsSrc.includes("kind === 'debt_payment'") && toolsSrc.includes("transactionType === 'DEBT_PAYMENT'"), 'recent delete must support deleting the latest debt-payment operation');
+  assert.ok(toolsSrc.includes("kind === 'expense'") && toolsSrc.includes("return type === 'expense'"), 'recent delete must support deleting latest expense rows');
+  assert.ok(toolsSrc.includes('atomicDeleteTransactions'), 'recent delete must update balances atomically');
+  assert.ok(toolsSrc.includes('affectedCycleIds'), 'recent delete must return affected salary cycles for UI refresh');
+  assert.ok(toolsSrc.includes('delete_recent_transactions: deleteRecentTransactions'), 'recent delete handler must be registered');
+  assert.ok(serverSrc.includes("'delete_recent_transactions'"), 'Live refresh and financial tool classification must include delete_recent_transactions');
+});
+
+test('DEBT-REPORT-01: salary-cycle debt questions include repayments made after the cycle', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('wantsDebtSummary'), 'query_transactions must detect salary-cycle debt questions');
+  assert.ok(toolsSrc.includes("where('creditorKey', 'in', creditorKeys)"), 'debt questions must query only affected creditors, not the full ledger');
+  assert.ok(toolsSrc.includes('currentRemainingForCycleCreditors'), 'debt summary must return current remaining debt after later repayments');
+  assert.ok(toolsSrc.includes('يعترف بالسداد الذي حدث بعد نهاية الدورة'), 'assistant response payload must explain that post-cycle repayments are included');
+});
+
 test('MOBILE-01: large app modals are iPhone-safe and scrollable', async () => {
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   const cssSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/index.css'), 'utf8'));
