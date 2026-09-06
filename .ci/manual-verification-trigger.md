@@ -1,13 +1,28 @@
 # Manual CI verification trigger
 
-Verify final Arabic NLU and deletion fixes.
+Verify Gemini quota handling and usage reduction.
 
-Must verify:
-- "مصروفات شهر أغسطس" routes to salary-cycle August without saying دورة.
-- Arabic month names/digits are inferred from full user text.
-- "دين شهر 8" keeps repayment transfers visible and returns current remaining debt after repayments.
-- "احذف آخر عملية سداد دين" maps to delete_recent_transactions kind=debt_payment and explicit Arabic delete text counts as confirmation.
-- deterministic query replies use tool data, not Gemini guessing.
+User issue:
+- Gemini image/live quota gets exhausted quickly.
+- Need switching between API keys without making one exhausted key block all requests.
+- Need reduce excessive Gemini usage, especially repeated image uploads.
+
+Fixes:
+- added GEMINI_API_KEYS key pool support in addition to GEMINI_API_KEY
+- key IDs are hashed; raw API keys are never logged
+- 429/RESOURCE_EXHAUSTED puts the key in cooldown and tries the next key
+- 503/UNAVAILABLE puts a shorter cooldown and can try the next key
+- /api/scan-receipt uses key pool rotation
+- Gemini Live connection uses key pool fallback during session creation
+- failed Live sessionPromise is cleared so a second key can connect
+- identical receipt uploads use a short in-memory cache to avoid another Gemini request
+- response includes safe diagnostics: geminiKeyId, geminiKeySource, keyFallbackUsed, modelFallbackUsed
+
+Expected env format:
+GEMINI_API_KEYS=key1,key2,key3
+
+Important:
+Keys from the same Google project may still share project-level quota. Best result is multiple projects/tiers.
 
 Expected gates:
 - install
@@ -17,4 +32,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T09:29:00+03:00
+Timestamp: 2026-09-06T09:40:00+03:00
