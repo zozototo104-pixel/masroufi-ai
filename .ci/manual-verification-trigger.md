@@ -1,20 +1,25 @@
 # Manual CI verification trigger
 
-Verify immediate salary-cycle card refresh after transaction writes.
+Verify image/file expense import stability.
 
 User issue:
-- Expense/income values only updated after page reload and re-entering the cycle.
+- Uploading an expense image frequently shows: "خدمة تحليل الصور مزدحمة مؤقتاً. جرّب بعد قليل..."
+- It works only after retrying later.
 
-Root cause:
-- masrofi:refresh did not include the affected salary cycle id.
-- App refreshed only the stale selected cycle or global data.
+Root cause addressed:
+- image analysis treated temporary capacity and rate-limit errors the same
+- retry/backoff was too shallow
+- speculative model names caused unnecessary fallback attempts and latency
+- client failed immediately on one 503 instead of retrying
+- client allowed another scan request while one was already running
 
-Fix:
-- addTransaction returns affectedCycleId/affectedCycleIds based on the transaction date and 27→26 salary cycle.
-- Live tool refresh messages include affectedCycleIds.
-- useGeminiLive forwards affectedCycleIds to the app refresh event.
-- Text chat computes affectedCycleIds from committedTransactions.
-- App refresh reloads /api/salary-cycles/{affectedCycleId}?limit=500 and updates selectedVaultCycleDetails immediately.
+Fixes:
+- use stable Gemini Flash fallbacks for receipt/import analysis
+- retry 503/UNAVAILABLE with short backoff server-side
+- distinguish 429/RESOURCE_EXHAUSTED as GEMINI_RATE_LIMIT_EXCEEDED
+- client retries temporary 503 scan failures up to 3 attempts
+- client blocks concurrent scan requests
+- added IMPORT-01 regression test
 
 Expected gates:
 - install
@@ -24,4 +29,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T08:12:00+03:00
+Timestamp: 2026-09-06T08:16:00+03:00
