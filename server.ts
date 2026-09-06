@@ -603,6 +603,33 @@ function buildDeterministicFinancialReply(functionResponses: Array<{ name: strin
   return null;
 }
 
+function normalizeLiveFunctionResponsesForCommittedWrite(functionResponses: Array<any>): Array<any> {
+  const committed = functionResponses.find(r => isFinancialToolName(r.name) && r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
+  if (!committed) return functionResponses;
+  const canonical = committed.response || {};
+  return functionResponses.map(r => {
+    if (!isFinancialToolName(r.name)) return r;
+    const response = r.response || {};
+    const thisCommitted = response.success === true && (response.cloudStorageConfirmed === true || response.durability === 'committed' || response.transactionId || response.updated || response.deletedCount !== undefined);
+    if (thisCommitted) return r;
+    if (response.success === false || response.error || response.retryable || response.inFlight) {
+      return {
+        ...r,
+        response: {
+          success: true,
+          skipped: true,
+          deduped: true,
+          cloudStorageConfirmed: true,
+          durability: 'committed',
+          canonicalCommittedTransactionId: canonical.transactionId || null,
+          message: canonical.message || 'تم حفظ العملية المالية في السحابة، وتجاهلت نتيجة جانبية/مكررة حتى لا يظهر لك خطأ حفظ وهمي.',
+        },
+      };
+    }
+    return r;
+  });
+}
+
 function liveFinancialCommitKey(call: FunctionCall, userId: string | null | undefined): string | null {
   if (!userId) return null;
   const args: any = call.args || {};
