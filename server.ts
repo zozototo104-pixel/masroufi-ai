@@ -2264,13 +2264,6 @@ ${activeSalaryCycleText}
             if (!isActive) return;
 
             try {
-              const inputTranscript = extractLiveInputTranscriptText(message as any);
-              if (inputTranscript) {
-                liveInputTranscriptBuffer = `${liveInputTranscriptBuffer} ${inputTranscript}`.trim().slice(-1500);
-                liveLastFinalUserText = liveInputTranscriptBuffer;
-                console.log('[live-audio] input transcript', { requestId, text: inputTranscript.slice(0, 160) });
-              }
-
               const parts = message.serverContent?.modelTurn?.parts || [];
               let audioChunksInMessage = 0;
               for (const part of parts) {
