@@ -922,20 +922,21 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
         });
       }
       const splitApplied = Boolean(splitOverflowToDebt && (paymentMethod === 'cash' || paymentMethod === 'palPay'));
-      const authToken = String(req.headers.authorization || '').split('Bearer ')[1] || '';
-      const balanceResult = splitApplied ? await getBalance({}, req.user.uid, authToken) : null;
-      if (splitApplied && balanceResult?.partial === true) {
+      const accountBalanceSnap = splitApplied
+        ? await adminDb.collection('users').doc(req.user.uid).collection('meta').doc('accountBalances').get()
+        : null;
+      if (splitApplied && !accountBalanceSnap?.exists) {
         return res.status(409).json({
           success: false,
-          retryable: true,
-          reason: 'PARTIAL_BALANCE_UNSAFE_FOR_RECEIPT_SPLIT',
-          message: 'تعذّر التحقق من رصيد النقدي وPalPay بدقة. لن أحوّل الباقي إلى دين قبل التأكد من الرصيد الحقيقي.',
+          retryable: false,
+          reason: 'ACCOUNT_BALANCE_SNAPSHOT_REQUIRED_FOR_RECEIPT_SPLIT',
+          message: 'لا يوجد Snapshot مؤكد لرصيد النقدي وPalPay. شغّل إصلاح الرصيد مرة واحدة ثم أعد تسجيل الفاتورة حتى لا أحول رصيد PalPay إلى دين بالخطأ.',
         });
       }
       const serverBalances = splitApplied
         ? {
-            cash: Math.max(0, Math.round((Number(balanceResult?.balances?.cash || 0)) * 100) / 100),
-            palPay: Math.max(0, Math.round((Number(balanceResult?.balances?.palPay || 0)) * 100) / 100),
+            cash: Math.max(0, Math.round((Number(accountBalanceSnap?.data()?.cash || 0)) * 100) / 100),
+            palPay: Math.max(0, Math.round((Number(accountBalanceSnap?.data()?.palPay || 0)) * 100) / 100),
           }
         : { cash: 0, palPay: 0 };
       const preferredAccounts = paymentMethod === 'palPay' ? ['palPay', 'cash'] : ['cash', 'palPay'];
