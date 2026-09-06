@@ -808,6 +808,9 @@ test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal
   assert.ok(toolsSrc.includes("toAccount: 'vault'") && toolsSrc.includes("transactionType: 'VAULT_LOCK'"), 'closing a cycle must create locked vault transfer entries');
   assert.ok(appSrc.includes('فتح الخزنة للحاجة'), 'UI must expose an explicit vault release control');
   assert.ok(appSrc.includes('إقفال الدورة وترحيل للخزنة'), 'UI must expose an explicit cycle close/lock action');
+  assert.ok(appSrc.includes('selectedVaultCycleDetails?.summary || summarizeSalaryCycleTransactions'), 'dashboard income/expense cards must use the selected salary cycle summary when viewing an old cycle');
+  assert.ok(appSrc.includes('المتاح لهذه الدورة') && appSrc.includes('ولا يخصم خزنة دورة أخرى'), 'spendable card must be scoped to the active salary cycle, not global vault subtraction');
+  assert.equal(appSrc.includes('Number(cash || 0) + Number(palPay || 0) - Number(vaultData?.vaultBalance || 0)'), false, 'dashboard must not subtract the whole vault balance from the active cycle spendable amount');
   assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
 });
 
