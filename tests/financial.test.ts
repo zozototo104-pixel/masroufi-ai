@@ -534,6 +534,9 @@ test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash
   assert.ok(serverSrc.includes('شراء دين واحد فقط') && serverSrc.includes('لا تستخدم pay_debt'), 'assistant prompts must route credit purchases to add_transaction, not pay_debt');
   assert.ok(serverSrc.includes('isCreditPurchaseDelete') && serverSrc.includes("kind: 'credit_purchase'"), 'generic احذف آخر عملية دين must delete the latest credit purchase, not search debt payments');
   assert.ok(toolsSrc.includes('textDebtPurchase') && toolsSrc.includes("kind === 'credit_purchase'"), 'recent credit-purchase delete must also catch debt purchases previously misrecorded as cash expenses by text');
+  assert.ok(toolsSrc.includes('repairMisrecordedCreditPurchase') && toolsSrc.includes('isMisrecordedCreditPurchaseCandidate'), 'backend must provide a direct repair that changes a cash-deducted debt purchase into CREDIT_PURCHASE');
+  assert.ok(toolsSrc.includes('repair_misrecorded_credit_purchase: repairMisrecordedCreditPurchase'), 'repair tool must be registered for Gemini/server execution');
+  assert.ok(serverSrc.includes("name: 'repair_misrecorded_credit_purchase'") && serverSrc.includes('مين يرجع النقص'), 'server fallback and prompts must route cash-deducted debt purchase corrections to the repair tool');
 });
 
 test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () => {
