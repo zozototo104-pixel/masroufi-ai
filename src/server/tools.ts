@@ -1291,6 +1291,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
     balanceDelta: (atomicResult as any).balanceDelta || null,
     commitVerification,
     postCommitVerificationWarning: postCommitVerificationWarning || undefined,
+    advisoryWarnings: advisoryWarnings.length ? advisoryWarnings : undefined,
+    budgetWarning: advisoryWarnings.length ? advisoryWarnings.join(' ') : undefined,
     // V6: explicit durability flag. UI/AI MUST inspect this.
     // The balance snapshot is updated in the same Firestore transaction as the ledger write,
     // so no post-commit full-ledger balance refresh is needed.
