@@ -551,6 +551,36 @@ function looksLikeCommittedClaim(text: string): boolean {
     && /(سجل|اضاف|إضاف|حفظ|دخل|راتب|مصروف|دين|رصيد|محفظ|كاش)/.test(t);
 }
 
+const FINANCIAL_MUTATION_TOOL_NAMES = new Set([
+  'add_transaction',
+  'transfer_money',
+  'pay_debt',
+  'send_palpay_payment',
+  'delete_transaction',
+  'delete_recent_transactions',
+  'update_transaction',
+  'repair_misrecorded_credit_purchase',
+  'repair_duplicate_income',
+  'repair_duplicate_credit_purchase',
+  'repair_account_balance_snapshot',
+]);
+
+function isFinancialMutationToolName(name: string | undefined | null): boolean {
+  return Boolean(name && FINANCIAL_MUTATION_TOOL_NAMES.has(name));
+}
+
+function isCommittedFinancialMutationResponse(result: any): boolean {
+  return Boolean(result?.success === true && (result?.cloudStorageConfirmed === true || result?.durability === 'committed' || result?.transactionId || result?.updated || result?.deletedCount !== undefined));
+}
+
+function looksLikeFinancialWriteIntent(text: string): boolean {
+  const t = normalizeArabicForIntent(text);
+  if (!t || !looksLikeFinancialIntent(t)) return false;
+  const writeWords = /(سجل|سجلي|ضيف|ضيفي|اضف|أضف|اشتريت|شريت|دفعت|دفع|مصروف|دخل|راتب|حول|حوّل|سدد|سداد|احذف|احذفي|امسح|اشطب|شطب)/;
+  const readOnlyWords = /(كم|اعطيني|اعطني|ورجيني|شو|ما هي|ما هو|تقرير|ملخص|تابع|اتابع|راجع|شيك|شيكت|ابحث|اظهر|اعرض)/;
+  return writeWords.test(t) && !readOnlyWords.test(t);
+}
+
 function buildDeterministicFinancialReply(functionResponses: Array<{ name: string; response: any }>): string | null {
   const financial = functionResponses.filter(r => isFinancialToolName(r.name));
   if (financial.length === 0) return null;
