@@ -1995,9 +1995,10 @@ export default function App() {
                 <div className="bg-emerald-500/20 p-2 rounded-xl">
                   <TrendingUp className="w-5 h-5 text-emerald-400" />
                 </div>
-                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">الدخل</p>
+                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">دخل الدورة</p>
               </div>
-              <p className="text-xl font-bold text-white">{monthIncome} ₪</p>
+              <p className="text-xl font-bold text-white">{monthIncome.toLocaleString()} ₪</p>
+              <p className="text-[10px] text-slate-500 mt-1">{activeDashboardCycleName}</p>
             </div>
           </div>
 
