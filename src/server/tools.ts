@@ -3707,7 +3707,12 @@ async function recalculateCyclesForTransactionChange(userId: string, token: stri
 }
 
 export async function getSalaryCycleSummary(args: any, userId: string, token: string) {
-  const period: SalaryCyclePeriod = resolveSalaryCycleFromArgs(args || {}, new Date());
+  const userText = `${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''} ${args?.query || ''}`;
+  const inferredMonth = parseSalaryCycleMonth(userText);
+  const summaryArgs = inferredMonth && !parseSalaryCycleMonth(args?.salaryMonth ?? args?.month ?? args?.monthNumber)
+    ? { ...(args || {}), month: inferredMonth }
+    : args;
+  const period: SalaryCyclePeriod = resolveSalaryCycleFromArgs(summaryArgs || {}, new Date());
   const first = await recalculateSalaryCycle({ ...(args || {}), __period: period, reason: 'salary_cycle_summary_tool' }, userId, token);
   if (first.success && wantsCycleDebtSummary(args)) {
     try {
