@@ -1050,7 +1050,6 @@ export default function App() {
           paymentMethod,
           merchant: showScannerResult.merchant,
           sourceType: showScannerResult.sourceType,
-          currentBalances: { cash, palPay, debt, total: balance },
           splitOverflowToDebt: true,
           items: showScannerResult.items || []
         })
