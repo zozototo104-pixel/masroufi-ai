@@ -207,6 +207,19 @@ export function isDebtCashBorrowing(tx: any): boolean {
     && (to === 'cash' || to === 'palPay');
 }
 
+export function isDebtPayment(tx: any): boolean {
+  const type = String(tx?.type || '');
+  const transactionType = String(tx?.transactionType || '');
+  const to = normalizeAccount(tx?.toAccount);
+  return type === 'transfer' && (transactionType === 'DEBT_PAYMENT' || to === 'debt');
+}
+
+export function isCreditPurchase(tx: any): boolean {
+  const type = String(tx?.type || '');
+  const transactionType = String(tx?.transactionType || '');
+  return type === 'expense' && (transactionType === 'CREDIT_PURCHASE' || normalizeAccount(tx?.account) === 'debt');
+}
+
 export function isInternalTransfer(tx: any): boolean {
   const type = String(tx?.type || '');
   const category = String(tx?.category || '');
