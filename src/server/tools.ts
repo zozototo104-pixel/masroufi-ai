@@ -2903,7 +2903,7 @@ export async function repairMisroutedVaultClose(args: any, userId: string, token
     recalculatedCycle: recalculated?.salaryCycle?.cycleId || affectedCycleId,
     currentBalances: deleteResult.balances,
     message: `تم تصحيح العملية المشبوهة وحذف فائض الدائن الخاطئ بقيمة ${Number(target.amount || 0).toLocaleString()} ₪.`,
-    readEfficiency: { transactionDocsRead: snap.docs.length, deleteTransactionReads: 2, limit: searchLimit },
+    readEfficiency: { transactionDocsRead: snap.docs.length, deleteTransactionReads: 2, limit: searchLimit, amountFilterFallbackUsed },
   };
 }
 
