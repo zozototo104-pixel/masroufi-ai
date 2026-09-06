@@ -4231,13 +4231,27 @@ export async function queryTransactions(args: any, userId: string, token: string
     let debtHistoryDocs: any[] = [];
     let debtHistoryPartial = false;
     if (creditorKeys.length > 0) {
-      const debtHistorySnap = await firebaseAdminDb.collection('transactions')
-        .where('userId', '==', userId)
-        .where('creditorKey', 'in', creditorKeys)
-        .limit(500)
-        .get();
-      debtHistoryPartial = Boolean((debtHistorySnap as any).partial || debtHistorySnap.docs.length >= 500);
-      debtHistoryDocs = debtHistorySnap.docs;
+      try {
+        const debtHistorySnap = await firebaseAdminDb.collection('transactions')
+          .where('userId', '==', userId)
+          .where('creditorKey', 'in', creditorKeys)
+          .limit(500)
+          .get();
+        debtHistoryPartial = Boolean((debtHistorySnap as any).partial || debtHistorySnap.docs.length >= 500);
+        debtHistoryDocs = debtHistorySnap.docs;
+      } catch (debtHistoryErr: any) {
+        console.warn('[query_transactions] creditor debt history compound query failed; using bounded per-creditor fallback', { error: debtHistoryErr?.message });
+        const perCreditorDocs: any[] = [];
+        for (const creditorKey of creditorKeys) {
+          const creditorSnap = await firebaseAdminDb.collection('transactions')
+            .where('creditorKey', '==', creditorKey)
+            .limit(120)
+            .get();
+          if ((creditorSnap as any).partial || creditorSnap.docs.length >= 120) debtHistoryPartial = true;
+          perCreditorDocs.push(...creditorSnap.docs.filter((d: any) => d.data()?.userId === userId));
+        }
+        debtHistoryDocs = perCreditorDocs;
+      }
     }
     const currentDebtByCreditor = calculateOpenCreditorDebts(debtHistoryDocs);
     debtSummary = {
