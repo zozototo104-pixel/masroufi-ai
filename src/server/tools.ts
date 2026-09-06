@@ -5258,6 +5258,19 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "repair_misrouted_vault_close",
+    description: "تصحيح مباشر لحالة خلط إقفال الخزنة مع فائض سداد دائن. يبحث في آخر العمليات المحدودة عن عملية فائض سداد/دائن/overpayment مشبوهة أثرت على الدين بدل الخزنة، ويحذفها ذرياً بعد التأكيد. استخدمها عندما يقول المستخدم إن تحويل المتبقي للخزنة تحول بالخطأ إلى فائض دائن أو سداد دين ولا يستطيع حذفها بأمر الحذف العادي.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "مبلغ العملية المشبوهة إن كان معروفاً مثل 445" },
+        searchLimit: { type: "number", description: "عدد آخر العمليات التي سيتم فحصها، افتراضياً 75 وبحد أقصى 100" },
+        confirmed: { type: "boolean", description: "true فقط إذا طلب المستخدم التصحيح صراحة أو ضغط زر التصحيح في الواجهة" },
+        confirmation: { type: "string", description: "يمكن استخدام REPAIR_MISROUTED_VAULT_CLOSE كتأكيد صريح" }
+      }
+    }
+  },
+  {
     name: "repair_duplicate_income",
     description: "يصلح تكرار الراتب/الدخل: يبحث عن قيود دخل مكررة بنفس المبلغ والحساب واليوم، ويحذف النسخ الزائدة ويبقي الأصلية. استخدمه عندما يقول المستخدم إن الراتب أو الدخل تسجل مرتين.",
     parameters: {
