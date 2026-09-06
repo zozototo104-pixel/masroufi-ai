@@ -244,6 +244,13 @@ export function isRealSalaryCycleExpense(tx: any): boolean {
   return String(tx?.type || '') === 'expense';
 }
 
+function salaryCycleCreditorKey(tx: any): string {
+  return String(tx?.creditorKey || tx?.creditor || tx?.merchant || 'unknown')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ') || 'unknown';
+}
+
 export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCycleSummary {
   let totalIncome = 0;
   let debtCashInflow = 0;
@@ -254,45 +261,59 @@ export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCyc
   let debtBorrowingCount = 0;
   let debtCreated = 0;
   let debtPaid = 0;
+  const creditPurchaseExpenseByCreditor = new Map<string, number>();
+  const debtPaidByCreditor = new Map<string, number>();
   for (const tx of transactions || []) {
+    const amount = parsePositiveFinancialAmount(tx?.amount);
     if (isDebtCashBorrowing(tx)) {
-      debtCashInflow += parsePositiveFinancialAmount(tx?.amount);
+      debtCashInflow += amount;
       debtBorrowingCount += 1;
-      debtCreated += parsePositiveFinancialAmount(tx?.amount);
+      debtCreated += amount;
       transferCount += 1;
       continue;
     }
     if (isDebtPayment(tx)) {
-      debtPaid += parsePositiveFinancialAmount(tx?.amount);
+      debtPaid += amount;
+      const key = salaryCycleCreditorKey(tx);
+      debtPaidByCreditor.set(key, roundMoney((debtPaidByCreditor.get(key) || 0) + amount));
       transferCount += 1;
       continue;
     }
     if (isCreditPurchase(tx)) {
-      debtCreated += parsePositiveFinancialAmount(tx?.amount);
+      debtCreated += amount;
+      const key = salaryCycleCreditorKey(tx);
+      creditPurchaseExpenseByCreditor.set(key, roundMoney((creditPurchaseExpenseByCreditor.get(key) || 0) + amount));
     }
     if (isInternalTransfer(tx)) {
       transferCount += 1;
       continue;
     }
     if (isRealSalaryCycleIncome(tx)) {
-      totalIncome += parsePositiveFinancialAmount(tx?.amount);
+      totalIncome += amount;
       incomeCount += 1;
     } else if (isRealSalaryCycleExpense(tx)) {
-      totalExpense += parsePositiveFinancialAmount(tx?.amount);
+      totalExpense += amount;
       expenseCount += 1;
     }
+  }
+  let debtPaymentLiquidityOutflow = 0;
+  for (const [creditorKey, paid] of debtPaidByCreditor.entries()) {
+    const sameCycleCreditExpense = creditPurchaseExpenseByCreditor.get(creditorKey) || 0;
+    debtPaymentLiquidityOutflow += Math.max(0, paid - sameCycleCreditExpense);
   }
   totalIncome = roundMoney(totalIncome);
   debtCashInflow = roundMoney(debtCashInflow);
   totalExpense = roundMoney(totalExpense);
   debtCreated = roundMoney(debtCreated);
   debtPaid = roundMoney(debtPaid);
+  debtPaymentLiquidityOutflow = roundMoney(debtPaymentLiquidityOutflow);
   return {
     totalIncome,
     totalInflow: roundMoney(totalIncome + debtCashInflow),
     debtCashInflow,
     totalExpense,
-    surplus: roundMoney(totalIncome - totalExpense - debtPaid),
+    surplus: roundMoney(totalIncome - totalExpense - debtPaymentLiquidityOutflow),
+    debtPaymentLiquidityOutflow,
     transactionCount: (transactions || []).length,
     incomeCount,
     expenseCount,
