@@ -777,6 +777,9 @@ export default function App() {
     const handleRefresh = (event: Event) => {
       const detail = (event as CustomEvent)?.detail || {};
       const scope = String(detail?.scope || 'all');
+      const affectedCycleIds = Array.isArray(detail?.affectedCycleIds)
+        ? detail.affectedCycleIds.map((id: any) => String(id || '').trim()).filter(Boolean)
+        : (detail?.affectedCycleId ? [String(detail.affectedCycleId)] : []);
       if (refreshDebounceRef.current) window.clearTimeout(refreshDebounceRef.current);
       refreshDebounceRef.current = window.setTimeout(async () => {
         refreshDebounceRef.current = null;
