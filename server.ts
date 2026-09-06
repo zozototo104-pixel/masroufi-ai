@@ -689,7 +689,7 @@ function inferFallbackExpenseCategory(text: string): { category: string; subcate
 
 function extractMerchantFromFinancialText(text: string): string {
   const raw = String(text || '').trim();
-  const m = raw.match(/(?:من\s+(?:عند\s+)?|عند\s+)([^\d،,.]+?)(?=\s+(?:ب|بـ|بمبلغ|بقيمة|ل|لل|لاجل|عشان|دين|كاش|بال|على)|$)/i);
+  const m = raw.match(/(?:من\s+(?:عند\s+)?|عند\s+)([^\d،,.]+?)(?=\s+(?:ب|بـ|بمبلغ|بقيمة|ل|لل|لاجل|عشان|دين|كاش|بال|على|انخصم|خصم|خصمت|اتسجل|تسجل|سجل|اللي|الذي)|$)/i);
   return m?.[1]?.trim() || '';
 }
 
