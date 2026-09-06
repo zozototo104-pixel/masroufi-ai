@@ -4216,6 +4216,45 @@ export async function queryTransactions(args: any, userId: string, token: string
   const total = roundMoney(filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0));
   const summary = summarizeTransactionsForTool(filtered);
   const salaryCycleCashFlow = salaryCyclePeriod ? summarizeSalaryCycleTransactions(filtered) : null;
+  const debtQuestionText = normalizeArabicText(`${args.userText || ''} ${args.currentUserText || ''} ${args.category || ''} ${args.account || ''} ${args.type || ''}`);
+  const wantsDebtSummary = Boolean(salaryCyclePeriod && (debtQuestionText.includes('دين') || debtQuestionText.includes('ديون') || args.account === 'debt'));
+  let debtSummary: any = null;
+  if (wantsDebtSummary) {
+    const cycleDebtTransactions = filtered.filter((t: any) => {
+      const kind = String(t.transactionType || '');
+      return kind === 'CREDIT_PURCHASE' || kind === 'DEBT_PAYMENT' || normalizeLedgerAccount(t.account) === 'debt' || normalizeLedgerAccount(t.toAccount) === 'debt' || normalizeLedgerAccount(t.fromAccount) === 'debt';
+    });
+    const creditorKeys = Array.from(new Set(cycleDebtTransactions
+      .map((t: any) => normalizeCreditorName(t.creditor || t.merchant || ''))
+      .filter(Boolean)))
+      .slice(0, 10);
+    let debtHistoryDocs: any[] = [];
+    let debtHistoryPartial = false;
+    if (creditorKeys.length > 0) {
+      const debtHistorySnap = await firebaseAdminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .where('creditorKey', 'in', creditorKeys)
+        .limit(500)
+        .get();
+      debtHistoryPartial = Boolean((debtHistorySnap as any).partial || debtHistorySnap.docs.length >= 500);
+      debtHistoryDocs = debtHistorySnap.docs;
+    }
+    const currentDebtByCreditor = calculateOpenCreditorDebts(debtHistoryDocs);
+    debtSummary = {
+      creditorKeys,
+      debtCreatedInCycle: roundMoney(cycleDebtTransactions
+        .filter((t: any) => String(t.transactionType || '') === 'CREDIT_PURCHASE' || (t.type === 'expense' && normalizeLedgerAccount(t.account) === 'debt'))
+        .reduce((sum: number, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0)),
+      debtPaidInCycle: roundMoney(cycleDebtTransactions
+        .filter((t: any) => String(t.transactionType || '') === 'DEBT_PAYMENT' || (t.type === 'transfer' && normalizeLedgerAccount(t.toAccount) === 'debt'))
+        .reduce((sum: number, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0)),
+      currentRemainingForCycleCreditors: roundMoney(currentDebtByCreditor.reduce((sum: number, item: any) => sum + Number(item.remaining || 0), 0)),
+      creditors: currentDebtByCreditor,
+      note: 'المتبقي الحالي يحسب تاريخ دائنين دورة الراتب كاملة، لذلك يعترف بالسداد الذي حدث بعد نهاية الدورة.',
+      partial: debtHistoryPartial,
+      readEfficiency: { cycleDebtTransactions: cycleDebtTransactions.length, creditorHistoryDocsRead: debtHistoryDocs.length, creditorLimit: 500 },
+    };
+  }
   logFirestoreReadDiagnostics('query_transactions', {
     userId,
     queryType: salaryCyclePeriod ? 'salary_cycle_transactions' : 'transactions_bounded',
