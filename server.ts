@@ -2151,6 +2151,7 @@ function setupLiveApi(wss: WebSocketServer) {
     let liveMutationToolSeenInTurn = false;
     let liveMutationCommittedInTurn = false;
     let liveServerFallbackRunning = false;
+    let liveTurnFallbackTimer: NodeJS.Timeout | null = null;
 
     let authTimeout: NodeJS.Timeout | null = setTimeout(() => {
       if (!authState.authenticated) {
