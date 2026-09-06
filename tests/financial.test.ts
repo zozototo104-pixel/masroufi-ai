@@ -834,6 +834,9 @@ test('NLU-01: Arabic month and debt phrases route to salary-cycle tools without 
   assert.ok(serverSrc.includes('buildFallbackFinancialToolCall') && serverSrc.includes("name: 'query_transactions'") && serverSrc.includes("period: 'salary_cycle'"), 'server fallback must query salary-cycle totals even if Gemini does not call the tool');
   assert.ok(serverSrc.includes("kind: 'debt_payment', confirmed: true"), 'explicit fallback phrase احذف آخر عملية سداد دين must execute debt-payment delete as a confirmed recent-delete command');
   assert.ok(serverSrc.includes('لا تستخدم get_balance وحده') && serverSrc.includes('kind=debt_payment'), 'voice prompt must not use global get_balance or expense deletion for month-scoped debt/debt-payment delete');
+  assert.ok(serverSrc.includes('fromSalaryCycleBalance/useDebtDate') && serverSrc.includes('ليس سداد اليوم'), 'voice/text prompts must route from-cycle debt settlement to historical pay_debt dates');
+  assert.ok(toolsSrc.includes('resolveDebtSettlementDate') && toolsSrc.includes('matched-debt-date') && toolsSrc.includes('salary-cycle-end-fallback'), 'payDebt must backdate explicit cycle/debt-date settlements instead of putting them in today cycle');
+  assert.ok(toolsSrc.includes('settlementCycleId') && toolsSrc.includes('historicalSettlement'), 'debt payment records must preserve settlement cycle metadata');
   assert.ok(serverSrc.includes('currentRemainingForCycleCreditors'), 'deterministic financial replies must prefer current remaining debt after repayments');
 });
 
