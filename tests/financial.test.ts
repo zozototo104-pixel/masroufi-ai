@@ -698,7 +698,8 @@ test('VAULT-04: salary-cycle summary counts real income, real expense, and debt-
   assert.equal(summary.debtCashInflow, 200);
   assert.equal(summary.totalInflow, 3200);
   assert.equal(summary.totalExpense, 500);
-  assert.equal(summary.surplus, 2500);
+  assert.equal(summary.debtPaid, 50);
+  assert.equal(summary.surplus, 2450);
   assert.equal(summary.debtBorrowingCount, 1);
   assert.equal(summary.transferCount, 3);
 });
