@@ -19,6 +19,7 @@ import { createCustomVoiceClone, deleteCustomVoice, getCustomVoiceProfile } from
 import { normalizeAiExpenseItems, parseExpenseImportFile, type ExpenseImportPreview } from "./src/lib/expenseImport";
 import { normalizeHistoricalTransactionDate } from "./src/lib/historicalDate";
 import { getSalaryCycleForDate } from "./src/lib/salaryCycle";
+import { normalizeCreditorKey } from "./src/lib/balanceCalc";
 
 dotenv.config();
 
