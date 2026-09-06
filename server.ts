@@ -775,6 +775,7 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
   }
   const amount = extractAmountFromFinancialText(userText);
   if (!amount) return null;
+  const transactionDate = extractDateKeyFromFinancialText(userText);
   const account = accountFromFinancialText(userText);
   const isPurchase = /(اشتريت|شريت|شراء|دفعت|دفع|مصروف)/.test(text);
   const isIncome = /(دخل|راتب|مساعده|مساعدة|منحه|منحة|هديه|هدية|الغذاء العالمي|الغذا العالمي|استلمت|وصلني)/.test(text) && !isPurchase;
