@@ -3713,8 +3713,8 @@ export async function getSalaryCycleSummary(args: any, userId: string, token: st
     ? { ...(args || {}), month: inferredMonth }
     : args;
   const period: SalaryCyclePeriod = resolveSalaryCycleFromArgs(summaryArgs || {}, new Date());
-  const first = await recalculateSalaryCycle({ ...(args || {}), __period: period, reason: 'salary_cycle_summary_tool' }, userId, token);
-  if (first.success && wantsCycleDebtSummary(args)) {
+  const first = await recalculateSalaryCycle({ ...(summaryArgs || {}), __period: period, reason: 'salary_cycle_summary_tool' }, userId, token);
+  if (first.success && wantsCycleDebtSummary(summaryArgs)) {
     try {
       const debtRead = await readTransactionsForSalaryCycle(period, userId, token, args?.limit || 500);
       (first as any).debtSummary = await buildCurrentDebtSummaryForCycle(userId, debtRead.transactions);
