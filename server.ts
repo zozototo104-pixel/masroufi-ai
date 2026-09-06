@@ -171,6 +171,37 @@ async function withGeminiKeyPool<T>(route: string, customApiKey: string | undefi
   throw wrapped;
 }
 
+type ScanCacheEntry = { expiresAt: number; response: any };
+const scanReceiptCache = new Map<string, ScanCacheEntry>();
+const SCAN_RECEIPT_CACHE_TTL_MS = Math.max(60_000, Number(process.env.SCAN_RECEIPT_CACHE_TTL_MS || 10 * 60_000));
+
+function scanReceiptCacheKey(userId: string, payloadBase64: string, mimeType: string, defaultMonth: any): string {
+  return createHash('sha256').update(`${userId}:${mimeType}:${defaultMonth || ''}:`).update(payloadBase64).digest('hex');
+}
+
+function getScanReceiptCache(cacheKey: string): any | null {
+  const entry = scanReceiptCache.get(cacheKey);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    scanReceiptCache.delete(cacheKey);
+    return null;
+  }
+  return entry.response;
+}
+
+function setScanReceiptCache(cacheKey: string, response: any) {
+  if (scanReceiptCache.size > 100) {
+    for (const [key, entry] of scanReceiptCache.entries()) {
+      if (entry.expiresAt <= Date.now()) scanReceiptCache.delete(key);
+    }
+    if (scanReceiptCache.size > 100) {
+      const firstKey = scanReceiptCache.keys().next().value;
+      if (firstKey) scanReceiptCache.delete(firstKey);
+    }
+  }
+  scanReceiptCache.set(cacheKey, { expiresAt: Date.now() + SCAN_RECEIPT_CACHE_TTL_MS, response });
+}
+
 function parseJsonObjectFromModelText(text: string): any {
   const raw = String(text || '').trim();
   if (!raw) throw new Error('GEMINI_EMPTY_RESPONSE');
