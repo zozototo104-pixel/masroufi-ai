@@ -6096,6 +6096,7 @@ export const functionDeclarations = [
       type: "object",
       properties: {
         period: { type: "string", description: "الفترة الزمنية: 'today', 'this_week', 'this_month' (تعني دورة الراتب الحالية افتراضياً), 'salary_cycle', 'current_salary_cycle', 'previous_salary_cycle', أو 'custom'" },
+        date: { type: "string", description: "تاريخ يوم محدد للبحث مثل 2026-08-30 أو 30/8. استخدمه لأي سؤال فيه كلمة بتاريخ/يوم، ولا تستخدم month لهذا النوع." },
         startDate: { type: "string", description: "تاريخ البداية بصيغة YYYY-MM-DD. مطلوب إذا period=custom" },
         endDate: { type: "string", description: "تاريخ النهاية بصيغة YYYY-MM-DD. مطلوب إذا period=custom" },
         month: { type: "string", description: "رقم أو اسم الشهر لدورة الراتب؛ شهر 7 يعني 27/06→26/07" },
