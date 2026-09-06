@@ -818,6 +818,7 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
       beneficiary: inferred.beneficiary,
       merchant,
       notes: userText,
+      date: transactionDate || undefined,
     }} as any;
   }
 
