@@ -4300,7 +4300,7 @@ export async function queryTransactions(args: any, userId: string, token: string
     filtered = filtered.filter((t: any) => matchesArabicCategory(t, args.category));
   }
 
-  if (args.account) {
+  if (args.account && !debtQueryRequested) {
     filtered = filtered.filter((t: any) => t.account === args.account);
   }
 
