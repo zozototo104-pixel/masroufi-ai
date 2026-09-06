@@ -1018,10 +1018,10 @@ test('IMPORT-01: image analysis retries temporary Gemini capacity but separates 
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   const liteIndex = serverSrc.indexOf('gemini-2.5-flash-lite');
   const flashIndex = serverSrc.indexOf('gemini-2.5-flash');
-  const flash20Index = serverSrc.indexOf('gemini-2.0-flash');
   const strongIndex = serverSrc.indexOf('gemini-3.7-flash');
-  assert.ok(liteIndex >= 0 && flashIndex >= 0 && flash20Index >= 0, 'expense import must use cheap/stable Flash models first');
-  assert.ok(strongIndex > flash20Index, 'Gemini 3.7 Flash must be present as a late fallback, not the default import model');
+  assert.ok(liteIndex >= 0 && flashIndex >= 0, 'expense import must use cheap/stable 2.5 Flash models first');
+  assert.ok(strongIndex > flashIndex, 'Gemini 3.7 Flash must be present directly after cheap models as a late fallback, not the default import model');
+  assert.equal(serverSrc.includes('gemini-2.0-flash'), false, 'expense import should not insert older 2.0 Flash before the requested 3.7 fallback');
   assert.ok(serverSrc.includes('isGeminiRateLimitError') && serverSrc.includes('GEMINI_RATE_LIMIT_EXCEEDED'), '429/RESOURCE_EXHAUSTED must be reported as rate limits, not generic temporary capacity');
   assert.ok(serverSrc.includes('Gemini capacity error; retrying same model') && serverSrc.includes('await sleep(delayMs)'), '503/UNAVAILABLE image analysis must retry with backoff before failing');
   assert.ok(appSrc.includes('if (isScanning)') && appSrc.includes('تحليل ملف سابق ما زال جارياً'), 'client must prevent concurrent image-analysis requests');
