@@ -209,7 +209,7 @@ export async function atomicAddTransaction(
       reason?: string;
     } | null;
   } = {}
-): Promise<{ ok: true; docId: string; balances: BalanceSnapshot; balanceReadSource: string } | { ok: false; reason: string; available?: number; balances?: BalanceSnapshot; duplicateGuard?: any }> {
+): Promise<{ ok: true; docId: string; balances: BalanceSnapshot; previousBalances: BalanceSnapshot; balanceDelta: AccountBalanceDelta; balanceReadSource: string } | { ok: false; reason: string; available?: number; balances?: BalanceSnapshot; duplicateGuard?: any }> {
   return adminDb.runTransaction(async (tx: any) => {
     const guardSnap = opts.uniqueGuard?.ref ? await tx.get(opts.uniqueGuard.ref) : null;
     if (guardSnap?.exists && !opts.riskConfirmed) {
