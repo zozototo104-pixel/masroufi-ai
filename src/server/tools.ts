@@ -2696,7 +2696,23 @@ export async function deleteTransaction(args: any, userId: string, token: string
 function matchesRecentDeleteKind(tx: any, kind: string): boolean {
   const transactionType = String(tx?.transactionType || '');
   const type = String(tx?.type || '');
-  if (kind === 'debt_payment') return transactionType === 'DEBT_PAYMENT' || (type === 'transfer' && normalizeLedgerAccount(tx?.toAccount) === 'debt');
+  const account = normalizeLedgerAccount(tx?.account);
+  const fromAccount = normalizeLedgerAccount(tx?.fromAccount || tx?.account);
+  const toAccount = normalizeLedgerAccount(tx?.toAccount);
+  const text = normalizeArabicText(`${tx?.category || ''} ${tx?.subcategory || ''} ${tx?.notes || ''} ${tx?.merchant || ''} ${tx?.creditor || ''} ${transactionType}`);
+  if (kind === 'debt_payment') {
+    const explicitDebtPayment = transactionType === 'DEBT_PAYMENT'
+      || transactionType === 'DEBT_REPAYMENT'
+      || transactionType === 'PAY_DEBT'
+      || transactionType === 'CREDITOR_OVERPAYMENT'
+      || transactionType === 'DEBT_OVERPAYMENT';
+    const ledgerDebtPayment = (type === 'transfer' && toAccount === 'debt')
+      || (type === 'income' && account === 'debt')
+      || (type === 'transfer' && fromAccount !== 'debt' && text.includes('سداد') && text.includes('دين'));
+    const overpaymentLike = (text.includes('فائض سداد') || text.includes('دائن') || text.includes('overpay') || text.includes('overpayment'))
+      && (account === 'debt' || toAccount === 'debt' || text.includes('دين') || text.includes('دائن'));
+    return explicitDebtPayment || ledgerDebtPayment || overpaymentLike;
+  }
   if (kind === 'expense') return type === 'expense';
   if (kind === 'credit_purchase') return type === 'expense' && (transactionType === 'CREDIT_PURCHASE' || normalizeLedgerAccount(tx?.account) === 'debt');
   if (kind === 'income') return type === 'income';
