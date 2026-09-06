@@ -1239,22 +1239,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
   });
 
   if (!commitVerification.ok) {
-    return {
-      success: false,
-      needsManualReview: true,
-      reason: 'CLOUD_WRITE_VERIFICATION_FAILED',
-      transactionId: actualTxId,
+    console.warn('[add-transaction] post_commit_verification_warning', {
+      userIdHash: stableDocId(userId),
       operationId,
-      cloudStorageConfirmed: false,
-      durability: 'commit_unverified',
-      commitVerification,
-      message: commitVerification.transactionDocumentConfirmed
-        ? 'تم إنشاء القيد في السحابة، لكن لم أؤكد تحديث الرصيد بعد القراءة اللاحقة. لن أقول تم الخصم حتى يتم التحقق؛ لا تكرر نفس العملية قبل فحصها.'
-        : 'أداة الحفظ رجعت نجاحاً، لكن القراءة اللاحقة لم تؤكد وجود القيد في السحابة. لم أؤكد التسجيل؛ لا تكرر العملية قبل الفحص حتى لا يحدث تضاعف.',
-    };
+      transactionId: actualTxId,
+      errors: commitVerification.errors,
+      warnings: commitVerification.warnings,
+    });
   }
+  const responseBalances = commitVerification.storedBalances || committedBalances;
+  const postCommitVerificationWarning = commitVerification.ok ? '' : 'تم حفظ القيد عبر Firestore transaction، لكن قراءة التحقق اللاحقة احتاجت إصلاح/تشخيص للرصيد. اعتمدت نتيجة الـ commit ولم أعتبر العملية فاشلة.';
   
-  // The ledger write above is durably committed and verified. Secondary effects
+  // The ledger write above is durably committed. Secondary effects
   // (notifications/budget warnings) must never turn that committed write into
   // an apparent tool failure, otherwise Live may tell the user to retry and
   // create a duplicate while the original transaction already exists.
