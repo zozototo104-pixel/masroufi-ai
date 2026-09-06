@@ -33,6 +33,9 @@ export interface SalaryCycleSummary {
   expenseCount: number;
   transferCount: number;
   debtBorrowingCount: number;
+  debtCreated: number;
+  debtPaid: number;
+  netDebtChange: number;
 }
 
 const ARABIC_MONTHS: Record<string, number> = {
