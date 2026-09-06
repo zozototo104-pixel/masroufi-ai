@@ -4291,7 +4291,7 @@ export async function queryTransactions(args: any, userId: string, token: string
   const debtQuestionText = normalizeArabicText(`${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''} ${args.category || ''} ${args.account || ''} ${args.type || ''}`);
   const debtQueryRequested = Boolean(salaryCyclePeriod && (debtQuestionText.includes('دين') || debtQuestionText.includes('ديون') || args.account === 'debt'));
   
-  const effectiveTypeFilter = args.type || inferredQueryType;
+  const effectiveTypeFilter = debtQueryRequested ? '' : (args.type || inferredQueryType);
   if (effectiveTypeFilter) {
     filtered = filtered.filter((t: any) => t.type === effectiveTypeFilter);
   }
