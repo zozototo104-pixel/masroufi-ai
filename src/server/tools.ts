@@ -5153,13 +5153,16 @@ export async function queryTransactions(args: any, userId: string, token: string
     : !args.type && (normalizedUserText.includes('دخل') || normalizedUserText.includes('راتب'))
       ? 'income'
       : '';
-  const monthRequested = parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber) !== null || inferredMonthFromText !== null;
-  const salaryCycleRequested = Boolean(args.salaryCycle || args.cycleId || args.salaryMonth || args.monthNumber || inferredMonthFromText)
-    || period === 'salary_cycle'
+  const explicitSalaryCycleArgs = Boolean(args.salaryCycle || args.cycleId || args.salaryMonth || args.monthNumber || inferredMonthFromText);
+  const periodRequestsSalaryCycle = period === 'salary_cycle'
     || period === 'current_salary_cycle'
     || period === 'previous_salary_cycle'
-    || (period === 'this_month' && !explicitCalendarMonth)
-    || (monthRequested && !explicitCalendarMonth);
+    || (period === 'this_month' && !explicitCalendarMonth);
+  const monthRequested = parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber) !== null || inferredMonthFromText !== null;
+  const exactDateShouldOverrideCycle = Boolean(explicitDateKey && !salaryCycleWordsRequested && !args.salaryCycle && !args.cycleId && !args.salaryMonth && !args.monthNumber);
+  const salaryCycleRequested = !exactDateShouldOverrideCycle && (explicitSalaryCycleArgs
+    || periodRequestsSalaryCycle
+    || (monthRequested && !explicitCalendarMonth));
 
   if (salaryCycleRequested) {
     const cycleArgs = period === 'previous_salary_cycle'
