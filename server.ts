@@ -2275,7 +2275,7 @@ ${activeSalaryCycleText}
                         }
                         console.log('[live-tool] completed', {
                           requestId,
-                          name: call.name,
+                          name: effectiveCall.name,
                           durationMs: Date.now() - liveToolStartedAt,
                           success: result?.success === true,
                           reason: result?.reason || result?.error || null,
