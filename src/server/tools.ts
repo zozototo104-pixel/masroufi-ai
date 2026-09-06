@@ -1240,7 +1240,6 @@ export async function addTransaction(args: any, userId: string, token: string) {
     console.warn('Savings Vault recalculation failed after committed transaction; preserving committed transaction success:', vaultErr);
   }
   
-  const committedBalances = 'balances' in atomicResult ? (atomicResult as any).balances : undefined;
   const affectedSalaryCycle = getSalaryCycleForDate(tx.date || tx.createdAt || new Date().toISOString(), new Date());
   return {
     success: true,
