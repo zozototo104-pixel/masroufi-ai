@@ -4198,7 +4198,13 @@ export async function queryTransactions(args: any, userId: string, token: string
   }
 
   const rawUserText = `${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''}`;
+  const normalizedUserText = normalizeArabicText(rawUserText);
   const inferredMonthFromText = parseSalaryCycleMonth(rawUserText);
+  const inferredQueryType = !args.type && (normalizedUserText.includes('مصروف') || normalizedUserText.includes('صرف') || normalizedUserText.includes('اشتريت'))
+    ? 'expense'
+    : !args.type && (normalizedUserText.includes('دخل') || normalizedUserText.includes('راتب'))
+      ? 'income'
+      : '';
   const monthRequested = parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber) !== null || inferredMonthFromText !== null;
   const salaryCycleRequested = Boolean(args.salaryCycle || args.cycleId || args.salaryMonth || args.monthNumber || inferredMonthFromText)
     || period === 'salary_cycle'
