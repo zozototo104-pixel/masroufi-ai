@@ -355,10 +355,12 @@ test('CONC-25: reviewed receipt import records through direct preparation and bo
     'reviewed receipt imports must not use addTransaction validateOnly orchestration');
   assert.equal(receiptRecordBlock.includes('validateOnly'), false,
     'reviewed receipt imports must not emit per-line addTransaction validateOnly tool calls');
-  assert.ok(serverSrc.includes('skipLedgerBalanceCheck: true'),
-    'reviewed receipt imports must avoid a full-ledger scan during record');
-  assert.ok(serverSrc.includes('splitOverflowToDebt') && serverSrc.includes("paymentMethodOverride: 'debt'"),
-    'reviewed imports must record from the selected balance first and push overflow to debt');
+  assert.ok(receiptRecordBlock.includes("collection('meta').doc('accountBalances')") && receiptRecordBlock.includes('ACCOUNT_BALANCE_SNAPSHOT_REQUIRED_FOR_RECEIPT_SPLIT'),
+    'reviewed receipt imports must use one account-balance snapshot and fail closed if it is unavailable, not bootstrap the full ledger');
+  assert.ok(receiptRecordBlock.includes('skipLedgerBalanceCheck: false'),
+    'reviewed receipt imports must still run atomic snapshot balance validation after bounded split');
+  assert.ok(serverSrc.includes('splitOverflowToDebt') && serverSrc.includes("paymentMethodOverride: 'debt'") && serverSrc.includes("['cash', 'palPay']"),
+    'reviewed imports must record from selected liquid account first, then the other liquid account, and push only the remainder to debt');
   assert.equal(serverSrc.includes('recordTransactionCommittedSideEffects'), false,
     'reviewed receipt import response must not be blocked by quota-heavy per-item side effects');
   assert.ok(receiptCommitBlock.includes('stableReceiptItemDocId'),
