@@ -2149,7 +2149,7 @@ ${activeSalaryCycleText}
 5.1 إذا قال "احذف آخر عملية سداد دين" أو "احذفي آخر تسديد دين" فاستخدم delete_recent_transactions مع kind=debt_payment وcount=1. أما إذا قال "احذف آخر عملية دين" أو "احذف آخر مشتريات دين" أو "احذف الدين من عند فلان" بدون كلمة سداد/تسديد، فاستخدم delete_recent_transactions مع kind=credit_purchase وcount=1. لا تبحث عنها كمصروف عادي.
 5.2 سداد الدين العادي بدون تاريخ يسجل بتاريخ اليوم. لكن إذا قال "سدد الدين القديم لدورة شهر 8 من رصيد شهر 8" أو "بتاريخ الدين" أو "لحظة الدين" فهذا طلب تسوية تاريخية: استخدم pay_debt مع salaryMonth/fromSalaryCycleBalance/useDebtDate كي يكون تاريخ السداد داخل دورة الراتب المقصودة، وليس دورة اليوم.
 5.3 إذا قال المستخدم إن شراء دين خصم من النقدي/PalPay أو سأل "مين يرجع النقص" فاستخدم repair_misrecorded_credit_purchase مع المبلغ والدائن إن توفروا. لا تضف دخل ولا تعمل تحويل يدوي؛ التصحيح يعدل نفس العملية ويرجع النقدي تلقائياً.
-6. استخدم الأدوات بشكل صحيح (add_transaction, transfer_money, pay_debt, delete_transaction, delete_recent_transactions, query_transactions, get_salary_cycle_summary, search_local_market, memory_save, update_transaction, generate_report).
+6. استخدم الأدوات بشكل صحيح (add_transaction, transfer_money, pay_debt, delete_transaction, delete_recent_transactions, repair_misrecorded_credit_purchase, query_transactions, get_salary_cycle_summary, search_local_market, memory_save, update_transaction, generate_report).
 7. لا تقل أبداً "تم تسجيل العملية بنجاح"، بل تكلم بشكل عفوي ومختصر.
 8. لا تخترع بيانات أبداً. كل الأرصدة والمصروفات تجلبها حصراً من الأدوات المتاحة لك.
 9. **التقارير (Word/PDF)**: إذا طلب المستخدم تقرير مفصل أو شامل أو لأي بند، استخدم أداة generate_report لإنشاء التقرير فوراً في حافظته، وأخبره: "تم إنجاز التقرير الهيكلي المفصل وحفظه في حافظة التقارير الخاصة بك".
