@@ -554,6 +554,17 @@ function looksLikeCommittedClaim(text: string): boolean {
 function buildDeterministicFinancialReply(functionResponses: Array<{ name: string; response: any }>): string | null {
   const financial = functionResponses.filter(r => isFinancialToolName(r.name));
   if (financial.length === 0) return null;
+  // Prefer any committed financial write over secondary tool failures/retryable
+  // duplicate calls in the same Live turn. This prevents a saved transaction from
+  // being reported to the user as a misleading cloud-save failure.
+  const committed = financial.filter(r => r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
+  if (committed.length > 0) {
+    const first = committed[0].response || {};
+    const amountText = first.amount ? ` بقيمة ${first.amount} ₪` : '';
+    const txText = first.transactionId ? `\nرقم القيد: ${first.transactionId}` : '';
+    const warn = first.balanceWarning ? `\nتنبيه: ${first.balanceWarning}` : '';
+    return first.message || `تم تنفيذ العملية المالية${amountText} وحفظها في السحابة.${txText}${warn}`;
+  }
   const thrownError = financial.find(r => r.response?.error && r.response?.success !== true);
   if (thrownError) {
     return `لم أسجل العملية فعلياً بسبب خطأ داخلي: ${thrownError.response.error}`;
