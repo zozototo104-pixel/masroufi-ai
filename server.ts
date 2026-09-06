@@ -37,15 +37,18 @@ function getExpenseImportModelFallbacks(): string[] {
     .split(',')
     .map(model => model.trim())
     .filter(Boolean);
-  // Receipt/import analysis should prefer cheaper/faster Flash models. Do not
-  // start with speculative model names here: every invalid/high-demand attempt
-  // adds latency and can burn rate-limit budget before the useful fallback runs.
-  const defaults = [
+  // Receipt/import analysis should prefer cheaper/faster Flash models first.
+  // Keep stronger/newer models as late fallbacks so uploads still have a chance
+  // when the cheap models are overloaded or fail, without making them the default.
+  const cheapDefaults = [
     'gemini-2.5-flash-lite',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
   ];
-  return Array.from(new Set([...configured, ...defaults]));
+  const strongFallbacks = [
+    'gemini-3.7-flash',
+  ];
+  return Array.from(new Set([...configured, ...cheapDefaults, ...strongFallbacks]));
 }
 
 function geminiErrorText(error: any): string {
