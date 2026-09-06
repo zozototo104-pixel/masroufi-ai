@@ -4227,6 +4227,7 @@ export async function getSalaryCycleDetails(args: any, userId: string, token: st
     expenses: lists.expenses,
     transfers: lists.transfers,
     debtBorrowing: lists.debtBorrowing,
+    debtPurchases: lists.debtPurchases,
     byCategory: lists.byCategory,
     counts: {
       total: readResult.transactions.length,
