@@ -2380,7 +2380,7 @@ ${activeSalaryCycleText}
                             },
                           } as FunctionCall)
                         : call;
-                      const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, liveArgsText, seenToolKeys, message.toolCall.functionCalls || []);
+                      const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, liveArgsText, seenToolKeys, liveFunctionCalls);
                       if (guard.skip) {
                         return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
                       }
