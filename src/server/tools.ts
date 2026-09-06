@@ -1191,8 +1191,37 @@ export async function addTransaction(args: any, userId: string, token: string) {
   }
   actualTxId = atomicResult.docId;
   writeResult = { durability: 'committed', synced: true, pending: false };
+
+  const committedBalances = 'balances' in atomicResult ? (atomicResult as any).balances : undefined;
+  const commitVerification = await verifyAddTransactionCommit(userId, actualTxId, tx, committedBalances, atomicResult as any);
+  console.info('[add-transaction] commit_verification', {
+    userIdHash: stableDocId(userId),
+    operationId,
+    transactionId: actualTxId,
+    ok: commitVerification.ok,
+    transactionDocumentConfirmed: commitVerification.transactionDocumentConfirmed,
+    balanceSnapshotConfirmed: commitVerification.balanceSnapshotConfirmed,
+    balanceEffectConfirmed: commitVerification.balanceEffectConfirmed,
+    errors: commitVerification.errors,
+  });
+
+  if (!commitVerification.ok) {
+    return {
+      success: false,
+      needsManualReview: true,
+      reason: 'CLOUD_WRITE_VERIFICATION_FAILED',
+      transactionId: actualTxId,
+      operationId,
+      cloudStorageConfirmed: false,
+      durability: 'commit_unverified',
+      commitVerification,
+      message: commitVerification.transactionDocumentConfirmed
+        ? 'تم إنشاء القيد في السحابة، لكن لم أؤكد تحديث الرصيد بعد القراءة اللاحقة. لن أقول تم الخصم حتى يتم التحقق؛ لا تكرر نفس العملية قبل فحصها.'
+        : 'أداة الحفظ رجعت نجاحاً، لكن القراءة اللاحقة لم تؤكد وجود القيد في السحابة. لم أؤكد التسجيل؛ لا تكرر العملية قبل الفحص حتى لا يحدث تضاعف.',
+    };
+  }
   
-  // The ledger write above is already durably committed. Secondary effects
+  // The ledger write above is durably committed and verified. Secondary effects
   // (notifications/budget warnings) must never turn that committed write into
   // an apparent tool failure, otherwise Live may tell the user to retry and
   // create a duplicate while the original transaction already exists.
