@@ -5167,6 +5167,8 @@ export const functionDeclarations = [
         purchaseItem: { type: "string", description: "ما الذي تم شراؤه تحديداً؟ مثال: ملابس، علاج، تموين، حذاء، مستلزمات مدرسة. مهم لبناء id القيد ومنع التكرار الصحيح." },
         beneficiary: { type: "string", description: "لمن/لأي غرض؟ مثال: الأولاد، الزوجة، البيت، العمل، علاج. مهم لتمييز قيدين بنفس المبلغ ونفس المتجر." },
         merchant: { type: "string", description: "اسم المتجر أو الجهة أو الشخص (مثال: 'مكتبة النور', 'سوبرماركت البركة', 'محل ملابس')" },
+        creditor: { type: "string", description: "اسم الدائن/المحل عند الشراء بالدين أو الآجل. إذا قال المستخدم من عند فلان ديناً، ضع فلان هنا أو في merchant." },
+        seller: { type: "string", description: "اسم البائع/المحل كمرادف اختياري لـ merchant عند الشراء بالدين" },
         notes: { type: "string", description: "البيان وتفصيل شو اشترى أو ملاحظات إضافية" },
         paymentMethod: { type: "string", description: "طريقة الدفع: 'cash' (نقدي/كاش), 'palPay' (محفظة), أو 'debt' (دين/آجل)." },
         date: { type: "string", description: "تاريخ العملية إذا كانت قديمة أو محددة. استخدم YYYY-MM-DD أو DD/MM/YYYY أو تاريخ قصير مثل 27/6؛ راتب 27/6 هو راتب دورة شهر 7 لأن الدورة 27→26." },
