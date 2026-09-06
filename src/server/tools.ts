@@ -2923,6 +2923,116 @@ export async function repairMisroutedVaultClose(args: any, userId: string, token
   };
 }
 
+function isMisrecordedCreditPurchaseCandidate(tx: any): boolean {
+  const type = String(tx?.type || '');
+  const account = normalizeLedgerAccount(tx?.account);
+  const transactionType = String(tx?.transactionType || '');
+  if (type !== 'expense') return false;
+  if (account === 'debt' || transactionType === 'CREDIT_PURCHASE') return false;
+  const text = normalizeArabicText(`${tx?.category || ''} ${tx?.subcategory || ''} ${tx?.notes || ''} ${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.purchaseItem || ''} ${transactionType}`);
+  const debtWords = text.includes('دين') || text.includes('بالدين') || text.includes('اجل') || text.includes('آجل') || text.includes('على الحساب');
+  const repaymentWords = text.includes('سداد') || text.includes('تسديد') || text.includes('سدد') || text.includes('سديت');
+  return debtWords && !repaymentWords;
+}
+
+export async function repairMisrecordedCreditPurchase(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log('TOOL CALL: repairMisrecordedCreditPurchase', { ...args, userId: '[redacted]' });
+  const targetAmount = args?.amount !== undefined ? parsePositiveFinancialAmount(args.amount) : null;
+  const targetMerchant = normalizeArabicText(String(args?.merchant || args?.creditor || args?.seller || '').trim());
+  const searchLimit = Math.max(25, Math.min(100, Number(args?.searchLimit) || 75));
+  const confirmed = args?.confirmed === true || args?.confirmation === 'REPAIR_MISRECORDED_CREDIT_PURCHASE';
+  const snap = await adminDb.collection('transactions')
+    .where('userId', '==', userId)
+    .orderBy('createdAt', 'desc')
+    .limit(searchLimit)
+    .get();
+  let candidates = snap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((tx: any) => isMisrecordedCreditPurchaseCandidate(tx));
+  if (targetAmount !== null && targetAmount > 0) {
+    candidates = candidates.filter((tx: any) => Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01);
+  }
+  if (targetMerchant) {
+    candidates = candidates.filter((tx: any) => normalizeArabicText(`${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.notes || ''}`).includes(targetMerchant));
+  }
+  candidates = candidates.slice(0, 5);
+  const preview = candidates.map((t: any) => ({
+    id: t.id,
+    amount: t.amount,
+    oldAccount: t.account,
+    newAccount: 'debt',
+    type: t.type,
+    transactionType: t.transactionType,
+    merchant: t.merchant,
+    creditor: t.creditor || t.merchant,
+    category: t.category,
+    subcategory: t.subcategory,
+    date: t.date,
+    createdAt: t.createdAt,
+    notes: t.notes,
+  }));
+
+  if (candidates.length === 0) {
+    return {
+      success: false,
+      reason: 'NO_MISRECORDED_CREDIT_PURCHASE_CANDIDATE',
+      message: `لم أجد عملية دين خُصمت من النقدي/PalPay ضمن آخر ${searchLimit} عملية${targetAmount ? ` بقيمة ${targetAmount} ₪` : ''}. لن أعدل الرصيد بدون دليل واضح.`,
+      candidates: [],
+      readEfficiency: { transactionDocsRead: snap.docs.length, limit: searchLimit },
+    };
+  }
+  if (candidates.length > 1 || !confirmed) {
+    return {
+      success: false,
+      needsConfirmation: true,
+      reason: candidates.length > 1 ? 'AMBIGUOUS_MISRECORDED_CREDIT_PURCHASE' : 'CONFIRM_MISRECORDED_CREDIT_PURCHASE_REPAIR',
+      message: candidates.length > 1
+        ? `وجدت ${candidates.length} عمليات دين خُصمت من النقدي/PalPay. اختر أو أكد العملية الصحيحة قبل التصحيح.`
+        : `وجدت عملية دين خُصمت من ${preview[0].oldAccount || 'الرصيد'} بقيمة ${Number(candidates[0].amount || 0).toLocaleString()} ₪. أكد التصحيح لإرجاعها للدين بدون حذف العملية.`,
+      candidates: preview,
+      readEfficiency: { transactionDocsRead: snap.docs.length, limit: searchLimit },
+    };
+  }
+
+  const target = candidates[0];
+  const finalUpdates = {
+    account: 'debt',
+    paymentMethod: 'debt',
+    transactionType: 'CREDIT_PURCHASE',
+    creditor: target.creditor || target.merchant || args?.creditor || args?.merchant || 'غير محدد',
+    creditorKey: normalizeCreditorKey(target.creditor || target.merchant || args?.creditor || args?.merchant || 'غير محدد'),
+    repairedAt: new Date().toISOString(),
+    repairReason: 'misrecorded_credit_purchase_cash_deduction',
+  };
+  const atomicResult = await atomicUpdateTransaction(userId, target.id, finalUpdates, { riskConfirmed: true });
+  if (!atomicResult.ok) {
+    const failed = atomicResult as Extract<typeof atomicResult, { ok: false }>;
+    return { success: false, reason: failed.reason, message: 'تعذر تصحيح عملية الدين بأمان؛ قد تكون تغيرت قبل التنفيذ.' };
+  }
+  const projected = { ...target, ...finalUpdates, userId };
+  const affectedCycleId = getSalaryCycleForDate(target.date || target.createdAt || new Date().toISOString(), new Date()).cycleId;
+  let recalculated: any = null;
+  try {
+    recalculated = await recalculateSalaryCycle({ cycleId: affectedCycleId, reason: 'repair_misrecorded_credit_purchase' }, userId, token);
+  } catch (err) {
+    console.warn('Savings Vault recalculation failed after credit purchase repair:', err);
+  }
+  await addNotification(userId, `تم تصحيح عملية دين بقيمة ${Number(target.amount || 0).toLocaleString()} ₪: أُرجعت من ${target.account || 'الرصيد'} إلى الديون.`, 'success', adminDb);
+  return {
+    success: true,
+    updatedTransactionId: target.id,
+    before: preview[0],
+    after: { id: target.id, ...projected },
+    affectedCycleId,
+    affectedCycleIds: [affectedCycleId],
+    recalculatedCycle: recalculated?.salaryCycle?.cycleId || affectedCycleId,
+    currentBalances: atomicResult.balances,
+    message: `رجّعت أثر العملية من ${target.account === 'palPay' ? 'PalPay' : 'النقدي'} وحولتها لشراء دين بقيمة ${Number(target.amount || 0).toLocaleString()} ₪ بدون حذفها.`,
+    readEfficiency: { transactionDocsRead: snap.docs.length, balanceSnapshotReads: 1, transactionUpdateReads: 1, limit: searchLimit },
+  };
+}
+
 export async function repairDuplicateIncome(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log('TOOL CALL: repairDuplicateIncome', args);
