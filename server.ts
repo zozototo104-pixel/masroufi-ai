@@ -1842,7 +1842,14 @@ ${relationshipContext}
         const seenToolKeys = new Set<string>();
         const functionResponses = await Promise.all(
           response.functionCalls.map(async (call: FunctionCall) => {
-            const guard = shouldSkipFinancialToolCallForIntent(call, message, seenToolKeys, response.functionCalls || []);
+            const effectiveCall = isVaultCloseIntentText(message) && call.name !== 'recalculate_salary_cycle'
+              ? ({
+                  ...call,
+                  name: 'recalculate_salary_cycle',
+                  args: { lockVault: true, closeCycle: true, transferToVault: true, userText: message, reason: 'corrected_misrouted_vault_close_intent', ...(parseSalaryCycleMonth(message) ? { month: parseSalaryCycleMonth(message) } : {}) },
+                } as FunctionCall)
+              : call;
+            const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, message, seenToolKeys, response.functionCalls || []);
             if (guard.skip) {
               return { id: call.id, name: call.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر/غير مناسب لنفس الأمر حتى لا يتضاعف القيد المالي.' } };
             }
