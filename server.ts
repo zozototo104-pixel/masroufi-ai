@@ -105,41 +105,64 @@ async function generateExpenseImportJsonWithFallback(ai: GoogleGenAI, input: {
 }): Promise<{ text: string; model: string; fallbackUsed: boolean }> {
   const models = getExpenseImportModelFallbacks();
   const errors: string[] = [];
+  const maxAttemptsPerCapacityModel = 2;
+  let sawRateLimit = false;
+  let sawCapacity = false;
+
   for (let index = 0; index < models.length; index++) {
     const model = models[index];
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { inlineData: { data: input.payloadBase64, mimeType: input.mimeType } },
-              { text: input.prompt }
-            ]
+    for (let attempt = 1; attempt <= maxAttemptsPerCapacityModel; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { inlineData: { data: input.payloadBase64, mimeType: input.mimeType } },
+                { text: input.prompt }
+              ]
+            }
+          ],
+          config: {
+            responseMimeType: "application/json"
           }
-        ],
-        config: {
-          responseMimeType: "application/json"
+        });
+        const text = response.text;
+        if (!text) throw new Error('No response text');
+        return { text, model, fallbackUsed: index > 0 || attempt > 1 };
+      } catch (error: any) {
+        const rateLimit = isGeminiRateLimitError(error);
+        const capacity = isGeminiCapacityError(error);
+        const modelFallback = isGeminiModelFallbackError(error);
+        sawRateLimit = sawRateLimit || rateLimit;
+        sawCapacity = sawCapacity || capacity;
+        errors.push(`${model}#${attempt}: ${error?.message || error}`);
+
+        if (capacity && attempt < maxAttemptsPerCapacityModel) {
+          const delayMs = 700 * attempt;
+          console.warn('[expense-import] Gemini capacity error; retrying same model', { model, attempt, delayMs });
+          await sleep(delayMs);
+          continue;
         }
-      });
-      const text = response.text;
-      if (!text) throw new Error('No response text');
-      return { text, model, fallbackUsed: index > 0 };
-    } catch (error: any) {
-      errors.push(`${model}: ${error?.message || error}`);
-      const retryable = isGeminiRetryableModelError(error);
-      if (!retryable || index === models.length - 1) {
-        const temporary = errors.some(msg => isGeminiTemporaryCapacityError({ message: msg })) || isGeminiTemporaryCapacityError(error);
-        const wrapped = new Error(temporary
-          ? 'GEMINI_TEMPORARILY_UNAVAILABLE'
-          : (error?.message || 'Gemini expense import failed')) as any;
-        wrapped.reason = temporary ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : 'GEMINI_EXPENSE_IMPORT_FAILED';
-        wrapped.statusCode = temporary ? 503 : 500;
-        wrapped.modelErrors = errors;
-        throw wrapped;
+
+        const retryable = rateLimit || capacity || modelFallback;
+        if (!retryable || index === models.length - 1) {
+          const reason = sawRateLimit
+            ? 'GEMINI_RATE_LIMIT_EXCEEDED'
+            : sawCapacity
+              ? 'GEMINI_TEMPORARILY_UNAVAILABLE'
+              : 'GEMINI_EXPENSE_IMPORT_FAILED';
+          const wrapped = new Error(reason) as any;
+          wrapped.reason = reason;
+          wrapped.statusCode = sawRateLimit ? 429 : sawCapacity ? 503 : 500;
+          wrapped.modelErrors = errors;
+          throw wrapped;
+        }
+
+        console.warn('[expense-import] model failed, trying fallback', { model, attempt, error: error?.code || error?.message || error });
+        break;
       }
-      console.warn('[expense-import] model failed, trying fallback', { model, error: error?.code || error?.message || error });
     }
   }
   throw new Error('GEMINI_EXPENSE_IMPORT_FAILED');
