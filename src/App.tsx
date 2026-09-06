@@ -1061,7 +1061,9 @@ export default function App() {
       }
       await rememberCloudConnected();
       setShowScannerResult(null);
-      window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', {
+        detail: { scope: 'financial', affectedCycleIds: Array.isArray(data?.affectedCycleIds) ? data.affectedCycleIds : [] }
+      }));
     } catch (err: any) {
       console.error('Record scanned receipt error', err);
       alert(err?.name === 'AbortError'
