@@ -5639,14 +5639,16 @@ export const functionDeclarations = [
   },
   {
     name: "delete_transaction",
-    description: "يحذف عملية مالية سابقة. يمكن استخدام id صريح، أو البحث بـ account/amount/category. عند تطابق عملية واحدة فقط، يجب تمرير confirmed=true بعد عرض العملية على المستخدم. لا تحذف أبداً بصمت.",
+    description: "يحذف عملية مالية سابقة. يمكن استخدام id صريح، أو البحث بـ date/amount/account/category. عند ذكر تاريخ مثل 27/8 يبحث في يوم العملية نفسه لا في آخر createdAt فقط، وهذا مهم للعمليات التي تظهر في تتبع النقدي/PalPay أو دورات الراتب. عند تطابق عملية واحدة فقط، يجب تمرير confirmed=true بعد عرض العملية على المستخدم. لا تحذف أبداً بصمت.",
     parameters: {
       type: "object",
       properties: {
         id: { type: "string", description: "معرف العملية (id) إن كان متوفراً" },
+        date: { type: "string", description: "تاريخ العملية المراد حذفها، مثل 2026-08-27 أو 27/8" },
         account: { type: "string", description: "الحساب: 'palPay' (بال باي), 'cash' (نقدي), أو 'debt' (دين)" },
         amount: { type: "number", description: "مبلغ العملية المراد حذفها" },
-        category: { type: "string", description: "تصنيف العملية المراد حذفها" },
+        category: { type: "string", description: "تصنيف العملية المراد حذفها. لا تستخدم 'مصروف نقدي' كتصنيف؛ مرره كـ account=cash" },
+        searchLimit: { type: "number", description: "حد القراءة عند البحث بالتاريخ، افتراضياً 250 وبحد أقصى 500" },
         confirmed: { type: "boolean", description: "true فقط بعد عرض المرشح الواحد على المستخدم وتأكيده." }
       }
     }
