@@ -18,7 +18,9 @@ export function txBalanceDelta(tx: any): AccountBalanceDelta {
   if (!amount || !type) return delta;
 
   if (type === 'expense') {
-    const account = normalizeLedgerAccount(tx?.account);
+    const account = String(tx?.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE'
+      ? 'debt'
+      : normalizeLedgerAccount(tx?.account);
     if (account === 'palPay') delta.palPay -= amount;
     else if (account === 'debt') delta.debt += amount;
     else if (account === 'vault') delta.vault -= amount;
