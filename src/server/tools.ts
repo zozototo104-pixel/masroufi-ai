@@ -4210,7 +4210,9 @@ export async function queryTransactions(args: any, userId: string, token: string
   if (salaryCycleRequested) {
     const cycleArgs = period === 'previous_salary_cycle'
       ? { ...(args || {}), period: 'previous' }
-      : args;
+      : inferredMonthFromText && !parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber)
+        ? { ...(args || {}), month: inferredMonthFromText }
+        : args;
     salaryCyclePeriod = resolveSalaryCycleFromArgs(cycleArgs || {}, now);
     startIso = salaryCyclePeriod.startIso;
     endExclusiveIso = salaryCyclePeriod.endExclusiveIso;
