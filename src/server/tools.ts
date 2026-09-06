@@ -2826,11 +2826,19 @@ export async function repairMisroutedVaultClose(args: any, userId: string, token
     .orderBy('createdAt', 'desc')
     .limit(searchLimit)
     .get();
-  let candidates = snap.docs
+  const allCandidates = snap.docs
     .map((d: any) => ({ id: d.id, ...d.data() }))
     .filter((tx: any) => isMisroutedVaultCloseDebtCreditCandidate(tx));
+  let candidates = allCandidates;
+  let amountFilterFallbackUsed = false;
   if (targetAmount !== null && targetAmount > 0) {
-    candidates = candidates.filter((tx: any) => Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01);
+    const amountMatches = allCandidates.filter((tx: any) => Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01);
+    if (amountMatches.length > 0) {
+      candidates = amountMatches;
+    } else {
+      amountFilterFallbackUsed = true;
+      candidates = allCandidates;
+    }
   }
   candidates = candidates.slice(0, 5);
   const preview = candidates.map((t: any) => ({
