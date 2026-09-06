@@ -103,7 +103,25 @@ export async function runIdempotent(
   try {
     const result = await fn();
     const completedAt = Date.now();
-    await ref.set(buildCompletedIdempotencyRecord(userId, operationId, result, completedAt), { merge: true });
+    try {
+      await ref.set(buildCompletedIdempotencyRecord(userId, operationId, result, completedAt), { merge: true });
+    } catch (persistErr: any) {
+      console.error('[idempotency] committed result could not be cached; returning canonical tool result instead of reporting a failed ledger write', {
+        operationIdPreview: operationId.slice(0, 80),
+        persistenceError: persistErr?.message,
+        committed: Boolean(result?.success === true && (result?.cloudStorageConfirmed === true || result?.durability === 'committed' || result?.transactionId)),
+      });
+      if (result?.success === true && (result?.cloudStorageConfirmed === true || result?.durability === 'committed' || result?.transactionId)) {
+        return {
+          kind: 'cache_miss',
+          result: {
+            ...result,
+            idempotencyCacheWarning: persistErr?.message || 'idempotency completion cache failed after committed write',
+          },
+        };
+      }
+      throw persistErr;
+    }
     return { kind: 'cache_miss', result };
   } catch (err: any) {
     // Once fn() has started, an exception does NOT prove that its financial side
