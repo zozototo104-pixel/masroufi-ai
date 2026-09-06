@@ -4986,45 +4986,57 @@ export async function queryTransactions(args: any, userId: string, token: string
     }
   }
 
-  let snapshot: any;
+  let snapshot: any = { docs: [], partial: false };
   let boundedFallback = false;
-  try {
-    let q: any = firebaseAdminDb.collection('transactions').where('userId', '==', userId);
-    if (startIso) q = q.where('date', '>=', startIso);
-    if (endExclusiveIso) q = q.where('date', '<', endExclusiveIso);
-    if (startIso || endExclusiveIso) q = q.orderBy('date', 'desc');
-    q = q.limit(limit);
-    const cloudSnap = await q.get();
-    snapshot = { docs: cloudSnap.docs, partial: false };
-  } catch (cloudErr: any) {
-    try {
-      // Keep fallbacks bounded by the same requested date window. A userId-only
-      // fallback would be cheaper than a full scan but could still return the
-      // wrong month for salary-cycle questions, so it is deliberately rejected.
-      if (!startIso && !endExclusiveIso) throw cloudErr;
-      const localDb = getDb(token);
-      let fallbackQuery: any = localDb.collection('transactions').where('userId', '==', userId);
-      if (startIso) fallbackQuery = fallbackQuery.where('date', '>=', startIso);
-      if (endExclusiveIso) fallbackQuery = fallbackQuery.where('date', '<', endExclusiveIso);
-      fallbackQuery = fallbackQuery.orderBy('date', 'desc').limit(limit);
-      const fallbackSnap = await fallbackQuery.get();
-      snapshot = {
-        docs: fallbackSnap.docs || [],
-        partial: true,
-        error: cloudErr?.message || 'Firestore bounded transaction read failed',
-      };
-      boundedFallback = true;
-    } catch (fallbackErr: any) {
-      snapshot = {
-        docs: [],
-        partial: true,
-        error: fallbackErr?.message || cloudErr?.message || 'Firestore transaction read failed',
-      };
-      boundedFallback = true;
-    }
-  }
+  let filtered: any[] = [];
 
-  let filtered = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  if (salaryCyclePeriod) {
+    // Salary-cycle reads must use the no-composite-index-safe reader shared by
+    // the vault UI. The older userId+date+orderBy query could fall into
+    // fallback:true and return 0 rows even though the cycle had transactions.
+    const cycleRead = await readTransactionsForSalaryCycle(salaryCyclePeriod, userId, token, limit);
+    filtered = cycleRead.transactions || [];
+    snapshot = { docs: [], partial: cycleRead.partial, error: cycleRead.error || '' };
+    boundedFallback = Boolean(cycleRead.boundedFallback);
+  } else {
+    try {
+      let q: any = firebaseAdminDb.collection('transactions').where('userId', '==', userId);
+      if (startIso) q = q.where('date', '>=', startIso);
+      if (endExclusiveIso) q = q.where('date', '<', endExclusiveIso);
+      if (startIso || endExclusiveIso) q = q.orderBy('date', 'desc');
+      q = q.limit(limit);
+      const cloudSnap = await q.get();
+      snapshot = { docs: cloudSnap.docs, partial: false };
+    } catch (cloudErr: any) {
+      try {
+        // Keep fallbacks bounded by the same requested date window. A userId-only
+        // fallback would be cheaper than a full scan but could still return the
+        // wrong month for date-specific questions, so it is deliberately rejected.
+        if (!startIso && !endExclusiveIso) throw cloudErr;
+        const localDb = getDb(token);
+        let fallbackQuery: any = localDb.collection('transactions').where('userId', '==', userId);
+        if (startIso) fallbackQuery = fallbackQuery.where('date', '>=', startIso);
+        if (endExclusiveIso) fallbackQuery = fallbackQuery.where('date', '<', endExclusiveIso);
+        fallbackQuery = fallbackQuery.orderBy('date', 'desc').limit(limit);
+        const fallbackSnap = await fallbackQuery.get();
+        snapshot = {
+          docs: fallbackSnap.docs || [],
+          partial: true,
+          error: cloudErr?.message || 'Firestore bounded transaction read failed',
+        };
+        boundedFallback = true;
+      } catch (fallbackErr: any) {
+        snapshot = {
+          docs: [],
+          partial: true,
+          error: fallbackErr?.message || cloudErr?.message || 'Firestore transaction read failed',
+        };
+        boundedFallback = true;
+      }
+    }
+
+    filtered = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  }
   const debtQuestionText = normalizeArabicText(`${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''} ${args.category || ''} ${args.account || ''} ${args.type || ''}`);
   const debtQueryRequested = Boolean(salaryCyclePeriod && (debtQuestionText.includes('دين') || debtQuestionText.includes('ديون') || args.account === 'debt'));
   
