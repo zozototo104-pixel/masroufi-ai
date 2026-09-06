@@ -3318,9 +3318,18 @@ export default function App() {
                   </div>
                   <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-56 overflow-auto">
                     <h4 className="font-bold text-rose-300 mb-2">بنود المصروفات</h4>
-                    {(selectedVaultCycleDetails.expenses || []).length ? selectedVaultCycleDetails.expenses.map((tx: any) => (
-                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}{tx.account === 'debt' || tx.transactionType === 'CREDIT_PURCHASE' ? ' · دين/آجل' : ''}</span><span className="font-bold text-rose-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
-                    )) : <p className="text-slate-500">لا توجد مصروفات في هذه الدورة.</p>}
+                    {(selectedVaultCycleDetails.expenses || []).length ? selectedVaultCycleDetails.expenses.map((tx: any) => {
+                      const needsDebtFix = tx.transactionType === 'CREDIT_PURCHASE' && tx.account !== 'debt';
+                      return (
+                        <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0">
+                          <span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}{tx.account === 'debt' || tx.transactionType === 'CREDIT_PURCHASE' ? ' · دين/آجل' : ''}</span>
+                          <span className="flex items-center gap-2 font-bold text-rose-300">
+                            {needsDebtFix && <button onClick={() => repairSelectedCreditPurchase(tx)} disabled={isVaultCycleLoading} className="px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-200 text-[10px] disabled:opacity-50">ثبّت كدين</button>}
+                            {Number(tx.amount || 0).toLocaleString()} ₪
+                          </span>
+                        </div>
+                      );
+                    }) : <p className="text-slate-500">لا توجد مصروفات في هذه الدورة.</p>}
                   </div>
                   <div className="bg-slate-900/70 border border-rose-500/20 rounded-2xl p-3 max-h-44 overflow-auto">
                     <h4 className="font-bold text-rose-200 mb-2">مشتريات دين داخل الدورة</h4>
