@@ -230,7 +230,9 @@ export async function atomicAddTransaction(
       }
     }
 
-    const balances = addBalanceDelta(snapshot.balances, txBalanceDelta(newTx));
+    const balanceDelta = txBalanceDelta(newTx);
+    const previousBalances = snapshot.balances;
+    const balances = addBalanceDelta(previousBalances, balanceDelta);
     const negative = opts.skipBalanceCheck ? null : negativeBalanceFailure(balances, opts.riskConfirmed);
     if (negative) return negative;
 
