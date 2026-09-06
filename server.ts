@@ -2417,13 +2417,8 @@ ${activeSalaryCycleText}
                   })
                 );
 
-                const committedInThisToolBatch = (functionResponses as any[]).find(r => isFinancialToolName(r.name) && r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
-                if (committedInThisToolBatch?.response) {
-                  lastCommittedLiveFinancialResult = committedInThisToolBatch.response;
-                }
-
                 if (session && isActive) {
-                  const functionResponsesForModel = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any, lastCommittedLiveFinancialResult);
+                  const functionResponsesForModel = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any);
                   console.log("Sending Tool Response:", functionResponsesForModel.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed'), normalizedAfterCommit: Boolean(r.response?.canonicalCommittedTransactionId) })));
                   try {
                     await session.sendToolResponse({ functionResponses: functionResponsesForModel });
