@@ -2418,9 +2418,10 @@ ${activeSalaryCycleText}
                 );
 
                 if (session && isActive) {
-                  console.log("Sending Tool Response:", functionResponses.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed') })));
+                  const functionResponsesForModel = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any);
+                  console.log("Sending Tool Response:", functionResponsesForModel.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed'), normalizedAfterCommit: Boolean(r.response?.canonicalCommittedTransactionId) })));
                   try {
-                    await session.sendToolResponse({ functionResponses });
+                    await session.sendToolResponse({ functionResponses: functionResponsesForModel });
                     liveToolResponsesSent += 1;
                     liveAudioSinceLastToolResponse = 0;
                     awaitingPostToolAudio = true;
