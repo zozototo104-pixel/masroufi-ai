@@ -311,8 +311,8 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'receipt record UI must show clear progress instead of appearing unresponsive');
   assert.equal(app.includes('currentBalances: { cash, palPay, debt, total: balance }'), false,
     'receipt record UI must not send stale visible balances for split-to-debt imports');
-  assert.ok(server.includes('const balanceResult = splitApplied ? await getBalance({}, req.user.uid, authToken) : null'),
-    'receipt record must split using authoritative server balances');
+  assert.ok(server.includes("collection('meta').doc('accountBalances')") && server.includes('ACCOUNT_BALANCE_SNAPSHOT_REQUIRED_FOR_RECEIPT_SPLIT'),
+    'receipt record must split using one authoritative server account-balance snapshot and fail closed if unavailable');
   assert.ok(app.includes('splitOverflowToDebt: true'),
     'receipt record UI must request safe selected-liquid-account, other-liquid-account, then debt splitting');
   assert.ok(app.includes('controller.abort(), 30000') && app.includes("err?.name === 'AbortError'"),
