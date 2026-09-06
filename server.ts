@@ -979,6 +979,8 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
         })),
       });
       const receiptId = `receipt_${receiptFingerprint}`;
+      const cashUsedFromServerBalance = splitApplied ? Math.round((serverBalances.cash - remainingLiquidBalance.cash) * 100) / 100 : 0;
+      const palPayUsedFromServerBalance = splitApplied ? Math.round((serverBalances.palPay - remainingLiquidBalance.palPay) * 100) / 100 : 0;
       const prepared: Array<{ item: any; operationId: string; transaction: any }> = [];
       for (const [index, item] of expandedItems.entries()) {
         const linePaymentMethod = item.paymentMethodOverride || paymentMethod;
