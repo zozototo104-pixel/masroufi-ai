@@ -2738,9 +2738,11 @@ export async function deleteRecentTransactions(args: any, userId: string, token:
   console.log('TOOL CALL: deleteRecentTransactions', args);
   const count = Math.max(1, Math.min(10, Number(args?.count) || 1));
   const kindRaw = normalizeArabicText(`${args?.kind || ''} ${args?.type || ''} ${args?.transactionKind || ''} ${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''}`) || 'expense';
-  const kind = kindRaw.includes('سداد') || kindRaw.includes('تسديد') || kindRaw.includes('سدد') || kindRaw.includes('سديت') || (kindRaw.includes('دين') && (kindRaw.includes('دفع') || kindRaw.includes('دفعت')))
+  const debtPaymentDeleteIntent = kindRaw.includes('سداد') || kindRaw.includes('تسديد') || kindRaw.includes('سدد') || kindRaw.includes('سديت') || (kindRaw.includes('دين') && (kindRaw.includes('دفع') || kindRaw.includes('دفعت')));
+  const creditPurchaseDeleteIntent = kindRaw.includes('دين') && !debtPaymentDeleteIntent;
+  const kind = debtPaymentDeleteIntent
     ? 'debt_payment'
-    : kindRaw.includes('شراء') && kindRaw.includes('دين')
+    : creditPurchaseDeleteIntent || (kindRaw.includes('شراء') && kindRaw.includes('دين'))
       ? 'credit_purchase'
       : kindRaw.includes('دخل') || kindRaw.includes('راتب')
         ? 'income'
