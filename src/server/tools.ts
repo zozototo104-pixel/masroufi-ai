@@ -2157,6 +2157,70 @@ function calculateOpenCreditorDebts(docs: any[]) {
     }));
 }
 
+function debtSettlementText(args: any): string {
+  return normalizeArabicText(`${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''} ${args?.notes || ''} ${args?.dateMode || ''} ${args?.paymentDateMode || ''} ${args?.sourceCycle || ''} ${args?.salaryCycle || ''}`);
+}
+
+function wantsHistoricalDebtSettlement(args: any): boolean {
+  const text = debtSettlementText(args);
+  return Boolean(
+    args?.backdateToDebtDate === true ||
+    args?.settleAtDebtDate === true ||
+    args?.useDebtDate === true ||
+    args?.fromSalaryCycleBalance === true ||
+    args?.sourceCycle ||
+    args?.salaryCycle ||
+    args?.salaryMonth ||
+    args?.month ||
+    /لحظه الدين|لحظة الدين|تاريخ الدين|وقت الدين|من رصيد شهر|من رصيد دوره|من رصيد دورة|لدوره شهر|لدورة شهر|دوره شهر|دورة شهر/.test(text)
+  );
+}
+
+function isDebtCreationTx(tx: any): boolean {
+  const kind = String(tx?.transactionType || '');
+  return kind === 'CREDIT_PURCHASE'
+    || kind === 'DEBT_BORROWING'
+    || (tx?.type === 'expense' && normalizeLedgerAccount(tx?.account) === 'debt')
+    || (tx?.type === 'transfer' && normalizeLedgerAccount(tx?.fromAccount || tx?.account) === 'debt');
+}
+
+function resolveDebtSettlementDate(args: any, creditorTransactions: any[], now: Date = new Date()) {
+  const explicit = normalizeHistoricalTransactionDate({ date: args?.date || args?.paymentDate || args?.settlementDate, year: args?.year || args?.salaryYear, now });
+  if (explicit.ok && explicit.source !== 'current-time') {
+    const cycle = getSalaryCycleForDate(explicit.date, now);
+    return { date: explicit.date, dateSource: explicit.source, cycle, historical: true, matchedDebtDate: false };
+  }
+  if (!wantsHistoricalDebtSettlement(args)) {
+    const date = now.toISOString();
+    return { date, dateSource: 'current-time', cycle: getSalaryCycleForDate(date, now), historical: false, matchedDebtDate: false };
+  }
+
+  const rawText = `${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''} ${args?.notes || ''}`;
+  const inferredMonth = parseSalaryCycleMonth(args?.salaryMonth ?? args?.month ?? args?.monthNumber ?? rawText);
+  const inferredYear = Number(args?.salaryYear || args?.year || now.getUTCFullYear());
+  const targetCycle = inferredMonth ? buildSalaryCycleForMonth(inferredYear, inferredMonth, now) : null;
+  const debtCreations = (creditorTransactions || [])
+    .filter(isDebtCreationTx)
+    .filter((tx: any) => {
+      if (!targetCycle) return true;
+      const d = String(tx?.date || tx?.createdAt || '');
+      return d >= targetCycle.startIso && d < targetCycle.endExclusiveIso;
+    })
+    .sort((a: any, b: any) => String(a?.date || a?.createdAt || '').localeCompare(String(b?.date || b?.createdAt || '')));
+
+  const matchedDebt = debtCreations[0];
+  if (matchedDebt?.date || matchedDebt?.createdAt) {
+    const date = String(matchedDebt.date || matchedDebt.createdAt);
+    return { date, dateSource: 'matched-debt-date', cycle: getSalaryCycleForDate(date, now), historical: true, matchedDebtDate: true, matchedDebtId: matchedDebt.id || matchedDebt.operationId || null };
+  }
+  if (targetCycle) {
+    const date = `${targetCycle.cycleEnd}T23:58:00.000Z`;
+    return { date, dateSource: 'salary-cycle-end-fallback', cycle: targetCycle, historical: true, matchedDebtDate: false };
+  }
+  const date = now.toISOString();
+  return { date, dateSource: 'current-time-fallback', cycle: getSalaryCycleForDate(date, now), historical: false, matchedDebtDate: false };
+}
+
 export async function payDebt(args:any,userId:string,token:string){
   const adminDb=getDb(token), amount=parsePositiveFinancialAmount(args.amount);
   if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'};
