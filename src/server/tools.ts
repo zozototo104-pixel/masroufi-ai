@@ -2267,7 +2267,34 @@ export async function payDebt(args:any,userId:string,token:string){
   if(amount>available+0.0001)return{success:false,needsClarification:true,reason:'INSUFFICIENT_FUNDS',available,message:`الرصيد المتاح في ${fromName} هو ${available} ₪ فقط. لا يمكن تنفيذ سداد ${amount} ₪.`};
 
   const operationId=String(args.operationId||`debtpay_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
-  const tx={userId,operationId,amount,type:'transfer',account:fromAccount,fromAccount,toAccount:'debt',transactionType:'DEBT_PAYMENT',creditor:selected.creditor,creditorKey:selected.key,category:'سداد ديون والتزامات',subcategory:`سداد دين - ${selected.creditor}`,notes:args.notes||`سداد دين بقيمة ${amount} ₪ من ${fromName} لصالح ${selected.creditor}`,merchant:selected.creditor,necessity:'ضروري',date:new Date().toISOString(),createdAt:new Date().toISOString()};
+  const creditorTransactions = creditorSnap.docs.map((d:any)=>({ id:d.id, ...d.data() }));
+  const settlementDate = resolveDebtSettlementDate(args, creditorTransactions, new Date());
+  const createdAt = new Date().toISOString();
+  const tx={
+    userId,
+    operationId,
+    amount,
+    type:'transfer',
+    account:fromAccount,
+    fromAccount,
+    toAccount:'debt',
+    transactionType:'DEBT_PAYMENT',
+    creditor:selected.creditor,
+    creditorKey:selected.key,
+    category:'سداد ديون والتزامات',
+    subcategory:`سداد دين - ${selected.creditor}`,
+    notes:args.notes||`سداد دين بقيمة ${amount} ₪ من ${fromName} لصالح ${selected.creditor}`,
+    merchant:selected.creditor,
+    necessity:'ضروري',
+    date:settlementDate.date,
+    createdAt,
+    dateSource:settlementDate.dateSource,
+    settlementCycleId:settlementDate.cycle.cycleId,
+    settlementCycleName:settlementDate.cycle.name,
+    historicalSettlement:settlementDate.historical,
+    matchedDebtDate:settlementDate.matchedDebtDate,
+    matchedDebtId:(settlementDate as any).matchedDebtId || null,
+  };
   let atomicResult: Awaited<ReturnType<typeof atomicPayDebt>>;
   try {
     atomicResult = await atomicPayDebt(userId, tx, selected.key, { riskConfirmed: Boolean(args.riskConfirmed) });
