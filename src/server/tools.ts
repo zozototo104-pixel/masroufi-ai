@@ -2627,9 +2627,39 @@ function resolveSmartDeleteDateKey(args: any, now: Date = new Date()): string | 
   return textDate;
 }
 
+const FINANCIAL_LOCAL_TIME_ZONE = 'Asia/Gaza';
+
+function formatFinancialLocalDateKey(date: Date): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: FINANCIAL_LOCAL_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const get = (type: string) => parts.find(p => p.type === type)?.value || '';
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch (_) {
+    // Fall back to UTC below if the runtime does not support the IANA zone.
+  }
+  return date.toISOString().slice(0, 10);
+}
+
 function transactionDateKey(tx: any): string {
-  const parsed = parseDateLike(tx?.date || tx?.transactionDate || tx?.createdAt);
-  return parsed ? formatDateKey(parsed) : String(tx?.date || '').slice(0, 10);
+  const rawValue = tx?.date || tx?.transactionDate || tx?.createdAt;
+  const raw = normalizeDigits(rawValue);
+  const dateOnly = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (dateOnly) {
+    const parsedDateOnly = parseDateLike(raw);
+    return parsedDateOnly ? formatDateKey(parsedDateOnly) : raw.slice(0, 10);
+  }
+  const parsedInstant = raw ? new Date(raw) : null;
+  if (parsedInstant && !Number.isNaN(parsedInstant.getTime())) return formatFinancialLocalDateKey(parsedInstant);
+  const parsed = parseDateLike(rawValue);
+  return parsed ? formatDateKey(parsed) : String(rawValue || '').slice(0, 10);
 }
 
 function inferSmartDeleteAccount(args: any): string | null {
