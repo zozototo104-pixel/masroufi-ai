@@ -5861,7 +5861,7 @@ export const functionDeclarations = [
   },
   {
     name: "add_transaction",
-    description: "يسجل عملية مالية بدقة (مصروف أو دخل). شراء بالدين/آجل من محل أو شخص هو add_transaction type=expense paymentMethod=debt account=debt مع creditor/merchant، وليس pay_debt. ❌ممنوع استخدام هذه الأداة لسداد الديون❌ لسداد الديون استخدم أداة pay_debt حصراً.",
+    description: "يسجل عملية مالية بدقة (مصروف أو دخل). إذا قال المستخدم اشتريت/شريت/دفعت/مصروف وذكر مبلغاً وطريقة دفع كاش أو PalPay أو دين، فهذه الأداة هي المسار الصحيح فوراً وليست query_transactions. شراء بالدين/آجل من محل أو شخص هو add_transaction type=expense paymentMethod=debt account=debt مع creditor/merchant، وليس pay_debt. ❌ممنوع استخدام هذه الأداة لسداد الديون❌ لسداد الديون استخدم أداة pay_debt حصراً.",
     parameters: {
       type: "object",
       properties: {
