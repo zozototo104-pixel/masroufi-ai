@@ -1,13 +1,22 @@
 # Manual CI verification trigger
 
-Rerun after updating VAULT-04 expectations for debt-payment liquidity.
+Verify recent debt-payment deletion catches misrouted creditor-overpayment rows.
 
-Expected behavior:
-- Debt repayment is not counted as a new expense.
-- Debt repayment is counted as liquidity leaving the salary cycle.
-- Vault-eligible surplus = true income - true expenses - debtPaid.
-- Dashboard spendable = cycle inflow - expense - debtPaid - vaultContribution.
-- Close-month vault commands route to recalculate_salary_cycle, not pay_debt.
+User issue:
+- Assistant said it searched and did not find the latest debt payment.
+- The wrong transaction was displayed as "فائض سداد (دائن)", so it may not be transactionType=DEBT_PAYMENT.
+
+Fix:
+- matchesRecentDeleteKind(kind=debt_payment) now matches:
+  - transactionType DEBT_PAYMENT / DEBT_REPAYMENT / PAY_DEBT
+  - transactionType CREDITOR_OVERPAYMENT / DEBT_OVERPAYMENT
+  - transfer to debt
+  - income on account=debt
+  - Arabic text containing فائض سداد / دائن when tied to debt
+- delete_recent_transactions remains bounded by createdAt desc + limit(searchLimit) and atomicDeleteTransactions.
+
+Expected behavior after deploy:
+- "احذف آخر عملية سداد دين" can delete the misrouted فائض سداد دائن row and reverse its balance effect.
 
 Expected gates:
 - install
@@ -17,4 +26,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T10:50:00+03:00
+Timestamp: 2026-09-06T10:58:00+03:00
