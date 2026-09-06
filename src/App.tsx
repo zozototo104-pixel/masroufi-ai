@@ -775,21 +775,39 @@ export default function App() {
     fetchData();
     
     const handleRefresh = (event: Event) => {
-      const scope = (event as CustomEvent)?.detail?.scope || 'all';
+      const detail = (event as CustomEvent)?.detail || {};
+      const scope = String(detail?.scope || 'all');
       if (refreshDebounceRef.current) window.clearTimeout(refreshDebounceRef.current);
       refreshDebounceRef.current = window.setTimeout(async () => {
         refreshDebounceRef.current = null;
-        if (scope === 'vault') {
+        const refreshActiveSalaryCycle = async (headers: Record<string, string>) => {
+          const activeCycleId = selectedVaultCycleIdRef.current;
+          if (!activeCycleId) return;
           try {
-            const currentToken = await getFreshDashboardToken();
-            const headers = { 'Authorization': `Bearer ${currentToken}` };
-            await fetchVaultData(headers);
+            const res = await fetch(`/api/salary-cycles/${encodeURIComponent(activeCycleId)}?limit=500`, { headers });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data?.success !== false) setSelectedVaultCycleDetails(data);
           } catch (err) {
-            console.warn('Vault refresh failed:', err);
+            console.warn('Active salary cycle refresh failed:', err);
           }
-          return;
+        };
+
+        const wantsVault = scope === 'all' || scope.includes('vault') || scope.includes('financial') || scope.includes('transaction');
+        const wantsDashboard = scope === 'all' || scope.includes('financial') || scope.includes('transaction') || scope.includes('budget') || scope.includes('saving') || scope.includes('commitment') || scope.includes('report') || scope.includes('memory');
+
+        try {
+          const currentToken = await getFreshDashboardToken();
+          const headers = { 'Authorization': `Bearer ${currentToken}` };
+          if (wantsVault) {
+            await fetchVaultData(headers);
+            await refreshActiveSalaryCycle(headers);
+          }
+          if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
+        } catch (err) {
+          console.warn('Targeted salary-cycle/vault refresh failed:', err);
         }
-        fetchData();
+
+        if (wantsDashboard) await fetchData();
       }, 150);
     };
     const handleInterrupted = () => {
