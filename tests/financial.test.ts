@@ -810,6 +810,9 @@ test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal
   assert.ok(appSrc.includes('إقفال الدورة وترحيل للخزنة'), 'UI must expose an explicit cycle close/lock action');
   assert.ok(appSrc.includes('selectedVaultCycleDetails?.summary || summarizeSalaryCycleTransactions'), 'dashboard income/expense cards must use the selected salary cycle summary when viewing an old cycle');
   assert.ok(appSrc.includes('selectedVaultCycleIdRef'), 'dashboard refresh must know the active salary cycle without stale state');
+  assert.ok(appSrc.includes('affectedCycleIds'), 'transaction refresh must carry the exact affected salary cycle id');
+  assert.ok(appSrc.includes('const activeCycleId = affectedCycleIds[0] || selectedVaultCycleIdRef.current'), 'affected transaction cycle must take priority over stale selected-cycle state');
+  assert.ok(appSrc.includes('setSelectedVaultCycleId(activeCycleId)') && appSrc.includes('setSelectedVaultCycleDetails(data)'), 'refresh must immediately switch/update dashboard cards to the affected cycle details');
   assert.ok(appSrc.includes('refreshActiveSalaryCycle'), 'transaction/vault refresh must reload the active salary cycle details automatically');
   assert.ok(appSrc.includes('/api/salary-cycles/${encodeURIComponent(activeCycleId)}?limit=500'), 'active cycle refresh must query one bounded salary cycle, not the full ledger');
   assert.ok(appSrc.includes("scope === 'transactions+vault'") && appSrc.includes("scope.includes('transaction')"), 'transaction refresh scopes must update cycle totals immediately after adds/edits/deletes');
