@@ -4192,6 +4192,83 @@ export async function getSalaryCycleSummary(args: any, userId: string, token: st
   };
 }
 
+function classifyCashTraceReason(tx: any, delta: any): string {
+  const type = String(tx?.type || '');
+  const transactionType = String(tx?.transactionType || '');
+  const account = normalizeLedgerAccount(tx?.account);
+  const fromAccount = normalizeLedgerAccount(tx?.fromAccount || tx?.account);
+  const toAccount = normalizeLedgerAccount(tx?.toAccount);
+  if (transactionType === 'CREDIT_PURCHASE' || (type === 'expense' && account === 'debt')) return 'شراء دين/آجل: يظهر كمصروف لكنه لا يخصم النقدي';
+  if (transactionType === 'DEBT_PAYMENT' || (type === 'transfer' && toAccount === 'debt')) return 'سداد دين من السيولة';
+  if (transactionType === 'VAULT_LOCK' || (type === 'transfer' && toAccount === 'vault')) return 'ترحيل/قفل خزنة';
+  if (type === 'transfer' && fromAccount === 'cash') return `تحويل من النقدي إلى ${toAccount || 'حساب آخر'}`;
+  if (type === 'transfer' && toAccount === 'cash') return `تحويل إلى النقدي من ${fromAccount || 'حساب آخر'}`;
+  if (type === 'income' && delta.cash > 0) return 'دخل نقدي';
+  if (type === 'expense' && delta.cash < 0) return 'مصروف نقدي';
+  return 'أثر على النقدي';
+}
+
+function summarizeCashTrace(transactions: any[]) {
+  const rows: any[] = [];
+  let cashIn = 0;
+  let cashOut = 0;
+  let palPayIn = 0;
+  let palPayOut = 0;
+  let debtDelta = 0;
+  let vaultDelta = 0;
+  let ignoredDebtPurchases = 0;
+  for (const tx of transactions || []) {
+    const delta = txBalanceDelta(tx);
+    const amount = parsePositiveFinancialAmount(tx?.amount);
+    const affectsCashOrPalPay = delta.cash !== 0 || delta.palPay !== 0;
+    const isDebtPurchase = String(tx?.transactionType || '') === 'CREDIT_PURCHASE' || (String(tx?.type || '') === 'expense' && normalizeLedgerAccount(tx?.account) === 'debt');
+    if (delta.cash > 0) cashIn += delta.cash;
+    if (delta.cash < 0) cashOut += Math.abs(delta.cash);
+    if (delta.palPay > 0) palPayIn += delta.palPay;
+    if (delta.palPay < 0) palPayOut += Math.abs(delta.palPay);
+    debtDelta += delta.debt;
+    vaultDelta += delta.vault;
+    if (isDebtPurchase && delta.cash === 0 && delta.palPay === 0) ignoredDebtPurchases += amount;
+    if (affectsCashOrPalPay || isDebtPurchase) {
+      rows.push({
+        id: tx.id,
+        date: tx.date || tx.createdAt || '',
+        createdAt: tx.createdAt || '',
+        amount,
+        type: tx.type || '',
+        account: normalizeLedgerAccount(tx.account || ''),
+        fromAccount: normalizeLedgerAccount(tx.fromAccount || ''),
+        toAccount: normalizeLedgerAccount(tx.toAccount || ''),
+        transactionType: tx.transactionType || '',
+        category: tx.category || '',
+        subcategory: tx.subcategory || '',
+        merchant: tx.merchant || '',
+        creditor: tx.creditor || '',
+        notes: tx.notes || '',
+        cashDelta: roundMoney(delta.cash),
+        palPayDelta: roundMoney(delta.palPay),
+        debtDelta: roundMoney(delta.debt),
+        vaultDelta: roundMoney(delta.vault),
+        reason: classifyCashTraceReason(tx, delta),
+      });
+    }
+  }
+  return {
+    cashIn: roundMoney(cashIn),
+    cashOut: roundMoney(cashOut),
+    netCashDelta: roundMoney(cashIn - cashOut),
+    palPayIn: roundMoney(palPayIn),
+    palPayOut: roundMoney(palPayOut),
+    netPalPayDelta: roundMoney(palPayIn - palPayOut),
+    netLiquidDelta: roundMoney(cashIn - cashOut + palPayIn - palPayOut),
+    debtDelta: roundMoney(debtDelta),
+    vaultDelta: roundMoney(vaultDelta),
+    ignoredDebtPurchases: roundMoney(ignoredDebtPurchases),
+    rows,
+    note: 'هذا التتبع يستخدم عمليات دورة الراتب فقط. مشتريات الدين تظهر كمصروفات لكنها لا تخصم من cash/PalPay. أي نقص في النقدي يظهر هنا كصف cashDelta سالب أو كاختلاف في snapshot الرصيد العام.',
+  };
+}
+
 function summarizeCycleTransactionLists(transactions: any[]) {
   const income: any[] = [];
   const expenses: any[] = [];
