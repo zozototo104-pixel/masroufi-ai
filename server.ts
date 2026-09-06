@@ -87,6 +87,90 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+type GeminiKeyCandidate = { apiKey: string; id: string; source: 'request' | 'env'; cooldownUntil: number };
+const geminiKeyCooldowns = new Map<string, { until: number; reason: string; route: string }>();
+let geminiEnvKeyCursor = 0;
+
+function parseGeminiKeyList(value: any): string[] {
+  return String(value || '')
+    .split(/[\n,;]+/)
+    .map(key => key.trim())
+    .filter(Boolean);
+}
+
+function geminiKeyId(apiKey: string): string {
+  return createHash('sha256').update(apiKey).digest('hex').slice(0, 10);
+}
+
+function getGeminiKeyCandidates(customApiKey?: string): GeminiKeyCandidate[] {
+  const configured = [
+    ...parseGeminiKeyList(process.env.GEMINI_API_KEYS),
+    ...parseGeminiKeyList(process.env.GEMINI_API_KEY),
+  ];
+  const envUnique = Array.from(new Set(configured));
+  const rotatedEnv = envUnique.length > 0
+    ? envUnique.map((_, index) => envUnique[(index + geminiEnvKeyCursor) % envUnique.length])
+    : [];
+  if (envUnique.length > 1) geminiEnvKeyCursor = (geminiEnvKeyCursor + 1) % envUnique.length;
+  const merged = Array.from(new Set([...(customApiKey ? [customApiKey.trim()] : []), ...rotatedEnv].filter(Boolean)));
+  const now = Date.now();
+  const candidates = merged.map(apiKey => {
+    const id = geminiKeyId(apiKey);
+    return {
+      apiKey,
+      id,
+      source: customApiKey && customApiKey.trim() === apiKey ? 'request' as const : 'env' as const,
+      cooldownUntil: geminiKeyCooldowns.get(id)?.until || 0,
+    };
+  });
+  const available = candidates.filter(candidate => candidate.cooldownUntil <= now);
+  return available.length > 0 ? available : candidates;
+}
+
+function rememberGeminiKeyFailure(candidate: GeminiKeyCandidate, error: any, route: string) {
+  const now = Date.now();
+  const rateLimited = isGeminiRateLimitError(error);
+  const capacity = isGeminiCapacityError(error);
+  if (!rateLimited && !capacity) return;
+  const cooldownMs = rateLimited
+    ? Math.max(60_000, Number(process.env.GEMINI_KEY_RATE_LIMIT_COOLDOWN_MS || 10 * 60_000))
+    : Math.max(10_000, Number(process.env.GEMINI_KEY_CAPACITY_COOLDOWN_MS || 45_000));
+  const until = now + cooldownMs;
+  geminiKeyCooldowns.set(candidate.id, { until, reason: rateLimited ? 'rate_limit' : 'capacity', route });
+  console.warn('[gemini-key-pool] key cooldown', { route, keyId: candidate.id, source: candidate.source, reason: rateLimited ? 'rate_limit' : 'capacity', cooldownMs });
+}
+
+function rememberGeminiKeySuccess(candidate: GeminiKeyCandidate) {
+  geminiKeyCooldowns.delete(candidate.id);
+}
+
+async function withGeminiKeyPool<T>(route: string, customApiKey: string | undefined, runner: (ai: GoogleGenAI, candidate: GeminiKeyCandidate) => Promise<T>): Promise<T & { geminiKeyId?: string; geminiKeySource?: string; keyFallbackUsed?: boolean }> {
+  const candidates = getGeminiKeyCandidates(customApiKey);
+  if (candidates.length === 0) throw new Error('No API key');
+  const errors: string[] = [];
+  for (let index = 0; index < candidates.length; index++) {
+    const candidate = candidates[index];
+    try {
+      const result = await runner(new GoogleGenAI({ apiKey: candidate.apiKey }), candidate);
+      rememberGeminiKeySuccess(candidate);
+      return { ...(result as any), geminiKeyId: candidate.id, geminiKeySource: candidate.source, keyFallbackUsed: index > 0 };
+    } catch (error: any) {
+      errors.push(`${candidate.id}:${error?.reason || error?.code || error?.status || error?.message || error}`);
+      rememberGeminiKeyFailure(candidate, error, route);
+      const shouldTryNextKey = (isGeminiRateLimitError(error) || isGeminiCapacityError(error)) && index < candidates.length - 1;
+      if (shouldTryNextKey) continue;
+      error.keyAttempts = errors;
+      error.geminiKeyPoolSize = candidates.length;
+      throw error;
+    }
+  }
+  const wrapped: any = new Error('GEMINI_KEY_POOL_EXHAUSTED');
+  wrapped.reason = 'GEMINI_KEY_POOL_EXHAUSTED';
+  wrapped.statusCode = 429;
+  wrapped.keyAttempts = errors;
+  throw wrapped;
+}
+
 function parseJsonObjectFromModelText(text: string): any {
   const raw = String(text || '').trim();
   if (!raw) throw new Error('GEMINI_EMPTY_RESPONSE');
