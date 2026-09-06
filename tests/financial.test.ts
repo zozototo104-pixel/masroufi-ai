@@ -1032,7 +1032,8 @@ test('IMPORT-02: receipt record uses server balances and splits cash to PalPay b
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   assert.equal(appSrc.includes('currentBalances: { cash, palPay, debt, total: balance }'), false, 'receipt recording must not send stale client balances');
-  assert.ok(serverSrc.includes("collection('meta').doc('accountBalances')"), 'receipt recording must read the authoritative server-side account balance snapshot');
+  assert.ok(serverSrc.includes('const balanceResult = splitApplied ? await getBalance({}, req.user.uid, authToken) : null'), 'receipt recording must use authoritative getBalance instead of stale client balances');
+  assert.ok(serverSrc.includes('PARTIAL_BALANCE_UNSAFE_FOR_RECEIPT_SPLIT'), 'receipt split must fail closed if the server cannot verify cash/PalPay balances');
   assert.ok(serverSrc.includes("const preferredAccounts = paymentMethod === 'palPay' ? ['palPay', 'cash'] : ['cash', 'palPay']"), 'receipt split must use selected liquid account first, then the other liquid account, before debt');
   assert.ok(serverSrc.includes("paymentMethodOverride: 'debt'") && serverSrc.includes('overflow-to-debt-after-liquid-accounts'), 'only the remainder after cash/PalPay is exhausted should become debt');
   assert.ok(serverSrc.includes('skipLedgerBalanceCheck: false'), 'receipt commit must still pass atomic balance validation');
