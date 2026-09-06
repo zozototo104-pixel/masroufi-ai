@@ -5867,7 +5867,7 @@ export const functionDeclarations = [
       properties: {
         amount: { type: "number", description: "المبلغ بالشيكل (مثال: 120)" },
         type: { type: "string", description: "نوع العملية: 'expense' (مصروف) أو 'income' (دخل)" },
-        account: { type: "string", description: "اسم الحساب: 'cash', 'palPay', أو 'debt'" },
+        account: { type: "string", description: "اسم الحساب المطابق لطريقة الدفع: 'cash' عند كاش/نقدي، 'palPay' عند بال باي/المحفظة، أو 'debt' عند دين/آجل. لا تتركه فارغاً في المصروفات." },
         category: { type: "string", description: "بند الصرف الرئيسي (مثال: 'الأبناء', 'زيارات وضيافة', 'طعام ومشتريات منزل', 'مواصلات', 'فواتير والتزامات', 'صحة وعلاج', 'تعليم')" },
         subcategory: { type: "string", description: "بند الصرف الفرعي (مثال تحت الأبناء: 'مصروف', 'ملابس', 'رسوم جامعة ومدرسة', 'دورة رسم', 'مستلزمات مدرسية', 'علاج' / وتحت زيارات: 'هدايا', 'مواصلات زيارة', 'ضيافة')" },
         purchaseItem: { type: "string", description: "ما الذي تم شراؤه تحديداً؟ مثال: ملابس، علاج، تموين، حذاء، مستلزمات مدرسة. مهم لبناء id القيد ومنع التكرار الصحيح." },
