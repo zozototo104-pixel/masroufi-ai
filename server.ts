@@ -1474,6 +1474,16 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/account-balance/repair", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { repairAccountBalanceSnapshot } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await repairAccountBalanceSnapshot(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/market-directory", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketDirectory } = await import('./src/server/tools');
