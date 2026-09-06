@@ -799,6 +799,7 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
       notes: userText,
       incomeDestinationConfirmed: true,
       destinationConfirmed: true,
+      date: transactionDate || undefined,
     }} as any;
   }
 
