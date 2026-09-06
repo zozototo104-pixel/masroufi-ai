@@ -715,9 +715,13 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
     return { name: 'recalculate_salary_cycle', args: { lockVault: true, closeCycle: true, transferToVault: true, reason: 'server_fallback_close_salary_cycle_to_vault', userText, ...(month ? { month } : {}) } } as any;
   }
   const isDelete = /(احذف|احذفي|امسح|اشطب|شطب)/.test(text);
-  const isDebtPaymentDelete = isDelete && /(سداد|تسديد|سدد|سديت|دين)/.test(text);
+  const isDebtPaymentDelete = isDelete && /(سداد|تسديد|سدد|سديت|دفعت دين|دفع دين)/.test(text);
+  const isCreditPurchaseDelete = isDelete && /(دين|بالدين|اجل|آجل|على الحساب)/.test(text) && !isDebtPaymentDelete;
   if (isDebtPaymentDelete) {
     return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'debt_payment', confirmed: true, userText } } as any;
+  }
+  if (isCreditPurchaseDelete) {
+    return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'credit_purchase', confirmed: true, userText } } as any;
   }
   if (isDelete && /(مصروف|مصروفات|صرف|اشتريت|شراء)/.test(text)) {
     return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'expense', confirmed: true, userText } } as any;
