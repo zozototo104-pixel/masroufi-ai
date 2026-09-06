@@ -251,7 +251,7 @@ export async function atomicAddTransaction(
       balanceReadSource: snapshot.source,
       bootstrapLedgerDocsRead: snapshot.ledgerDocsRead,
     }), { merge: true });
-    return { ok: true, docId: newRef.id, balances, balanceReadSource: snapshot.source };
+    return { ok: true, docId: newRef.id, balances, previousBalances, balanceDelta, balanceReadSource: snapshot.source };
   });
 }
 
