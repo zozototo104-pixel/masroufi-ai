@@ -3262,6 +3262,9 @@ export default function App() {
                     <button onClick={closeSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-bold disabled:opacity-50">
                       إقفال الدورة وترحيل للخزنة
                     </button>
+                    <button onClick={repairMisroutedVaultClose} disabled={isVaultCycleLoading} className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-bold disabled:opacity-50">
+                      تصحيح فائض دائن خاطئ
+                    </button>
                     <button onClick={deleteSelectedVaultCycle} disabled={isVaultCycleLoading || !selectedVaultCycleDetails?.counts?.total} className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-bold disabled:opacity-50 flex items-center gap-1">
                       <Trash2 className="w-3 h-3" /> حذف هذه الدورة
                     </button>
