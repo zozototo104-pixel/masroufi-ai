@@ -2112,6 +2112,43 @@ function shouldRunServerSideLiveWriteFallback(userText: string): boolean {
   return writeWords.test(text) && !readOnlyWords.test(text);
 }
 
+const LIVE_MUTATION_TOOL_NAMES = new Set([
+  'add_transaction',
+  'transfer_money',
+  'pay_debt',
+  'send_palpay_payment',
+  'delete_transaction',
+  'delete_recent_transactions',
+  'update_transaction',
+  'repair_misrecorded_credit_purchase',
+  'repair_duplicate_income',
+  'repair_duplicate_credit_purchase',
+  'repair_account_balance_snapshot',
+]);
+
+function isLiveMutationToolName(name: string | undefined | null): boolean {
+  return Boolean(name && LIVE_MUTATION_TOOL_NAMES.has(name));
+}
+
+function extractLiveInputTranscriptText(message: any): string {
+  const sc = message?.serverContent || {};
+  const candidates = [
+    sc.inputTranscription?.text,
+    sc.inputAudioTranscription?.text,
+    sc.interimInputTranscription?.text,
+    sc.interimInputAudioTranscription?.text,
+  ];
+  return candidates.map(v => String(v || '').trim()).find(Boolean) || '';
+}
+
+function shouldRunServerSideLiveWriteFallback(userText: string): boolean {
+  const text = normalizeArabicForIntent(userText);
+  if (!text || !looksLikeFinancialIntent(text)) return false;
+  const writeWords = /(سجل|سجلي|ضيف|ضيفي|اضف|أضف|اشتريت|شريت|دفعت|دفع|مصروف|دخل|راتب|حول|حوّل|سدد|سداد|احذف|احذفي|امسح|اشطب|شطب)/;
+  const readOnlyWords = /(كم|اعطيني|اعطني|ورجيني|شو|ما هي|ما هو|تقرير|ملخص|تابع|اتابع|راجع|شيك|شيكت|ابحث|اظهر|اعرض)/;
+  return writeWords.test(text) && !readOnlyWords.test(text);
+}
+
 function setupLiveApi(wss: WebSocketServer) {
   wss.on("connection", (clientWs: WebSocket, req) => {
     console.log("Client connected to /live");
