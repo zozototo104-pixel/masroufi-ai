@@ -243,7 +243,18 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [isRecordingScannedReceipt, setIsRecordingScannedReceipt] = useState(false);
 
-  const { connect, disconnect, isConnected, isRecording, status, error } = useGeminiLive({ apiKey, voice, persona, idToken, userName, aiName, relationship: aiRelationship });
+  const activeVoiceSalaryCycleId = selectedVaultCycleIdRef.current || selectedVaultCycleOption?.cycleId || selectedVaultCycleOption?.id || vaultData?.currentCycle?.cycleId || '';
+  const activeVoiceSalaryCycleName = selectedVaultCycleOption?.name || vaultData?.currentCycle?.name || '';
+  const activeVoiceCycleText = `${activeVoiceSalaryCycleId} ${activeVoiceSalaryCycleName}`;
+  const activeVoiceCycleYearMonth = activeVoiceCycleText.match(/(20\d{2})[_-](\d{1,2})/) || activeVoiceCycleText.match(/(\d{1,2})[_-](20\d{2})/);
+  const activeVoiceSalaryCycleYear = activeVoiceCycleYearMonth
+    ? Number(activeVoiceCycleYearMonth[1].length === 4 ? activeVoiceCycleYearMonth[1] : activeVoiceCycleYearMonth[2])
+    : undefined;
+  const activeVoiceSalaryCycleMonth = activeVoiceCycleYearMonth
+    ? Number(activeVoiceCycleYearMonth[1].length === 4 ? activeVoiceCycleYearMonth[2] : activeVoiceCycleYearMonth[1])
+    : undefined;
+
+  const { connect, disconnect, isConnected, isRecording, status, error } = useGeminiLive({ apiKey, voice, persona, idToken, userName, aiName, relationship: aiRelationship, activeSalaryCycleId: activeVoiceSalaryCycleId, activeSalaryCycleName: activeVoiceSalaryCycleName, activeSalaryCycleMonth: activeVoiceSalaryCycleMonth, activeSalaryCycleYear: activeVoiceSalaryCycleYear });
 
   // Basic UI state
   const [balance, setBalance] = useState(0);
