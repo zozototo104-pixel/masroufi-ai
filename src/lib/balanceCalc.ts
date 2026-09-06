@@ -58,7 +58,9 @@ export function calculateBalances(transactions: any[]): Balances {
   let cash = 0, palPay = 0, debt = 0, vault = 0;
   for (const tx of transactions || []) {
     const amount = parseFiniteAmount(tx?.amount);
-    const account = normalizeLedgerAccount(tx?.account);
+    const account = String(tx?.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE'
+      ? 'debt'
+      : normalizeLedgerAccount(tx?.account);
     if (tx?.type === 'expense') {
       if (account === 'palPay') palPay -= amount;
       else if (account === 'debt') debt += amount;
