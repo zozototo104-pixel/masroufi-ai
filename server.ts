@@ -783,7 +783,7 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
 
   if (isBorrowing) {
     const creditor = extractMerchantFromFinancialText(userText) || 'غير محدد';
-    return { name: 'transfer_money', args: { amount, fromAccount: 'debt', toAccount: 'cash', creditor, notes: userText } } as any;
+    return { name: 'transfer_money', args: { amount, fromAccount: 'debt', toAccount: 'cash', creditor, notes: userText, date: transactionDate || undefined } } as any;
   }
 
   if (isIncome) {
