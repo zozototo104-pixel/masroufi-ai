@@ -2054,6 +2054,9 @@ function setupLiveApi(wss: WebSocketServer) {
       }
 
       const relationshipContext = relationship ? `علاقتك بالمستخدم كما عرّفها هو: "${relationship}". هذه علاقة وسياق وليست جزءاً من اسمك. إذا كان اسمك تغريد والعلاقة زوجتي، فأنت تغريد وعلاقتك به زوجته؛ لا تقل إن اسمك "تغريد زوجتي".` : "لا توجد علاقة خاصة محددة.";
+      const activeSalaryCycleText = activeSalaryCycleContext.cycleId
+        ? `الدورة النشطة في الواجهة حالياً: ${activeSalaryCycleContext.name || activeSalaryCycleContext.cycleId}، month=${activeSalaryCycleContext.month || 'unknown'}، year=${activeSalaryCycleContext.year || 'unknown'}. إذا قال المستخدم "الشهر" أو "هذه الدورة" أو "المتبقي" وهو يتكلم عن الخزنة، فالمقصود هذه الدورة النشطة.`
+        : 'لا توجد دورة راتب نشطة مرسلة من الواجهة؛ إذا قال المستخدم الشهر دون تحديد فاستعمل دورة الراتب الحالية حسب تاريخ اليوم.';
       const systemInstruction = `أنت مساعد ومستشار مالي شخصي ذكي. اسمك هو "${aiName}".
 أنت لست آلة أو Chatbot، ${personalityDesc}
 ${relationshipContext}
