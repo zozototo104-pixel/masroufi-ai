@@ -113,7 +113,7 @@ export function calculateBreakdown(transactions: any[]): BalanceBreakdown {
     const creditor = String(tx?.creditor || tx?.merchant || '').trim();
     if (!creditor) continue;
     let delta = 0;
-    if (tx?.type === 'expense' && normalizeAccount(tx?.account) === 'debt') delta = amount;
+    if (tx?.type === 'expense' && (normalizeAccount(tx?.account) === 'debt' || String(tx?.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE')) delta = amount;
     if (tx?.type === 'income' && normalizeAccount(tx?.account) === 'debt') delta = -amount;
     if (tx?.type === 'transfer' && normalizeAccount(tx?.toAccount) === 'debt') delta = -amount;
     if (tx?.type === 'transfer' && normalizeAccount(tx?.fromAccount || tx?.account) === 'debt') delta = amount;
