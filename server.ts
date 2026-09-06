@@ -2412,9 +2412,6 @@ ${activeSalaryCycleText}
                             };
                           }
                         }
-                        if (isLiveMutationToolName(effectiveCall.name) && result?.success === true && (result?.cloudStorageConfirmed === true || result?.durability === 'committed' || result?.transactionId || result?.updated || result?.deletedCount !== undefined)) {
-                          liveMutationCommittedInTurn = true;
-                        }
                         rememberLiveFinancialCommit(liveKey, result);
                         return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: result };
                       }
