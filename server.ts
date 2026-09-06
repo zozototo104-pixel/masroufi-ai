@@ -2146,6 +2146,11 @@ function setupLiveApi(wss: WebSocketServer) {
     let clientInterruptOverrideUntilMs = 0;
     let droppedEchoAudioChunks = 0;
     let activeSalaryCycleContext: { cycleId?: string; name?: string; month?: number; year?: number } = {};
+    let liveInputTranscriptBuffer = '';
+    let liveLastFinalUserText = '';
+    let liveMutationToolSeenInTurn = false;
+    let liveMutationCommittedInTurn = false;
+    let liveServerFallbackRunning = false;
 
     let authTimeout: NodeJS.Timeout | null = setTimeout(() => {
       if (!authState.authenticated) {
