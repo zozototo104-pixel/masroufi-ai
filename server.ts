@@ -603,10 +603,10 @@ function buildDeterministicFinancialReply(functionResponses: Array<{ name: strin
   return null;
 }
 
-function normalizeLiveFunctionResponsesForCommittedWrite(functionResponses: Array<any>, recentCommittedResult: any | null = null): Array<any> {
+function normalizeLiveFunctionResponsesForCommittedWrite(functionResponses: Array<any>): Array<any> {
   const committed = functionResponses.find(r => isFinancialToolName(r.name) && r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
-  if (!committed && !(recentCommittedResult?.success === true && (recentCommittedResult?.cloudStorageConfirmed === true || recentCommittedResult?.durability === 'committed' || recentCommittedResult?.transactionId))) return functionResponses;
-  const canonical = committed?.response || recentCommittedResult || {};
+  if (!committed) return functionResponses;
+  const canonical = committed.response || {};
   return functionResponses.map(r => {
     if (!isFinancialToolName(r.name)) return r;
     const response = r.response || {};
