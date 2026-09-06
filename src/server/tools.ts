@@ -2751,6 +2751,8 @@ export async function updateTransaction(args: any, userId: string, token: string
     durability: 'cloud',
     pending: false,
     partial: false,
+    budgetWarning: budgetWarning || undefined,
+    message: budgetWarning ? `تم تعديل العملية. ${budgetWarning}` : 'تم تعديل العملية بنجاح.',
     vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean),
   };
 }
