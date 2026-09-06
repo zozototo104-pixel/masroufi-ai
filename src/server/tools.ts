@@ -4341,6 +4341,7 @@ export async function getSalaryCycleDetails(args: any, userId: string, token: st
   ]);
   const summary = summarizeSalaryCycleTransactions(readResult.transactions);
   const lists = summarizeCycleTransactionLists(readResult.transactions);
+  const cashTrace = summarizeCashTrace(readResult.transactions);
   const cycleDoc = cycleSnap.exists ? (cycleSnap.data() || {}) : null;
   const detailsPartial = Boolean(readResult.partial || readResult.limitReached);
   return {
