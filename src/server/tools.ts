@@ -2811,14 +2811,16 @@ export async function deleteTransaction(args: any, userId: string, token: string
     
     return { 
       success: true, 
-      deletedTransaction: toDelete, 
+      deletedTransaction: smartDeleteCandidate(toDelete), 
       message: `تم حذف عملية بقيمة ${toDelete.amount} ₪ من حساب ${accName} بنجاح.`,
       currentBalances: atomicResult.balances,
-      vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean) 
+      vaultRecalculation: vaultRecalculation.map((r: any) => r?.salaryCycle?.cycleId).filter(Boolean),
+      readEfficiency,
     };
   }
 
-  return { success: false, message: "لم يتم العثور على عملية مطابقة لحذفها. يرجى تحديد المبلغ أو اسم الحساب." };
+  return { success: false, message: targetDateKey ? `لم يتم العثور على عملية مطابقة بتاريخ ${targetDateKey}. جرّب تحديد المبلغ أو الحساب أو المعرّف.` : "لم يتم العثور على عملية مطابقة لحذفها. يرجى تحديد المبلغ أو اسم الحساب.", readEfficiency };
+}
 }
 
 function matchesRecentDeleteKind(tx: any, kind: string): boolean {
