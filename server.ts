@@ -700,6 +700,27 @@ function extractRecentDeleteCountFromText(text: string): number {
   return 1;
 }
 
+function dateKeyFromParts(year: number, month: number, day: number): string | null {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function extractDateKeyFromFinancialText(text: string): string | null {
+  const normalized = normalizeArabicDigits(String(text || ''));
+  const embeddedIso = normalized.match(/(?:^|\D)(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})(?=\D|$)/);
+  if (embeddedIso) {
+    return dateKeyFromParts(Number(embeddedIso[1]), Number(embeddedIso[2]), Number(embeddedIso[3]));
+  }
+
+  const partial = normalized.match(/(?:^|\D)(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?(?=\D|$)/);
+  if (!partial) return null;
+  let year = partial[3] ? Number(partial[3]) : new Date().getUTCFullYear();
+  if (year < 100) year += 2000;
+  return dateKeyFromParts(year, Number(partial[2]), Number(partial[1]));
+}
+
 function isVaultCloseIntentText(text: string): boolean {
   const t = normalizeArabicForIntent(text);
   const mentionsVault = /(خزنه|الخزنه|خزنة|الخزنة|vault)/.test(t);
