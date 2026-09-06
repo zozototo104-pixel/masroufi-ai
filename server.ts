@@ -2298,9 +2298,6 @@ ${activeSalaryCycleText}
 
               if (message.toolCall && message.toolCall.functionCalls) {
                 const liveFunctionCalls = message.toolCall.functionCalls || [];
-                if (liveFunctionCalls.some((call: FunctionCall) => isLiveMutationToolName(call.name))) {
-                  liveMutationToolSeenInTurn = true;
-                }
                 console.log("Received Tool Call:", liveFunctionCalls);
                 safeSend({ status: "thinking" });
 
