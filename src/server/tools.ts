@@ -966,17 +966,29 @@ export async function addTransaction(args: any, userId: string, token: string) {
       const last30Start = new Date(safePreflightDate.getTime() - 30 * 86400000).toISOString();
       const last90Start = new Date(safePreflightDate.getTime() - 90 * 86400000).toISOString();
 
-      const balanceResult = await getBalance({}, userId, token);
+      let balanceResult = await getBalance({}, userId, token);
       if (balanceResult.partial === true) {
-        return {
-          success: false,
-          retryable: true,
-          reason: 'PARTIAL_STATE_UNSAFE',
-          message: 'تعذّر التحقق من رصيدك الحالي بدقة. لا يمكن تنفيذ عملية مالية حساسة الآن. حاول مرة أخرى عند استعادة الاتصال الكامل.',
-          operationId: String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
-        };
+        console.warn('[add-transaction] preflight balance read was partial; attempting authoritative repair before write', {
+          userIdHash: stableDocId(userId),
+          reason: balanceResult.reason || balanceResult.error || 'partial_balance_read',
+        });
+        const repaired = await repairAccountBalanceSnapshot({ reason: 'add_transaction_preflight_partial_balance' }, userId, token);
+        if (repaired.success === true) {
+          balanceResult = {
+            balances: repaired.balances,
+            total: Number(repaired.balances?.cash || 0) + Number(repaired.balances?.palPay || 0),
+            partial: false,
+            cloudStorageConfirmed: true,
+            source: 'preflight_repair_full_ledger',
+          } as any;
+        } else {
+          console.warn('[add-transaction] preflight balance repair failed; deferring safety check to atomic transaction', {
+            userIdHash: stableDocId(userId),
+            error: repaired.error || repaired.reason || 'repair_failed',
+          });
+        }
       }
-      const balances = balanceResult.balances;
+      const balances = balanceResult.partial === true ? null : balanceResult.balances;
 
       const [budgetMap, categoryMonthSnap, recentExpenseSnap, income90dSnap] = await Promise.all([
         getUserBudgets(userId, adminDb),
