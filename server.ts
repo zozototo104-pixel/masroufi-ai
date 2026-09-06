@@ -2300,6 +2300,7 @@ ${relationshipContext}
         console.log("Gemini Live session connected");
         return session;
       } catch (err) {
+        // clear failed session promise so Gemini Live key-pool fallback can retry another key
         sessionPromise = null;
         session = null;
         throw err;
