@@ -2693,28 +2693,57 @@ export async function deleteTransaction(args: any, userId: string, token: string
     }
   }
 
-  // 2. Smart deletion by criteria (account, amount, category, or most recent)
-  const targetAccount = (args.account || args.fromAccount) ? normalizeAccount(args.account || args.fromAccount) : null;
+  // 2. Smart deletion by criteria (date, account, amount, category, or most recent)
+  // Date is treated as a first-class criterion because older/future-dated rows can
+  // appear in cycle/cash-tracking screens even when they are not among the latest
+  // createdAt rows. Example: 27/8 must find the 2026-08-27 transaction directly.
+  const targetDateKey = resolveSmartDeleteDateKey(args);
+  const targetAccount = inferSmartDeleteAccount(args);
   const targetAmount = args.amount ? parsePositiveFinancialAmount(args.amount) : null;
+  const categoryFilter = shouldApplySmartDeleteCategory(args.category) ? args.category : null;
+  let readEfficiency: any = null;
 
-  const snapshot = await adminDb.collection('transactions')
-    .where('userId', '==', userId)
-    .orderBy('createdAt', 'desc')
-    .limit(100)
-    .get();
-  let userTxs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  if ((snapshot as any).partial === true || userTxs.length >= 100) {
-    return {
-      success: false,
-      needsClarification: true,
-      reason: 'SMART_DELETE_REQUIRES_ID_OR_MORE_DETAILS',
-      message: 'لمنع حرق Firestore reads، بحثت فقط في آخر 100 عملية. حدّد العملية بالمعرّف أو أعطني تفاصيل أدق قبل الحذف.',
-      candidates: userTxs.slice(0, 5).map((t:any) => ({ id:t.id, amount:t.amount, category:t.category, subcategory:t.subcategory, merchant:t.merchant, date:t.date, account:t.account, notes:t.notes }))
-    };
+  let userTxs: any[] = [];
+  if (targetDateKey) {
+    const dateResult = await readTransactionsForSmartDeleteDate(targetDateKey, userId, args.searchLimit);
+    userTxs = dateResult.transactions;
+    readEfficiency = { queryType: 'date_range_then_user_filter', date: targetDateKey, scannedDateWindowDocs: dateResult.scannedDateWindowDocs, limit: dateResult.limit };
+    if (dateResult.limitReached) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'SMART_DELETE_DATE_WINDOW_TOO_LARGE',
+        message: `وجدت عمليات كثيرة بتاريخ ${targetDateKey}. أعطني المعرّف أو تفاصيل أدق قبل الحذف.`,
+        candidates: userTxs.slice(0, 5).map(smartDeleteCandidate),
+        readEfficiency,
+      };
+    }
+  } else {
+    const snapshot = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
+    userTxs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    readEfficiency = { queryType: 'recent_createdAt', transactionDocsRead: snapshot.docs.length, limit: 100 };
+    if ((snapshot as any).partial === true || userTxs.length >= 100) {
+      return {
+        success: false,
+        needsClarification: true,
+        reason: 'SMART_DELETE_REQUIRES_ID_OR_MORE_DETAILS',
+        message: 'لمنع حرق Firestore reads، بحثت فقط في آخر 100 عملية. حدّد العملية بالمعرّف أو أعطني تاريخ/مبلغ/حساب أدق قبل الحذف.',
+        candidates: userTxs.slice(0, 5).map(smartDeleteCandidate),
+        readEfficiency,
+      };
+    }
   }
 
   // Sort descending by date/createdAt within the bounded candidate set.
   userTxs.sort((a: any, b: any) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+
+  if (targetDateKey) {
+    userTxs = userTxs.filter((t: any) => transactionDateKey(t) === targetDateKey);
+  }
 
   if (targetAccount) {
     userTxs = userTxs.filter((t: any) => normalizeAccount(t.account) === targetAccount || normalizeAccount(t.fromAccount) === targetAccount || normalizeAccount(t.toAccount) === targetAccount);
@@ -2724,8 +2753,8 @@ export async function deleteTransaction(args: any, userId: string, token: string
     userTxs = userTxs.filter((t: any) => Math.abs(parsePositiveFinancialAmount(t.amount) - targetAmount) < 0.01);
   }
 
-  if (args.category) {
-    userTxs = userTxs.filter((t: any) => matchesArabicCategory(t, args.category));
+  if (categoryFilter) {
+    userTxs = userTxs.filter((t: any) => matchesArabicCategory(t, categoryFilter));
   }
 
   if (userTxs.length > 1 && !args.id) {
@@ -2734,20 +2763,22 @@ export async function deleteTransaction(args: any, userId: string, token: string
       needsClarification: true,
       reason: 'AMBIGUOUS_DELETE',
       message: `وجدت ${userTxs.length} عمليات مطابقة. حدد العملية أو أعطني تفاصيل إضافية قبل الحذف.`,
-      candidates: userTxs.slice(0, 5).map((t:any) => ({ id:t.id, amount:t.amount, category:t.category, subcategory:t.subcategory, merchant:t.merchant, date:t.date, account:t.account, notes:t.notes }))
+      candidates: userTxs.slice(0, 5).map(smartDeleteCandidate),
+      readEfficiency,
     };
   }
 
   // V6 (MF-6): smart-delete with a single candidate must STILL request confirmation.
   // Silent destructive mutations based on AI guessing are not acceptable.
-  if (userTxs.length === 1 && !args.id) {
+  if (userTxs.length === 1 && !args.id && !args.confirmed) {
     const toDelete = userTxs[0];
     return {
       success: false,
       needsClarification: true,
       reason: 'CONFIRM_SINGLE_SMART_DELETE',
-      message: `وجدت عملية واحدة مطابقة. هل تقصد حذفها؟`,
-      candidate: { id: toDelete.id, amount: toDelete.amount, category: toDelete.category, subcategory: toDelete.subcategory, merchant: toDelete.merchant, date: toDelete.date, account: toDelete.account, notes: toDelete.notes }
+      message: `وجدت عملية واحدة مطابقة بتاريخ ${transactionDateKey(toDelete)}. هل تقصد حذفها؟`,
+      candidate: smartDeleteCandidate(toDelete),
+      readEfficiency,
     };
   }
 
