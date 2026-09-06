@@ -32,7 +32,7 @@ import {
 } from '../lib/salaryCycle';
 import { calculateBalances, calculateBreakdown, normalizeAccount, normalizeCreditorKey, normalizeLedgerAccount } from '../lib/balanceCalc';
 export { normalizeAccount } from '../lib/balanceCalc';
-import { addBalanceDelta, transactionReplacementDelta } from '../lib/accountBalance';
+import { addBalanceDelta, transactionReplacementDelta, txBalanceDelta } from '../lib/accountBalance';
 import { GoogleGenAI } from '@google/genai';
 import { runIdempotent } from './idempotency';
 import { atomicAddTransaction, atomicDeleteTransaction, atomicDeleteTransactions, atomicPayDebt, atomicTransferMoney, atomicUpdateTransaction } from './atomicOps';
