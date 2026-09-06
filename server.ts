@@ -656,7 +656,10 @@ function normalizeArabicDigits(value: string): string {
 }
 
 function extractAmountFromFinancialText(text: string): number | null {
-  const normalized = normalizeArabicDigits(normalizeArabicForIntent(text));
+  const normalized = normalizeArabicDigits(normalizeArabicForIntent(text))
+    // Do not mistake explicit dates such as 27/8 or 2026-08-27 for the amount.
+    .replace(/(?:^|\D)\d{4}-\d{1,2}-\d{1,2}(?=\D|$)/g, ' ')
+    .replace(/(?:^|\D)\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?=\D|$)/g, ' ');
   const matches = Array.from(normalized.matchAll(/(?:^|\s)(\d+(?:[\.,]\d+)?)(?=\s*(?:ش|شيكل|₪|دولار|دينار|ils|nis|$|\s))/g));
   if (matches.length === 0) return null;
   const amount = Number(String(matches[matches.length - 1][1]).replace(',', '.'));
