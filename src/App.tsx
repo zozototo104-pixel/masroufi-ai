@@ -973,22 +973,42 @@ export default function App() {
           }
         } catch(e){}
         const base64 = (reader.result as string).split(',')[1];
-        const res = await fetch('/api/scan-receipt', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentToken}`
-          },
-          body: JSON.stringify({
-            fileBase64: base64,
-            imageBase64: file.type.startsWith('image/') ? base64 : undefined,
-            mimeType: file.type || 'application/octet-stream',
-            fileName: file.name,
-            apiKey
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
+        const requestBody = {
+          fileBase64: base64,
+          imageBase64: file.type.startsWith('image/') ? base64 : undefined,
+          mimeType: file.type || 'application/octet-stream',
+          fileName: file.name,
+          apiKey
+        };
+        let data: any = null;
+        let lastStatus = 0;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 45000);
+          try {
+            const res = await fetch('/api/scan-receipt', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+              },
+              body: JSON.stringify(requestBody)
+            });
+            lastStatus = res.status;
+            data = await res.json().catch(() => ({}));
+            const retryable = res.status === 503 && data?.retryable !== false;
+            if (res.ok || data?.success || !retryable || attempt === 3) break;
+            await new Promise(resolve => window.setTimeout(resolve, 900 * attempt));
+          } catch (attemptError: any) {
+            data = { success: false, message: attemptError?.name === 'AbortError' ? 'تأخر تحليل الملف أكثر من 45 ثانية.' : 'تعذر الاتصال بخدمة تحليل الملف.' };
+            if (attempt === 3) break;
+            await new Promise(resolve => window.setTimeout(resolve, 900 * attempt));
+          } finally {
+            window.clearTimeout(timeout);
+          }
+        }
+        if (data?.success) {
           setShowScannerResult(data);
           if (!data.requiresConfirmation) {
             window.dispatchEvent(new CustomEvent('masrofi:refresh'));
