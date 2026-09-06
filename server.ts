@@ -920,31 +920,51 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
         });
       }
       const splitApplied = Boolean(splitOverflowToDebt && (paymentMethod === 'cash' || paymentMethod === 'palPay'));
-      const selectedAvailable = splitApplied
-        ? Math.max(0, Number(paymentMethod === 'cash' ? currentBalances.cash : currentBalances.palPay) || 0)
-        : Infinity;
-      let remainingSelectedBalance = selectedAvailable;
+      const accountBalanceSnap = splitApplied
+        ? await adminDb.collection('users').doc(req.user.uid).collection('meta').doc('accountBalances').get()
+        : null;
+      const serverBalances = accountBalanceSnap?.exists
+        ? {
+            cash: Math.max(0, Math.round((Number(accountBalanceSnap.data()?.cash || 0)) * 100) / 100),
+            palPay: Math.max(0, Math.round((Number(accountBalanceSnap.data()?.palPay || 0)) * 100) / 100),
+          }
+        : { cash: 0, palPay: 0 };
+      const preferredAccounts = paymentMethod === 'palPay' ? ['palPay', 'cash'] : ['cash', 'palPay'];
+      const remainingLiquidBalance: Record<string, number> = { ...serverBalances };
       const expandedItems: any[] = [];
+      const roundReceiptMoney = (value: number) => Math.round(value * 100) / 100;
       for (const item of items) {
-        const amount = Math.round((Number(item.amount) || 0) * 100) / 100;
+        const amount = roundReceiptMoney(Number(item.amount) || 0);
         if (!splitApplied || paymentMethod === 'debt') {
           expandedItems.push({ ...item, amount, paymentMethodOverride: paymentMethod });
           continue;
         }
-        const selectedPart = Math.round(Math.min(amount, Math.max(0, remainingSelectedBalance)) * 100) / 100;
-        const debtPart = Math.round((amount - selectedPart) * 100) / 100;
-        if (selectedPart > 0) {
-          expandedItems.push({ ...item, amount: selectedPart, paymentMethodOverride: paymentMethod, splitPart: selectedPart < amount ? 'paid-from-selected-balance' : undefined });
-          remainingSelectedBalance = Math.round((remainingSelectedBalance - selectedPart) * 100) / 100;
-        }
-        if (debtPart > 0) {
+        let remainingAmount = amount;
+        for (const account of preferredAccounts) {
+          if (remainingAmount <= 0) break;
+          const available = Math.max(0, remainingLiquidBalance[account] || 0);
+          const paidPart = roundReceiptMoney(Math.min(remainingAmount, available));
+          if (paidPart <= 0) continue;
           expandedItems.push({
             ...item,
-            amount: debtPart,
+            amount: paidPart,
+            paymentMethodOverride: account,
+            account,
+            splitPart: paidPart < amount ? `paid-from-${account}` : undefined,
+            splitSourceOrder: preferredAccounts,
+          });
+          remainingLiquidBalance[account] = roundReceiptMoney(available - paidPart);
+          remainingAmount = roundReceiptMoney(remainingAmount - paidPart);
+        }
+        if (remainingAmount > 0) {
+          expandedItems.push({
+            ...item,
+            amount: remainingAmount,
             paymentMethodOverride: 'debt',
             account: 'debt',
-            splitPart: selectedPart > 0 ? 'overflow-to-debt' : 'all-overflow-to-debt',
-            notes: `${item.notes || item.name || 'بند من فاتورة'} — الباقي دين بعد نفاد رصيد ${paymentMethod === 'cash' ? 'الكاش' : 'PalPay'}`,
+            splitPart: remainingAmount < amount ? 'overflow-to-debt-after-liquid-accounts' : 'all-overflow-to-debt',
+            splitSourceOrder: preferredAccounts,
+            notes: `${item.notes || item.name || 'بند من فاتورة'} — المتبقي دين بعد استخدام المتاح من ${preferredAccounts.includes('cash') ? 'النقدي' : ''}${preferredAccounts.includes('cash') && preferredAccounts.includes('palPay') ? ' و' : ''}${preferredAccounts.includes('palPay') ? 'PalPay' : ''}`,
           });
         }
       }
