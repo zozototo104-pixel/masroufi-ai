@@ -3708,6 +3708,11 @@ export async function recalculateSalaryCycle(args: any, userId: string, token: s
       salaryCycle: committed.record,
       vaultBalance: committed.currentBalance,
       adjustment: committed.delta,
+      affectedCycleId: period.cycleId,
+      affectedCycleIds: [period.cycleId],
+      message: committed.record?.vaultContribution > 0
+        ? `تم إقفال ${period.name} وترحيل ${Number(committed.record.vaultContribution || 0).toLocaleString()} ₪ إلى الخزنة.`
+        : `تم تحديث ${period.name}. لا يوجد فائض موجب جديد لترحيله إلى الخزنة.`,
       partial: false,
       durability: 'committed',
       bounded: true,
