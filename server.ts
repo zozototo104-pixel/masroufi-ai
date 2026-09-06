@@ -1037,9 +1037,13 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
             itemCount: prepared.length,
             importMode: 'reviewed-file-or-image',
             splitOverflowToDebt: splitApplied,
-            selectedBalanceUsed: splitApplied ? Math.round((selectedAvailable - remainingSelectedBalance) * 100) / 100 : 0,
+            splitAcrossLiquidAccountsBeforeDebt: splitApplied,
+            balanceSource: accountBalanceSnap?.exists ? 'accountBalances' : 'missing-accountBalances-zero-safe',
+            cashUsed: cashUsedFromServerBalance,
+            palPayUsed: palPayUsedFromServerBalance,
+            selectedBalanceUsed: paymentMethod === 'palPay' ? palPayUsedFromServerBalance : cashUsedFromServerBalance,
           },
-          skipLedgerBalanceCheck: true,
+          skipLedgerBalanceCheck: false,
         },
       );
       if ('reason' in committed) {
