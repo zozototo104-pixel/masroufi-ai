@@ -5143,8 +5143,9 @@ export async function queryTransactions(args: any, userId: string, token: string
 
   const rawUserText = `${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''}`;
   const normalizedUserText = normalizeArabicText(rawUserText);
+  const explicitDateKey = parseSmartDeleteDateKey(args.date ?? args.transactionDate ?? args.operationDate, now) || parseSmartDeleteDateKey(rawUserText, now);
   const inferredMonthFromText = parseSalaryCycleMonth(rawUserText);
-  const inferredQueryType = !args.type && (normalizedUserText.includes('مصروف') || normalizedUserText.includes('صرف') || normalizedUserText.includes('اشتريت'))
+  const inferredQueryType = !args.type && (normalizedUserText.includes('مصروف') || normalizedUserText.includes('مصروفات') || normalizedUserText.includes('مشتريات') || normalizedUserText.includes('صرف') || normalizedUserText.includes('اشتريت'))
     ? 'expense'
     : !args.type && (normalizedUserText.includes('دخل') || normalizedUserText.includes('راتب'))
       ? 'income'
