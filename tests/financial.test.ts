@@ -1013,6 +1013,17 @@ test('READS-06: RESOURCE_EXHAUSTED must stop dashboard fan-out and be negative-c
   assert.ok(serverSrc.includes('cachedCloudHealth = { cachedAtMs: nowMs, body: errorBody, quotaExhausted: true }'), 'server must negative-cache RESOURCE_EXHAUSTED');
 });
 
+test('IMPORT-01: image analysis retries temporary Gemini capacity but separates rate limits', async () => {
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.equal(serverSrc.includes('gemini-3.7-flash'), false, 'expense import must not start with speculative Gemini model names');
+  assert.ok(serverSrc.includes('gemini-2.5-flash-lite') && serverSrc.includes('gemini-2.5-flash'), 'expense import must use stable Flash fallbacks');
+  assert.ok(serverSrc.includes('isGeminiRateLimitError') && serverSrc.includes('GEMINI_RATE_LIMIT_EXCEEDED'), '429/RESOURCE_EXHAUSTED must be reported as rate limits, not generic temporary capacity');
+  assert.ok(serverSrc.includes('Gemini capacity error; retrying same model') && serverSrc.includes('await sleep(delayMs)'), '503/UNAVAILABLE image analysis must retry with backoff before failing');
+  assert.ok(appSrc.includes('if (isScanning)') && appSrc.includes('تحليل ملف سابق ما زال جارياً'), 'client must prevent concurrent image-analysis requests');
+  assert.ok(appSrc.includes('for (let attempt = 1; attempt <= 3; attempt++)') && appSrc.includes('res.status === 503'), 'client must retry temporary scan failures without forcing the user to retry manually');
+});
+
 test('MOBILE-01: large app modals are iPhone-safe and scrollable', async () => {
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   const cssSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/index.css'), 'utf8'));
