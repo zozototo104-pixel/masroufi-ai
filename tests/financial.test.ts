@@ -854,6 +854,18 @@ test('VAULT-14A: close-month remainder goes to salary-cycle vault lock, not debt
   assert.ok(toolsSrc.includes('hasExplicitCycleArg') && toolsSrc.includes('activeSalaryCycleMonth'), 'recalculate_salary_cycle must use the active UI cycle when the user says الشهر/الدورة without a month');
 });
 
+test('VAULT-14D: UI provides direct repair for misrouted creditor-surplus vault close', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(toolsSrc.includes('repairMisroutedVaultClose') && toolsSrc.includes('isMisroutedVaultCloseDebtCreditCandidate'), 'backend must provide a targeted repair for misrouted vault-close creditor surplus rows');
+  assert.ok(toolsSrc.includes('CREDITOR_OVERPAYMENT') && toolsSrc.includes('فائض سداد') && toolsSrc.includes('overpayment'), 'repair must detect creditor-overpayment labels, not only DEBT_PAYMENT');
+  assert.ok(toolsSrc.includes('atomicDeleteTransactions') && toolsSrc.includes('repair_misrouted_vault_close'), 'repair must delete atomically rather than adding a reverse fake transaction');
+  assert.ok(toolsSrc.includes('limit(searchLimit)') && toolsSrc.includes('readEfficiency'), 'repair search must be bounded and report read count');
+  assert.ok(serverSrc.includes('/api/savings-vault/repair-misrouted-close') && serverSrc.includes('repairMisroutedVaultClose'), 'server must expose a direct repair API independent of Gemini voice recognition');
+  assert.ok(appSrc.includes('repairMisroutedVaultClose') && appSrc.includes('تصحيح فائض دائن خاطئ'), 'vault UI must include a direct repair button for this production failure mode');
+});
+
 test('VAULT-14C: debt repayments reduce vault-eligible surplus and dashboard spendable liquidity', async () => {
   const summary = summarizeSalaryCycleTransactions([
     tx({ type: 'income', account: 'cash', amount: 1000, date: '2026-07-27T10:00:00.000Z' }),
