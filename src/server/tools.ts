@@ -1278,10 +1278,11 @@ export async function addTransaction(args: any, userId: string, token: string) {
     affectedCycleId: affectedSalaryCycle.cycleId,
     affectedCycleIds: [affectedSalaryCycle.cycleId],
     affectedSalaryCycles: [{ cycleId: affectedSalaryCycle.cycleId, cycleStart: affectedSalaryCycle.cycleStart, cycleEnd: affectedSalaryCycle.cycleEnd, name: affectedSalaryCycle.name }],
-    currentBalances: committedBalances,
+    currentBalances: responseBalances,
     previousBalances: (atomicResult as any).previousBalances || null,
     balanceDelta: (atomicResult as any).balanceDelta || null,
     commitVerification,
+    postCommitVerificationWarning: postCommitVerificationWarning || undefined,
     // V6: explicit durability flag. UI/AI MUST inspect this.
     // The balance snapshot is updated in the same Firestore transaction as the ledger write,
     // so no post-commit full-ledger balance refresh is needed.
