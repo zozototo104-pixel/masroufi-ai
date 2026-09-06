@@ -575,6 +575,15 @@ test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () =>
   ], 'ابو العبد'), 10, 'debt questions must recognize CREDIT_PURCHASE even if legacy account is cash');
 });
 
+test('DOMAIN-03D: salary-cycle details expose cash trace so missing cash can be audited', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(toolsSrc.includes('summarizeCashTrace') && toolsSrc.includes('txBalanceDelta'), 'salary-cycle details must compute cash/PalPay deltas from the same balance engine');
+  assert.ok(toolsSrc.includes('ignoredDebtPurchases') && toolsSrc.includes('شراء دين/آجل: يظهر كمصروف لكنه لا يخصم النقدي'), 'cash trace must explicitly show credit purchases as expenses with zero cash impact');
+  assert.ok(toolsSrc.includes('cashTrace,') && toolsSrc.includes('netCashDelta'), 'getSalaryCycleDetails must return cashTrace with net cash movement');
+  assert.ok(appSrc.includes('تتبع النقدي وPalPay لهذه الدورة') && appSrc.includes('Cash {Number(tx.cashDelta'), 'UI must display per-row cash deltas to explain differences like 43 ₪');
+});
+
 test('DOMAIN-04: debt overpayment never exposes negative creditor remaining', () => {
   const ledger = [
     tx({ type: 'expense', account: 'debt', amount: 100, creditor: 'سامي' }),
