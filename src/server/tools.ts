@@ -1101,11 +1101,15 @@ export async function addTransaction(args: any, userId: string, token: string) {
   }
   
   const committedBalances = 'balances' in atomicResult ? (atomicResult as any).balances : undefined;
+  const affectedSalaryCycle = getSalaryCycleForDate(tx.date || tx.createdAt || new Date().toISOString(), new Date());
   return {
     success: true,
     transactionId: actualTxId,
     operationId,
     transaction: { id: actualTxId, ...tx },
+    affectedCycleId: affectedSalaryCycle.cycleId,
+    affectedCycleIds: [affectedSalaryCycle.cycleId],
+    affectedSalaryCycles: [{ cycleId: affectedSalaryCycle.cycleId, cycleStart: affectedSalaryCycle.cycleStart, cycleEnd: affectedSalaryCycle.cycleEnd, name: affectedSalaryCycle.name }],
     currentBalances: committedBalances,
     // V6: explicit durability flag. UI/AI MUST inspect this.
     // The balance snapshot is updated in the same Firestore transaction as the ledger write,
