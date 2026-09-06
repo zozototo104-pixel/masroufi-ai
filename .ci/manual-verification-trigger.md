@@ -1,20 +1,18 @@
 # Manual CI verification trigger
 
-Verify credit/debt purchase fixes.
+Final verification for debt purchase cash invariant and debt delete routing.
 
 User issue:
-- User said: "سجلي دين 10 شيكل مشتريات من أبو العبد".
-- System recorded a debt but also subtracted from cash/liquid balance.
-- Then "احذف آخر عملية دين" said there are no debt operations, even with amount/date details.
+- "سجلي دين 10 شيكل مشتريات من أبو العبد" was recorded as debt but also subtracted from cash/liquid balance.
+- "احذف آخر عملية دين" did not find the operation.
 
-Fixes:
-- add_transaction now detects Arabic credit purchase intent from full text: دين/بالدين/آجل/على الحساب + شراء/مشتريات/سجلي, excluding repayment/borrowing.
-- forcedCreditPurchaseIntent forces account=debt before the cash default is applied.
-- CREDIT_PURCHASE skips cash/PalPay preflight and is persisted as transactionType=CREDIT_PURCHASE.
-- credit purchase accepts creditor/seller/vendor/person aliases as merchant/creditor.
-- delete_recent_transactions treats generic debt delete as credit_purchase unless repayment words are explicit.
-- credit_purchase deletion also catches previously misrecorded cash expense debt purchases by text.
-- Balance invariant: credit purchase increases debt only and does not reduce cash/PalPay/total.
+Expected behavior:
+- Arabic text containing دين/بالدين/آجل/على الحساب + سجلي/مشتريات/شراء forces account=debt before the default cash account is applied.
+- Credit purchase persists as type=expense, account=debt, transactionType=CREDIT_PURCHASE, creditor=merchant.
+- Credit purchase only increases debt; it never subtracts cash or PalPay and does not change liquid total.
+- "احذف آخر عملية سداد دين" routes to debt_payment.
+- "احذف آخر عملية دين" without سداد/تسديد routes to credit_purchase.
+- Recent credit_purchase delete catches both proper CREDIT_PURCHASE rows and old misrecorded cash expense rows whose text contains debt purchase words.
 
 Expected gates:
 - install
@@ -24,4 +22,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T13:01:00+03:00
+Timestamp: 2026-09-06T13:07:00+03:00
