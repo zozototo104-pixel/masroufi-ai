@@ -2575,6 +2575,89 @@ export async function updateTransaction(args: any, userId: string, token: string
   };
 }
 
+function formatDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDaysToDateKey(dateKey: string, days: number): string {
+  const parsed = parseDateLike(dateKey);
+  if (!parsed) return dateKey;
+  const shifted = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate() + days));
+  return formatDateKey(shifted);
+}
+
+function parseSmartDeleteDateKey(value: unknown, now: Date = new Date()): string | null {
+  const parsed = parseDateLike(value);
+  if (parsed) return formatDateKey(parsed);
+
+  const raw = normalizeDigits(value);
+  if (!raw) return null;
+
+  const partial = raw.match(/(?:^|\D)(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?(?=\D|$)/);
+  if (!partial) return null;
+
+  const day = Number(partial[1]);
+  const month = Number(partial[2]);
+  let year = partial[3] ? Number(partial[3]) : now.getUTCFullYear();
+  if (year < 100) year += 2000;
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) return null;
+  return formatDateKey(date);
+}
+
+function resolveSmartDeleteDateKey(args: any, now: Date = new Date()): string | null {
+  const explicit = args?.date ?? args?.transactionDate ?? args?.operationDate ?? args?.day;
+  const explicitDate = parseSmartDeleteDateKey(explicit, now);
+  if (explicitDate) return explicitDate;
+
+  const textDate = parseSmartDeleteDateKey(`${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''} ${args?.query || ''} ${args?.notes || ''}`, now);
+  return textDate;
+}
+
+function transactionDateKey(tx: any): string {
+  const parsed = parseDateLike(tx?.date || tx?.transactionDate || tx?.createdAt);
+  return parsed ? formatDateKey(parsed) : String(tx?.date || '').slice(0, 10);
+}
+
+function inferSmartDeleteAccount(args: any): string | null {
+  if (args?.account || args?.fromAccount) return normalizeAccount(args.account || args.fromAccount);
+  const text = normalizeArabicText(`${args?.category || ''} ${args?.notes || ''} ${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''} ${args?.query || ''}`).toLowerCase();
+  if (text.includes('palpay') || text.includes('pal pay') || text.includes('بال باي') || text.includes('بالباي')) return 'palPay';
+  if (text.includes('كاش') || text.includes('cash') || text.includes('نقد') || text.includes('نقدي')) return 'cash';
+  if (text.includes('دين') || text.includes('ديون')) return 'debt';
+  return null;
+}
+
+function shouldApplySmartDeleteCategory(category: unknown): boolean {
+  const text = normalizeArabicText(category || '').toLowerCase().trim();
+  if (!text) return false;
+  const genericCategories = new Set(['مصروف', 'مصروف نقدي', 'نقدي', 'نقد', 'كاش', 'cash', 'عملية', 'عمليه']);
+  if (genericCategories.has(text)) return false;
+  if (text.includes('مصروف') && (text.includes('نقد') || text.includes('كاش') || text.includes('cash'))) return false;
+  return true;
+}
+
+function smartDeleteCandidate(t: any) {
+  return { id: t.id, amount: t.amount, type: t.type, account: t.account, category: t.category, subcategory: t.subcategory, merchant: t.merchant, creditor: t.creditor, date: t.date, dateKey: transactionDateKey(t), notes: t.notes };
+}
+
+async function readTransactionsForSmartDeleteDate(dateKey: string, userId: string, limit = 250) {
+  const boundedLimit = Math.max(25, Math.min(500, Number(limit) || 250));
+  const endDateKey = addDaysToDateKey(dateKey, 1);
+  const snap = await firebaseAdminDb.collection('transactions')
+    .where('date', '>=', dateKey)
+    .where('date', '<', endDateKey)
+    .limit(boundedLimit)
+    .get();
+  const broadDocs = snap.docs || [];
+  const transactions = broadDocs
+    .filter((d: any) => d.data()?.userId === userId)
+    .map((d: any) => ({ id: d.id, ...d.data() }));
+  return { transactions, scannedDateWindowDocs: broadDocs.length, limit: boundedLimit, limitReached: broadDocs.length >= boundedLimit };
+}
+
 export async function deleteTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: deleteTransaction", args);
