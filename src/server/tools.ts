@@ -4197,8 +4197,10 @@ export async function queryTransactions(args: any, userId: string, token: string
     };
   }
 
-  const monthRequested = parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber) !== null;
-  const salaryCycleRequested = Boolean(args.salaryCycle || args.cycleId || args.salaryMonth || args.monthNumber)
+  const rawUserText = `${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''}`;
+  const inferredMonthFromText = parseSalaryCycleMonth(rawUserText);
+  const monthRequested = parseSalaryCycleMonth(args.salaryMonth ?? args.month ?? args.monthNumber) !== null || inferredMonthFromText !== null;
+  const salaryCycleRequested = Boolean(args.salaryCycle || args.cycleId || args.salaryMonth || args.monthNumber || inferredMonthFromText)
     || period === 'salary_cycle'
     || period === 'current_salary_cycle'
     || period === 'previous_salary_cycle'
