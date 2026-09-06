@@ -2193,7 +2193,25 @@ ${activeSalaryCycleText}
                 const functionResponses = await Promise.all(
                   message.toolCall.functionCalls.map(async (call: FunctionCall) => {
                     try {
-                      const guard = shouldSkipFinancialToolCallForIntent(call, '', seenToolKeys, message.toolCall.functionCalls || []);
+                      const liveArgsText = JSON.stringify(call.args || {});
+                      const effectiveCall = isVaultCloseIntentText(liveArgsText) && call.name !== 'recalculate_salary_cycle'
+                        ? ({
+                            ...call,
+                            name: 'recalculate_salary_cycle',
+                            args: {
+                              ...(call.args || {}),
+                              lockVault: true,
+                              closeCycle: true,
+                              transferToVault: true,
+                              reason: 'corrected_live_misrouted_vault_close_intent',
+                              activeSalaryCycleId: activeSalaryCycleContext.cycleId,
+                              activeSalaryCycleName: activeSalaryCycleContext.name,
+                              activeSalaryCycleMonth: activeSalaryCycleContext.month,
+                              activeSalaryCycleYear: activeSalaryCycleContext.year,
+                            },
+                          } as FunctionCall)
+                        : call;
+                      const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, liveArgsText, seenToolKeys, message.toolCall.functionCalls || []);
                       if (guard.skip) {
                         return { id: call.id, name: call.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
                       }
