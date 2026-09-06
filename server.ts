@@ -1062,10 +1062,12 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
         transactionId: committed.docIds[index],
         operationId: row.operationId,
       }));
+      const affectedCycleIds = Array.from(new Set(prepared.map((row) => getSalaryCycleForDate(row.transaction.date || row.transaction.createdAt || new Date().toISOString(), new Date()).cycleId)));
       res.json({
         success: true,
         createdCount: created.length,
         created,
+        affectedCycleIds,
         atomic: true,
         splitOverflowToDebt: splitApplied,
         selectedBalanceUsed: paymentMethod === 'palPay' ? palPayUsedFromServerBalance : cashUsedFromServerBalance,
