@@ -542,6 +542,13 @@ test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash
   assert.ok(serverSrc.includes('مش معترف') && serverSrc.includes('مصروفات'), 'debt-not-recognized complaints must also route to the credit-purchase repair fallback');
 });
 
+test('DOMAIN-03B2: salary cycle details expose credit purchases under a debt bucket', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(toolsSrc.includes('debtPurchases') && toolsSrc.includes('دين / مشتريات آجلة'), 'salary-cycle details must expose credit purchases under a debt/credit-purchase bucket');
+  assert.ok(appSrc.includes('مشتريات دين داخل الدورة') && appSrc.includes('دين/آجل'), 'UI must show credit purchases as debt/credit purchases, not anonymous cash expenses');
+});
+
 test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () => {
   const result = calculateBalances([
     tx({ type: 'income', account: 'cash', amount: 100 }),
