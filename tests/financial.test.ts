@@ -549,6 +549,7 @@ test('DOMAIN-03B2: salary cycle details expose credit purchases under a debt buc
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   assert.ok(toolsSrc.includes('debtPurchases') && toolsSrc.includes('دين / مشتريات آجلة'), 'salary-cycle details must expose credit purchases under a debt/credit-purchase bucket');
   assert.ok(appSrc.includes('مشتريات دين داخل الدورة') && appSrc.includes('دين/آجل'), 'UI must show credit purchases as debt/credit purchases, not anonymous cash expenses');
+  assert.ok(appSrc.includes('repairSelectedCreditPurchase') && appSrc.includes('ثبّت كدين'), 'UI must allow fixing the selected visible row by id when the assistant does not recognize it as debt');
 });
 
 test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () => {
