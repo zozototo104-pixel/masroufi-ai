@@ -840,6 +840,31 @@ test('NLU-01: Arabic month and debt phrases route to salary-cycle tools without 
   assert.ok(serverSrc.includes('currentRemainingForCycleCreditors'), 'deterministic financial replies must prefer current remaining debt after repayments');
 });
 
+test('VAULT-14A: close-month remainder goes to salary-cycle vault lock, not debt payment', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  const liveSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/useGeminiLive.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('name: "recalculate_salary_cycle"') && toolsSrc.includes('حول المتبقي للخزنة'), 'Gemini must have a declared recalculate_salary_cycle tool for close-month vault commands');
+  assert.ok(serverSrc.includes('isVaultCloseIntentText') && serverSrc.includes("name: 'recalculate_salary_cycle'") && serverSrc.includes('corrected_misrouted_vault_close_intent'), 'server must override misrouted close-vault text calls before execution');
+  assert.ok(serverSrc.includes('corrected_live_misrouted_vault_close_intent') && serverSrc.includes('activeSalaryCycleContext'), 'Live tool calls must carry active cycle context and correct vault-close misroutes');
+  assert.ok(serverSrc.includes('لا تستخدم pay_debt ولا تسجل فائض سداد دائن'), 'voice/text prompts must forbid treating vault close as debt overpayment');
+  assert.ok(appSrc.includes('activeSalaryCycleId: activeVoiceSalaryCycleId') && liveSrc.includes('activeSalaryCycleId'), 'the active UI salary cycle must be sent to the voice path');
+  assert.ok(toolsSrc.includes('hasExplicitCycleArg') && toolsSrc.includes('activeSalaryCycleMonth'), 'recalculate_salary_cycle must use the active UI cycle when the user says الشهر/الدورة without a month');
+});
+
+test('VAULT-14C: debt repayments reduce vault-eligible surplus and dashboard spendable liquidity', async () => {
+  const summary = summarizeSalaryCycleTransactions([
+    tx({ type: 'income', account: 'cash', amount: 1000, date: '2026-07-27T10:00:00.000Z' }),
+    tx({ type: 'expense', account: 'cash', amount: 300, date: '2026-07-28T10:00:00.000Z' }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', transactionType: 'DEBT_PAYMENT', amount: 200, date: '2026-07-29T10:00:00.000Z' }),
+  ]);
+  assert.equal(summary.debtPaid, 200, 'salary cycle summary must identify debt repayments');
+  assert.equal(summary.surplus, 500, 'vault-eligible surplus must subtract debt repayments without counting them as expenses');
+  const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
+  assert.ok(appSrc.includes('activeCycleDebtPaid') && appSrc.includes('- activeCycleDebtPaid - activeCycleVaultContribution'), 'dashboard spendable must subtract debt repayments from cycle liquidity');
+});
+
 test('VAULT-14B: historical cycle recalculation must not auto-lock during data entry', async () => {
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
