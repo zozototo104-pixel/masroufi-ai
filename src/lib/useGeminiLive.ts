@@ -116,6 +116,24 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
     const myEpoch = connectionEpochRef.current;
     try {
       setError(null);
+
+      // Request microphone permission immediately from the user's tap. Mobile
+      // Safari may refuse to show the permission prompt if getUserMedia waits
+      // behind WebSocket/auth/network work.
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('المتصفح لا يدعم الوصول المباشر إلى الميكروفون.');
+      }
+      const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      inputCtxRef.current = inputCtx;
+      if (inputCtx.state === 'suspended') await inputCtx.resume();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      streamRef.current = stream;
       
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       let wsUrl = `${protocol}//${window.location.host}/live`;
