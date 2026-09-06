@@ -247,12 +247,23 @@ export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCyc
   let expenseCount = 0;
   let transferCount = 0;
   let debtBorrowingCount = 0;
+  let debtCreated = 0;
+  let debtPaid = 0;
   for (const tx of transactions || []) {
     if (isDebtCashBorrowing(tx)) {
       debtCashInflow += parsePositiveFinancialAmount(tx?.amount);
       debtBorrowingCount += 1;
+      debtCreated += parsePositiveFinancialAmount(tx?.amount);
       transferCount += 1;
       continue;
+    }
+    if (isDebtPayment(tx)) {
+      debtPaid += parsePositiveFinancialAmount(tx?.amount);
+      transferCount += 1;
+      continue;
+    }
+    if (isCreditPurchase(tx)) {
+      debtCreated += parsePositiveFinancialAmount(tx?.amount);
     }
     if (isInternalTransfer(tx)) {
       transferCount += 1;
