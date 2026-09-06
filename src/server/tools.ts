@@ -2624,7 +2624,8 @@ export async function deleteRecentTransactions(args: any, userId: string, token:
         : kindRaw.includes('الكل') || kindRaw.includes('اي') || kindRaw === 'all'
           ? 'all'
           : 'expense';
-  const confirmed = args?.confirmed === true || args?.confirmation === 'DELETE_RECENT_TRANSACTIONS';
+  const explicitDeleteText = /(احذف|احذفي|امسح|امسحي|اشطب|اشطبي|حذف)/.test(kindRaw) && /(اخر|آخر|اخير|أخير|عملية|عمليات)/.test(kindRaw);
+  const confirmed = args?.confirmed === true || args?.confirmation === 'DELETE_RECENT_TRANSACTIONS' || explicitDeleteText;
   const searchLimit = Math.max(25, Math.min(150, Number(args?.searchLimit) || count * 20));
   const snap = await adminDb.collection('transactions')
     .where('userId', '==', userId)
