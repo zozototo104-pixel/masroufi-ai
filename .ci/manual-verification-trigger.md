@@ -1,22 +1,19 @@
 # Manual CI verification trigger
 
-Verify recent debt-payment deletion catches misrouted creditor-overpayment rows.
+Verify direct repair path for misrouted vault-close creditor surplus.
 
 User issue:
-- Assistant said it searched and did not find the latest debt payment.
-- The wrong transaction was displayed as "فائض سداد (دائن)", so it may not be transactionType=DEBT_PAYMENT.
+- The voice assistant refuses to recognize/delete the bad row because it is not a normal DEBT_PAYMENT.
+- The row appears in the UI as "فائض سداد (دائن)" after the user attempted to close the salary cycle to Savings Vault.
 
 Fix:
-- matchesRecentDeleteKind(kind=debt_payment) now matches:
-  - transactionType DEBT_PAYMENT / DEBT_REPAYMENT / PAY_DEBT
-  - transactionType CREDITOR_OVERPAYMENT / DEBT_OVERPAYMENT
-  - transfer to debt
-  - income on account=debt
-  - Arabic text containing فائض سداد / دائن when tied to debt
-- delete_recent_transactions remains bounded by createdAt desc + limit(searchLimit) and atomicDeleteTransactions.
-
-Expected behavior after deploy:
-- "احذف آخر عملية سداد دين" can delete the misrouted فائض سداد دائن row and reverse its balance effect.
+- Backend tool repair_misrouted_vault_close searches only the latest bounded transactions by createdAt desc + limit.
+- It detects creditor surplus / overpayment / debt overpayment / income on debt / transfer to debt patterns.
+- It uses atomicDeleteTransactions, not a fake reverse transaction.
+- It recalculates only the affected salary cycle.
+- API endpoint: POST /api/savings-vault/repair-misrouted-close.
+- Vault UI button: "تصحيح فائض دائن خاطئ".
+- The repair can fallback if the visible amount hint does not exactly match the stored bad row.
 
 Expected gates:
 - install
@@ -26,4 +23,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T10:58:00+03:00
+Timestamp: 2026-09-06T11:06:00+03:00
