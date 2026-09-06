@@ -2951,14 +2951,24 @@ export async function repairMisrecordedCreditPurchase(args: any, userId: string,
     .orderBy('createdAt', 'desc')
     .limit(searchLimit)
     .get();
-  let candidates = snap.docs
-    .map((d: any) => ({ id: d.id, ...d.data() }))
-    .filter((tx: any) => isMisrecordedCreditPurchaseCandidate(tx));
+  const allRecent = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  let candidates = allRecent.filter((tx: any) => isMisrecordedCreditPurchaseCandidate(tx));
   if (targetAmount !== null && targetAmount > 0) {
-    candidates = candidates.filter((tx: any) => Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01);
+    const amountMatches = candidates.filter((tx: any) => Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01);
+    candidates = amountMatches;
   }
   if (targetMerchant) {
-    candidates = candidates.filter((tx: any) => normalizeArabicText(`${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.notes || ''}`).includes(targetMerchant));
+    const merchantMatches = candidates.filter((tx: any) => normalizeArabicText(`${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.notes || ''}`).includes(targetMerchant));
+    candidates = merchantMatches;
+  }
+  if (candidates.length === 0 && targetAmount !== null && targetAmount > 0 && targetMerchant) {
+    candidates = allRecent.filter((tx: any) => {
+      const type = String(tx?.type || '');
+      const account = normalizeLedgerAccount(tx?.account);
+      const amountMatches = Math.abs(parsePositiveFinancialAmount(tx.amount) - targetAmount) < 0.01;
+      const merchantMatches = normalizeArabicText(`${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.notes || ''}`).includes(targetMerchant);
+      return type === 'expense' && account !== 'debt' && amountMatches && merchantMatches;
+    });
   }
   candidates = candidates.slice(0, 5);
   const preview = candidates.map((t: any) => ({
