@@ -1,19 +1,22 @@
 # Manual CI verification trigger
 
-Verify direct repair path for misrouted vault-close creditor surplus.
+Verify same-cycle debt repayment does not reduce Savings Vault surplus twice.
 
-User issue:
-- The voice assistant refuses to recognize/delete the bad row because it is not a normal DEBT_PAYMENT.
-- The row appears in the UI as "فائض سداد (دائن)" after the user attempted to close the salary cycle to Savings Vault.
+User case from production:
+- Salary cycle 08-2026 income: 4350 ₪
+- Expenses: 3905 ₪
+- Expected remaining/vault surplus: 445 ₪
+- Assistant locked only 24 ₪ because it calculated 4350 - 3905 - 421 debtPaid = 24.
+- That was wrong because the 421 ₪ debt was created by purchases already included in the same cycle expenses, so paying it should not be subtracted again.
 
 Fix:
-- Backend tool repair_misrouted_vault_close searches only the latest bounded transactions by createdAt desc + limit.
-- It detects creditor surplus / overpayment / debt overpayment / income on debt / transfer to debt patterns.
-- It uses atomicDeleteTransactions, not a fake reverse transaction.
-- It recalculates only the affected salary cycle.
-- API endpoint: POST /api/savings-vault/repair-misrouted-close.
-- Vault UI button: "تصحيح فائض دائن خاطئ".
-- The repair can fallback if the visible amount hint does not exactly match the stored bad row.
+- summarizeSalaryCycleTransactions now tracks same-cycle credit purchases by creditor.
+- debtPaymentLiquidityOutflow = debtPaid that exceeds same-cycle credit purchases for that creditor.
+- Vault surplus = income - expense - debtPaymentLiquidityOutflow.
+- Same-cycle credit purchase + same-cycle payment: outflow 0, no double count.
+- Older debt repayment with no same-cycle credit purchase: outflow equals repayment and reduces vault surplus.
+- Dashboard spendable uses debtPaymentLiquidityOutflow, not total debtPaid.
+- salaryCycles docs persist debtPaymentLiquidityOutflow and include it in sourceVersion.
 
 Expected gates:
 - install
@@ -23,4 +26,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T11:06:00+03:00
+Timestamp: 2026-09-06T11:52:00+03:00
