@@ -2338,10 +2338,78 @@ ${activeSalaryCycleText}
 
               if (message.serverContent?.turnComplete) {
                 liveTurnsCompleted += 1;
-                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio });
+                const completedTurn = liveTurnsCompleted;
+                const textForFallback = liveLastFinalUserText.trim();
+                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio, transcriptPreview: textForFallback.slice(0, 120), mutationSeen: liveMutationToolSeenInTurn, mutationCommitted: liveMutationCommittedInTurn });
                 liveAudioSinceLastToolResponse = 0;
                 awaitingPostToolAudio = false;
                 aiOutputActive = false;
+
+                if (liveTurnFallbackTimer) clearTimeout(liveTurnFallbackTimer);
+                liveTurnFallbackTimer = setTimeout(async () => {
+                  if (!isActive || liveServerFallbackRunning || !userId || !userToken) return;
+                  const shouldFallback = shouldRunServerSideLiveWriteFallback(textForFallback) && !liveMutationToolSeenInTurn && !liveMutationCommittedInTurn;
+                  if (!shouldFallback) {
+                    if (completedTurn === liveTurnsCompleted) {
+                      liveInputTranscriptBuffer = '';
+                      liveLastFinalUserText = '';
+                      liveMutationToolSeenInTurn = false;
+                      liveMutationCommittedInTurn = false;
+                    }
+                    return;
+                  }
+
+                  const fallbackCall = buildFallbackFinancialToolCall(textForFallback, `live_fallback_${requestId}_${completedTurn}`);
+                  const handler = fallbackCall?.name ? toolHandlers[fallbackCall.name] : null;
+                  if (!fallbackCall || !handler || !isLiveMutationToolName(fallbackCall.name)) {
+                    console.warn('[live-fallback] write intent detected but no deterministic mutation fallback was available', { requestId, completedTurn, textPreview: textForFallback.slice(0, 160), fallbackName: fallbackCall?.name || null });
+                    safeSend({ status: 'ready', liveWriteNotSaved: true, message: 'سمعت طلباً مالياً، لكن لم أستطع تكوين قيد مكتمل بدون تفاصيل إضافية. لم يتم التسجيل.' });
+                    if (completedTurn === liveTurnsCompleted) {
+                      liveInputTranscriptBuffer = '';
+                      liveLastFinalUserText = '';
+                      liveMutationToolSeenInTurn = false;
+                      liveMutationCommittedInTurn = false;
+                    }
+                    return;
+                  }
+
+                  liveServerFallbackRunning = true;
+                  try {
+                    const liveKey = liveFinancialCommitKey(fallbackCall as FunctionCall, userId);
+                    const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
+                    const toolArgs = {
+                      ...((fallbackCall as any).args || {}),
+                      operationId: liveKey ? `live-fallback:${liveBucket}:${liveKey}` : `live-fallback:${requestId}:${completedTurn}`,
+                      activeSalaryCycleId: activeSalaryCycleContext.cycleId,
+                      activeSalaryCycleName: activeSalaryCycleContext.name,
+                      activeSalaryCycleMonth: activeSalaryCycleContext.month,
+                      activeSalaryCycleYear: activeSalaryCycleContext.year,
+                    };
+                    console.warn('[live-fallback] executing deterministic mutation because Gemini did not call a write tool', { requestId, completedTurn, name: fallbackCall.name, textPreview: textForFallback.slice(0, 180) });
+                    const startedAt = Date.now();
+                    const result = await handler(toolArgs, userId, userToken);
+                    const committed = result?.success === true && (result?.cloudStorageConfirmed === true || result?.durability === 'committed' || result?.transactionId || result?.updated || result?.deletedCount !== undefined);
+                    if (committed) liveMutationCommittedInTurn = true;
+                    rememberLiveFinancialCommit(liveKey, result);
+                    console.log('[live-fallback] completed', { requestId, completedTurn, name: fallbackCall.name, durationMs: Date.now() - startedAt, success: result?.success === true, committed, reason: result?.reason || result?.error || null, transactionId: result?.transactionId || null });
+                    const refreshDecision = liveRefreshScopeForTools([{ name: fallbackCall.name, response: result }] as any);
+                    safeSend(refreshDecision.refresh
+                      ? { status: 'ready', refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds, serverSideSaved: committed }
+                      : { status: 'ready', serverSideSaved: committed }
+                    );
+                  } catch (fallbackErr: any) {
+                    console.error('[live-fallback] failed', { requestId, completedTurn, message: fallbackErr?.message || String(fallbackErr) });
+                    safeSend({ status: 'ready', liveWriteNotSaved: true, message: fallbackErr?.message || 'فشل التسجيل من الحارس الداخلي.' });
+                  } finally {
+                    liveServerFallbackRunning = false;
+                    if (completedTurn === liveTurnsCompleted) {
+                      liveInputTranscriptBuffer = '';
+                      liveLastFinalUserText = '';
+                      liveMutationToolSeenInTurn = false;
+                      liveMutationCommittedInTurn = false;
+                    }
+                  }
+                }, 800);
               }
 
               if (message.serverContent?.interrupted) {
