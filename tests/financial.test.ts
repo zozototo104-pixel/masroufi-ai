@@ -1193,6 +1193,7 @@ test('DELETE-RECENT-01: voice can safely delete last N expenses or last debt pay
 
 test('DELETE-DATE-01: smart delete can find exact-date cash tracking rows outside recent createdAt window', async () => {
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('resolveSmartDeleteDateKey') && toolsSrc.includes('parseSmartDeleteDateKey') && toolsSrc.includes('embeddedIso'), 'delete_transaction must parse explicit and embedded dates like 2026-08-27 and 27/8');
   assert.ok(toolsSrc.includes('readTransactionsForSmartDeleteDate') && toolsSrc.includes(".where('date', '>=', dateKey)") && toolsSrc.includes(".where('date', '<', endDateKey)"), 'smart delete must query the exact transaction date instead of only recent createdAt rows');
   assert.ok(toolsSrc.includes('transactionDateKey(t) === targetDateKey'), 'date search must still verify the candidate day after reading');
