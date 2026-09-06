@@ -1,20 +1,20 @@
 # Manual CI verification trigger
 
-Verify repair for debt purchases that were deducted from cash/PalPay.
+Verify debt/credit-purchase recognition after production issue.
 
 User issue:
-- User said: "سجلي دين 10 شيكل مشتريات من أبو العبد".
-- The system recorded it as debt-related but also deducted 10 ₪ from cash/liquid balance.
-- User asked who returns the missing cash.
+- "سجلي دين 10 شيكل مشتريات من أبو العبد" appeared inside expenses but the assistant said there are no debts.
+- It also reduced cash/liquid balance instead of creating a debt-only credit purchase.
+- The salary-cycle details did not clearly show the row as debt/credit purchase.
 
-Expected behavior:
-- Normal future credit purchases are forced to account=debt from Arabic intent before cash default.
-- Existing bad row can be repaired with repair_misrecorded_credit_purchase.
-- Repair updates the same transaction to account=debt/paymentMethod=debt/transactionType=CREDIT_PURCHASE.
-- Repair does not add fake income and does not create a reverse transaction.
-- Atomic update replacement delta restores cash/PalPay and increases/keeps debt correctly.
-- Server fallback/prompt routes phrases like "مين يرجع النقص" or "الدين خصم من النقدي" to repair_misrecorded_credit_purchase.
-- Generic "احذف آخر عملية دين" still routes to credit_purchase, while "احذف آخر سداد دين" routes to debt_payment.
+Fixes:
+- add_transaction includes structured account/paymentMethod/transactionType fields in intent detection.
+- structuredCreditPurchaseIntent forces account=debt when Gemini sends CREDIT_PURCHASE, paymentMethod=debt, account=debt, or creditor for an expense.
+- future credit purchases persist as account=debt and transactionType=CREDIT_PURCHASE, increasing debt and not reducing cash/PalPay.
+- repair_misrecorded_credit_purchase can find a bad cash/PalPay expense by explicit amount+creditor even if the stored row lost the word دين.
+- server fallback routes complaints like "مش معترف أنها دين" / "حاططها مصروفات" / "خصمت من النقدي" to repair_misrecorded_credit_purchase.
+- salary cycle details now expose debtPurchases and bucket credit purchases under "دين / مشتريات آجلة".
+- UI labels credit-purchase rows as "دين/آجل" and shows a separate "مشتريات دين داخل الدورة" section.
 
 Expected gates:
 - install
@@ -24,4 +24,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T13:20:00+03:00
+Timestamp: 2026-09-06T14:28:00+03:00
