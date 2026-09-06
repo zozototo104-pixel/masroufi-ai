@@ -5210,6 +5210,14 @@ export async function queryTransactions(args: any, userId: string, token: string
     filtered = cycleRead.transactions || [];
     snapshot = { docs: [], partial: cycleRead.partial, error: cycleRead.error || '', queryStats: cycleRead.queryStats || [] };
     boundedFallback = Boolean(cycleRead.boundedFallback);
+  } else if (explicitDateKey) {
+    // Exact day questions such as "شو في مصروفات بتاريخ 30/8" must use the
+    // same local-day multi-format reader used by smart delete, otherwise rows
+    // stored as UTC instants/Timestamps can be missed.
+    const dayRead = await readTransactionsForSmartDeleteDate(explicitDateKey, userId, limit);
+    filtered = dayRead.transactions || [];
+    snapshot = { docs: [], partial: dayRead.limitReached, error: '', queryStats: dayRead.queryStats || [] };
+    boundedFallback = false;
   } else {
     try {
       let q: any = firebaseAdminDb.collection('transactions').where('userId', '==', userId);
