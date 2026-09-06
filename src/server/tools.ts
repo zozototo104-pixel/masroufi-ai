@@ -4174,8 +4174,10 @@ function summarizeCycleTransactionLists(transactions: any[]) {
     }
     if (type === 'income') income.push(item);
     if (type === 'expense') {
+      const isDebtPurchaseItem = transactionType === 'CREDIT_PURCHASE' || normalizeLedgerAccount(tx.account) === 'debt';
+      if (isDebtPurchaseItem) debtPurchases.push({ ...item, creditor: tx.creditor || tx.merchant || '' });
       expenses.push(item);
-      byCategory[category] = byCategory[category] || { count: 0, totalAmount: 0 };
+      byCategory[isDebtPurchaseItem ? 'دين / مشتريات آجلة' : category] = byCategory[isDebtPurchaseItem ? 'دين / مشتريات آجلة' : category] || { count: 0, totalAmount: 0 };
       byCategory[category].count += 1;
       byCategory[category].totalAmount = roundMoney(byCategory[category].totalAmount + amount);
     }
