@@ -562,6 +562,16 @@ test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () =>
   assert.equal(result.palPay, 50, 'credit purchase must not subtract PalPay');
   assert.equal(result.debt, 10, 'credit purchase must increase debt');
   assert.equal(result.total, 150, 'liquid total must remain cash + PalPay only');
+
+  const legacy = calculateBalances([
+    tx({ type: 'income', account: 'cash', amount: 100 }),
+    tx({ type: 'expense', account: 'cash', amount: 10, transactionType: 'CREDIT_PURCHASE', creditor: 'أبو العبد' }),
+  ]);
+  assert.equal(legacy.cash, 100, 'legacy CREDIT_PURCHASE rows stored on cash must not subtract cash');
+  assert.equal(legacy.debt, 10, 'legacy CREDIT_PURCHASE rows stored on cash must still increase debt');
+  assert.equal(calculateCreditorRemaining([
+    tx({ type: 'expense', account: 'cash', amount: 10, transactionType: 'CREDIT_PURCHASE', creditor: 'أبو العبد' }),
+  ], 'ابو العبد'), 10, 'debt questions must recognize CREDIT_PURCHASE even if legacy account is cash');
 });
 
 test('DOMAIN-04: debt overpayment never exposes negative creditor remaining', () => {
