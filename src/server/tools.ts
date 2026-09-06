@@ -193,6 +193,39 @@ async function verifyAddTransactionCommit(userId: string, transactionId: string,
       }
     }
 
+    if (verification.transactionDocumentConfirmed && !verification.balanceSnapshotConfirmed) {
+      // The money ledger document is the source of truth. If the snapshot read is
+      // missing/stale, repair it from the user's ledger immediately instead of
+      // reporting a vague cloud-save failure while the transaction itself exists.
+      try {
+        const ledgerSnap = await firebaseAdminDb.collection('transactions').where('userId', '==', userId).get();
+        const ledgerTransactions = (ledgerSnap.docs || []).map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        const repairedBalances = normalizeBalanceDoc(calculateBalances(ledgerTransactions));
+        await firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances').set({
+          userId,
+          ...repairedBalances,
+          total: roundFinancial(repairedBalances.cash + repairedBalances.palPay),
+          source: 'post_commit_verification_repair',
+          repairedAfterTransactionId: transactionId,
+          repairedAt: new Date().toISOString(),
+          version: 1,
+        }, { merge: true });
+        verification.balanceRepairAttempted = true;
+        verification.balanceRepairApplied = true;
+        verification.balanceRepairLedgerDocsRead = ledgerSnap.docs.length;
+        verification.storedBalances = repairedBalances;
+        verification.balanceSnapshotConfirmed = true;
+        verification.balanceEffectConfirmed = true;
+        verification.warnings.push('BALANCE_SNAPSHOT_REPAIRED_FROM_LEDGER_AFTER_COMMIT');
+        verification.errors = verification.errors.filter((e: string) => e !== 'BALANCE_SNAPSHOT_NOT_FOUND_AFTER_COMMIT' && e !== 'BALANCE_SNAPSHOT_MISMATCH_AFTER_COMMIT');
+      } catch (repairErr: any) {
+        verification.balanceRepairAttempted = true;
+        verification.balanceRepairApplied = false;
+        verification.balanceRepairError = repairErr?.message || String(repairErr);
+        verification.errors.push(`BALANCE_SNAPSHOT_REPAIR_FAILED: ${verification.balanceRepairError}`);
+      }
+    }
+
     verification.ok = verification.transactionDocumentConfirmed && verification.balanceSnapshotConfirmed && verification.balanceEffectConfirmed;
     return verification;
   } catch (error: any) {
