@@ -607,12 +607,15 @@ function normalizeLiveFunctionResponsesForCommittedWrite(functionResponses: Arra
   const committed = functionResponses.find(r => isFinancialToolName(r.name) && r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
   if (!committed) return functionResponses;
   const canonical = committed.response || {};
+  const mutationNames = new Set(['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'delete_recent_transactions', 'update_transaction', 'repair_misrecorded_credit_purchase', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'repair_account_balance_snapshot']);
   return functionResponses.map(r => {
     if (!isFinancialToolName(r.name)) return r;
     const response = r.response || {};
     const thisCommitted = response.success === true && (response.cloudStorageConfirmed === true || response.durability === 'committed' || response.transactionId || response.updated || response.deletedCount !== undefined);
     if (thisCommitted) return r;
-    if (response.success === false || response.error || response.retryable || response.inFlight) {
+    const isReadSideCall = !mutationNames.has(r.name);
+    const duplicateSideCall = r.name === committed.name && (response.reason === 'IDEMPOTENT_OPERATION_IN_FLIGHT' || response.reason === 'POSSIBLE_DUPLICATE_TRANSACTION' || response.deduped === true || response.skipped === true);
+    if ((isReadSideCall || duplicateSideCall) && (response.success === false || response.error || response.retryable || response.inFlight)) {
       return {
         ...r,
         response: {
@@ -622,7 +625,7 @@ function normalizeLiveFunctionResponsesForCommittedWrite(functionResponses: Arra
           cloudStorageConfirmed: true,
           durability: 'committed',
           canonicalCommittedTransactionId: canonical.transactionId || null,
-          message: canonical.message || 'تم حفظ العملية المالية في السحابة، وتجاهلت نتيجة جانبية/مكررة حتى لا يظهر لك خطأ حفظ وهمي.',
+          message: canonical.message || 'تم حفظ العملية المالية في السحابة، وتجاهلت نتيجة قراءة جانبية/تكرار حتى لا يظهر لك خطأ حفظ وهمي.',
         },
       };
     }
