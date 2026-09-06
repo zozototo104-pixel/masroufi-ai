@@ -947,6 +947,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
   // are performed before it so the assistant can warn before damage, then reused below (no duplicate polling/read loop).
   let preTxSnapshot: any = null;
   let preUserBudgets: Record<string, number> | null = null;
+  const advisoryWarnings: string[] = [];
 
   if (type === 'income') {
     // Income writes must not depend on an index-sensitive date-range preflight query.
