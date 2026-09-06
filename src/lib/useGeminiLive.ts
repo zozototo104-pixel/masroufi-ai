@@ -210,19 +210,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         }, 25000);
         
         try {
-          // Input context for recording (Gemini needs 16kHz)
-          const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-          inputCtxRef.current = inputCtx;
+          const inputCtx = inputCtxRef.current;
+          const stream = streamRef.current;
+          if (!inputCtx || !stream) throw new Error('microphone stream was not initialized');
           if (inputCtx.state === 'suspended') await inputCtx.resume();
-          
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            } 
-          });
-          streamRef.current = stream;
           
           const source = inputCtx.createMediaStreamSource(stream);
           // A 4096-frame buffer is more stable on mobile/Render/WebSocket jitter.
