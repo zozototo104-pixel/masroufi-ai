@@ -2684,19 +2684,86 @@ function smartDeleteCandidate(t: any) {
   return { id: t.id, amount: t.amount, type: t.type, account: t.account, category: t.category, subcategory: t.subcategory, merchant: t.merchant, creditor: t.creditor, date: t.date, dateKey: transactionDateKey(t), notes: t.notes };
 }
 
+function getTimeZoneOffsetMinutes(timeZone: string, instant: Date): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(instant);
+    const get = (type: string) => parts.find(p => p.type === type)?.value || '0';
+    const year = Number(get('year'));
+    const month = Number(get('month'));
+    const day = Number(get('day'));
+    const hour = Number(get('hour')) % 24;
+    const minute = Number(get('minute'));
+    const second = Number(get('second'));
+    const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+    return Math.round((localAsUtc - instant.getTime()) / 60000);
+  } catch (_) {
+    return 0;
+  }
+}
+
+function getFinancialLocalDayUtcStart(dateKey: string): Date | null {
+  const m = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const noonGuess = new Date(Date.UTC(year, month - 1, day, 12));
+  const noonOffset = getTimeZoneOffsetMinutes(FINANCIAL_LOCAL_TIME_ZONE, noonGuess);
+  const midnightGuess = new Date(Date.UTC(year, month - 1, day) - noonOffset * 60000);
+  const midnightOffset = getTimeZoneOffsetMinutes(FINANCIAL_LOCAL_TIME_ZONE, midnightGuess);
+  return new Date(Date.UTC(year, month - 1, day) - midnightOffset * 60000);
+}
+
 async function readTransactionsForSmartDeleteDate(dateKey: string, userId: string, limit = 250) {
   const boundedLimit = Math.max(25, Math.min(500, Number(limit) || 250));
   const endDateKey = addDaysToDateKey(dateKey, 1);
-  const snap = await firebaseAdminDb.collection('transactions')
-    .where('date', '>=', dateKey)
-    .where('date', '<', endDateKey)
-    .limit(boundedLimit)
-    .get();
-  const broadDocs = snap.docs || [];
+  const localStartUtc = getFinancialLocalDayUtcStart(dateKey);
+  const localEndUtc = getFinancialLocalDayUtcStart(endDateKey);
+  const queryStats: any[] = [];
+  const docsById = new Map<string, any>();
+
+  const runDateQuery = async (label: string, startValue: any, endValue: any) => {
+    try {
+      const snap = await firebaseAdminDb.collection('transactions')
+        .where('date', '>=', startValue)
+        .where('date', '<', endValue)
+        .limit(boundedLimit)
+        .get();
+      queryStats.push({ label, docsRead: snap.docs.length });
+      for (const doc of snap.docs || []) docsById.set(doc.id, doc);
+      return snap.docs.length >= boundedLimit;
+    } catch (error: any) {
+      queryStats.push({ label, error: error?.message || String(error) });
+      return false;
+    }
+  };
+
+  const limitHits = [
+    await runDateQuery('date_key_range', dateKey, endDateKey),
+  ];
+
+  if (localStartUtc && localEndUtc) {
+    // Some old rows are stored as UTC instants. A row shown locally as 2026-08-27
+    // may be stored as 2026-08-26T21:xx:xxZ, so the date-key query above misses it.
+    limitHits.push(await runDateQuery('local_day_iso_utc_range', localStartUtc.toISOString(), localEndUtc.toISOString()));
+    // Some rows may be Firestore Timestamp/Date values rather than strings.
+    limitHits.push(await runDateQuery('local_day_timestamp_range', localStartUtc, localEndUtc));
+  }
+
+  const broadDocs = Array.from(docsById.values());
   const transactions = broadDocs
     .filter((d: any) => d.data()?.userId === userId)
     .map((d: any) => ({ id: d.id, ...d.data() }));
-  return { transactions, scannedDateWindowDocs: broadDocs.length, limit: boundedLimit, limitReached: broadDocs.length >= boundedLimit };
+  return { transactions, scannedDateWindowDocs: broadDocs.length, queryStats, limit: boundedLimit, limitReached: limitHits.some(Boolean) };
 }
 
 export async function deleteTransaction(args: any, userId: string, token: string) {
