@@ -1067,7 +1067,10 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
         created,
         atomic: true,
         splitOverflowToDebt: splitApplied,
-        selectedBalanceUsed: splitApplied ? Math.round((selectedAvailable - remainingSelectedBalance) * 100) / 100 : 0,
+        selectedBalanceUsed: paymentMethod === 'palPay' ? palPayUsedFromServerBalance : cashUsedFromServerBalance,
+        cashUsed: cashUsedFromServerBalance,
+        palPayUsed: palPayUsedFromServerBalance,
+        splitAcrossLiquidAccountsBeforeDebt: splitApplied,
         overflowDebtAmount: Math.round(created.filter((item: any) => item.paymentMethodOverride === 'debt' || item.account === 'debt').reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) * 100) / 100,
         idempotentReplay: Boolean((committed as any).idempotentReplay),
       });
