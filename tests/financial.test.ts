@@ -1196,6 +1196,7 @@ test('DELETE-DATE-01: smart delete can find exact-date cash tracking rows outsid
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('resolveSmartDeleteDateKey') && toolsSrc.includes('parseSmartDeleteDateKey') && toolsSrc.includes('embeddedIso'), 'delete_transaction must parse explicit and embedded dates like 2026-08-27 and 27/8');
   assert.ok(toolsSrc.includes('readTransactionsForSmartDeleteDate') && toolsSrc.includes(".where('date', '>=', dateKey)") && toolsSrc.includes(".where('date', '<', endDateKey)"), 'smart delete must query the exact transaction date instead of only recent createdAt rows');
+  assert.ok(toolsSrc.includes('local_day_iso_utc_range') && toolsSrc.includes('local_day_timestamp_range') && toolsSrc.includes('formatFinancialLocalDateKey'), 'smart delete must also catch rows stored as UTC instants/Timestamps but displayed as the local financial day');
   assert.ok(toolsSrc.includes('transactionDateKey(t) === targetDateKey'), 'date search must still verify the candidate day after reading');
   assert.ok(toolsSrc.includes('!args.id && !args.confirmed'), 'confirmed smart delete must not get stuck asking for confirmation again');
   assert.ok(toolsSrc.includes('مصروف نقدي') && toolsSrc.includes('account=cash'), 'generic cash-tracking text must not be treated as the real category filter');
