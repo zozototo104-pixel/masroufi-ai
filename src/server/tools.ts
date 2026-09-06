@@ -823,7 +823,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
     // atomicAddTransaction, so cash and PalPay income follow the same safe path.
   }
 
-  if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch) {
+  const isCreditPurchase = type === 'expense' && account === 'debt';
+  if (type === 'expense' && !isCreditPurchase && !args.deferBalanceCheckToAtomicBatch) {
     try {
       const preflightDate = new Date(dateResult.date);
       const safePreflightDate = Number.isNaN(preflightDate.getTime()) ? transactionNow : preflightDate;
