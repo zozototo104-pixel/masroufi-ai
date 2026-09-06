@@ -3295,6 +3295,12 @@ export default function App() {
                       <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}</span><span className="font-bold text-rose-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
                     )) : <p className="text-slate-500">لا توجد مصروفات في هذه الدورة.</p>}
                   </div>
+                  <div className="bg-slate-900/70 border border-rose-500/20 rounded-2xl p-3 max-h-44 overflow-auto">
+                    <h4 className="font-bold text-rose-200 mb-2">مشتريات دين داخل الدورة</h4>
+                    {(selectedVaultCycleDetails.debtPurchases || []).length ? selectedVaultCycleDetails.debtPurchases.map((tx: any) => (
+                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.creditor || tx.merchant ? ` · دين على ${tx.creditor || tx.merchant}` : ' · دين'}</span><span className="font-bold text-rose-200">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
+                    )) : <p className="text-slate-500">لا توجد مشتريات دين في هذه الدورة.</p>}
+                  </div>
                   <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-44 overflow-auto">
                     <h4 className="font-bold text-sky-300 mb-2">التحويلات الداخلية</h4>
                     {(selectedVaultCycleDetails.transfers || []).length ? selectedVaultCycleDetails.transfers.map((tx: any) => (
