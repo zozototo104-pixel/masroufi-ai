@@ -3706,7 +3706,16 @@ async function recalculateCyclesForTransactionChange(userId: string, token: stri
 }
 
 export async function getSalaryCycleSummary(args: any, userId: string, token: string) {
-  const first = await recalculateSalaryCycle({ ...(args || {}), reason: 'salary_cycle_summary_tool' }, userId, token);
+  const period: SalaryCyclePeriod = resolveSalaryCycleFromArgs(args || {}, new Date());
+  const first = await recalculateSalaryCycle({ ...(args || {}), __period: period, reason: 'salary_cycle_summary_tool' }, userId, token);
+  if (first.success && wantsCycleDebtSummary(args)) {
+    try {
+      const debtRead = await readTransactionsForSalaryCycle(period, userId, token, args?.limit || 500);
+      (first as any).debtSummary = await buildCurrentDebtSummaryForCycle(userId, debtRead.transactions);
+    } catch (err: any) {
+      (first as any).debtSummary = { partial: true, error: err?.message || 'debt summary unavailable' };
+    }
+  }
   const compareMonth = args?.compareToMonth || args?.secondMonth || args?.otherMonth;
   if (!compareMonth) return first;
   if (!first.success || !first.salaryCycle) {
