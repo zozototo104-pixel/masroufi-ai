@@ -536,6 +536,7 @@ test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash
   assert.ok(serverSrc.includes('isCreditPurchaseDelete') && serverSrc.includes("kind: 'credit_purchase'"), 'generic احذف آخر عملية دين must delete the latest credit purchase, not search debt payments');
   assert.ok(toolsSrc.includes('textDebtPurchase') && toolsSrc.includes("kind === 'credit_purchase'"), 'recent credit-purchase delete must also catch debt purchases previously misrecorded as cash expenses by text');
   assert.ok(toolsSrc.includes('repairMisrecordedCreditPurchase') && toolsSrc.includes('isMisrecordedCreditPurchaseCandidate'), 'backend must provide a direct repair that changes a cash-deducted debt purchase into CREDIT_PURCHASE');
+  assert.ok(toolsSrc.includes('candidates.length === 0 && targetAmount') && toolsSrc.includes('merchantMatches'), 'repair must still find a bad row by explicit amount+creditor even when the stored row lost the word debt');
   assert.ok(toolsSrc.includes('repair_misrecorded_credit_purchase: repairMisrecordedCreditPurchase'), 'repair tool must be registered for Gemini/server execution');
   assert.ok(serverSrc.includes("name: 'repair_misrecorded_credit_purchase'") && serverSrc.includes('مين يرجع النقص'), 'server fallback and prompts must route cash-deducted debt purchase corrections to the repair tool');
 });
