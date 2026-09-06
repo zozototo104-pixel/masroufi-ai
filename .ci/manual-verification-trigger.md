@@ -1,21 +1,15 @@
 # Manual CI verification trigger
 
-Verify NLU fixes for Arabic month, debt repayment deletion, and month-scoped debt.
+Final verification for Arabic month/debt NLU fixes.
 
-User-reported issues:
-- "مصروفات شهر أغسطس" returned no expenses unless the user said "مصروفات دورة شهر أغسطس".
-- "احذف آخر عملية سداد دين" said no debt-payment existed.
-- "كم علي دين بشهر 8" still returned the full original debt and ignored a partial repayment.
-
-Fixes:
-- parseSalaryCycleMonth now extracts Arabic month names from full user text.
-- query_transactions infers salary-cycle month from userText/currentUserText/question/query.
+Must verify:
+- "مصروفات شهر أغسطس" is interpreted as salary-cycle August even without saying دورة.
+- query_transactions infers Arabic month names/digits from userText/currentUserText.
 - query_transactions infers expense/income intent from Arabic text.
-- debt questions do not apply type/account filters before debt summary, so DEBT_PAYMENT transfers remain visible.
-- delete_recent_transactions infers debt_payment from full Arabic user text: سداد/تسديد/سدد/سديت.
-- server fallback now handles read/delete financial intents without requiring an amount.
-- deterministic replies for query_transactions/get_salary_cycle_summary use tool data directly.
-- Live voice prompt explicitly maps month phrases to salary cycles and latest debt-payment deletion to delete_recent_transactions kind=debt_payment.
+- month-scoped debt questions do not use get_balance alone.
+- debt questions do not filter out repayment transfers by account/type before computing debt summary.
+- "احذف آخر عملية سداد دين" maps to delete_recent_transactions kind=debt_payment count=1 confirmed=true.
+- deterministic query replies use tool data, especially currentRemainingForCycleCreditors after repayments.
 
 Expected gates:
 - install
@@ -25,4 +19,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T09:20:00+03:00
+Timestamp: 2026-09-06T09:24:00+03:00
