@@ -542,7 +542,7 @@ function liveRefreshScopeForTools(functionResponses: Array<{ name: string; respo
 
 function looksLikeFinancialIntent(text: string): boolean {
   const t = normalizeArabicForIntent(text);
-  return /(سجل|سجلي|ضيف|ضيفي|اضف|أضف|دخل|راتب|مصروف|اشتريت|شريت|دفعت|دفع|دين|سلف|سلفة|سلفه|حول|حوّل|سدد|سداد|خزنه|الخزنه|خزنة|الخزنة|اقفل|اقفلي|اغلق|اغلقي|قفل|ترحيل|رحلي)/.test(t);
+  return /(سجل|سجلي|ضيف|ضيفي|اضف|أضف|دخل|راتب|مصروف|اشتريت|شريت|دفعت|دفع|دين|سلف|سلفة|سلفه|حول|حوّل|سدد|سداد|احذف|احذفي|امسح|اشطب|شطب|شيكل|₪|خزنه|الخزنه|خزنة|الخزنة|اقفل|اقفلي|اغلق|اغلقي|قفل|ترحيل|رحلي)/.test(t);
 }
 
 function looksLikeCommittedClaim(text: string): boolean {
