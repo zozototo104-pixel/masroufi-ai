@@ -983,10 +983,12 @@ async function startServer() {
         });
       }
 
-      const apiKey = customApiKey || process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("No API key");
+      const cacheKey = payloadBase64 ? scanReceiptCacheKey(req.user.uid, payloadBase64, mimeType, defaultMonth) : '';
+      const cached = cacheKey ? getScanReceiptCache(cacheKey) : null;
+      if (cached) {
+        return res.json({ ...cached, cached: true, cacheTtlSeconds: Math.round(SCAN_RECEIPT_CACHE_TTL_MS / 1000) });
+      }
 
-      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Analyze this uploaded expense source. It may be a receipt image, invoice image, PDF, screenshot from another finance app, or a table of historical expenses.
 Extract expense rows only. Do not register anything. Return ONLY a valid JSON object matching this schema without markdown code blocks:
 {
