@@ -17,6 +17,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { buildHierarchicalReport, buildWordDocumentContent, buildWhatsAppReportText, matchesArabicCategory } from './lib/reportUtils';
 import { calculateFinancialFitness } from './lib/fitnessScore';
 import { calculateBalances } from './lib/balanceCalc';
+import { getCurrentSalaryCycle, summarizeSalaryCycleTransactions } from './lib/salaryCycle';
 import { clearPendingOpsForUser, syncPendingOps, getPendingCount, migrateLegacyPendingOps, enqueuePendingOp, type FinancialCommandType } from './lib/offlineQueue';
 
 function normalizeScannedReceiptDateInput(value: string): string {
