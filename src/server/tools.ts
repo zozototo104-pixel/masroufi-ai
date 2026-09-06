@@ -5277,8 +5277,12 @@ export async function queryTransactions(args: any, userId: string, token: string
     filtered = filtered.filter((t: any) => t.necessity === args.necessity);
   }
 
-  if (startIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') >= startIso);
-  if (endExclusiveIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') < endExclusiveIso);
+  if (explicitDateKey && !salaryCyclePeriod) {
+    filtered = filtered.filter((t: any) => transactionDateKey(t) === explicitDateKey);
+  } else {
+    if (startIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') >= startIso);
+    if (endExclusiveIso) filtered = filtered.filter((t: any) => String(t.date || t.createdAt || '') < endExclusiveIso);
+  }
 
   filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
 
