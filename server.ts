@@ -1047,7 +1047,7 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
             importMode: 'reviewed-file-or-image',
             splitOverflowToDebt: splitApplied,
             splitAcrossLiquidAccountsBeforeDebt: splitApplied,
-            balanceSource: accountBalanceSnap?.exists ? 'accountBalances' : 'missing-accountBalances-zero-safe',
+            balanceSource: balanceResult?.source || 'verified-server-balance',
             cashUsed: cashUsedFromServerBalance,
             palPayUsed: palPayUsedFromServerBalance,
             selectedBalanceUsed: paymentMethod === 'palPay' ? palPayUsedFromServerBalance : cashUsedFromServerBalance,
