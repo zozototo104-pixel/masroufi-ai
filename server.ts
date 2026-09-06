@@ -714,6 +714,12 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
     const month = parseSalaryCycleMonth(userText);
     return { name: 'recalculate_salary_cycle', args: { lockVault: true, closeCycle: true, transferToVault: true, reason: 'server_fallback_close_salary_cycle_to_vault', userText, ...(month ? { month } : {}) } } as any;
   }
+  const isCreditPurchaseRepair = /(رجع|رجعي|ارجع|أرجع|صحح|صححي|اصلح|أصلح|تعديل|النقص|خصم|خصمت)/.test(text)
+    && /(دين|بالدين|اجل|آجل|على الحساب)/.test(text)
+    && /(نقد|نقدي|كاش|palpay|بال باي|بالباي|الرصيد)/.test(text);
+  if (isCreditPurchaseRepair) {
+    return { name: 'repair_misrecorded_credit_purchase', args: { amount: extractAmountFromFinancialText(userText) || undefined, creditor: extractMerchantFromFinancialText(userText) || undefined, confirmed: true, userText } } as any;
+  }
   const isDelete = /(احذف|احذفي|امسح|اشطب|شطب)/.test(text);
   const isDebtPaymentDelete = isDelete && /(سداد|تسديد|سدد|سديت|دفعت دين|دفع دين)/.test(text);
   const isCreditPurchaseDelete = isDelete && /(دين|بالدين|اجل|آجل|على الحساب)/.test(text) && !isDebtPaymentDelete;
