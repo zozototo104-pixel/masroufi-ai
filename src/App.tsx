@@ -1603,34 +1603,37 @@ export default function App() {
     }
   };
 
-  // V6 (MF-7): MONTHLY stats (not all-time). The variable names said "month" but the code
-  // previously summed ALL transactions. Now we correctly filter to current month.
-  const currentMonthPrefix = new Date().toISOString().slice(0, 7);
-  const isThisMonth = (t: any) => {
+  // Dashboard cycle stats must follow Salary Cycle (27→26), not calendar month and
+  // not the globally available transaction list. /api/transactions is intentionally
+  // bounded for Firestore cost, so when the user selects August in the Vault modal
+  // the dashboard cards should use selectedVaultCycleDetails.summary directly.
+  const currentDashboardCycle = getCurrentSalaryCycle(new Date());
+  const activeDashboardCycle = selectedVaultCycleDetails?.period || vaultData?.currentCycle || currentDashboardCycle;
+  const activeDashboardCycleName = activeDashboardCycle?.name || currentDashboardCycle.name;
+  const activeDashboardCycleStartIso = activeDashboardCycle?.startIso || `${activeDashboardCycle?.cycleStart || currentDashboardCycle.cycleStart}T00:00:00.000Z`;
+  const activeDashboardCycleEndIso = activeDashboardCycle?.endExclusiveIso || activeDashboardCycle?.cycleEndExclusive || currentDashboardCycle.endExclusiveIso;
+  const isInActiveDashboardCycle = (t: any) => {
     const d = String(t.date || t.createdAt || '');
-    return d.startsWith(currentMonthPrefix);
+    return d >= activeDashboardCycleStartIso && d < activeDashboardCycleEndIso;
   };
-  // Also exclude transfers so they don't pollute expense/income totals.
-  const isNotTransfer = (t: any) => t.type !== 'transfer' && t.category !== 'تحويل' && t.category !== 'تحويل داخلي';
+  const activeDashboardCycleTransactions = selectedVaultCycleDetails?.summary
+    ? []
+    : transactions.filter(isInActiveDashboardCycle);
+  const activeDashboardSummary = selectedVaultCycleDetails?.summary || summarizeSalaryCycleTransactions(activeDashboardCycleTransactions);
+  const monthExpense = Number(activeDashboardSummary?.totalExpense || 0);
+  const monthIncome = Number(activeDashboardSummary?.totalIncome || 0);
+  const activeCycleVaultContribution = Number(selectedVaultCycleDetails?.vaultContribution || 0);
+  const cycleSpendableBalance = Math.max(0, Number(activeDashboardSummary?.totalInflow ?? monthIncome) - monthExpense - activeCycleVaultContribution);
+  const isNotTransfer = (t: any) => t.type !== 'transfer' && t.category !== 'تحويل' && t.category !== 'تحويل داخلي' && t.category !== 'تحويل للخزنة' && t.category !== 'فتح الخزنة';
+  const necessityTotal = selectedVaultCycleDetails?.expenses
+    ? selectedVaultCycleDetails.expenses.filter((t: any) => t.necessity === 'ضروري' || !t.necessity).reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
+    : activeDashboardCycleTransactions.filter((t: any) => t.type === 'expense' && isNotTransfer(t) && (t.necessity === 'ضروري' || !t.necessity)).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const luxuryTotal = selectedVaultCycleDetails?.expenses
+    ? selectedVaultCycleDetails.expenses.filter((t: any) => t.necessity === 'كمالي').reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
+    : activeDashboardCycleTransactions.filter((t: any) => t.type === 'expense' && isNotTransfer(t) && t.necessity === 'كمالي').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-  const monthExpense = transactions
-    .filter(t => t.type === 'expense' && isNotTransfer(t) && isThisMonth(t))
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-  const monthIncome = transactions
-    .filter(t => t.type === 'income' && isNotTransfer(t) && isThisMonth(t))
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-  const necessityTotal = transactions
-    .filter(t => t.type === 'expense' && isNotTransfer(t) && isThisMonth(t) && (t.necessity === 'ضروري' || !t.necessity))
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-  const luxuryTotal = transactions
-    .filter(t => t.type === 'expense' && isNotTransfer(t) && isThisMonth(t) && t.necessity === 'كمالي')
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-  // Calculate comprehensive Financial Fitness Score (0-100)
-  const fitness = calculateFinancialFitness(monthIncome, monthExpense, Math.max(0, debt), necessityTotal, luxuryTotal, transactions.length);
+  // Calculate comprehensive Financial Fitness Score (0-100) for the active salary cycle.
+  const fitness = calculateFinancialFitness(monthIncome, monthExpense, Math.max(0, debt), necessityTotal, luxuryTotal, Number(activeDashboardSummary?.transactionCount || activeDashboardCycleTransactions.length || 0));
 
   // Check budget warnings
   const hasBudgetWarnings = (budgetsData.budgets || []).some((b: any) => b.status === 'warning' || b.status === 'exceeded');
