@@ -1303,7 +1303,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     cloudStorageConfirmed: writeResult!.durability === 'committed',
     cloudStoragePending: writeResult!.pending,
     message: writeResult!.durability === 'committed'
-      ? `تم حفظ القيد في السحابة بقيمة ${amount} ₪.`
+      ? `تم حفظ القيد في السحابة بقيمة ${amount} ₪.${advisoryWarnings.length ? ` ${advisoryWarnings.join(' ')}` : ''}`
       : undefined,
     balanceWarning: undefined,
     pendingReason: writeResult!.pending ? 'CLOUD_STORAGE_NOT_CONFIRMED' : undefined,
