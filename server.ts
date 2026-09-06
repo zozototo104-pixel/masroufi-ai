@@ -1057,14 +1057,19 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       res.json(responsePayload);
     } catch (error: any) {
       console.error("Expense import scan error:", error?.message || error, error?.modelErrors || '');
-      const rateLimited = error?.reason === 'GEMINI_RATE_LIMIT_EXCEEDED' || isGeminiRateLimitError(error);
+      const validationFailed = error?.reason === 'EXPENSE_IMPORT_NORMALIZATION_FAILED' && error?.preview;
+      if (validationFailed) return res.status(422).json({ success: false, ...error.preview });
+      const rateLimited = error?.reason === 'GEMINI_RATE_LIMIT_EXCEEDED' || error?.reason === 'GEMINI_KEY_POOL_EXHAUSTED' || isGeminiRateLimitError(error);
       const temporary = !rateLimited && (error?.reason === 'GEMINI_TEMPORARILY_UNAVAILABLE' || isGeminiTemporaryCapacityError(error));
+      const keyAttempts = Array.isArray(error?.keyAttempts) ? error.keyAttempts.length : 0;
       res.status(rateLimited ? 429 : temporary ? 503 : 500).json({
         success: false,
         reason: rateLimited ? 'GEMINI_RATE_LIMIT_EXCEEDED' : temporary ? 'GEMINI_TEMPORARILY_UNAVAILABLE' : 'EXPENSE_IMPORT_ANALYSIS_FAILED',
         retryable: temporary,
+        keyAttempts,
+        keyPoolSize: error?.geminiKeyPoolSize || undefined,
         message: rateLimited
-          ? 'حصة أو حد Gemini لتحليل الصور وصل للحد مؤقتاً. انتظر رجوع الحصة أو استخدم Excel/CSV الآن.'
+          ? 'حصة أو حد Gemini لتحليل الصور وصل للحد مؤقتاً على المفاتيح المتاحة. انتظر رجوع الحصة أو استخدم Excel/CSV الآن.'
           : temporary
             ? 'خدمة تحليل الصور مزدحمة مؤقتاً. سأعيد المحاولة تلقائياً، أو ارفع الملف كـ Excel/CSV إذا كان متوفراً.'
             : 'تعذر تحليل الملف. جرّب صورة أوضح أو ملف CSV/Excel منظم.',
