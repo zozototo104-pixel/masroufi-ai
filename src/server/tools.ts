@@ -1128,6 +1128,18 @@ export async function addTransaction(args: any, userId: string, token: string) {
     };
   }
 
+  console.info('[add-transaction] commit_start', {
+    userIdHash: stableDocId(userId),
+    operationId,
+    amount,
+    type,
+    account,
+    date: dateResult.date,
+    category,
+    subcategory,
+    paymentWasProvided,
+  });
+
   let writeResult: WriteResult | null = null;
   let actualTxId = '';
   let atomicResult: Awaited<ReturnType<typeof atomicAddTransaction>>;
