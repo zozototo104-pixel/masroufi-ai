@@ -5223,6 +5223,26 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "recalculate_salary_cycle",
+    description: "يعيد حساب دورة راتب واحدة 27→26، وعند lockVault/closeCycle/transferToVault=true يقفل الدورة ويرحل فائضها للخزنة كـ VAULT_LOCK ذري. استخدم هذه الأداة حصراً لأوامر: اقفل الشهر، اقفل الدورة، حول المتبقي للخزنة، رحّل الفائض للخزنة. لا تستخدم pay_debt ولا transfer_money لهذه الأوامر.",
+    parameters: {
+      type: "object",
+      properties: {
+        month: { type: "string", description: "رقم أو اسم شهر دورة الراتب؛ 8/أغسطس يعني 27/07→26/08" },
+        year: { type: "number", description: "سنة دورة الراتب" },
+        cycleId: { type: "string", description: "معرف دورة مثل vault_2026_08 إن توفر" },
+        period: { type: "string", description: "current_salary_cycle أو previous_salary_cycle عند الحاجة" },
+        lockVault: { type: "boolean", description: "true عند طلب تحويل الفائض/المتبقي للخزنة" },
+        closeCycle: { type: "boolean", description: "true عند طلب إقفال الشهر أو الدورة" },
+        transferToVault: { type: "boolean", description: "true عند طلب ترحيل المتبقي للخزنة" },
+        activeSalaryCycleId: { type: "string", description: "الدورة النشطة في الواجهة عند قول المستخدم هذا الشهر/هذه الدورة" },
+        activeSalaryCycleMonth: { type: "number", description: "شهر الدورة النشطة في الواجهة" },
+        activeSalaryCycleYear: { type: "number", description: "سنة الدورة النشطة في الواجهة" },
+        reason: { type: "string", description: "سبب إعادة الحساب أو الإقفال" }
+      }
+    }
+  },
+  {
     name: "get_salary_cycle_summary",
     description: "يحسب أو يحدّث ملخص دورة راتب واحدة 27→26 باستعلام معاملات محدود بالتاريخ. استخدمه لأسئلة مثل: كم فائض راتب يوليو؟ كم حولنا للخزنة في أغسطس؟ كم بقي من دورة راتب شهر 9؟ ما الفرق بين فائض يوليو وأغسطس؟",
     parameters: {
