@@ -4288,6 +4288,8 @@ export async function queryTransactions(args: any, userId: string, token: string
   }
 
   let filtered = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const debtQuestionText = normalizeArabicText(`${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''} ${args.category || ''} ${args.account || ''} ${args.type || ''}`);
+  const debtQueryRequested = Boolean(salaryCyclePeriod && (debtQuestionText.includes('دين') || debtQuestionText.includes('ديون') || args.account === 'debt'));
   
   const effectiveTypeFilter = args.type || inferredQueryType;
   if (effectiveTypeFilter) {
