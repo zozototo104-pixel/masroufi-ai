@@ -2322,8 +2322,9 @@ export async function payDebt(args:any,userId:string,token:string){
   }
   const finalTxId = atomicResult.docId;
   const affectedPaymentCycle = getSalaryCycleForDate(tx.date || tx.createdAt || new Date().toISOString(), new Date());
-  await addNotification(userId,`تم سداد ${amount} ₪ من دين ${selected.creditor} من ${fromName}.`, 'success', adminDb);
-  return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:(atomicResult as any).remaining ?? Math.max(0,Math.round((selected.remaining-amount)*100)/100),affectedCycleId:affectedPaymentCycle.cycleId,affectedCycleIds:[affectedPaymentCycle.cycleId],message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}.`,currentBalances:(atomicResult as any).balances, readEfficiency:{ creditorDocsRead: creditorSnap.docs.length, accountBalanceDocsRead: 1 }};
+  const historicalSuffix = settlementDate.historical ? ` كتسوية تاريخية ضمن ${affectedPaymentCycle.name} بتاريخ ${String(tx.date).slice(0,10)}` : ' بتاريخ اليوم';
+  await addNotification(userId,`تم سداد ${amount} ₪ من دين ${selected.creditor} من ${fromName}${historicalSuffix}.`, 'success', adminDb);
+  return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:(atomicResult as any).remaining ?? Math.max(0,Math.round((selected.remaining-amount)*100)/100),affectedCycleId:affectedPaymentCycle.cycleId,affectedCycleIds:[affectedPaymentCycle.cycleId],settlementDate:tx.date,dateSource:settlementDate.dateSource,historicalSettlement:settlementDate.historical,settlementCycle:{cycleId:affectedPaymentCycle.cycleId,cycleStart:affectedPaymentCycle.cycleStart,cycleEnd:affectedPaymentCycle.cycleEnd,name:affectedPaymentCycle.name},message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}${historicalSuffix}.`,currentBalances:(atomicResult as any).balances, readEfficiency:{ creditorDocsRead: creditorSnap.docs.length, accountBalanceDocsRead: 1 }};
 }
 
 export async function getRecentTransactions(args: any, userId: string, token: string) {
