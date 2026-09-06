@@ -117,6 +117,91 @@ function stableDocId(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 40);
 }
 
+function roundFinancial(value: unknown): number {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
+function amountsClose(a: unknown, b: unknown, tolerance = 0.01): boolean {
+  return Math.abs(roundFinancial(a) - roundFinancial(b)) <= tolerance;
+}
+
+function normalizeBalanceDoc(data: any = {}) {
+  const cash = roundFinancial(data.cash);
+  const palPay = roundFinancial(data.palPay);
+  const debt = roundFinancial(data.debt);
+  const vault = roundFinancial(data.vault);
+  return { cash, palPay, debt, vault, total: roundFinancial(cash + palPay) };
+}
+
+async function verifyAddTransactionCommit(userId: string, transactionId: string, tx: any, expectedBalances: any, atomicResult: any) {
+  const verification: any = {
+    ok: false,
+    transactionId,
+    transactionDocumentConfirmed: false,
+    balanceSnapshotConfirmed: false,
+    balanceEffectConfirmed: false,
+    userIdHash: stableDocId(userId),
+    previousBalances: atomicResult?.previousBalances || null,
+    balanceDelta: atomicResult?.balanceDelta || txBalanceDelta(tx),
+    expectedBalances: expectedBalances ? normalizeBalanceDoc(expectedBalances) : null,
+    storedBalances: null,
+    errors: [] as string[],
+    warnings: [] as string[],
+  };
+
+  try {
+    const [txSnap, balanceSnap] = await Promise.all([
+      firebaseAdminDb.collection('transactions').doc(transactionId).get(),
+      firebaseAdminDb.collection('users').doc(userId).collection('meta').doc('accountBalances').get(),
+    ]);
+
+    if (!txSnap.exists) {
+      verification.errors.push('TRANSACTION_DOC_NOT_FOUND_AFTER_COMMIT');
+    } else {
+      const storedTx = txSnap.data() || {};
+      const amountMatches = amountsClose(storedTx.amount, tx.amount);
+      const coreMatches = storedTx.userId === userId
+        && amountMatches
+        && String(storedTx.type || '') === String(tx.type || '')
+        && String(storedTx.account || '') === String(tx.account || '')
+        && String(storedTx.date || '').slice(0, 10) === String(tx.date || '').slice(0, 10);
+      verification.transactionDocumentConfirmed = coreMatches;
+      verification.storedTransactionPreview = {
+        id: transactionId,
+        amount: storedTx.amount,
+        type: storedTx.type,
+        account: storedTx.account,
+        category: storedTx.category,
+        subcategory: storedTx.subcategory,
+        date: storedTx.date,
+      };
+      if (!coreMatches) verification.errors.push('TRANSACTION_DOC_CORE_FIELDS_MISMATCH');
+    }
+
+    if (!balanceSnap.exists) {
+      verification.errors.push('BALANCE_SNAPSHOT_NOT_FOUND_AFTER_COMMIT');
+    } else {
+      verification.storedBalances = normalizeBalanceDoc(balanceSnap.data() || {});
+      const expected = verification.expectedBalances;
+      if (expected) {
+        verification.balanceSnapshotConfirmed = ['cash', 'palPay', 'debt', 'vault'].every((key) => amountsClose(verification.storedBalances[key], expected[key]));
+        verification.balanceEffectConfirmed = verification.balanceSnapshotConfirmed;
+        if (!verification.balanceSnapshotConfirmed) verification.errors.push('BALANCE_SNAPSHOT_MISMATCH_AFTER_COMMIT');
+      } else {
+        verification.balanceSnapshotConfirmed = true;
+        verification.balanceEffectConfirmed = true;
+      }
+    }
+
+    verification.ok = verification.transactionDocumentConfirmed && verification.balanceSnapshotConfirmed && verification.balanceEffectConfirmed;
+    return verification;
+  } catch (error: any) {
+    verification.errors.push(error?.message || String(error));
+    verification.error = error?.message || String(error);
+    return verification;
+  }
+}
+
 async function addNotification(
   userId: string,
   message: string,
