@@ -578,8 +578,34 @@ function extractMerchantFromFinancialText(text: string): string {
   return m?.[1]?.trim() || '';
 }
 
+function extractRecentDeleteCountFromText(text: string): number {
+  const normalized = normalizeArabicDigits(normalizeArabicForIntent(text));
+  const explicit = normalized.match(/(?:اخر|آخر)\s+(\d{1,2})/);
+  if (explicit) return Math.max(1, Math.min(10, Number(explicit[1]) || 1));
+  return 1;
+}
+
 function buildFallbackFinancialToolCall(userText: string, clientMessageId: string): FunctionCall | null {
   const text = normalizeArabicForIntent(userText);
+  const isDelete = /(احذف|احذفي|امسح|اشطب|شطب)/.test(text);
+  const isDebtPaymentDelete = isDelete && /(سداد|تسديد|سدد|سديت|دين)/.test(text);
+  if (isDebtPaymentDelete) {
+    return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'debt_payment', userText } } as any;
+  }
+  if (isDelete && /(مصروف|مصروفات|صرف|اشتريت|شراء)/.test(text)) {
+    return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'expense', userText } } as any;
+  }
+  const isReadQuestion = /(كم|اعطيني|اعطني|عرض|ورجيني|شو|ما هي|ماهو|مصروفات|مصروف|صرف|دخل|دين|ديون)/.test(text)
+    && !/(سجل|سجلي|ضيف|ضيفي|اضف|أضف|اشتريت|شريت|دفعت|حول|حوّل|سدد)/.test(text);
+  if (isReadQuestion && /(مصروف|مصروفات|صرف)/.test(text)) {
+    return { name: 'query_transactions', args: { period: 'salary_cycle', type: 'expense', userText, limit: 120 } } as any;
+  }
+  if (isReadQuestion && /(دين|ديون)/.test(text)) {
+    return { name: 'query_transactions', args: { period: 'salary_cycle', userText, account: 'debt', limit: 120 } } as any;
+  }
+  if (isReadQuestion && /(دخل|راتب)/.test(text)) {
+    return { name: 'query_transactions', args: { period: 'salary_cycle', type: 'income', userText, limit: 120 } } as any;
+  }
   const amount = extractAmountFromFinancialText(userText);
   if (!amount) return null;
   const account = accountFromFinancialText(userText);
