@@ -1,18 +1,20 @@
 # Manual CI verification trigger
 
-Final verification for debt purchase cash invariant and debt delete routing.
+Verify repair for debt purchases that were deducted from cash/PalPay.
 
 User issue:
-- "سجلي دين 10 شيكل مشتريات من أبو العبد" was recorded as debt but also subtracted from cash/liquid balance.
-- "احذف آخر عملية دين" did not find the operation.
+- User said: "سجلي دين 10 شيكل مشتريات من أبو العبد".
+- The system recorded it as debt-related but also deducted 10 ₪ from cash/liquid balance.
+- User asked who returns the missing cash.
 
 Expected behavior:
-- Arabic text containing دين/بالدين/آجل/على الحساب + سجلي/مشتريات/شراء forces account=debt before the default cash account is applied.
-- Credit purchase persists as type=expense, account=debt, transactionType=CREDIT_PURCHASE, creditor=merchant.
-- Credit purchase only increases debt; it never subtracts cash or PalPay and does not change liquid total.
-- "احذف آخر عملية سداد دين" routes to debt_payment.
-- "احذف آخر عملية دين" without سداد/تسديد routes to credit_purchase.
-- Recent credit_purchase delete catches both proper CREDIT_PURCHASE rows and old misrecorded cash expense rows whose text contains debt purchase words.
+- Normal future credit purchases are forced to account=debt from Arabic intent before cash default.
+- Existing bad row can be repaired with repair_misrecorded_credit_purchase.
+- Repair updates the same transaction to account=debt/paymentMethod=debt/transactionType=CREDIT_PURCHASE.
+- Repair does not add fake income and does not create a reverse transaction.
+- Atomic update replacement delta restores cash/PalPay and increases/keeps debt correctly.
+- Server fallback/prompt routes phrases like "مين يرجع النقص" or "الدين خصم من النقدي" to repair_misrecorded_credit_purchase.
+- Generic "احذف آخر عملية دين" still routes to credit_purchase, while "احذف آخر سداد دين" routes to debt_payment.
 
 Expected gates:
 - install
@@ -22,4 +24,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T13:07:00+03:00
+Timestamp: 2026-09-06T13:20:00+03:00
