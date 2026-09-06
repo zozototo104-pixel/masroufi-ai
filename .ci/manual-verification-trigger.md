@@ -1,13 +1,14 @@
 # Manual CI verification trigger
 
-Verify after updating E2E expectations.
+Rerun after fixing tests and receipt split implementation.
 
-Scope:
-- receipt import must split using authoritative server getBalance, not stale client visible balances
-- selected liquid account first, other liquid account second, debt only remainder
-- partial/unsafe balance blocks receipt split instead of creating debt
-- salary-cycle debt summary includes repayments and current remaining debt for cycle creditors
-- delete_recent_transactions remains registered and bounded for deleting last 3 expenses / latest debt payment
+Verify current HEAD:
+- receipt record uses one accountBalances snapshot only; no getBalance bootstrap/full-ledger scan during import record
+- if account balance snapshot is missing, receipt split fails closed instead of converting PalPay balance to debt
+- receipt split order: selected liquid account, other liquid account, debt only remainder
+- atomic batch still validates balances with skipLedgerBalanceCheck false
+- salary-cycle debt summary exposes current remaining debt for cycle creditors and later repayments
+- delete_recent_transactions remains bounded and atomic for last 3 expenses / latest debt payment
 
 Expected gates:
 - install
@@ -17,4 +18,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T08:55:00+03:00
+Timestamp: 2026-09-06T09:03:00+03:00
