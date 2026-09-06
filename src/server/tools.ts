@@ -4177,12 +4177,13 @@ function summarizeCycleTransactionLists(transactions: any[]) {
       const isDebtPurchaseItem = transactionType === 'CREDIT_PURCHASE' || normalizeLedgerAccount(tx.account) === 'debt';
       if (isDebtPurchaseItem) debtPurchases.push({ ...item, creditor: tx.creditor || tx.merchant || '' });
       expenses.push(item);
-      byCategory[isDebtPurchaseItem ? 'دين / مشتريات آجلة' : category] = byCategory[isDebtPurchaseItem ? 'دين / مشتريات آجلة' : category] || { count: 0, totalAmount: 0 };
-      byCategory[category].count += 1;
-      byCategory[category].totalAmount = roundMoney(byCategory[category].totalAmount + amount);
+      const categoryKey = isDebtPurchaseItem ? 'دين / مشتريات آجلة' : category;
+      byCategory[categoryKey] = byCategory[categoryKey] || { count: 0, totalAmount: 0 };
+      byCategory[categoryKey].count += 1;
+      byCategory[categoryKey].totalAmount = roundMoney(byCategory[categoryKey].totalAmount + amount);
     }
   }
-  return { income, expenses, transfers, debtBorrowing, byCategory };
+  return { income, expenses, transfers, debtBorrowing, debtPurchases, byCategory };
 }
 
 function incomeGuardRefForTransaction(userId: string, tx: any, now: Date) {
