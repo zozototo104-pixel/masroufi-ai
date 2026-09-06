@@ -5204,8 +5204,9 @@ const recentMutations = new Map<string, { result: any; timestamp: number }>();
 function getMutationKey(name: string, args: any, userId: string): string {
   const cleanArgs: any = {};
   for (const k of Object.keys(args || {}).sort()) {
-    // Ignore internal fields or timestamps if any
-    if (k === 'date' || k === 'createdAt') continue;
+    // Ignore volatile creation timestamps only. Transaction date is part of the
+    // user's intent for add/update/delete, so it must remain in the mutation key.
+    if (k === 'createdAt') continue;
     if (args[k] !== undefined && args[k] !== null && args[k] !== '') {
       cleanArgs[k] = typeof args[k] === 'number' ? Math.round(args[k] * 100) / 100 : String(args[k]).trim().toLowerCase();
     }
