@@ -25,6 +25,7 @@ import { normalizeHistoricalTransactionDate } from '../src/lib/historicalDate.ts
 import {
   buildSalaryCycleForMonth,
   getSalaryCycleForDate,
+  parseSalaryCycleMonth,
   resolveSalaryCycleFromArgs,
   summarizeSalaryCycleTransactions,
 } from '../src/lib/salaryCycle.ts';
