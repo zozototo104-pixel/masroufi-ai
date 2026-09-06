@@ -1056,9 +1056,10 @@ test('DELETE-RECENT-01: voice can safely delete last N expenses or last debt pay
 
 test('DEBT-REPORT-01: salary-cycle debt questions include repayments made after the cycle', async () => {
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
-  assert.ok(toolsSrc.includes('wantsDebtSummary'), 'query_transactions must detect salary-cycle debt questions');
+  assert.ok(toolsSrc.includes('wantsDebtSummary') || toolsSrc.includes('wantsCycleDebtSummary'), 'salary-cycle debt questions must be detected');
   assert.ok(toolsSrc.includes("where('creditorKey', 'in', creditorKeys)"), 'debt questions must query only affected creditors, not the full ledger');
   assert.ok(toolsSrc.includes('currentRemainingForCycleCreditors'), 'debt summary must return current remaining debt after later repayments');
+  assert.ok(toolsSrc.includes('buildCurrentDebtSummaryForCycle'), 'salary-cycle summary tool must attach current remaining debt for cycle creditors');
   assert.ok(toolsSrc.includes('يعترف بالسداد الذي حدث بعد نهاية الدورة'), 'assistant response payload must explain that post-cycle repayments are included');
 });
 
