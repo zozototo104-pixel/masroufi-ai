@@ -3673,7 +3673,19 @@ async function commitSalaryCycleAndVaultMeta(args: any, userId: string, period: 
 }
 
 export async function recalculateSalaryCycle(args: any, userId: string, token: string) {
-  const period: SalaryCyclePeriod = args?.__period || resolveSalaryCycleFromArgs(args || {}, new Date());
+  const hasExplicitCycleArg = Boolean(
+    args?.__period || args?.cycleId || args?.id || args?.date || args?.transactionDate ||
+    args?.salaryMonth || args?.month || args?.monthNumber || String(args?.period || '').trim() === 'previous'
+  );
+  const effectiveArgs = !hasExplicitCycleArg && (args?.activeSalaryCycleId || args?.activeSalaryCycleMonth)
+    ? {
+        ...(args || {}),
+        cycleId: args?.activeSalaryCycleId || args?.cycleId,
+        month: args?.activeSalaryCycleMonth || args?.month,
+        year: args?.activeSalaryCycleYear || args?.year,
+      }
+    : args;
+  const period: SalaryCyclePeriod = args?.__period || resolveSalaryCycleFromArgs(effectiveArgs || {}, new Date());
   const readResult = await readTransactionsForSalaryCycle(period, userId, token, args?.limit);
   if (readResult.partial || readResult.boundedFallback || readResult.limitReached) {
     return {
