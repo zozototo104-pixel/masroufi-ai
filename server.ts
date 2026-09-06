@@ -2023,7 +2023,11 @@ ${relationshipContext}
         }
       }
 
-      if (!executedFunctionResponses.some((r: any) => isFinancialToolName(r.name)) && looksLikeFinancialIntent(recentUserConversationText)) {
+      const hasFinancialMutationToolCall = executedFunctionResponses.some((r: any) => isFinancialMutationToolName(r.name));
+      const hasCommittedFinancialMutation = executedFunctionResponses.some((r: any) => isFinancialMutationToolName(r.name) && isCommittedFinancialMutationResponse(r.response));
+      if (!hasFinancialMutationToolCall && !hasCommittedFinancialMutation && looksLikeFinancialWriteIntent(recentUserConversationText)) {
+        // A read-only financial tool such as query_transactions must not block a
+        // deterministic write fallback for clear commands like "اشتريت ... بقيمة ... كاش".
         const fallbackCall = buildFallbackFinancialToolCall(recentUserConversationText, String(clientMessageId || ''));
         if (fallbackCall && toolHandlers[fallbackCall.name]) {
           try {
