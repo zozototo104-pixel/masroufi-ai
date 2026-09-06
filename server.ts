@@ -2346,6 +2346,14 @@ ${relationshipContext}
           userId = result.uid!;
           userEmail = result.email;
           userToken = result.token;
+          const authCycleMonth = Number(msg.activeSalaryCycleMonth || 0);
+          const authCycleYear = Number(msg.activeSalaryCycleYear || 0);
+          activeSalaryCycleContext = {
+            cycleId: String(msg.activeSalaryCycleId || '').trim() || undefined,
+            name: String(msg.activeSalaryCycleName || '').trim() || undefined,
+            month: Number.isFinite(authCycleMonth) && authCycleMonth >= 1 && authCycleMonth <= 12 ? authCycleMonth : undefined,
+            year: Number.isFinite(authCycleYear) && authCycleYear >= 2000 ? authCycleYear : undefined,
+          };
 
           const previousLiveSocket = activeLiveSocketsByUser.get(userId);
           if (previousLiveSocket && previousLiveSocket !== clientWs && previousLiveSocket.readyState === WebSocket.OPEN) {
