@@ -2257,7 +2257,7 @@ ${activeSalaryCycleText}
                           };
                         }
                         const liveToolStartedAt = Date.now();
-                        const isBoundedReadTool = call.name === 'query_transactions' || call.name === 'memory_search';
+                        const isBoundedReadTool = effectiveCall.name === 'query_transactions' || effectiveCall.name === 'memory_search';
                         let result: any;
                         if (isBoundedReadTool) {
                           const LIVE_READ_TOOL_TIMEOUT_MS = 5000;
