@@ -1014,7 +1014,8 @@ export default function App() {
             window.dispatchEvent(new CustomEvent('masrofi:refresh'));
           }
         } else {
-          alert("فشل في تحليل الملف: " + (data.message || data.error || "خطأ غير معروف"));
+          const rateLimited = data?.reason === 'GEMINI_RATE_LIMIT_EXCEEDED' || data?.error === 'GEMINI_RATE_LIMIT_EXCEEDED' || lastStatus === 429;
+          alert("فشل في تحليل الملف: " + (data?.message || (rateLimited ? 'حصة Gemini لتحليل الصور وصلت للحد مؤقتاً. استخدم Excel/CSV أو انتظر رجوع الحصة.' : "خطأ غير معروف")));
         }
       } catch (err) {
         console.error("Scan error", err);
