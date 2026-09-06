@@ -1191,6 +1191,16 @@ test('DELETE-RECENT-01: voice can safely delete last N expenses or last debt pay
   assert.ok(serverSrc.includes("'delete_recent_transactions'"), 'Live refresh and financial tool classification must include delete_recent_transactions');
 });
 
+test('DELETE-DATE-01: smart delete can find exact-date cash tracking rows outside recent createdAt window', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('resolveSmartDeleteDateKey') && toolsSrc.includes('parseSmartDeleteDateKey'), 'delete_transaction must parse explicit dates like 2026-08-27 and 27/8');
+  assert.ok(toolsSrc.includes('readTransactionsForSmartDeleteDate') && toolsSrc.includes(".where('date', '>=', dateKey)") && toolsSrc.includes(".where('date', '<', endDateKey)"), 'smart delete must query the exact transaction date instead of only recent createdAt rows');
+  assert.ok(toolsSrc.includes('transactionDateKey(t) === targetDateKey'), 'date search must still verify the candidate day after reading');
+  assert.ok(toolsSrc.includes('!args.id && !args.confirmed'), 'confirmed smart delete must not get stuck asking for confirmation again');
+  assert.ok(toolsSrc.includes('مصروف نقدي') && toolsSrc.includes('account=cash'), 'generic cash-tracking text must not be treated as the real category filter');
+  assert.ok(toolsSrc.includes("if (k === 'createdAt') continue") && !toolsSrc.includes("k === 'date' || k === 'createdAt'"), 'dedupe keys must keep transaction date so different-day deletes are not conflated');
+});
+
 test('DEBT-REPORT-01: salary-cycle debt questions include repayments made after the cycle', async () => {
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('wantsDebtSummary') || toolsSrc.includes('wantsCycleDebtSummary'), 'salary-cycle debt questions must be detected');
