@@ -4758,7 +4758,14 @@ export const functionDeclarations = [
         amount: { type: "number", description: "المبلغ المسدد بالشيكل" },
         paymentMethod: { type: "string", description: "طريقة السداد والحساب المدفوع منه: 'cash' (نقداً/كاش) أو 'palPay' (محفظة بال باي)" },
         creditor: { type: "string", description: "اسم الدائن كما ذكره المستخدم؛ لا تخمن الاسم عند وجود أكثر من دائن." },
+        date: { type: "string", description: "تاريخ السداد الصريح إذا ذكره المستخدم بصيغة YYYY-MM-DD أو تاريخ مفهوم" },
+        salaryMonth: { type: "number", description: "رقم شهر دورة الراتب المقصودة إذا قال المستخدم من رصيد شهر 8 أو لدورة أغسطس؛ دورة الشهر تبدأ 27 من الشهر السابق وتنتهي 26 من نفس الشهر" },
+        salaryYear: { type: "number", description: "سنة دورة الراتب إن ذكرها المستخدم" },
+        fromSalaryCycleBalance: { type: "boolean", description: "true إذا قال المستخدم من رصيد شهر/دورة معيّنة، أي تسوية تاريخية لا سداد اليوم" },
+        useDebtDate: { type: "boolean", description: "true إذا قال بتاريخ الدين أو لحظة الدين أو وقت الدين" },
+        paymentDateMode: { type: "string", description: "current إذا كان السداد اليوم، historical إذا كان تسوية من دورة قديمة أو بتاريخ الدين" },
         operationId: { type: "string", description: "معرف ثابت اختياري للعملية عند إعادة المحاولة أو المزامنة" },
+        userText: { type: "string", description: "النص الأصلي للمستخدم لتحسين فهم شهر الدورة وتاريخ السداد" },
         notes: { type: "string", description: "ملاحظات إضافية عن سداد الدين" }
       },
       required: ["amount", "paymentMethod"]
