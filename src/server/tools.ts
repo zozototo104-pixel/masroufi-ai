@@ -4967,6 +4967,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   delete_transaction: deleteTransaction,
   delete_recent_transactions: deleteRecentTransactions,
   repair_misrouted_vault_close: repairMisroutedVaultClose,
+  repair_misrecorded_credit_purchase: repairMisrecordedCreditPurchase,
   repair_duplicate_income: repairDuplicateIncome,
   repair_duplicate_credit_purchase: repairDuplicateCreditPurchase,
   repair_account_balance_snapshot: repairAccountBalanceSnapshot,
