@@ -1365,7 +1365,12 @@ export default function App() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر تحويل البند إلى دين');
       setVaultCycleMessage(data?.message || 'تم تحويل البند إلى شراء دين وإرجاع أثره من الرصيد السائل.');
-      await fetchData({ Authorization: `Bearer ${token}` });
+      if (data?.currentBalances) {
+        setCash(Number(data.currentBalances.cash || 0));
+        setPalPay(Number(data.currentBalances.palPay || 0));
+        setDebt(Number(data.currentBalances.debt || 0));
+        setBalance(Number(data.currentBalances.total || (Number(data.currentBalances.cash || 0) + Number(data.currentBalances.palPay || 0))));
+      }
       if (selectedVaultCycleId) await loadVaultCycleDetails(selectedVaultCycleId);
       window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', affectedCycleIds: data?.affectedCycleIds || [], reason: 'repair_selected_credit_purchase' } }));
     } catch (err: any) {
