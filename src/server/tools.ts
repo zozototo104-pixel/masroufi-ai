@@ -601,7 +601,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
   
   const amount = parseAbsoluteFinancialAmount(args.amount);
 
-  const textToCheck = `${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''}`.toLowerCase();
+  const intentTextRaw = `${args.userText || ''} ${args.currentUserText || ''} ${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''} ${args.description || ''} ${args.item || ''} ${args.purchaseItem || ''} ${args.merchant || ''} ${args.creditor || ''} ${args.seller || ''}`;
+  const textToCheck = normalizeArabicText(intentTextRaw).toLowerCase();
 
   if (args.fromAccount && args.toAccount) {
     return await transferMoney(args, userId, token);
@@ -612,8 +613,14 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type.includes('دخل') || type.includes('قبض') || type.includes('راتب') || type.includes('إيداع') || type.includes('ايداع') || type.includes('مرحل') || type.includes('تحويل لي') || type.includes('income')) type = 'income';
   if (type !== 'income' && type !== 'expense') type = 'expense';
 
-  const paymentWasProvided = Boolean(args.paymentMethod || args.account);
-  let account = normalizeAccount(args.paymentMethod || args.account || 'cash');
+  const mentionsDebt = /دين|بالدين|اجل|آجل|على الحساب/.test(textToCheck);
+  const mentionsPurchase = /اشتريت|شريت|شراء|مشتريات|مصروف|سجل|سجلي|قيد|قيدي/.test(textToCheck);
+  const mentionsDebtRepayment = /سداد|تسديد|سدد|سديت|دفع دين|دفعت دين/.test(textToCheck);
+  const mentionsCashBorrowing = /اخذت دين نقدي|اخدت دين نقدي|استدنت|اقترضت|سلفه|سلفة/.test(textToCheck) && !/اشتريت|شريت|شراء|مشتريات/.test(textToCheck);
+  const forcedCreditPurchaseIntent = type === 'expense' && mentionsDebt && mentionsPurchase && !mentionsDebtRepayment && !mentionsCashBorrowing;
+
+  const paymentWasProvided = Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
+  let account = forcedCreditPurchaseIntent ? 'debt' : normalizeAccount(args.paymentMethod || args.account || 'cash');
   let category = String(args.category || '').trim();
   let subcategory = String(args.subcategory || '').trim();
   const merchant = String(args.merchant || args.creditor || args.seller || args.store || args.vendor || args.person || '').trim();
