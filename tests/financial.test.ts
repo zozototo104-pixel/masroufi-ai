@@ -685,7 +685,7 @@ test('VAULT-03: 26/07 belongs to July cycle and 27/07 belongs to August cycle', 
   assert.equal(august.cycleId, 'vault_2026_08');
 });
 
-test('VAULT-04: salary-cycle summary counts real income and real expense only', () => {
+test('VAULT-04: salary-cycle summary counts real income, real expense, and debt-payment liquidity separately', () => {
   const summary = summarizeSalaryCycleTransactions([
     tx({ type: 'income', account: 'cash', amount: 3000, category: 'دخل', subcategory: 'راتب' }),
     tx({ type: 'expense', account: 'cash', amount: 400, category: 'طعام' }),
