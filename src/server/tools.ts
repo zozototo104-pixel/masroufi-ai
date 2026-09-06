@@ -2928,9 +2928,9 @@ function isMisrecordedCreditPurchaseCandidate(tx: any): boolean {
   const account = normalizeLedgerAccount(tx?.account);
   const transactionType = String(tx?.transactionType || '');
   if (type !== 'expense') return false;
-  if (account === 'debt' || transactionType === 'CREDIT_PURCHASE') return false;
+  if (account === 'debt') return false;
   const text = normalizeArabicText(`${tx?.category || ''} ${tx?.subcategory || ''} ${tx?.notes || ''} ${tx?.merchant || ''} ${tx?.creditor || ''} ${tx?.purchaseItem || ''} ${transactionType}`);
-  const debtWords = text.includes('دين') || text.includes('بالدين') || text.includes('اجل') || text.includes('آجل') || text.includes('على الحساب');
+  const debtWords = transactionType === 'CREDIT_PURCHASE' || text.includes('دين') || text.includes('بالدين') || text.includes('اجل') || text.includes('آجل') || text.includes('على الحساب');
   const repaymentWords = text.includes('سداد') || text.includes('تسديد') || text.includes('سدد') || text.includes('سديت');
   return debtWords && !repaymentWords;
 }
