@@ -1,15 +1,13 @@
 # Manual CI verification trigger
 
-Final verification for Arabic month/debt NLU fixes.
+Verify final Arabic NLU and deletion fixes.
 
 Must verify:
-- "مصروفات شهر أغسطس" is interpreted as salary-cycle August even without saying دورة.
-- query_transactions infers Arabic month names/digits from userText/currentUserText.
-- query_transactions infers expense/income intent from Arabic text.
-- month-scoped debt questions do not use get_balance alone.
-- debt questions do not filter out repayment transfers by account/type before computing debt summary.
-- "احذف آخر عملية سداد دين" maps to delete_recent_transactions kind=debt_payment count=1 confirmed=true.
-- deterministic query replies use tool data, especially currentRemainingForCycleCreditors after repayments.
+- "مصروفات شهر أغسطس" routes to salary-cycle August without saying دورة.
+- Arabic month names/digits are inferred from full user text.
+- "دين شهر 8" keeps repayment transfers visible and returns current remaining debt after repayments.
+- "احذف آخر عملية سداد دين" maps to delete_recent_transactions kind=debt_payment and explicit Arabic delete text counts as confirmation.
+- deterministic query replies use tool data, not Gemini guessing.
 
 Expected gates:
 - install
@@ -19,4 +17,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T09:24:00+03:00
+Timestamp: 2026-09-06T09:29:00+03:00
