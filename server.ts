@@ -2295,9 +2295,15 @@ ${relationshipContext}
         },
       });
 
-      session = await sessionPromise;
-      console.log("Gemini Live session connected");
-      return session;
+      try {
+        session = await sessionPromise;
+        console.log("Gemini Live session connected");
+        return session;
+      } catch (err) {
+        sessionPromise = null;
+        session = null;
+        throw err;
+      }
     };
 
     clientWs.on("message", async (data: any) => {
