@@ -2675,7 +2675,9 @@ export async function updateTransaction(args: any, userId: string, token: string
   // 5. For balance-sensitive edits, do not read the full ledger here.
   // atomicUpdateTransaction applies the replacement delta to the account balance
   // snapshot inside one Firestore transaction and rejects negative cash/PalPay.
-  // Budget UX checks below are bounded by the affected month/category only.
+  // Budget UX checks below are bounded by the affected month/category only and
+  // are advisory; they must never block editing an existing transaction.
+  let budgetWarning = '';
   if (projected.type === 'expense' && (updates.amount !== undefined || updates.category !== undefined || updates.date !== undefined)) {
     try {
       const userBudgets = await getUserBudgets(userId, adminDb);
