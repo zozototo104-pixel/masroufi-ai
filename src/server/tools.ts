@@ -4316,8 +4316,7 @@ export async function queryTransactions(args: any, userId: string, token: string
   const total = roundMoney(filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0));
   const summary = summarizeTransactionsForTool(filtered);
   const salaryCycleCashFlow = salaryCyclePeriod ? summarizeSalaryCycleTransactions(filtered) : null;
-  const debtQuestionText = normalizeArabicText(`${args.userText || ''} ${args.currentUserText || ''} ${args.category || ''} ${args.account || ''} ${args.type || ''}`);
-  const wantsDebtSummary = Boolean(salaryCyclePeriod && (debtQuestionText.includes('دين') || debtQuestionText.includes('ديون') || args.account === 'debt'));
+  const wantsDebtSummary = debtQueryRequested;
   let debtSummary: any = null;
   if (wantsDebtSummary) {
     const cycleDebtTransactions = filtered.filter((t: any) => {
