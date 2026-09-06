@@ -539,6 +539,7 @@ test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash
   assert.ok(toolsSrc.includes('candidates.length === 0 && targetAmount') && toolsSrc.includes('merchantMatches'), 'repair must still find a bad row by explicit amount+creditor even when the stored row lost the word debt');
   assert.ok(toolsSrc.includes('repair_misrecorded_credit_purchase: repairMisrecordedCreditPurchase'), 'repair tool must be registered for Gemini/server execution');
   assert.ok(serverSrc.includes("name: 'repair_misrecorded_credit_purchase'") && serverSrc.includes('مين يرجع النقص'), 'server fallback and prompts must route cash-deducted debt purchase corrections to the repair tool');
+  assert.ok(serverSrc.includes('مش معترف') && serverSrc.includes('مصروفات'), 'debt-not-recognized complaints must also route to the credit-purchase repair fallback');
 });
 
 test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () => {
