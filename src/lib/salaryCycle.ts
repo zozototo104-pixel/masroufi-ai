@@ -167,7 +167,10 @@ export function parseSalaryCycleMonth(value: unknown): number | null {
   if (!raw) return null;
   const numeric = raw.match(/(?:^|\D)(1[0-2]|0?[1-9])(?:\D|$)/);
   if (numeric) return Number(numeric[1]);
-  return ARABIC_MONTHS[raw] || null;
+  if (ARABIC_MONTHS[raw]) return ARABIC_MONTHS[raw];
+  const monthNames = Object.keys(ARABIC_MONTHS).sort((a, b) => b.length - a.length);
+  const matchedName = monthNames.find(name => raw.includes(name.replace(/[أإآ]/g, 'ا')));
+  return matchedName ? ARABIC_MONTHS[matchedName] : null;
 }
 
 export function resolveSalaryCycleFromArgs(args: any = {}, now: Date = new Date()): SalaryCyclePeriod {
