@@ -5173,6 +5173,9 @@ export async function queryTransactions(args: any, userId: string, token: string
     salaryCyclePeriod = resolveSalaryCycleFromArgs(cycleArgs || {}, now);
     startIso = salaryCyclePeriod.startIso;
     endExclusiveIso = salaryCyclePeriod.endExclusiveIso;
+  } else if (explicitDateKey) {
+    startIso = explicitDateKey;
+    endExclusiveIso = addDaysToDateKey(explicitDateKey, 1);
   } else if (period === 'today') {
     const today = now.toISOString().split('T')[0];
     startIso = `${today}T00:00:00.000Z`;
