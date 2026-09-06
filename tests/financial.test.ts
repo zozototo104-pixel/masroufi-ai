@@ -1202,6 +1202,8 @@ test('DELETE-DATE-01: smart delete can find exact-date cash tracking rows outsid
   assert.ok(toolsSrc.includes('مصروف نقدي') && toolsSrc.includes('account=cash'), 'generic cash-tracking text must not be treated as the real category filter');
   assert.ok(serverSrc.includes('extractDateKeyFromFinancialText') && serverSrc.includes("name: 'delete_transaction'") && serverSrc.includes('date: deleteDate || undefined'), 'server fallback must route amount/date delete requests to date-aware delete_transaction');
   assert.ok(serverSrc.includes('احذف|احذفي|امسح|اشطب|شطب') && serverSrc.includes('شيكل|₪'), 'delete-only money commands must still be recognized as financial fallback intents');
+  assert.ok(serverSrc.includes('const transactionDate = extractDateKeyFromFinancialText(userText)') && serverSrc.includes('date: transactionDate || undefined'), 'fallback add_transaction must preserve explicit purchase dates instead of dropping them');
+  assert.ok(serverSrc.includes('Do not mistake explicit dates such as 27/8') && serverSrc.includes("\\d{1,2}\\/\\d{1,2}"), 'fallback amount parsing must not treat date parts as the amount');
   assert.ok(toolsSrc.includes("if (k === 'createdAt') continue") && !toolsSrc.includes("k === 'date' || k === 'createdAt'"), 'dedupe keys must keep transaction date so different-day deletes are not conflated');
 });
 
