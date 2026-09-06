@@ -532,6 +532,20 @@ test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash
   assert.ok(toolsSrc.includes("type === 'expense' && !isCreditPurchase && !args.deferBalanceCheckToAtomicBatch"), 'credit purchases must skip the cash/PalPay balance preflight that can fail with partial state');
   assert.ok(toolsSrc.includes("transactionType: type === 'expense' && account === 'debt' ? 'CREDIT_PURCHASE'"), 'credit purchases must be persisted as CREDIT_PURCHASE');
   assert.ok(serverSrc.includes('شراء دين واحد فقط') && serverSrc.includes('لا تستخدم pay_debt'), 'assistant prompts must route credit purchases to add_transaction, not pay_debt');
+  assert.ok(serverSrc.includes('isCreditPurchaseDelete') && serverSrc.includes("kind: 'credit_purchase'"), 'generic احذف آخر عملية دين must delete the latest credit purchase, not search debt payments');
+  assert.ok(toolsSrc.includes('textDebtPurchase') && toolsSrc.includes("kind === 'credit_purchase'"), 'recent credit-purchase delete must also catch debt purchases previously misrecorded as cash expenses by text');
+});
+
+test('DOMAIN-03C: credit purchase changes debt only, not liquid balances', () => {
+  const result = calculateBalances([
+    tx({ type: 'income', account: 'cash', amount: 100 }),
+    tx({ type: 'income', account: 'palPay', amount: 50 }),
+    tx({ type: 'expense', account: 'debt', amount: 10, transactionType: 'CREDIT_PURCHASE', creditor: 'أبو العبد' }),
+  ]);
+  assert.equal(result.cash, 100, 'credit purchase must not subtract cash');
+  assert.equal(result.palPay, 50, 'credit purchase must not subtract PalPay');
+  assert.equal(result.debt, 10, 'credit purchase must increase debt');
+  assert.equal(result.total, 150, 'liquid total must remain cash + PalPay only');
 });
 
 test('DOMAIN-04: debt overpayment never exposes negative creditor remaining', () => {
