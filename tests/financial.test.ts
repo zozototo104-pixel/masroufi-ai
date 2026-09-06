@@ -1208,7 +1208,8 @@ test('DELETE-DATE-01: smart delete can find exact-date cash tracking rows outsid
   assert.ok(serverSrc.includes('mutationNames') && serverSrc.includes('isReadSideCall') && serverSrc.includes('duplicateSideCall'), 'Live normalization must not mask distinct failed write calls');
   assert.ok(toolsSrc.includes('readTransactionsForSalaryCycle(salaryCyclePeriod') && toolsSrc.includes('fallback:true and return 0 rows'), 'salary-cycle query_transactions must use the index-safe cycle reader');
   assert.ok(toolsSrc.includes('date_key_or_iso_string_range') && toolsSrc.includes('transactions_by_date_range_then_user_filter_no_composite_index_multi_storage_format'), 'salary-cycle reads must include date-only rows and local UTC stored rows');
-  assert.ok(toolsSrc.includes('verifyAddTransactionCommit') && toolsSrc.includes('TRANSACTION_DOC_NOT_FOUND_AFTER_COMMIT') && toolsSrc.includes('BALANCE_SNAPSHOT_MISMATCH_AFTER_COMMIT'), 'add_transaction must verify the ledger document and balance snapshot before saying the save succeeded');
+  assert.ok(toolsSrc.includes('verifyAddTransactionCommit') && toolsSrc.includes('TRANSACTION_DOC_NOT_FOUND_AFTER_COMMIT') && toolsSrc.includes('BALANCE_SNAPSHOT_MISMATCH_AFTER_COMMIT'), 'add_transaction must verify/repair the ledger document and balance snapshot after commit');
+  assert.ok(toolsSrc.includes('post_commit_verification_warning') && toolsSrc.includes('postCommitVerificationWarning') && !toolsSrc.includes("reason: 'CLOUD_WRITE_VERIFICATION_FAILED'"), 'post-commit verification warnings must not downgrade a successful Firestore transaction into an unconfirmed save');
   assert.ok(toolsSrc.includes("if (k === 'createdAt') continue") && !toolsSrc.includes("k === 'date' || k === 'createdAt'"), 'dedupe keys must keep transaction date so different-day deletes are not conflated');
 });
 
