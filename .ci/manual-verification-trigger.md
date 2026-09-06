@@ -1,20 +1,16 @@
 # Manual CI verification trigger
 
-Verify dashboard totals are scoped to the active salary cycle.
+Verify active salary cycle totals update immediately after transaction changes.
 
-User-reported issue:
-- Spendable balance subtracted July vault from August global balance.
-- August income stayed 0 even after adding 4100, including PalPay income on Aug 1.
-
-Root cause:
-- Dashboard cards computed from the visible transactions list, but /api/transactions is intentionally bounded for Firestore efficiency and may not contain the selected historical salary cycle.
-- Spendable card used cash + PalPay - global vaultBalance, mixing a prior cycle vault with the active cycle.
+User request:
+- Expense/income cycle cards should update as soon as a new expense/income is added.
+- User should not need to open cycle details, switch cycle, and come back to see updated values.
 
 Fix:
-- Dashboard cards now use selectedVaultCycleDetails.summary when a cycle is selected in the Vault modal.
-- Otherwise they summarize only the current 27→26 salary cycle.
-- Spendable balance is active cycle inflow - active cycle expense - vault contribution for the same cycle only.
-- It no longer subtracts the entire global vault balance.
+- App keeps selectedVaultCycleIdRef for the active salary cycle.
+- masrofi:refresh with transaction/financial/vault scopes fetches vault meta and reloads only /api/salary-cycles/{activeCycleId}?limit=500.
+- Dashboard income/expense/spendable cards are backed by selectedVaultCycleDetails.summary when a cycle is active.
+- This is bounded to one salary cycle and avoids a full ledger reload for simple transaction changes.
 
 Expected gates:
 - install
@@ -24,4 +20,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T04:39:00+03:00
+Timestamp: 2026-09-06T07:46:00+03:00
