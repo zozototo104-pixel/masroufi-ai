@@ -43,7 +43,6 @@ function getExpenseImportModelFallbacks(): string[] {
   const cheapDefaults = [
     'gemini-2.5-flash-lite',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
   ];
   const strongFallbacks = [
     'gemini-3.7-flash',
