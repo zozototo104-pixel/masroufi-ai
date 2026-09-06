@@ -1851,23 +1851,23 @@ ${relationshipContext}
               : call;
             const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, message, seenToolKeys, response.functionCalls || []);
             if (guard.skip) {
-              return { id: call.id, name: call.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر/غير مناسب لنفس الأمر حتى لا يتضاعف القيد المالي.' } };
+              return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر/غير مناسب لنفس الأمر حتى لا يتضاعف القيد المالي.' } };
             }
-            const handler = toolHandlers[call.name];
+            const handler = toolHandlers[effectiveCall.name];
             let responseData = { error: "Function not found" };
             if (handler) {
               try {
                 const authToken = req.headers.authorization.split('Bearer ')[1];
-                const stableOperationId = buildStableOperationIdForToolCall(call, String(clientMessageId || ''));
+                const stableOperationId = buildStableOperationIdForToolCall(effectiveCall, String(clientMessageId || ''));
                 const toolArgs = stableOperationId
-                  ? { ...(call.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
-                  : { ...(call.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
+                  ? { ...(effectiveCall.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
+                  : { ...(effectiveCall.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
                 responseData = await handler(toolArgs, req.user.uid, authToken);
               } catch (e: any) {
                 responseData = { error: e.message };
               }
             }
-            return { id: call.id, name: call.name, response: responseData };
+            return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: responseData };
           })
         );
         executedFunctionResponses = functionResponses as any[];
