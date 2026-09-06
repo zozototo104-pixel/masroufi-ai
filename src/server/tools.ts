@@ -5885,7 +5885,7 @@ export const functionDeclarations = [
         duplicateConfirmed: { type: "boolean", description: "true فقط إذا أخبر النظام المستخدم بوجود عملية سابقة قريبة وسأله هل هذه عملية جديدة مستقلة، ثم أكد المستخدم صراحة أنها جديدة. لا تستخدمها من نفسك." },
         confirmedNewTransaction: { type: "boolean", description: "مرادف duplicateConfirmed للتأكيد الصريح أن القيد الجديد مستقل عن القيد السابق." }
       },
-      required: ["amount", "type", "category", "subcategory", "paymentMethod"]
+      required: ["amount", "type", "account", "category", "subcategory", "paymentMethod"]
     }
   },
   {
