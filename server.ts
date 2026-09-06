@@ -700,8 +700,20 @@ function extractRecentDeleteCountFromText(text: string): number {
   return 1;
 }
 
+function isVaultCloseIntentText(text: string): boolean {
+  const t = normalizeArabicForIntent(text);
+  const mentionsVault = /(خزنه|الخزنه|خزنة|الخزنة|vault)/.test(t);
+  const mentionsClose = /(اقفل|اقفلي|اغلق|اغلقي|سكر|سكري|قفل|اقفال|إقفال|ترحيل|رحل|رحلي)/.test(t);
+  const mentionsRemainder = /(المتبقي|الباقي|الفائض|رصيد الشهر|رصيد الدوره|رصيد الدورة|الشهر|الدوره|الدورة)/.test(t);
+  return mentionsVault && (mentionsClose || mentionsRemainder) && !/(سداد دين|تسديد دين|دين قديم|دائن|مديون)/.test(t);
+}
+
 function buildFallbackFinancialToolCall(userText: string, clientMessageId: string): FunctionCall | null {
   const text = normalizeArabicForIntent(userText);
+  if (isVaultCloseIntentText(userText)) {
+    const month = parseSalaryCycleMonth(userText);
+    return { name: 'recalculate_salary_cycle', args: { lockVault: true, closeCycle: true, transferToVault: true, reason: 'server_fallback_close_salary_cycle_to_vault', userText, ...(month ? { month } : {}) } } as any;
+  }
   const isDelete = /(احذف|احذفي|امسح|اشطب|شطب)/.test(text);
   const isDebtPaymentDelete = isDelete && /(سداد|تسديد|سدد|سديت|دين)/.test(text);
   if (isDebtPaymentDelete) {
