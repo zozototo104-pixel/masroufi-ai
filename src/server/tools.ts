@@ -5155,7 +5155,7 @@ export async function queryTransactions(args: any, userId: string, token: string
     // fallback:true and return 0 rows even though the cycle had transactions.
     const cycleRead = await readTransactionsForSalaryCycle(salaryCyclePeriod, userId, token, limit);
     filtered = cycleRead.transactions || [];
-    snapshot = { docs: [], partial: cycleRead.partial, error: cycleRead.error || '' };
+    snapshot = { docs: [], partial: cycleRead.partial, error: cycleRead.error || '', queryStats: cycleRead.queryStats || [] };
     boundedFallback = Boolean(cycleRead.boundedFallback);
   } else {
     try {
