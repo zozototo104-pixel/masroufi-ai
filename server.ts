@@ -922,13 +922,20 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
         });
       }
       const splitApplied = Boolean(splitOverflowToDebt && (paymentMethod === 'cash' || paymentMethod === 'palPay'));
-      const accountBalanceSnap = splitApplied
-        ? await adminDb.collection('users').doc(req.user.uid).collection('meta').doc('accountBalances').get()
-        : null;
-      const serverBalances = accountBalanceSnap?.exists
+      const authToken = String(req.headers.authorization || '').split('Bearer ')[1] || '';
+      const balanceResult = splitApplied ? await getBalance({}, req.user.uid, authToken) : null;
+      if (splitApplied && balanceResult?.partial === true) {
+        return res.status(409).json({
+          success: false,
+          retryable: true,
+          reason: 'PARTIAL_BALANCE_UNSAFE_FOR_RECEIPT_SPLIT',
+          message: 'تعذّر التحقق من رصيد النقدي وPalPay بدقة. لن أحوّل الباقي إلى دين قبل التأكد من الرصيد الحقيقي.',
+        });
+      }
+      const serverBalances = splitApplied
         ? {
-            cash: Math.max(0, Math.round((Number(accountBalanceSnap.data()?.cash || 0)) * 100) / 100),
-            palPay: Math.max(0, Math.round((Number(accountBalanceSnap.data()?.palPay || 0)) * 100) / 100),
+            cash: Math.max(0, Math.round((Number(balanceResult?.balances?.cash || 0)) * 100) / 100),
+            palPay: Math.max(0, Math.round((Number(balanceResult?.balances?.palPay || 0)) * 100) / 100),
           }
         : { cash: 0, palPay: 0 };
       const preferredAccounts = paymentMethod === 'palPay' ? ['palPay', 'cash'] : ['cash', 'palPay'];
