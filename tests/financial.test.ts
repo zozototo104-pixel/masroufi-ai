@@ -527,6 +527,7 @@ test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
   assert.ok(toolsSrc.includes("args.merchant || args.creditor || args.seller"), 'credit purchase must accept creditor/seller aliases as merchant identity');
+  assert.ok(toolsSrc.includes('forcedCreditPurchaseIntent') && toolsSrc.includes("forcedCreditPurchaseIntent ? 'debt'"), 'Arabic phrases like سجلي دين مشتريات must force account=debt before cash default');
   assert.ok(toolsSrc.includes('const isCreditPurchase = type === \'expense\' && account === \'debt\''), 'addTransaction must identify credit purchases before cash/PalPay preflight');
   assert.ok(toolsSrc.includes("type === 'expense' && !isCreditPurchase && !args.deferBalanceCheckToAtomicBatch"), 'credit purchases must skip the cash/PalPay balance preflight that can fail with partial state');
   assert.ok(toolsSrc.includes("transactionType: type === 'expense' && account === 'debt' ? 'CREDIT_PURCHASE'"), 'credit purchases must be persisted as CREDIT_PURCHASE');
