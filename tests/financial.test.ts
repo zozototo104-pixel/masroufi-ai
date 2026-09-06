@@ -866,16 +866,29 @@ test('VAULT-14D: UI provides direct repair for misrouted creditor-surplus vault 
   assert.ok(appSrc.includes('repairMisroutedVaultClose') && appSrc.includes('تصحيح فائض دائن خاطئ'), 'vault UI must include a direct repair button for this production failure mode');
 });
 
-test('VAULT-14C: debt repayments reduce vault-eligible surplus and dashboard spendable liquidity', async () => {
-  const summary = summarizeSalaryCycleTransactions([
+test('VAULT-14C: debt repayments reduce vault surplus only when paying older debt, not same-cycle credit purchases', async () => {
+  const olderDebtPayment = summarizeSalaryCycleTransactions([
     tx({ type: 'income', account: 'cash', amount: 1000, date: '2026-07-27T10:00:00.000Z' }),
     tx({ type: 'expense', account: 'cash', amount: 300, date: '2026-07-28T10:00:00.000Z' }),
-    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', transactionType: 'DEBT_PAYMENT', amount: 200, date: '2026-07-29T10:00:00.000Z' }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', transactionType: 'DEBT_PAYMENT', creditor: 'قديم', amount: 200, date: '2026-07-29T10:00:00.000Z' }),
   ]);
-  assert.equal(summary.debtPaid, 200, 'salary cycle summary must identify debt repayments');
-  assert.equal(summary.surplus, 500, 'vault-eligible surplus must subtract debt repayments without counting them as expenses');
+  assert.equal(olderDebtPayment.debtPaid, 200, 'salary cycle summary must identify debt repayments');
+  assert.equal(olderDebtPayment.debtPaymentLiquidityOutflow, 200, 'older debt repayment must reduce vault-eligible liquidity');
+  assert.equal(olderDebtPayment.surplus, 500, 'vault-eligible surplus must subtract older debt repayments without counting them as expenses');
+
+  const sameCycleDebt = summarizeSalaryCycleTransactions([
+    tx({ type: 'income', account: 'cash', amount: 4350, date: '2026-07-27T10:00:00.000Z' }),
+    tx({ type: 'expense', account: 'cash', amount: 3484, date: '2026-07-28T10:00:00.000Z' }),
+    tx({ type: 'expense', account: 'debt', transactionType: 'CREDIT_PURCHASE', creditor: 'أبو دلال', amount: 421, date: '2026-08-23T10:00:00.000Z' }),
+    tx({ type: 'transfer', fromAccount: 'cash', toAccount: 'debt', transactionType: 'DEBT_PAYMENT', creditor: 'أبو دلال', amount: 421, date: '2026-08-23T12:00:00.000Z' }),
+  ]);
+  assert.equal(sameCycleDebt.totalExpense, 3905, 'same-cycle debt purchase is already counted in cycle expenses');
+  assert.equal(sameCycleDebt.debtPaid, 421, 'same-cycle debt payment is still reported separately');
+  assert.equal(sameCycleDebt.debtPaymentLiquidityOutflow, 0, 'same-cycle debt payment must not be subtracted twice from vault surplus');
+  assert.equal(sameCycleDebt.surplus, 445, 'income 4350 - expenses 3905 must leave 445 available for vault');
+
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
-  assert.ok(appSrc.includes('activeCycleDebtPaid') && appSrc.includes('- activeCycleDebtPaid - activeCycleVaultContribution'), 'dashboard spendable must subtract debt repayments from cycle liquidity');
+  assert.ok(appSrc.includes('activeCycleDebtOutflow') && appSrc.includes('- activeCycleDebtOutflow - activeCycleVaultContribution'), 'dashboard spendable must subtract only debtPaymentLiquidityOutflow from cycle liquidity');
 });
 
 test('VAULT-14B: historical cycle recalculation must not auto-lock during data entry', async () => {
