@@ -3292,7 +3292,7 @@ export default function App() {
                   <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3 max-h-56 overflow-auto">
                     <h4 className="font-bold text-rose-300 mb-2">بنود المصروفات</h4>
                     {(selectedVaultCycleDetails.expenses || []).length ? selectedVaultCycleDetails.expenses.map((tx: any) => (
-                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}</span><span className="font-bold text-rose-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
+                      <div key={tx.id} className="flex justify-between gap-2 border-b border-slate-800 py-1 last:border-0"><span className="text-slate-300">{tx.date?.slice(0,10)} · {tx.category || 'مصروف'}{tx.subcategory ? ` / ${tx.subcategory}` : ''}{tx.merchant ? ` · ${tx.merchant}` : ''}{tx.account === 'debt' || tx.transactionType === 'CREDIT_PURCHASE' ? ' · دين/آجل' : ''}</span><span className="font-bold text-rose-300">{Number(tx.amount || 0).toLocaleString()} ₪</span></div>
                     )) : <p className="text-slate-500">لا توجد مصروفات في هذه الدورة.</p>}
                   </div>
                   <div className="bg-slate-900/70 border border-rose-500/20 rounded-2xl p-3 max-h-44 overflow-auto">
