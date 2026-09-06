@@ -1039,6 +1039,10 @@ test('IMPORT-01: image analysis retries temporary Gemini capacity but separates 
   assert.ok(strongIndex > flashIndex, 'Gemini 3.7 Flash must be present directly after cheap models as a late fallback, not the default import model');
   assert.equal(serverSrc.includes('gemini-2.0-flash'), false, 'expense import should not insert older 2.0 Flash before the requested 3.7 fallback');
   assert.ok(serverSrc.includes('isGeminiRateLimitError') && serverSrc.includes('GEMINI_RATE_LIMIT_EXCEEDED'), '429/RESOURCE_EXHAUSTED must be reported as rate limits, not generic temporary capacity');
+  assert.ok(serverSrc.includes('getGeminiKeyCandidates') && serverSrc.includes('process.env.GEMINI_API_KEYS'), 'Gemini calls must support an environment key pool instead of one API key');
+  assert.ok(serverSrc.includes('rememberGeminiKeyFailure') && serverSrc.includes('GEMINI_KEY_POOL_EXHAUSTED'), 'rate-limited keys must be cooled down and skipped before declaring pool exhaustion');
+  assert.ok(serverSrc.includes('scanReceiptCacheKey') && serverSrc.includes('getScanReceiptCache') && serverSrc.includes('setScanReceiptCache'), 'identical receipt uploads must use a short cache instead of spending another Gemini request');
+  assert.ok(serverSrc.includes('withGeminiKeyPool(\'scan-receipt\'') && serverSrc.includes('geminiKeyId'), 'receipt analysis must rotate across the key pool and expose safe diagnostics');
   assert.ok(serverSrc.includes('Gemini capacity error; retrying same model') && serverSrc.includes('await sleep(delayMs)'), '503/UNAVAILABLE image analysis must retry with backoff before failing');
   assert.ok(appSrc.includes('if (isScanning)') && appSrc.includes('تحليل ملف سابق ما زال جارياً'), 'client must prevent concurrent image-analysis requests');
   assert.ok(appSrc.includes('for (let attempt = 1; attempt <= 3; attempt++)') && appSrc.includes('res.status === 503'), 'client must retry temporary scan failures without forcing the user to retry manually');
