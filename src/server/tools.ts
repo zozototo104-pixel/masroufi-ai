@@ -5286,6 +5286,7 @@ export async function queryTransactions(args: any, userId: string, token: string
     limit,
     durationMs: Date.now() - startedAt,
     fallback: boundedFallback,
+    queryStats: (snapshot as any).queryStats || undefined,
   });
   
   return { 
