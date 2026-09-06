@@ -1017,7 +1017,7 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
           necessityReason: '',
           transactionType: linePaymentMethod === 'debt' ? 'CREDIT_PURCHASE' : 'EXPENSE',
           creditor: linePaymentMethod === 'debt' ? lineMerchant : '',
-          creditorKey: linePaymentMethod === 'debt' ? lineMerchant.toLowerCase().trim() : '',
+          creditorKey: linePaymentMethod === 'debt' ? normalizeCreditorKey(lineMerchant) : '',
           operationId,
           date: item.date,
           dateSource: item.dateSource || 'explicit-date',
