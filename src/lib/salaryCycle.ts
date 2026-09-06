@@ -280,6 +280,8 @@ export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCyc
   totalIncome = roundMoney(totalIncome);
   debtCashInflow = roundMoney(debtCashInflow);
   totalExpense = roundMoney(totalExpense);
+  debtCreated = roundMoney(debtCreated);
+  debtPaid = roundMoney(debtPaid);
   return {
     totalIncome,
     totalInflow: roundMoney(totalIncome + debtCashInflow),
@@ -291,5 +293,8 @@ export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCyc
     expenseCount,
     transferCount,
     debtBorrowingCount,
+    debtCreated,
+    debtPaid,
+    netDebtChange: roundMoney(debtCreated - debtPaid),
   };
 }
