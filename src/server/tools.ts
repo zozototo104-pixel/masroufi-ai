@@ -2944,8 +2944,61 @@ export async function repairMisrecordedCreditPurchase(args: any, userId: string,
   console.log('TOOL CALL: repairMisrecordedCreditPurchase', { ...args, userId: '[redacted]' });
   const targetAmount = args?.amount !== undefined ? parsePositiveFinancialAmount(args.amount) : null;
   const targetMerchant = normalizeArabicText(String(args?.merchant || args?.creditor || args?.seller || '').trim());
+  const transactionId = String(args?.transactionId || args?.id || '').trim();
   const searchLimit = Math.max(25, Math.min(100, Number(args?.searchLimit) || 75));
   const confirmed = args?.confirmed === true || args?.confirmation === 'REPAIR_MISRECORDED_CREDIT_PURCHASE';
+  if (transactionId) {
+    const doc = await adminDb.collection('transactions').doc(transactionId).get();
+    if (!doc.exists || doc.data()?.userId !== userId) {
+      return { success: false, reason: 'TRANSACTION_NOT_FOUND', message: 'لم أجد العملية المحددة أو ليست تابعة لحسابك.' };
+    }
+    const target: any = { id: doc.id, ...doc.data() };
+    if (String(target.type || '') !== 'expense') {
+      return { success: false, reason: 'NOT_EXPENSE_TRANSACTION', message: 'هذه العملية ليست مصروفاً، لذلك لن أحولها إلى شراء دين.' };
+    }
+    const creditorName = String(args?.creditor || args?.merchant || args?.seller || target.creditor || target.merchant || 'غير محدد').trim();
+    if (!confirmed) {
+      return {
+        success: false,
+        needsConfirmation: true,
+        reason: 'CONFIRM_DIRECT_CREDIT_PURCHASE_REPAIR',
+        message: `سيتم تحويل عملية ${Number(target.amount || 0).toLocaleString()} ₪ إلى شراء دين على ${creditorName}. أكد التصحيح لإرجاع أثرها من النقدي/PalPay.`,
+        candidate: { id: target.id, amount: target.amount, oldAccount: target.account, merchant: target.merchant, creditor: target.creditor, date: target.date, category: target.category, subcategory: target.subcategory },
+      };
+    }
+    const finalUpdates = {
+      account: 'debt',
+      paymentMethod: 'debt',
+      transactionType: 'CREDIT_PURCHASE',
+      creditor: creditorName,
+      creditorKey: normalizeCreditorKey(creditorName),
+      repairedAt: new Date().toISOString(),
+      repairReason: 'direct_selected_credit_purchase_repair',
+    };
+    const atomicResult = await atomicUpdateTransaction(userId, transactionId, finalUpdates, { riskConfirmed: true });
+    if (!atomicResult.ok) {
+      const failed = atomicResult as Extract<typeof atomicResult, { ok: false }>;
+      return { success: false, reason: failed.reason, message: 'تعذر تصحيح عملية الدين بأمان؛ قد تكون تغيرت قبل التنفيذ.' };
+    }
+    const affectedCycleId = getSalaryCycleForDate(target.date || target.createdAt || new Date().toISOString(), new Date()).cycleId;
+    let recalculated: any = null;
+    try {
+      recalculated = await recalculateSalaryCycle({ cycleId: affectedCycleId, reason: 'direct_selected_credit_purchase_repair' }, userId, token);
+    } catch (err) {
+      console.warn('Savings Vault recalculation failed after direct credit purchase repair:', err);
+    }
+    await addNotification(userId, `تم تحويل عملية ${Number(target.amount || 0).toLocaleString()} ₪ إلى شراء دين على ${creditorName} وإرجاع أثرها من الرصيد السائل.`, 'success', adminDb);
+    return {
+      success: true,
+      updatedTransactionId: transactionId,
+      affectedCycleId,
+      affectedCycleIds: [affectedCycleId],
+      recalculatedCycle: recalculated?.salaryCycle?.cycleId || affectedCycleId,
+      currentBalances: atomicResult.balances,
+      message: `تم تحويل البند المحدد إلى شراء دين على ${creditorName}. رجع أثره من النقدي/PalPay، وبقي محسوباً ضمن مصروفات الدورة كدين.`,
+      readEfficiency: { transactionDocsRead: 1, balanceSnapshotReads: 1, transactionUpdateReads: 1 },
+    };
+  }
   const snap = await adminDb.collection('transactions')
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
