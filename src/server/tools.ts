@@ -1018,22 +1018,23 @@ export async function addTransaction(args: any, userId: string, token: string) {
       preUserBudgets = budgetMap;
       preTxSnapshot = categoryMonthSnap;
 
-      if ((categoryMonthSnap as any).partial === true || (recentExpenseSnap as any).partial === true || (income90dSnap as any).partial === true) {
-        return {
-          success: false,
-          retryable: true,
-          reason: 'PARTIAL_STATE_UNSAFE',
-          message: 'تعذّر التحقق من مؤشرات الميزانية/الدخل بدقة. لن أنفذ العملية المالية من بيانات جزئية.',
-          operationId: String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2,10)}`),
-        };
+      const optionalPreflightPartial = (categoryMonthSnap as any).partial === true || (recentExpenseSnap as any).partial === true || (income90dSnap as any).partial === true;
+      if (optionalPreflightPartial) {
+        console.warn('[add-transaction] optional budget/income preflight was partial; continuing to atomic write path', {
+          userIdHash: stableDocId(userId),
+          operationId: String(args.operationId || ''),
+          categoryMonthPartial: Boolean((categoryMonthSnap as any).partial),
+          recentExpensePartial: Boolean((recentExpenseSnap as any).partial),
+          income90dPartial: Boolean((income90dSnap as any).partial),
+        });
       }
 
-      if (account !== 'debt') {
+      if (balances && account !== 'debt') {
         const available = account === 'cash' ? Number(balances.cash||0) : account === 'palPay' ? Number(balances.palPay||0) : 0;
         if (amount > available + 0.0001) {
           return { success:false, needsClarification:true, reason:'INSUFFICIENT_FUNDS', message:`المبلغ ${amount} ₪ أكبر من رصيد ${account === 'palPay' ? 'PalPay' : 'الكاش'} المتاح (${available} ₪). لن أنفذ العملية قبل أن تحدد طريقة دفع أخرى أو تعدل المبلغ.` };
         }
-      } else {
+      } else if (balances && account === 'debt') {
         const projectedDebt = Number(balances.debt || 0) + amount;
         const income90d = income90dSnap.docs
           .map((d:any) => d.data())
