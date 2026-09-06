@@ -5487,6 +5487,7 @@ export const functionDeclarations = [
     parameters: {
       type: "object",
       properties: {
+        transactionId: { type: "string", description: "معرف العملية المحددة من الواجهة؛ عند توفره يتم تعديل هذا البند مباشرة دون بحث أو تخمين" },
         amount: { type: "number", description: "مبلغ العملية مثل 10" },
         creditor: { type: "string", description: "اسم الدائن/المحل مثل أبو العبد" },
         merchant: { type: "string", description: "اسم المحل إن ذكر" },
