@@ -354,9 +354,14 @@ function isFinancialToolName(name: string): boolean {
   return ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'repair_account_balance_snapshot', 'query_transactions', 'get_salary_cycle_summary', 'get_savings_vault', 'recalculate_salary_cycle', 'add_savings_vault_adjustment', 'repair_savings_vault_meta'].includes(name);
 }
 
-function liveRefreshScopeForTools(functionResponses: Array<{ name: string; response: any }>): { refresh: boolean; scope: string } {
+function liveRefreshScopeForTools(functionResponses: Array<{ name: string; response: any }>): { refresh: boolean; scope: string; affectedCycleIds: string[] } {
   const names = functionResponses.map(r => r.name).filter(Boolean);
-  if (names.length === 0) return { refresh: false, scope: 'none' };
+  const affectedCycleIds = Array.from(new Set(functionResponses.flatMap((r: any) => {
+    const response = r?.response || {};
+    const ids = response.affectedCycleIds || response.affectedSalaryCycleIds || (response.affectedCycleId ? [response.affectedCycleId] : []);
+    return Array.isArray(ids) ? ids.map((id: any) => String(id || '').trim()).filter(Boolean) : [];
+  })));
+  if (names.length === 0) return { refresh: false, scope: 'none', affectedCycleIds };
   const hasSuccessfulMutation = functionResponses.some((r: any) => r?.response?.success === true && !r?.response?.skipped);
   if (names.some(name => ['add_transaction', 'transfer_money', 'pay_debt', 'send_palpay_payment', 'delete_transaction', 'update_transaction', 'repair_duplicate_income', 'repair_duplicate_credit_purchase', 'repair_account_balance_snapshot'].includes(name)) && hasSuccessfulMutation) {
     return { refresh: true, scope: 'financial' };
