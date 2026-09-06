@@ -2296,6 +2296,10 @@ ${activeSalaryCycleText}
         model: "gemini-3.1-flash-live-preview",
         config: {
           responseModalities: [Modality.AUDIO],
+          // Needed for the server-side write guard: if Gemini speaks "تم" without
+          // calling add_transaction, the server can still see the user's words and
+          // execute the deterministic financial fallback.
+          inputAudioTranscription: { languageCodes: ['ar-PS', 'ar'] } as any,
           systemInstruction,
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
