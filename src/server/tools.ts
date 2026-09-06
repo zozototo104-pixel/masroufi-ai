@@ -613,13 +613,17 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type.includes('دخل') || type.includes('قبض') || type.includes('راتب') || type.includes('إيداع') || type.includes('ايداع') || type.includes('مرحل') || type.includes('تحويل لي') || type.includes('income')) type = 'income';
   if (type !== 'income' && type !== 'expense') type = 'expense';
 
-  const mentionsDebt = /دين|بالدين|اجل|آجل|على الحساب/.test(textToCheck);
+  const mentionsDebt = /دين|بالدين|اجل|آجل|على الحساب|credit_purchase|paymentmethod debt|account debt/.test(textToCheck);
   const mentionsPurchase = /اشتريت|شريت|شراء|مشتريات|مصروف|سجل|سجلي|قيد|قيدي/.test(textToCheck);
   const mentionsDebtRepayment = /سداد|تسديد|سدد|سديت|دفع دين|دفعت دين/.test(textToCheck);
   const mentionsCashBorrowing = /اخذت دين نقدي|اخدت دين نقدي|استدنت|اقترضت|سلفه|سلفة/.test(textToCheck) && !/اشتريت|شريت|شراء|مشتريات/.test(textToCheck);
-  const forcedCreditPurchaseIntent = type === 'expense' && mentionsDebt && mentionsPurchase && !mentionsDebtRepayment && !mentionsCashBorrowing;
+  const structuredCreditPurchaseIntent = String(args.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE'
+    || normalizeAccount(args.paymentMethod) === 'debt'
+    || normalizeAccount(args.account) === 'debt'
+    || Boolean(args.creditor && type === 'expense' && !mentionsDebtRepayment && !mentionsCashBorrowing);
+  const forcedCreditPurchaseIntent = type === 'expense' && (structuredCreditPurchaseIntent || (mentionsDebt && mentionsPurchase)) && !mentionsDebtRepayment && !mentionsCashBorrowing;
 
-  const paymentWasProvided = Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
+  const paymentWasProvided = Boolean(args.paymentMethod || args.account || args.creditor || forcedCreditPurchaseIntent);
   let account = forcedCreditPurchaseIntent ? 'debt' : normalizeAccount(args.paymentMethod || args.account || 'cash');
   let category = String(args.category || '').trim();
   let subcategory = String(args.subcategory || '').trim();
