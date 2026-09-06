@@ -37,39 +37,50 @@ function getExpenseImportModelFallbacks(): string[] {
     .split(',')
     .map(model => model.trim())
     .filter(Boolean);
+  // Receipt/import analysis should prefer cheaper/faster Flash models. Do not
+  // start with speculative model names here: every invalid/high-demand attempt
+  // adds latency and can burn rate-limit budget before the useful fallback runs.
   const defaults = [
-    'gemini-3.7-flash',
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
-    'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
   ];
   return Array.from(new Set([...configured, ...defaults]));
 }
 
-function isGeminiRetryableModelError(error: any): boolean {
-  const raw = `${error?.status || ''} ${error?.code || ''} ${error?.message || ''}`;
-  return raw.includes('503')
-    || raw.includes('UNAVAILABLE')
-    || raw.includes('high demand')
-    || raw.includes('429')
-    || raw.includes('RESOURCE_EXHAUSTED')
-    || raw.includes('Quota exceeded')
-    || raw.includes('NOT_FOUND')
+function geminiErrorText(error: any): string {
+  return `${error?.status || ''} ${error?.code || ''} ${error?.message || ''} ${error?.statusText || ''}`;
+}
+
+function isGeminiRateLimitError(error: any): boolean {
+  const raw = geminiErrorText(error);
+  return raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED') || raw.includes('Quota exceeded') || raw.includes('rate limit');
+}
+
+function isGeminiCapacityError(error: any): boolean {
+  const raw = geminiErrorText(error);
+  return raw.includes('503') || raw.includes('UNAVAILABLE') || raw.includes('high demand') || raw.includes('overloaded') || raw.includes('temporarily unavailable');
+}
+
+function isGeminiModelFallbackError(error: any): boolean {
+  const raw = geminiErrorText(error);
+  return raw.includes('NOT_FOUND')
     || raw.includes('not found')
     || raw.includes('not supported')
     || raw.includes('INVALID_ARGUMENT')
     || raw.includes('not available');
 }
 
+function isGeminiRetryableModelError(error: any): boolean {
+  return isGeminiCapacityError(error) || isGeminiRateLimitError(error) || isGeminiModelFallbackError(error);
+}
+
 function isGeminiTemporaryCapacityError(error: any): boolean {
-  const raw = `${error?.status || ''} ${error?.code || ''} ${error?.message || ''}`;
-  return raw.includes('503')
-    || raw.includes('UNAVAILABLE')
-    || raw.includes('high demand')
-    || raw.includes('429')
-    || raw.includes('RESOURCE_EXHAUSTED')
-    || raw.includes('Quota exceeded');
+  return isGeminiCapacityError(error);
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function parseJsonObjectFromModelText(text: string): any {
