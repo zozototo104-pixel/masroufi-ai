@@ -2599,6 +2599,97 @@ export async function deleteTransaction(args: any, userId: string, token: string
   return { success: false, message: "لم يتم العثور على عملية مطابقة لحذفها. يرجى تحديد المبلغ أو اسم الحساب." };
 }
 
+function matchesRecentDeleteKind(tx: any, kind: string): boolean {
+  const transactionType = String(tx?.transactionType || '');
+  const type = String(tx?.type || '');
+  if (kind === 'debt_payment') return transactionType === 'DEBT_PAYMENT' || (type === 'transfer' && normalizeLedgerAccount(tx?.toAccount) === 'debt');
+  if (kind === 'expense') return type === 'expense';
+  if (kind === 'credit_purchase') return type === 'expense' && (transactionType === 'CREDIT_PURCHASE' || normalizeLedgerAccount(tx?.account) === 'debt');
+  if (kind === 'income') return type === 'income';
+  return true;
+}
+
+export async function deleteRecentTransactions(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  console.log('TOOL CALL: deleteRecentTransactions', args);
+  const count = Math.max(1, Math.min(10, Number(args?.count) || 1));
+  const kindRaw = normalizeArabicText(args?.kind || args?.type || args?.transactionKind || 'expense');
+  const kind = kindRaw.includes('سداد') || kindRaw.includes('دين') && kindRaw.includes('دفع')
+    ? 'debt_payment'
+    : kindRaw.includes('شراء') && kindRaw.includes('دين')
+      ? 'credit_purchase'
+      : kindRaw.includes('دخل') || kindRaw.includes('راتب')
+        ? 'income'
+        : kindRaw.includes('الكل') || kindRaw.includes('اي') || kindRaw === 'all'
+          ? 'all'
+          : 'expense';
+  const confirmed = args?.confirmed === true || args?.confirmation === 'DELETE_RECENT_TRANSACTIONS';
+  const searchLimit = Math.max(25, Math.min(150, Number(args?.searchLimit) || count * 20));
+  const snap = await adminDb.collection('transactions')
+    .where('userId', '==', userId)
+    .orderBy('createdAt', 'desc')
+    .limit(searchLimit)
+    .get();
+  const recent = snap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((tx: any) => matchesRecentDeleteKind(tx, kind))
+    .slice(0, count);
+
+  if (recent.length < count) {
+    return {
+      success: false,
+      needsClarification: true,
+      reason: 'NOT_ENOUGH_RECENT_MATCHES',
+      requested: count,
+      found: recent.length,
+      kind,
+      message: `وجدت ${recent.length} عملية فقط من النوع المطلوب ضمن آخر ${searchLimit} عملية. لن أحذف قبل تأكيدك.`,
+      candidates: recent.map((t: any) => ({ id: t.id, amount: t.amount, type: t.type, account: t.account, transactionType: t.transactionType, category: t.category, subcategory: t.subcategory, merchant: t.merchant, creditor: t.creditor, date: t.date, createdAt: t.createdAt, notes: t.notes })),
+      readEfficiency: { transactionDocsRead: snap.docs.length, limit: searchLimit },
+    };
+  }
+
+  const preview = recent.map((t: any) => ({ id: t.id, amount: t.amount, type: t.type, account: t.account, transactionType: t.transactionType, category: t.category, subcategory: t.subcategory, merchant: t.merchant, creditor: t.creditor, date: t.date, createdAt: t.createdAt, notes: t.notes }));
+  if (!confirmed) {
+    return {
+      success: false,
+      needsConfirmation: true,
+      reason: 'CONFIRM_RECENT_BULK_DELETE',
+      message: `سأحذف آخر ${count} عملية من النوع ${kind}. أكد بتمرير confirmed=true أو قل: نعم احذفها.`,
+      candidates: preview,
+      readEfficiency: { transactionDocsRead: snap.docs.length, limit: searchLimit },
+    };
+  }
+
+  const deleteResult = await atomicDeleteTransactions(userId, recent.map((t: any) => t.id), { reason: `delete_recent:${kind}:${count}` });
+  if (!deleteResult.ok) {
+    return { success: false, reason: deleteResult.reason, requested: count, found: deleteResult.found, message: 'تعذر حذف آخر العمليات بأمان؛ قد تكون تغيّرت قبل تنفيذ الحذف.' };
+  }
+
+  const affectedCycleIds = Array.from(new Set(recent.map((t: any) => getSalaryCycleForDate(t.date || t.createdAt || new Date().toISOString(), new Date()).cycleId)));
+  const recalculatedCycles: any[] = [];
+  for (const cycleId of affectedCycleIds) {
+    try {
+      const recalculated = await recalculateSalaryCycle({ cycleId, reason: `delete_recent_transactions:${kind}` }, userId, token);
+      recalculatedCycles.push(recalculated?.salaryCycle?.cycleId || cycleId);
+    } catch (err) {
+      console.warn('Savings Vault recalculation failed after deleteRecentTransactions:', cycleId, err);
+    }
+  }
+
+  await addNotification(userId, `تم حذف ${recent.length} عملية أخيرة من النوع ${kind} بأمان.`, 'success', adminDb);
+  return {
+    success: true,
+    deletedCount: recent.length,
+    deleted: preview,
+    affectedCycleIds,
+    recalculatedCycles,
+    currentBalances: deleteResult.balances,
+    message: `تم حذف ${recent.length} عملية أخيرة بنجاح.`,
+    readEfficiency: { transactionDocsRead: snap.docs.length, deleteTransactionReads: recent.length + 1, limit: searchLimit },
+  };
+}
+
 export async function repairDuplicateIncome(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log('TOOL CALL: repairDuplicateIncome', args);
