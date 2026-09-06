@@ -1087,16 +1087,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
         riskConfirmed: Boolean(args.riskConfirmed),
       });
       if (risk.needsConfirmation) {
-        return {
-          success:false,
-          needsConfirmation:true,
-          reason:'TREASURER_RISK_REVIEW_REQUIRED',
-          message:`أمين الصندوق يعترض قبل التسجيل: ${risk.warnings.join(' ')} هل تصر على تنفيذ العملية؟`,
-          financialImpact:risk,
-        };
+        advisoryWarnings.push(`تحذير أمين الصندوق: ${risk.warnings.join(' ')}`);
       }
-      if (limit > 0 && projected >= limit && !args.riskConfirmed) {
-        return { success:false, needsConfirmation:true, reason:'BUDGET_WILL_BE_EXCEEDED', message:`هذه العملية سترفع مصروف بند [${category}] إلى ${projected} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة رغم التجاوز؟`, financialImpact:{spent,amount,projected,limit,percentage:Math.round(projected/limit*100)} };
+      if (limit > 0 && projected >= limit) {
+        advisoryWarnings.push(`تحذير ميزانية: هذه العملية سترفع مصروف بند [${category}] إلى ${projected} ₪ مقابل سقف ${limit} ₪.`);
       }
     } catch (preErr) {
       console.error('V5 preflight warning check unavailable:', preErr);
