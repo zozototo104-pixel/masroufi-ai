@@ -822,6 +822,19 @@ test('VAULT-14: Savings Vault is separated from cash, PalPay, debt, and Personal
   assert.ok(!toolsSrc.includes('createCustomVoiceClone'), 'Savings Vault path must not touch Personal Voice cloning');
 });
 
+test('NLU-01: Arabic month and debt phrases route to salary-cycle tools without saying دورة', async () => {
+  assert.equal(parseSalaryCycleMonth('اعطيني مصروفات شهر أغسطس'), 8, 'month parser must infer August from full Arabic user text');
+  assert.equal(parseSalaryCycleMonth('كم علي دين بشهر ٨'), 8, 'month parser must infer Arabic-digit month from debt question text');
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('inferredMonthFromText'), 'query_transactions must infer salary-cycle month from userText/currentUserText');
+  assert.ok(toolsSrc.includes('effectiveTypeFilter = args.type || inferredQueryType'), 'query_transactions must infer expense/income filters from Arabic query text');
+  assert.ok(toolsSrc.includes('سديت') && toolsSrc.includes('debt_payment'), 'delete_recent_transactions must infer latest debt-payment deletion from Arabic text');
+  assert.ok(serverSrc.includes('buildFallbackFinancialToolCall') && serverSrc.includes("name: 'query_transactions'") && serverSrc.includes("period: 'salary_cycle'"), 'server fallback must query salary-cycle totals even if Gemini does not call the tool');
+  assert.ok(serverSrc.includes('لا تستخدم get_balance وحده') && serverSrc.includes('kind=debt_payment'), 'voice prompt must not use global get_balance or expense deletion for month-scoped debt/debt-payment delete');
+  assert.ok(serverSrc.includes('currentRemainingForCycleCreditors'), 'deterministic financial replies must prefer current remaining debt after repayments');
+});
+
 test('VAULT-14B: historical cycle recalculation must not auto-lock during data entry', async () => {
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
