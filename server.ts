@@ -601,7 +601,7 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
     return { name: 'query_transactions', args: { period: 'salary_cycle', type: 'expense', userText, limit: 120 } } as any;
   }
   if (isReadQuestion && /(دين|ديون)/.test(text)) {
-    return { name: 'query_transactions', args: { period: 'salary_cycle', userText, account: 'debt', limit: 120 } } as any;
+    return { name: 'query_transactions', args: { period: 'salary_cycle', userText, limit: 120 } } as any;
   }
   if (isReadQuestion && /(دخل|راتب)/.test(text)) {
     return { name: 'query_transactions', args: { period: 'salary_cycle', type: 'income', userText, limit: 120 } } as any;
