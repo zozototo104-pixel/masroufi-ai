@@ -290,7 +290,7 @@ export function summarizeSalaryCycleTransactions(transactions: any[]): SalaryCyc
     totalInflow: roundMoney(totalIncome + debtCashInflow),
     debtCashInflow,
     totalExpense,
-    surplus: roundMoney(totalIncome - totalExpense),
+    surplus: roundMoney(totalIncome - totalExpense - debtPaid),
     transactionCount: (transactions || []).length,
     incomeCount,
     expenseCount,
