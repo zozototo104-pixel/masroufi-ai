@@ -2224,9 +2224,9 @@ ${activeSalaryCycleText}
                           const confirmedNew = effectiveCall.name === 'add_transaction' && Boolean(args.duplicateConfirmed || args.confirmedNewTransaction);
                           if (!confirmedNew) {
                             return {
-                              id: call.id,
-                              name: call.name,
-                              response: call.name === 'add_transaction'
+                              id: effectiveCall.id || call.id,
+                              name: effectiveCall.name,
+                              response: effectiveCall.name === 'add_transaction'
                                 ? { success: false, needsConfirmation: true, reason: 'POSSIBLE_DUPLICATE_TRANSACTION', message: 'وجدت عملية سابقة قريبة بنفس التفاصيل. هل تؤكد أن هذه عملية جديدة ومستقلة وليست تكراراً للعملية السابقة؟' }
                                 : { ...recentResult, deduped: true, message: recentResult.message || 'هذه العملية نُفذت قبل لحظات، لذلك لم أكرر تسجيلها.' }
                             };
