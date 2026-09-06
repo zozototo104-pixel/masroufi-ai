@@ -1290,6 +1290,34 @@ export default function App() {
     return currentToken;
   };
 
+  const repairActualBalanceSnapshot = async () => {
+    const ok = window.confirm('سيتم إعادة بناء الرصيد الفعلي من العمليات المالية المحفوظة. هذه عملية إصلاح يدوية وقد تقرأ سجل العمليات مرة واحدة، لكنها لا تضيف ولا تحذف أي عملية. هل تريد المتابعة؟');
+    if (!ok) return;
+    try {
+      setIsVaultCycleLoading(true);
+      const token = await getFreshAuthToken();
+      const res = await fetch('/api/account-balance/repair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: 'manual_actual_balance_repair_from_dashboard' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر إصلاح الرصيد الفعلي');
+      const repaired = data?.balances || {};
+      setCash(Number(repaired.cash || 0));
+      setPalPay(Number(repaired.palPay || 0));
+      setDebt(Number(repaired.debt || 0));
+      setBalance(Number(repaired.total || (Number(repaired.cash || 0) + Number(repaired.palPay || 0))));
+      if (selectedVaultCycleId) await loadVaultCycleDetails(selectedVaultCycleId);
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'balance', reason: 'manual_account_balance_repair' } }));
+      alert(`تم إصلاح الرصيد الفعلي. النقدي: ${Number(repaired.cash || 0).toLocaleString()} ₪، PalPay: ${Number(repaired.palPay || 0).toLocaleString()} ₪، الدين: ${Number(repaired.debt || 0).toLocaleString()} ₪.`);
+    } catch (err: any) {
+      alert(err?.message || 'تعذر إصلاح الرصيد الفعلي');
+    } finally {
+      setIsVaultCycleLoading(false);
+    }
+  };
+
   const loadVaultCycleDetails = async (cycleId?: string) => {
     const targetCycleId = cycleId || selectedVaultCycleId || vaultData?.currentCycle?.cycleId || vaultCycleOptions?.[0]?.cycleId || vaultCycleOptions?.[0]?.id;
     if (!targetCycleId) return;
