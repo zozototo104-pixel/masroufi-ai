@@ -4144,6 +4144,7 @@ function summarizeCycleTransactionLists(transactions: any[]) {
   const expenses: any[] = [];
   const transfers: any[] = [];
   const debtBorrowing: any[] = [];
+  const debtPurchases: any[] = [];
   const byCategory: Record<string, { count: number; totalAmount: number }> = {};
 
   for (const tx of transactions || []) {
