@@ -2075,7 +2075,13 @@ export default function App() {
                   {fitness.grade} ({fitness.score}%)
                 </div>
               </div>
-              <h2 className="text-5xl font-bold mb-3 text-white tracking-tight">{balance} <span className="text-2xl font-normal text-slate-500">₪</span></h2>
+              <h2 className="text-5xl font-bold mb-2 text-white tracking-tight">{balance} <span className="text-2xl font-normal text-slate-500">₪</span></h2>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <p className="text-[11px] text-slate-500">الرصيد الفعلي من لقطة الحسابات العامة: cash + PalPay، وليس رصيد دورة الراتب فقط.</p>
+                <button onClick={repairActualBalanceSnapshot} disabled={isVaultCycleLoading} className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-[11px] font-bold disabled:opacity-50">
+                  إصلاح الرصيد الفعلي
+                </button>
+              </div>
               <div className="mb-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-3 py-2">
                 <p className="text-[11px] text-cyan-200/80 mb-0.5">المتاح لهذه الدورة ({activeDashboardCycleName})</p>
                 <p className="text-lg font-black text-cyan-100">{cycleSpendableBalance.toLocaleString()} ₪</p>
