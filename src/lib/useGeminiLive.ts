@@ -314,7 +314,12 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         // Dispatch only on the explicit refresh flag so status-only readiness
         // cannot trigger an extra full Firestore refresh cycle.
         if (msg.refresh) {
-          window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: msg.refreshScope || 'financial' } }));
+          window.dispatchEvent(new CustomEvent('masrofi:refresh', {
+            detail: {
+              scope: msg.refreshScope || 'financial',
+              affectedCycleIds: Array.isArray(msg.affectedCycleIds) ? msg.affectedCycleIds : [],
+            }
+          }));
         }
 
         if (msg.audio && outputCtxRef.current) {
