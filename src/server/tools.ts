@@ -601,7 +601,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
   
   const amount = parseAbsoluteFinancialAmount(args.amount);
 
-  const intentTextRaw = `${args.userText || ''} ${args.currentUserText || ''} ${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''} ${args.description || ''} ${args.item || ''} ${args.purchaseItem || ''} ${args.merchant || ''} ${args.creditor || ''} ${args.seller || ''}`;
+  const intentTextRaw = `${args.userText || ''} ${args.currentUserText || ''} ${args.type || ''} ${args.account || ''} ${args.paymentMethod || ''} ${args.transactionType || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''} ${args.description || ''} ${args.item || ''} ${args.purchaseItem || ''} ${args.merchant || ''} ${args.creditor || ''} ${args.seller || ''}`;
   const textToCheck = normalizeArabicText(intentTextRaw).toLowerCase();
 
   if (args.fromAccount && args.toAccount) {
