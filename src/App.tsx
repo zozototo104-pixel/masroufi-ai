@@ -1348,6 +1348,33 @@ export default function App() {
     }
   };
 
+  const repairMisroutedVaultClose = async () => {
+    const amountHint = Number(selectedVaultCycleDetails?.summary?.surplus || selectedVaultCycleDetails?.vaultContribution || 0);
+    const ok = window.confirm('سيبحث النظام في آخر عملياتك عن عملية فائض سداد/دائن خاطئة ناتجة عن إقفال الخزنة، وسيحذفها ذرياً إذا وجد عملية واضحة. لن ينشئ عملية عكسية جديدة. هل تريد المتابعة؟');
+    if (!ok) return;
+    try {
+      setIsVaultCycleLoading(true);
+      setVaultCycleMessage('');
+      const token = await getFreshAuthToken();
+      const res = await fetch('/api/savings-vault/repair-misrouted-close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirmed: true, amount: amountHint > 0 ? amountHint : undefined, searchLimit: 100 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر تصحيح فائض الدائن الخاطئ');
+      setVaultCycleMessage(data?.message || 'تم تصحيح آخر عملية فائض دائن خاطئة.');
+      await fetchVaultData({ Authorization: `Bearer ${token}` });
+      const affectedCycleId = data?.affectedCycleId || selectedVaultCycleId;
+      if (affectedCycleId) await loadVaultCycleDetails(affectedCycleId);
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', affectedCycleIds: data?.affectedCycleIds || [], reason: 'repair_misrouted_vault_close' } }));
+    } catch (err: any) {
+      setVaultCycleMessage(err?.message || 'تعذر تصحيح العملية الخاطئة');
+    } finally {
+      setIsVaultCycleLoading(false);
+    }
+  };
+
   const releaseFromVault = async () => {
     const amount = Number(String(vaultReleaseAmount || '').replace(',', '.'));
     if (!amount || amount <= 0) {
