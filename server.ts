@@ -2213,15 +2213,15 @@ ${activeSalaryCycleText}
                         : call;
                       const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, liveArgsText, seenToolKeys, message.toolCall.functionCalls || []);
                       if (guard.skip) {
-                        return { id: call.id, name: call.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
+                        return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
                       }
-                      const handler = toolHandlers[call.name];
+                      const handler = toolHandlers[effectiveCall.name];
                       if (handler) {
-                        const liveKey = liveFinancialCommitKey(call, userId);
+                        const liveKey = liveFinancialCommitKey(effectiveCall, userId);
                         const recentResult = getRecentLiveFinancialCommit(liveKey);
                         if (recentResult) {
-                          const args: any = call.args || {};
-                          const confirmedNew = call.name === 'add_transaction' && Boolean(args.duplicateConfirmed || args.confirmedNewTransaction);
+                          const args: any = effectiveCall.args || {};
+                          const confirmedNew = effectiveCall.name === 'add_transaction' && Boolean(args.duplicateConfirmed || args.confirmedNewTransaction);
                           if (!confirmedNew) {
                             return {
                               id: call.id,
