@@ -2344,16 +2344,33 @@ ${relationshipContext}
 
           safeSend({ type: "auth_ok", uid: userId });
 
-          const activeApiKey = String(msg.apiKey || process.env.GEMINI_API_KEY || "").trim();
-          if (!activeApiKey) {
+          const liveKeyCandidates = getGeminiKeyCandidates(String(msg.apiKey || '').trim());
+          if (liveKeyCandidates.length === 0) {
             safeSend({ error: "Missing API Key" });
             try { clientWs.close(1011, "missing api key"); } catch (e) { /* ignore */ }
             return;
           }
 
           try {
-            await connectGeminiSession(activeApiKey);
-            console.log('[live-audio] live_ready sent', { requestId });
+            let connectedCandidate: GeminiKeyCandidate | null = null;
+            let lastConnectError: any = null;
+            for (let keyIndex = 0; keyIndex < liveKeyCandidates.length; keyIndex++) {
+              const candidate = liveKeyCandidates[keyIndex];
+              try {
+                await connectGeminiSession(candidate.apiKey);
+                connectedCandidate = candidate;
+                rememberGeminiKeySuccess(candidate);
+                break;
+              } catch (connectErr: any) {
+                lastConnectError = connectErr;
+                rememberGeminiKeyFailure(candidate, connectErr, 'live');
+                const canTryNext = (isGeminiRateLimitError(connectErr) || isGeminiCapacityError(connectErr)) && keyIndex < liveKeyCandidates.length - 1;
+                if (!canTryNext) throw connectErr;
+                console.warn('[gemini-key-pool] live key failed; trying next key', { requestId, keyId: candidate.id, reason: connectErr?.reason || connectErr?.code || connectErr?.status || connectErr?.message });
+              }
+            }
+            if (!connectedCandidate) throw lastConnectError || new Error('GEMINI_LIVE_KEY_POOL_EXHAUSTED');
+            console.log('[live-audio] live_ready sent', { requestId, keyId: connectedCandidate.id, keySource: connectedCandidate.source, keyFallbackUsed: liveKeyCandidates[0]?.id !== connectedCandidate.id });
             safeSend({ type: "live_ready", status: "listening" });
             if (session && isActive && pendingAudio.length > 0) {
               for (const buf of pendingAudio.splice(0)) {
