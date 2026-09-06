@@ -2695,16 +2695,23 @@ export async function updateTransaction(args: any, userId: string, token: string
         .limit(300)
         .get();
       if ((categorySnap as any).partial === true || categorySnap.docs.length >= 300) {
-        return { success: false, retryable: true, reason: 'BUDGET_CHECK_BOUNDED_QUERY_UNCERTAIN', message: 'لا يمكن تأكيد أثر التعديل على الميزانية من قراءة محدودة/جزئية. حاول لاحقاً أو أكد المخاطرة صراحة.' };
-      }
-      const existingSameCategory = categorySnap.docs
-        .filter((d: any) => d.id !== args.id)
-        .map((d: any) => d.data())
-        .filter((t: any) => t.type === 'expense');
-      const spent = existingSameCategory.reduce((s: number, t: any) => s + parsePositiveFinancialAmount(t.amount), 0) + parsePositiveFinancialAmount(projected.amount);
-      const limit = Number(userBudgets?.[projected.category] || DEFAULT_BUDGETS[projected.category] || 0);
-      if (limit > 0 && spent >= limit && !args.riskConfirmed) {
-        return { success: false, needsConfirmation: true, reason: 'BUDGET_WILL_BE_EXCEEDED', message: `التعديل سيرفع بند [${projected.category}] إلى ${spent} ₪ مقابل سقف ${limit} ₪. هل تريد المتابعة؟` };
+        budgetWarning = 'تعذر تأكيد أثر التعديل على الميزانية من قراءة محدودة/جزئية، لكنني لم أوقف تعديل العملية الموجودة. المنع الحقيقي فقط إذا كان التعديل سيجعل الرصيد سالباً.';
+        console.warn('update_transaction advisory budget check was partial; continuing to atomic update', {
+          userIdHash: stableDocId(userId),
+          transactionId: args.id,
+          partial: Boolean((categorySnap as any).partial),
+          docs: categorySnap.docs.length,
+        });
+      } else {
+        const existingSameCategory = categorySnap.docs
+          .filter((d: any) => d.id !== args.id)
+          .map((d: any) => d.data())
+          .filter((t: any) => t.type === 'expense');
+        const spent = existingSameCategory.reduce((s: number, t: any) => s + parsePositiveFinancialAmount(t.amount), 0) + parsePositiveFinancialAmount(projected.amount);
+        const limit = Number(userBudgets?.[projected.category] || DEFAULT_BUDGETS[projected.category] || 0);
+        if (limit > 0 && spent >= limit) {
+          budgetWarning = `تحذير ميزانية: التعديل يرفع بند [${projected.category}] إلى ${spent} ₪ مقابل سقف ${limit} ₪. تم تنفيذ التعديل لأن تحذير الميزانية لا يمنع تعديل عملية موجودة.`;
+        }
       }
     } catch (e) {
       console.error('update_transaction bounded budget check failed:', e);
