@@ -455,6 +455,23 @@ function buildDeterministicFinancialReply(functionResponses: Array<{ name: strin
   if (retryable) {
     return retryable.response?.message || 'العملية لم تُسجّل الآن لأن حالة الحفظ غير مؤكدة، أعد المحاولة لاحقاً.';
   }
+  const readResult = financial.find(r => r.response?.success === true && (r.name === 'query_transactions' || r.name === 'get_salary_cycle_summary'));
+  if (readResult) {
+    const response = readResult.response || {};
+    const cycle = response.salaryCycle || response;
+    const debtSummary = response.debtSummary || cycle.debtSummary;
+    if (debtSummary && (debtSummary.currentRemainingForCycleCreditors !== undefined || debtSummary.debtCreatedInCycle !== undefined)) {
+      const remaining = Number(debtSummary.currentRemainingForCycleCreditors || 0).toLocaleString();
+      const created = Number(debtSummary.debtCreatedInCycle ?? cycle.debtCreated ?? 0).toLocaleString();
+      const paid = Number(debtSummary.debtPaidInCycle ?? cycle.debtPaid ?? 0).toLocaleString();
+      return `${cycle.name || 'دورة الراتب'}: الدين المسجل في الدورة ${created} ₪، السداد داخل الدورة ${paid} ₪، والمتبقي الحالي على دائنين هذه الدورة ${remaining} ₪. ${debtSummary.note || ''}`.trim();
+    }
+    if (cycle?.cycleId || response.salaryCycle) {
+      const expense = Number(cycle.totalExpense ?? response.summary?.expenses ?? response.totalAmount ?? 0).toLocaleString();
+      const income = Number(cycle.totalIncome ?? response.summary?.income ?? 0).toLocaleString();
+      return `${cycle.name || 'دورة الراتب'} (${cycle.cycleStart || response.period?.startIso?.slice(0, 10) || '—'} إلى ${cycle.cycleEnd || response.period?.endExclusiveIso?.slice(0, 10) || '—'}): المصروفات ${expense} ₪، الدخل ${income} ₪.`;
+    }
+  }
   const committed = financial.filter(r => r.response?.success === true && (r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed' || r.response?.transactionId || r.response?.updated || r.response?.deletedCount !== undefined));
   if (committed.length > 0) {
     const first = committed[0].response || {};
