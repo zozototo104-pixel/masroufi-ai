@@ -1,17 +1,15 @@
 # Manual CI verification trigger
 
-Verify historical debt settlement behavior.
-
-User question:
-- If the user says: "سدد لي الدين القديم لدورة شهر 8 من رصيد شهر 8" should the debt payment be dated today and counted in salary cycle 9?
+Verify historical debt settlement and bounded salary-cycle recalculation.
 
 Expected behavior:
-- Normal pay_debt without date/cycle uses today's date.
-- If the user says from a salary-cycle balance, for a cycle month, at debt date/time, the payment is a historical settlement.
-- pay_debt resolves the settlement date to the matched original debt date in the target cycle, or falls back to the target salary-cycle end.
-- DEBT_PAYMENT record stores dateSource, settlementCycleId, settlementCycleName, historicalSettlement, matchedDebtDate, matchedDebtId.
-- affectedCycleIds points to the settlement salary cycle, not necessarily today's cycle.
-- Voice/text prompts instruct Gemini not to place this settlement in today's cycle.
+- Normal pay_debt without explicit date/cycle uses today's date.
+- Phrase like "سدد الدين القديم لدورة شهر 8 من رصيد شهر 8" is treated as a historical settlement.
+- The DEBT_PAYMENT date is the matched debt date in that cycle, or the target cycle end fallback.
+- The payment record stores dateSource, settlementCycleId, settlementCycleName, historicalSettlement, matchedDebtDate, matchedDebtId.
+- After successful pay_debt, only the affected settlement salary cycle is recalculated via recalculateCyclesForTransactionChange.
+- affectedCycleIds points to the settlement cycle so the UI refreshes the correct cycle.
+- No full-ledger rebuild is used for this correction.
 
 Expected gates:
 - install
@@ -21,4 +19,4 @@ Expected gates:
 - build
 - runtime smoke
 
-Timestamp: 2026-09-06T10:05:00+03:00
+Timestamp: 2026-09-06T10:10:00+03:00
