@@ -2722,7 +2722,13 @@ function matchesRecentDeleteKind(tx: any, kind: string): boolean {
     return explicitDebtPayment || ledgerDebtPayment || overpaymentLike;
   }
   if (kind === 'expense') return type === 'expense';
-  if (kind === 'credit_purchase') return type === 'expense' && (transactionType === 'CREDIT_PURCHASE' || normalizeLedgerAccount(tx?.account) === 'debt');
+  if (kind === 'credit_purchase') {
+    const explicitCreditPurchase = transactionType === 'CREDIT_PURCHASE' || account === 'debt';
+    const textDebtPurchase = type === 'expense'
+      && (text.includes('دين') || text.includes('بالدين') || text.includes('اجل') || text.includes('آجل') || text.includes('على الحساب'))
+      && !(text.includes('سداد') || text.includes('تسديد') || text.includes('سدد') || text.includes('سديت'));
+    return type === 'expense' && (explicitCreditPurchase || textDebtPurchase);
+  }
   if (kind === 'income') return type === 'income';
   return true;
 }
