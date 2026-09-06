@@ -4857,6 +4857,20 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "delete_recent_transactions",
+    description: "يحذف آخر N عمليات من نوع محدد فقط عندما يطلب المستخدم ذلك صراحة، مثل: احذف آخر 3 مصروفات، أو احذف آخر عملية تسديد دين. يستخدم قراءة محدودة لآخر العمليات ولا يحذف بصمت؛ إذا لم تكن العبارة واضحة أرجع مرشحين واطلب تأكيداً.",
+    parameters: {
+      type: "object",
+      properties: {
+        count: { type: "number", description: "عدد العمليات الأخيرة المطلوب حذفها، بحد أقصى 10" },
+        kind: { type: "string", description: "نوع العمليات: expense للمصروفات، debt_payment لتسديد الدين، credit_purchase لمشتريات الدين، income للدخل، all للكل" },
+        confirmed: { type: "boolean", description: "true فقط إذا كان المستخدم قال صراحة احذف آخر N عمليات من هذا النوع" },
+        confirmation: { type: "string", description: "يمكن استخدام DELETE_RECENT_TRANSACTIONS كتأكيد صريح" }
+      },
+      required: ["count", "kind"]
+    }
+  },
+  {
     name: "repair_duplicate_income",
     description: "يصلح تكرار الراتب/الدخل: يبحث عن قيود دخل مكررة بنفس المبلغ والحساب واليوم، ويحذف النسخ الزائدة ويبقي الأصلية. استخدمه عندما يقول المستخدم إن الراتب أو الدخل تسجل مرتين.",
     parameters: {
