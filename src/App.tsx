@@ -1348,6 +1348,33 @@ export default function App() {
     }
   };
 
+  const repairSelectedCreditPurchase = async (tx: any) => {
+    if (!tx?.id) return;
+    const creditor = tx.creditor || tx.merchant || '';
+    const ok = window.confirm(`سيتم تحويل هذا البند إلى شراء دين${creditor ? ` على ${creditor}` : ''} بقيمة ${Number(tx.amount || 0).toLocaleString()} ₪. سيُرجع أثره من النقدي/PalPay ويبقيه ضمن مصروفات الدورة كدين. هل تريد المتابعة؟`);
+    if (!ok) return;
+    try {
+      setIsVaultCycleLoading(true);
+      setVaultCycleMessage('');
+      const token = await getFreshAuthToken();
+      const res = await fetch('/api/transactions/repair-credit-purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ transactionId: tx.id, creditor, confirmed: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر تحويل البند إلى دين');
+      setVaultCycleMessage(data?.message || 'تم تحويل البند إلى شراء دين وإرجاع أثره من الرصيد السائل.');
+      await fetchData({ Authorization: `Bearer ${token}` });
+      if (selectedVaultCycleId) await loadVaultCycleDetails(selectedVaultCycleId);
+      window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', affectedCycleIds: data?.affectedCycleIds || [], reason: 'repair_selected_credit_purchase' } }));
+    } catch (err: any) {
+      setVaultCycleMessage(err?.message || 'تعذر تحويل البند إلى دين');
+    } finally {
+      setIsVaultCycleLoading(false);
+    }
+  };
+
   const repairMisroutedVaultClose = async () => {
     const amountHint = Number(selectedVaultCycleDetails?.summary?.surplus || selectedVaultCycleDetails?.vaultContribution || 0);
     const ok = window.confirm('سيبحث النظام في آخر عملياتك عن عملية فائض سداد/دائن خاطئة ناتجة عن إقفال الخزنة، وسيحذفها ذرياً إذا وجد عملية واضحة. لن ينشئ عملية عكسية جديدة. هل تريد المتابعة؟');
