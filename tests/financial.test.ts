@@ -523,6 +523,16 @@ test('DOMAIN-03: creditor remaining is reconstructed behaviorally from purchases
   assert.equal(calculateBreakdown(ledger).creditorDebts[normalizeCreditorKey('أحمد')], 240);
 });
 
+test('DOMAIN-03B: credit purchases accept creditor alias and do not require cash preflight', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes("args.merchant || args.creditor || args.seller"), 'credit purchase must accept creditor/seller aliases as merchant identity');
+  assert.ok(toolsSrc.includes('const isCreditPurchase = type === \'expense\' && account === \'debt\''), 'addTransaction must identify credit purchases before cash/PalPay preflight');
+  assert.ok(toolsSrc.includes("type === 'expense' && !isCreditPurchase && !args.deferBalanceCheckToAtomicBatch"), 'credit purchases must skip the cash/PalPay balance preflight that can fail with partial state');
+  assert.ok(toolsSrc.includes("transactionType: type === 'expense' && account === 'debt' ? 'CREDIT_PURCHASE'"), 'credit purchases must be persisted as CREDIT_PURCHASE');
+  assert.ok(serverSrc.includes('شراء دين واحد فقط') && serverSrc.includes('لا تستخدم pay_debt'), 'assistant prompts must route credit purchases to add_transaction, not pay_debt');
+});
+
 test('DOMAIN-04: debt overpayment never exposes negative creditor remaining', () => {
   const ledger = [
     tx({ type: 'expense', account: 'debt', amount: 100, creditor: 'سامي' }),
