@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { pcmToBase64, base64ToPcm, createAudioBuffer } from './audioUtils';
 
-export function useGeminiLive(settings?: { voice: string; persona: string; apiKey: string; idToken: string | null; userName: string; aiName: string; relationship?: string }) {
+export function useGeminiLive(settings?: { voice: string; persona: string; apiKey: string; idToken: string | null; userName: string; aiName: string; relationship?: string; activeSalaryCycleId?: string; activeSalaryCycleName?: string; activeSalaryCycleMonth?: number; activeSalaryCycleYear?: number }) {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
