@@ -4284,8 +4284,9 @@ export async function queryTransactions(args: any, userId: string, token: string
 
   let filtered = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   
-  if (args.type) {
-    filtered = filtered.filter((t: any) => t.type === args.type);
+  const effectiveTypeFilter = args.type || inferredQueryType;
+  if (effectiveTypeFilter) {
+    filtered = filtered.filter((t: any) => t.type === effectiveTypeFilter);
   }
 
   if (args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود') {
