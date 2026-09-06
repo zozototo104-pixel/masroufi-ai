@@ -5409,6 +5409,22 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "repair_misrecorded_credit_purchase",
+    description: "يصحح عملية شراء دين سُجلت بالخطأ كمصروف نقدي أو PalPay. لا يحذف العملية ولا ينشئ عملية عكسية؛ يعدّل نفس العملية إلى account=debt وtransactionType=CREDIT_PURCHASE فيرجع النقدي/PalPay تلقائياً ويُبقي الدين. استخدمها عندما يقول المستخدم إن شراء دين خصم من النقدي أو يريد إرجاع النقص الذي حصل بسبب تسجيل دين.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "مبلغ العملية مثل 10" },
+        creditor: { type: "string", description: "اسم الدائن/المحل مثل أبو العبد" },
+        merchant: { type: "string", description: "اسم المحل إن ذكر" },
+        seller: { type: "string", description: "اسم البائع/المحل إن ذكر" },
+        searchLimit: { type: "number", description: "عدد آخر العمليات التي يتم فحصها، افتراضياً 75 وبحد أقصى 100" },
+        confirmed: { type: "boolean", description: "true إذا طلب المستخدم التصحيح صراحة" },
+        confirmation: { type: "string", description: "يمكن استخدام REPAIR_MISRECORDED_CREDIT_PURCHASE كتأكيد صريح" }
+      }
+    }
+  },
+  {
     name: "repair_duplicate_income",
     description: "يصلح تكرار الراتب/الدخل: يبحث عن قيود دخل مكررة بنفس المبلغ والحساب واليوم، ويحذف النسخ الزائدة ويبقي الأصلية. استخدمه عندما يقول المستخدم إن الراتب أو الدخل تسجل مرتين.",
     parameters: {
