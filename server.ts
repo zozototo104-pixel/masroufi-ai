@@ -2351,12 +2351,16 @@ ${activeSalaryCycleText}
               }
 
               if (message.toolCall && message.toolCall.functionCalls) {
-                console.log("Received Tool Call:", message.toolCall.functionCalls);
+                const liveFunctionCalls = message.toolCall.functionCalls || [];
+                if (liveFunctionCalls.some((call: FunctionCall) => isLiveMutationToolName(call.name))) {
+                  liveMutationToolSeenInTurn = true;
+                }
+                console.log("Received Tool Call:", liveFunctionCalls);
                 safeSend({ status: "thinking" });
 
                 const seenToolKeys = new Set<string>();
                 const functionResponses = await Promise.all(
-                  message.toolCall.functionCalls.map(async (call: FunctionCall) => {
+                  liveFunctionCalls.map(async (call: FunctionCall) => {
                     try {
                       const liveArgsText = JSON.stringify(call.args || {});
                       const effectiveCall = isVaultCloseIntentText(liveArgsText) && call.name !== 'recalculate_salary_cycle'
