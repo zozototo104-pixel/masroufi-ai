@@ -26,8 +26,10 @@ export interface SalaryCycleSummary {
   /** Cash/PalPay debt borrowing: counts as incoming money, not expense, but not vault-eligible income. */
   debtCashInflow: number;
   totalExpense: number;
-  /** Vault-eligible surplus = true earned income - true expenses - debt repayments paid from liquidity. Borrowed cash is intentionally excluded. Debt repayment is not a new expense, but it reduces cash available for vault. */
+  /** Vault-eligible surplus = true earned income - true expenses. Debt repayment is not counted again when the original debt expense was created inside the same cycle. */
   surplus: number;
+  /** Debt payments that truly reduce this cycle's vault capacity because they exceed debt created in the same cycle. */
+  debtPaymentLiquidityOutflow: number;
   transactionCount: number;
   incomeCount: number;
   expenseCount: number;
