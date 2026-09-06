@@ -1691,7 +1691,8 @@ export default function App() {
   const monthExpense = Number(activeDashboardSummary?.totalExpense || 0);
   const monthIncome = Number(activeDashboardSummary?.totalIncome || 0);
   const activeCycleVaultContribution = Number(selectedVaultCycleDetails?.vaultContribution || 0);
-  const cycleSpendableBalance = Math.max(0, Number(activeDashboardSummary?.totalInflow ?? monthIncome) - monthExpense - activeCycleVaultContribution);
+  const activeCycleDebtPaid = Number(activeDashboardSummary?.debtPaid || 0);
+  const cycleSpendableBalance = Math.max(0, Number(activeDashboardSummary?.totalInflow ?? monthIncome) - monthExpense - activeCycleDebtPaid - activeCycleVaultContribution);
   const isNotTransfer = (t: any) => t.type !== 'transfer' && t.category !== 'تحويل' && t.category !== 'تحويل داخلي' && t.category !== 'تحويل للخزنة' && t.category !== 'فتح الخزنة';
   const necessityTotal = selectedVaultCycleDetails?.expenses
     ? selectedVaultCycleDetails.expenses.filter((t: any) => t.necessity === 'ضروري' || !t.necessity).reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
