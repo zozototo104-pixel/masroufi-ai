@@ -2006,7 +2006,7 @@ ${relationshipContext}
                   }
                   const refreshDecision = liveRefreshScopeForTools(functionResponses as any);
                   safeSend(refreshDecision.refresh
-                    ? { status: "ready", refresh: true, refreshScope: refreshDecision.scope }
+                    ? { status: "ready", refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds }
                     : { status: "ready" }
                   );
                 }
