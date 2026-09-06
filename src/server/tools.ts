@@ -2821,7 +2821,6 @@ export async function deleteTransaction(args: any, userId: string, token: string
 
   return { success: false, message: targetDateKey ? `لم يتم العثور على عملية مطابقة بتاريخ ${targetDateKey}. جرّب تحديد المبلغ أو الحساب أو المعرّف.` : "لم يتم العثور على عملية مطابقة لحذفها. يرجى تحديد المبلغ أو اسم الحساب.", readEfficiency };
 }
-}
 
 function matchesRecentDeleteKind(tx: any, kind: string): boolean {
   const transactionType = String(tx?.transactionType || '');
