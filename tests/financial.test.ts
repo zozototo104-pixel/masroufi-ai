@@ -1097,6 +1097,7 @@ test('DELETE-RECENT-01: voice can safely delete last N expenses or last debt pay
   assert.ok(toolsSrc.includes('export async function deleteRecentTransactions'), 'delete_recent_transactions tool must exist');
   assert.ok(toolsSrc.includes("orderBy('createdAt', 'desc')") && toolsSrc.includes('limit(searchLimit)'), 'recent delete must read only a bounded recent window');
   assert.ok(toolsSrc.includes("kind === 'debt_payment'") && toolsSrc.includes("transactionType === 'DEBT_PAYMENT'"), 'recent delete must support deleting the latest debt-payment operation');
+  assert.ok(toolsSrc.includes('CREDITOR_OVERPAYMENT') && toolsSrc.includes('فائض سداد') && toolsSrc.includes('overpaymentLike'), 'recent debt-payment delete must also catch creditor-overpayment rows created by a misrouted vault close');
   assert.ok(toolsSrc.includes("kind === 'expense'") && toolsSrc.includes("return type === 'expense'"), 'recent delete must support deleting latest expense rows');
   assert.ok(toolsSrc.includes('atomicDeleteTransactions'), 'recent delete must update balances atomically');
   assert.ok(toolsSrc.includes('affectedCycleIds'), 'recent delete must return affected salary cycles for UI refresh');
