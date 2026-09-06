@@ -309,10 +309,12 @@ test('IMPORT-UI: expense file import supports images and spreadsheets with revie
     'receipt record buttons must be disabled during submission and while required dates are missing');
   assert.ok(app.includes('جارٍ التسجيل'),
     'receipt record UI must show clear progress instead of appearing unresponsive');
-  assert.ok(app.includes('currentBalances: { cash, palPay, debt, total: balance }'),
-    'receipt record UI must send the visible selected-account balance for split-to-debt imports');
+  assert.equal(app.includes('currentBalances: { cash, palPay, debt, total: balance }'), false,
+    'receipt record UI must not send stale visible balances for split-to-debt imports');
+  assert.ok(server.includes('const balanceResult = splitApplied ? await getBalance({}, req.user.uid, authToken) : null'),
+    'receipt record must split using authoritative server balances');
   assert.ok(app.includes('splitOverflowToDebt: true'),
-    'receipt record UI must request safe selected-balance-then-debt splitting');
+    'receipt record UI must request safe selected-liquid-account, other-liquid-account, then debt splitting');
   assert.ok(app.includes('controller.abort(), 30000') && app.includes("err?.name === 'AbortError'"),
     'receipt record UI must time out instead of staying stuck on submitting forever');
   assert.ok(server.includes('generateExpenseImportJsonWithFallback') && server.includes('getExpenseImportModelFallbacks'),
