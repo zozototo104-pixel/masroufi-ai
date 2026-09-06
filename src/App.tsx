@@ -784,12 +784,15 @@ export default function App() {
       refreshDebounceRef.current = window.setTimeout(async () => {
         refreshDebounceRef.current = null;
         const refreshActiveSalaryCycle = async (headers: Record<string, string>) => {
-          const activeCycleId = selectedVaultCycleIdRef.current;
+          const activeCycleId = affectedCycleIds[0] || selectedVaultCycleIdRef.current;
           if (!activeCycleId) return;
           try {
             const res = await fetch(`/api/salary-cycles/${encodeURIComponent(activeCycleId)}?limit=500`, { headers });
             const data = await res.json().catch(() => ({}));
-            if (res.ok && data?.success !== false) setSelectedVaultCycleDetails(data);
+            if (res.ok && data?.success !== false) {
+              setSelectedVaultCycleId(activeCycleId);
+              setSelectedVaultCycleDetails(data);
+            }
           } catch (err) {
             console.warn('Active salary cycle refresh failed:', err);
           }
