@@ -1593,7 +1593,11 @@ export default function App() {
             return merged.sort((a: any, b: any) => String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || '')));
           });
         }
-        window.dispatchEvent(new CustomEvent('masrofi:refresh'));
+        const affectedCycleIds = Array.from(new Set([
+          ...(Array.isArray(data.affectedCycleIds) ? data.affectedCycleIds : []),
+          ...(Array.isArray(data.committedTransactions) ? data.committedTransactions.map((tx: any) => getSalaryCycleForDate(tx?.date || tx?.createdAt || new Date().toISOString(), new Date()).cycleId) : []),
+        ].map((id: any) => String(id || '').trim()).filter(Boolean)));
+        window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'financial', affectedCycleIds } }));
       } else {
         if (!res.ok) {
           const queued = await queueOfflineFinancialCommand(text, clientMessageId);
