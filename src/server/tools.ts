@@ -2230,8 +2230,9 @@ export async function payDebt(args:any,userId:string,token:string){
     return { success: false, error: failReason };
   }
   const finalTxId = atomicResult.docId;
+  const affectedPaymentCycle = getSalaryCycleForDate(tx.date || tx.createdAt || new Date().toISOString(), new Date());
   await addNotification(userId,`تم سداد ${amount} ₪ من دين ${selected.creditor} من ${fromName}.`, 'success', adminDb);
-  return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:(atomicResult as any).remaining ?? Math.max(0,Math.round((selected.remaining-amount)*100)/100),message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}.`,currentBalances:(atomicResult as any).balances, readEfficiency:{ creditorDocsRead: creditorSnap.docs.length, accountBalanceDocsRead: 1 }};
+  return{success:true,transactionId:finalTxId,operationId,creditor:selected.creditor,remainingDebtForCreditor:(atomicResult as any).remaining ?? Math.max(0,Math.round((selected.remaining-amount)*100)/100),affectedCycleId:affectedPaymentCycle.cycleId,affectedCycleIds:[affectedPaymentCycle.cycleId],message:`تم سداد ${amount} ₪ من دين ${selected.creditor} بنجاح من ${fromName}.`,currentBalances:(atomicResult as any).balances, readEfficiency:{ creditorDocsRead: creditorSnap.docs.length, accountBalanceDocsRead: 1 }};
 }
 
 export async function getRecentTransactions(args: any, userId: string, token: string) {
