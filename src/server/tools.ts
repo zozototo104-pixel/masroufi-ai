@@ -4235,6 +4235,7 @@ export async function getSalaryCycleDetails(args: any, userId: string, token: st
       expenses: lists.expenses.length,
       transfers: lists.transfers.length,
       debtBorrowing: lists.debtBorrowing.length,
+      debtPurchases: lists.debtPurchases.length,
     },
     bounded: true,
     query: { collection: 'transactions', userId: 'current-user', date: { gte: period.startIso, lt: period.endExclusiveIso }, limit: readResult.limit },
