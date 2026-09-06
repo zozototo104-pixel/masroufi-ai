@@ -3620,6 +3620,75 @@ export async function recalculateSalaryCycle(args: any, userId: string, token: s
   }
 }
 
+function wantsCycleDebtSummary(args: any): boolean {
+  const text = normalizeArabicText(`${args?.userText || ''} ${args?.currentUserText || ''} ${args?.question || ''} ${args?.category || ''} ${args?.account || ''} ${args?.type || ''}`);
+  return text.includes('دين') || text.includes('ديون') || args?.account === 'debt' || args?.includeDebtSummary === true;
+}
+
+async function buildCurrentDebtSummaryForCycle(userId: string, cycleTransactions: any[]) {
+  const cycleDebtTransactions = (cycleTransactions || []).filter((t: any) => {
+    const kind = String(t.transactionType || '');
+    return kind === 'CREDIT_PURCHASE'
+      || kind === 'DEBT_PAYMENT'
+      || normalizeLedgerAccount(t.account) === 'debt'
+      || normalizeLedgerAccount(t.toAccount) === 'debt'
+      || normalizeLedgerAccount(t.fromAccount) === 'debt';
+  });
+  const creditorKeys = Array.from(new Set(cycleDebtTransactions
+    .map((t: any) => normalizeCreditorName(t.creditor || t.merchant || ''))
+    .filter(Boolean)))
+    .slice(0, 10);
+  if (creditorKeys.length === 0) {
+    return {
+      creditorKeys: [],
+      debtCreatedInCycle: 0,
+      debtPaidInCycle: 0,
+      currentRemainingForCycleCreditors: 0,
+      creditors: [],
+      partial: false,
+      readEfficiency: { creditorHistoryDocsRead: 0, creditorLimit: 0 },
+    };
+  }
+
+  let debtHistoryDocs: any[] = [];
+  let partial = false;
+  try {
+    const snap = await firebaseAdminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .where('creditorKey', 'in', creditorKeys)
+      .limit(500)
+      .get();
+    partial = Boolean((snap as any).partial || snap.docs.length >= 500);
+    debtHistoryDocs = snap.docs;
+  } catch (err: any) {
+    console.warn('[salary_cycle_debt_summary] compound creditor query failed; using per-creditor bounded fallback', { error: err?.message });
+    for (const creditorKey of creditorKeys) {
+      const snap = await firebaseAdminDb.collection('transactions')
+        .where('creditorKey', '==', creditorKey)
+        .limit(120)
+        .get();
+      if ((snap as any).partial || snap.docs.length >= 120) partial = true;
+      debtHistoryDocs.push(...snap.docs.filter((d: any) => d.data()?.userId === userId));
+    }
+  }
+
+  const currentDebtByCreditor = calculateOpenCreditorDebts(debtHistoryDocs);
+  return {
+    creditorKeys,
+    debtCreatedInCycle: roundMoney(cycleDebtTransactions
+      .filter((t: any) => String(t.transactionType || '') === 'CREDIT_PURCHASE' || (t.type === 'expense' && normalizeLedgerAccount(t.account) === 'debt') || String(t.transactionType || '') === 'DEBT_BORROWING')
+      .reduce((sum: number, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0)),
+    debtPaidInCycle: roundMoney(cycleDebtTransactions
+      .filter((t: any) => String(t.transactionType || '') === 'DEBT_PAYMENT' || (t.type === 'transfer' && normalizeLedgerAccount(t.toAccount) === 'debt'))
+      .reduce((sum: number, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0)),
+    currentRemainingForCycleCreditors: roundMoney(currentDebtByCreditor.reduce((sum: number, item: any) => sum + Number(item.remaining || 0), 0)),
+    creditors: currentDebtByCreditor,
+    note: 'المتبقي الحالي يحسب تاريخ دائنين دورة الراتب كاملة، لذلك يعترف بالسداد الذي حدث بعد نهاية الدورة.',
+    partial,
+    readEfficiency: { cycleDebtTransactions: cycleDebtTransactions.length, creditorHistoryDocsRead: debtHistoryDocs.length, creditorLimit: 500 },
+  };
+}
+
 async function recalculateCyclesForTransactionChange(userId: string, token: string, beforeTx: any | null, afterTx: any | null, reason: string) {
   const periods = new Map<string, SalaryCyclePeriod>();
   const now = new Date();
