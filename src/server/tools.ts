@@ -2815,7 +2815,7 @@ export async function deleteTransaction(args: any, userId: string, token: string
   if (targetDateKey) {
     const dateResult = await readTransactionsForSmartDeleteDate(targetDateKey, userId, args.searchLimit);
     userTxs = dateResult.transactions;
-    readEfficiency = { queryType: 'date_range_then_user_filter', date: targetDateKey, scannedDateWindowDocs: dateResult.scannedDateWindowDocs, limit: dateResult.limit };
+    readEfficiency = { queryType: 'date_range_then_user_filter', date: targetDateKey, scannedDateWindowDocs: dateResult.scannedDateWindowDocs, queryStats: dateResult.queryStats, limit: dateResult.limit };
     if (dateResult.limitReached) {
       return {
         success: false,
