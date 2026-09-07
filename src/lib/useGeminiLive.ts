@@ -364,9 +364,16 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           source.connect(outputCtxRef.current.destination);
           
           const currentTime = outputCtxRef.current.currentTime;
-          // Ensure we don't schedule in the past
-          if (nextPlayTimeRef.current < currentTime) {
-            nextPlayTimeRef.current = currentTime;
+          // Keep a small jitter buffer so mobile Safari/Render/WebSocket timing
+          // does not schedule chunks exactly at currentTime, which causes audible
+          // chopping when packets arrive unevenly.
+          const minimumLeadTimeSeconds = 0.16;
+          const maximumLeadTimeSeconds = 1.25;
+          if (nextPlayTimeRef.current < currentTime + minimumLeadTimeSeconds) {
+            nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
+          }
+          if (nextPlayTimeRef.current > currentTime + maximumLeadTimeSeconds) {
+            nextPlayTimeRef.current = currentTime + 0.35;
           }
           
           source.start(nextPlayTimeRef.current);
