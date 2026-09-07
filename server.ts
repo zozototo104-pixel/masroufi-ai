@@ -2424,8 +2424,9 @@ ${activeSalaryCycleText}
                             activeSalaryCycleYear: activeSalaryCycleContext.year,
                           };
                         }
-                        if (effectiveCall.name === 'query_transactions'
-                          && liveReportScopeMissingUntilMs > Date.now()
+                        const isQueryTransactionsCall = effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions';
+                        if (isQueryTransactionsCall
+                          && (liveReportScopeMissingUntilMs > Date.now() || batchHasAmbiguousCompleteReport)
                           && !toolArgs.month && !toolArgs.salaryMonth && !toolArgs.monthNumber && !toolArgs.date && !toolArgs.startDate && !toolArgs.endDate
                           && String(toolArgs.period || '').toLowerCase().includes('current_salary_cycle')) {
                           return {
