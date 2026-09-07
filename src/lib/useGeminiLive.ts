@@ -373,7 +373,15 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
           }
           if (nextPlayTimeRef.current > currentTime + maximumLeadTimeSeconds) {
-            nextPlayTimeRef.current = currentTime + 0.35;
+            // The playback queue is too far behind. Never move nextPlayTime
+            // backwards while old sources are still scheduled, because that
+            // creates two overlapping voices. Drop the stale queued speech first.
+            activeSourcesRef.current.forEach(activeSource => {
+              try { activeSource.stop(); } catch (e) { /* ignore */ }
+              try { activeSource.disconnect(); } catch (e) { /* ignore */ }
+            });
+            activeSourcesRef.current = [];
+            nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
           }
           
           source.start(nextPlayTimeRef.current);
