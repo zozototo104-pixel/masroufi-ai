@@ -2163,6 +2163,7 @@ function setupLiveApi(wss: WebSocketServer) {
     let aiOutputActive = false;
     let clientInterruptOverrideUntilMs = 0;
     let droppedEchoAudioChunks = 0;
+    let liveReportScopeMissingUntilMs = 0;
     let activeSalaryCycleContext: { cycleId?: string; name?: string; month?: number; year?: number } = {};
 
     let authTimeout: NodeJS.Timeout | null = setTimeout(() => {
