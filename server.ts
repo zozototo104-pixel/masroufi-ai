@@ -2444,8 +2444,23 @@ ${activeSalaryCycleText}
                         }
                         const isGenerateReportCall = effectiveCall.name === 'generate_report' || effectiveCall.name === 'generateReport';
                         const reportArgsText = JSON.stringify(toolArgs || {});
-                        const reportHasMonth = Boolean(toolArgs.month || toolArgs.salaryMonth || toolArgs.monthNumber || parseSalaryCycleMonth(String(toolArgs.title || '')));
+                        const reportRequestedMonth = parseSalaryCycleMonth(toolArgs.month || toolArgs.salaryMonth || toolArgs.monthNumber) ?? parseSalaryCycleMonth(String(toolArgs.title || ''));
+                        const reportRequestedYear = Number(toolArgs.year || toolArgs.salaryYear || toolArgs.cycleYear || activeSalaryCycleContext.year || new Date().getUTCFullYear());
+                        const reportHasMonth = reportRequestedMonth !== null;
                         const reportRequestsAllHistory = /كل\s*التاريخ|كل\s*السنوات|من\s*البداية|كل\s*البيانات|all\s*history|entire\s*history/i.test(reportArgsText);
+                        if (isGenerateReportCall && reportRequestedMonth !== null) {
+                          liveReportScopeOverride = {
+                            month: reportRequestedMonth,
+                            year: Number.isFinite(reportRequestedYear) ? reportRequestedYear : new Date().getUTCFullYear(),
+                            untilMs: Date.now() + 30_000,
+                          };
+                          console.warn('[REPORT_SCOPE_TRACE] live_report_scope_override_set', {
+                            requestId,
+                            month: liveReportScopeOverride.month,
+                            year: liveReportScopeOverride.year,
+                            sourceToolName: effectiveCall.name,
+                          });
+                        }
                         if (isGenerateReportCall || effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions') {
                           console.warn('[REPORT_SCOPE_TRACE] live_tool_before', {
                             requestId,
