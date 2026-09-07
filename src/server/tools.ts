@@ -1577,6 +1577,11 @@ export async function generateReport(args: any, userId: string, token: string) {
     category: categoryQuery || 'كافة البنود',
     transactions: filtered,
   });
+  reportScopeTrace.filteredTransactionsCount = filtered.length;
+  reportScopeTrace.readPartial = reportReadPartial;
+  reportScopeTrace.readDiagnostics = reportReadDiagnostics;
+  console.warn('[REPORT_SCOPE_TRACE] generate_report_before_save', reportScopeTrace);
+
   const reportToSave = {
     ...report,
     salaryCycle: salaryCycleForReport ? {
