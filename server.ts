@@ -2454,11 +2454,24 @@ ${activeSalaryCycleText}
                             year: Number.isFinite(reportRequestedYear) ? reportRequestedYear : new Date().getUTCFullYear(),
                             untilMs: Date.now() + 30_000,
                           };
+                          // For an explicit report month, do not pass the current active
+                          // cycle context into generate_report. It is only a dashboard
+                          // hint and can confuse the model/debug response into saying
+                          // month 9 while the requested report is month 8.
+                          const {
+                            activeSalaryCycleId,
+                            activeSalaryCycleName,
+                            activeSalaryCycleMonth,
+                            activeSalaryCycleYear,
+                            ...reportScopedArgs
+                          } = toolArgs;
+                          toolArgs = reportScopedArgs;
                           console.warn('[REPORT_SCOPE_TRACE] live_report_scope_override_set', {
                             requestId,
                             month: liveReportScopeOverride.month,
                             year: liveReportScopeOverride.year,
                             sourceToolName: effectiveCall.name,
+                            removedActiveSalaryCycleContext: Boolean(activeSalaryCycleId || activeSalaryCycleMonth),
                           });
                         }
                         if (isGenerateReportCall || effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions') {
