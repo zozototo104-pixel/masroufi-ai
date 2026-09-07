@@ -2359,6 +2359,16 @@ ${activeSalaryCycleText}
                 console.log("Received Tool Call:", liveFunctionCalls);
                 safeSend({ status: "thinking" });
 
+                const batchHasAmbiguousCompleteReport = liveFunctionCalls.some((c: FunctionCall) => {
+                  const n = String(c.name || '');
+                  const a: any = c.args || {};
+                  const argsText = JSON.stringify(a);
+                  const isReportCall = n === 'generate_report' || n === 'generateReport';
+                  const isAllWithoutAllHistory = String(a.timeframe || a.period || '').toLowerCase() === 'all'
+                    && !/كل\s*التاريخ|كل\s*السنوات|من\s*البداية|كل\s*البيانات|all\s*history|entire\s*history/i.test(argsText);
+                  const hasMonth = Boolean(a.month || a.salaryMonth || a.monthNumber || parseSalaryCycleMonth(String(a.title || '')));
+                  return isReportCall && isAllWithoutAllHistory && !hasMonth;
+                });
                 const seenToolKeys = new Set<string>();
                 const functionResponses = await Promise.all(
                   liveFunctionCalls.map(async (call: FunctionCall) => {
