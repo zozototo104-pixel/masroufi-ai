@@ -2479,6 +2479,9 @@ ${activeSalaryCycleText}
                         } else {
                           result = await runTool();
                         }
+                        if (effectiveCall.name === 'generate_report' && result?.reason === 'REPORT_SCOPE_MONTH_REQUIRED') {
+                          liveReportScopeMissingUntilMs = Date.now() + 30_000;
+                        }
                         console.log('[live-tool] completed', {
                           requestId,
                           name: effectiveCall.name,
