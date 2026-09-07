@@ -1832,7 +1832,18 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       // Preserve the complete report scope from the client. Dropping month/year
       // here caused "تقرير شهر 8" to reach generateReport as timeframe=all,
       // then the assistant fell back to the current salary cycle (month 9).
+      console.warn('[REPORT_SCOPE_TRACE] api_reports_generate_in', {
+        userIdHash: String(req.user.uid || '').slice(0, 6),
+        body: req.body || {},
+      });
       const result = await generateReport({ ...(req.body || {}) }, req.user.uid, token);
+      console.warn('[REPORT_SCOPE_TRACE] api_reports_generate_out', {
+        success: result?.success === true,
+        reason: result?.reason || null,
+        reportId: result?.reportId || null,
+        salaryCycle: result?.salaryCycle || null,
+        reportScopeTrace: result?.reportScopeTrace || null,
+      });
       res.json(result);
     } catch (e: any) {
       console.error("Generate report API error:", e.message);
