@@ -2427,20 +2427,40 @@ ${activeSalaryCycleText}
                         }
                         const liveToolStartedAt = Date.now();
                         const isBoundedReadTool = effectiveCall.name === 'query_transactions' || effectiveCall.name === 'memory_search';
+                        const runTool = async () => {
+                          if (isBoundedReadTool) {
+                            const LIVE_READ_TOOL_TIMEOUT_MS = 5000;
+                            return Promise.race([
+                              handler(toolArgs, userId!, userToken!),
+                              new Promise(resolve => setTimeout(() => resolve({
+                                success: false,
+                                error: 'LIVE_TOOL_TIMEOUT',
+                                message: 'تعذر إكمال قراءة البيانات في الوقت المحدد. أكمل الرد الصوتي دون انتظار هذه القراءة.',
+                                retryable: true,
+                              }), LIVE_READ_TOOL_TIMEOUT_MS)),
+                            ]);
+                          }
+                          return handler(toolArgs, userId!, userToken!);
+                        };
                         let result: any;
-                        if (isBoundedReadTool) {
-                          const LIVE_READ_TOOL_TIMEOUT_MS = 5000;
-                          result = await Promise.race([
-                            handler(toolArgs, userId!, userToken!),
-                            new Promise(resolve => setTimeout(() => resolve({
-                              success: false,
-                              error: 'LIVE_TOOL_TIMEOUT',
-                              message: 'تعذر إكمال قراءة البيانات في الوقت المحدد. أكمل الرد الصوتي دون انتظار هذه القراءة.',
-                              retryable: true,
-                            }), LIVE_READ_TOOL_TIMEOUT_MS)),
-                          ]);
+                        if (liveKey && isFinancialMutationToolName(effectiveCall.name)) {
+                          const inFlight = getLiveFinancialInFlight(liveKey);
+                          if (inFlight) {
+                            console.warn('[live-tool] duplicate mutation joined existing in-flight write', { requestId, name: effectiveCall.name, liveKey });
+                            const canonicalResult = await inFlight;
+                            result = {
+                              ...canonicalResult,
+                              deduped: true,
+                              joinedInFlight: true,
+                              message: canonicalResult?.message || 'تم تنفيذ العملية المالية مرة واحدة فقط، وتجاهلت التكرار الصوتي.',
+                            };
+                          } else {
+                            const inFlightPromise = runTool();
+                            rememberLiveFinancialInFlight(liveKey, inFlightPromise);
+                            result = await inFlightPromise;
+                          }
                         } else {
-                          result = await handler(toolArgs, userId!, userToken!);
+                          result = await runTool();
                         }
                         console.log('[live-tool] completed', {
                           requestId,
