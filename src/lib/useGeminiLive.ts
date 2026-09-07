@@ -357,31 +357,27 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           setStatus('talking');
           // Play audio
           const pcmData = base64ToPcm(msg.audio);
-          const buffer = createAudioBuffer(outputCtxRef.current, pcmData);
+          const buffer = createAudioBuffer(outputCtxRef.current, pcmData, 24000);
           
           const source = outputCtxRef.current.createBufferSource();
           source.buffer = buffer;
           source.connect(outputCtxRef.current.destination);
           
           const currentTime = outputCtxRef.current.currentTime;
-          // Keep a small jitter buffer so mobile Safari/Render/WebSocket timing
-          // does not schedule chunks exactly at currentTime, which causes audible
-          // chopping when packets arrive unevenly.
-          const minimumLeadTimeSeconds = 0.16;
-          const maximumLeadTimeSeconds = 1.25;
+          // Use a stable playback cushion for clear speech. Do not stop queued
+          // chunks during normal playback; stopping scheduled buffers is what
+          // caused audible chopping. Old audio is cleared only on disconnect or
+          // explicit interruption/reset paths.
+          const minimumLeadTimeSeconds = 0.28;
+          const maximumLeadTimeSeconds = 4.0;
           if (nextPlayTimeRef.current < currentTime + minimumLeadTimeSeconds) {
             nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
           }
           if (nextPlayTimeRef.current > currentTime + maximumLeadTimeSeconds) {
-            // The playback queue is too far behind. Never move nextPlayTime
-            // backwards while old sources are still scheduled, because that
-            // creates two overlapping voices. Drop the stale queued speech first.
-            activeSourcesRef.current.forEach(activeSource => {
-              try { activeSource.stop(); } catch (e) { /* ignore */ }
-              try { activeSource.disconnect(); } catch (e) { /* ignore */ }
-            });
-            activeSourcesRef.current = [];
-            nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
+            // The queue is extremely delayed. Start the next answer after the
+            // already scheduled speech instead of rewinding into it; this avoids
+            // double voices and avoids cutting words mid-sentence.
+            nextPlayTimeRef.current = Math.max(nextPlayTimeRef.current, currentTime + minimumLeadTimeSeconds);
           }
           
           source.start(nextPlayTimeRef.current);
