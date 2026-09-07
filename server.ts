@@ -699,6 +699,26 @@ function rememberLiveFinancialCommit(key: string | null, result: any) {
   }
 }
 
+function getLiveFinancialInFlight(key: string | null): Promise<any> | null {
+  if (!key) return null;
+  const hit = recentLiveFinancialInFlight.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.timestamp > LIVE_FINANCIAL_DEDUPE_MS) {
+    recentLiveFinancialInFlight.delete(key);
+    return null;
+  }
+  return hit.promise;
+}
+
+function rememberLiveFinancialInFlight(key: string | null, promise: Promise<any>) {
+  if (!key) return;
+  recentLiveFinancialInFlight.set(key, { timestamp: Date.now(), promise });
+  promise.finally(() => {
+    const hit = recentLiveFinancialInFlight.get(key);
+    if (hit?.promise === promise) recentLiveFinancialInFlight.delete(key);
+  });
+}
+
 function buildStableOperationIdForToolCall(call: FunctionCall, clientMessageId: string): string | null {
   if (!clientMessageId) return null;
   const args: any = call.args || {};
