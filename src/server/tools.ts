@@ -1444,15 +1444,31 @@ export async function generateReport(args: any, userId: string, token: string) {
     endExclusiveIso = salaryCycleForReport.endExclusiveIso;
   }
 
-  let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
-  if (startIso) txQuery = txQuery.where('date', '>=', startIso);
-  if (endExclusiveIso) txQuery = txQuery.where('date', '<', endExclusiveIso);
-  if (startIso || endExclusiveIso) txQuery = txQuery.orderBy('date', 'desc').limit(1000);
-  const txSnapshot = await txQuery.get();
-  const allUserTxs = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  if ((txSnapshot as any).partial === true || ((startIso || endExclusiveIso) && allUserTxs.length >= 1000)) {
-    return { success: false, retryable: true, partial: true, reason: 'REPORT_QUERY_INCOMPLETE', message: 'لم أحفظ التقرير لأن قراءة الفترة جزئية أو وصلت حدها. استخدم فترة أصغر أو pagination حتى لا أعطي تقريراً ناقصاً.' };
+  let allUserTxs: any[] = [];
+  let reportReadPartial = false;
+  let reportReadDiagnostics: any = null;
+
+  if (salaryCycleForReport) {
+    // A complete written salary-cycle report must use the same robust reader as
+    // the vault/cycle UI and must not fail just because the older composite
+    // userId+date+orderBy query is unavailable.
+    const cycleRead = await readTransactionsForSalaryCycle(salaryCycleForReport, userId, token, SALARY_CYCLE_TRANSACTION_QUERY_LIMIT);
+    allUserTxs = cycleRead.transactions || [];
+    reportReadPartial = Boolean(cycleRead.partial || cycleRead.limitReached);
+    reportReadDiagnostics = { source: 'salary_cycle_reader', cycleId: salaryCycleForReport.cycleId, queryStats: cycleRead.queryStats || [], limit: cycleRead.limit };
+  } else {
+    let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
+    if (startIso) txQuery = txQuery.where('date', '>=', startIso);
+    if (endExclusiveIso) txQuery = txQuery.where('date', '<', endExclusiveIso);
+    if (startIso || endExclusiveIso) txQuery = txQuery.orderBy('date', 'desc').limit(SALARY_CYCLE_TRANSACTION_QUERY_LIMIT);
+    const txSnapshot = await txQuery.get();
+    allUserTxs = txSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    reportReadPartial = Boolean((txSnapshot as any).partial === true || ((startIso || endExclusiveIso) && allUserTxs.length >= SALARY_CYCLE_TRANSACTION_QUERY_LIMIT));
+    reportReadDiagnostics = { source: 'direct_user_query', docsRead: allUserTxs.length, limit: (startIso || endExclusiveIso) ? SALARY_CYCLE_TRANSACTION_QUERY_LIMIT : null };
   }
+
+  // Never refuse a requested written report only because the list is long. Save
+  // the report and include a warning if the bounded read may be partial.
 
   // 1. First attempt: category/type/subcategory filtering after the Firestore date window.
   // Date filtering is already pushed into Firestore so salary-cycle months are not
