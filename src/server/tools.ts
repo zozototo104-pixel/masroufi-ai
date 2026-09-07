@@ -1415,12 +1415,26 @@ export async function generateReport(args: any, userId: string, token: string) {
   // and model-filled month are only fallbacks when the original user text has no
   // explicit month.
   const inferredReportMonth = monthFromUserText ?? monthFromTitle ?? explicitReportMonth;
+  const combinedReportText = `${reportUserIntentText} ${reportTitleText}`;
+  const hasExplicitCurrentCycleText = /الدورة\s*الحالية|الشهر\s*الحالي|الحالي(?:ة)?|current/i.test(combinedReportText);
+  const hasExplicitAllHistoryText = /كل\s*التاريخ|كل\s*السنوات|من\s*البداية|كل\s*البيانات|all\s*history|entire\s*history/i.test(combinedReportText);
+  const hasReportIntentText = /تقرير|report/i.test(combinedReportText);
+  const hasCompleteReportText = /كامل|شامل|مفصل|كل\s*المصروفات|كافة\s*البنود|كل\s*البنود|complete|full|detailed/i.test(combinedReportText);
   const hasExplicitRange = Boolean(args.startDate && args.endDate);
   const hasMonth = inferredReportMonth !== null;
   // If the user/title says "شهر 8", that explicit salary-cycle month must win
   // over model-filled current/custom ranges. Otherwise Gemini may send current
   // cycle dates while keeping a "شهر 8" title, producing a month-9 report.
   const timeframe = hasMonth ? 'salary_cycle' : (requestedTimeframe || (hasExplicitRange ? 'custom' : 'current_salary_cycle'));
+  if (hasReportIntentText && hasCompleteReportText && !hasMonth && !hasExplicitRange && !hasExplicitCurrentCycleText && !hasExplicitAllHistoryText) {
+    return {
+      success: false,
+      needsClarification: true,
+      retryable: true,
+      reason: 'REPORT_SCOPE_MONTH_REQUIRED',
+      message: 'لم يصل شهر التقرير إلى الأداة. لا يجوز إنشاء تقرير للدورة الحالية افتراضياً. أعد استدعاء generate_report مع timeframe="salary_cycle" و month=رقم شهر الدورة الذي ذكره المستخدم، مثلاً month=8 لدورة شهر 8.',
+    };
+  }
   const categoryQuery = args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود' ? args.category : '';
   const subcategoryQuery = String(args.subcategory || '').trim();
   const typeQuery = String(args.type || '').trim();
