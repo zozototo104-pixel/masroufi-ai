@@ -678,6 +678,7 @@ function liveFinancialCommitKey(call: FunctionCall, userId: string | null | unde
 }
 
 const recentLiveFinancialCommits = new Map<string, { timestamp: number; result: any }>();
+const recentLiveFinancialInFlight = new Map<string, { timestamp: number; promise: Promise<any> }>();
 const LIVE_FINANCIAL_DEDUPE_MS = 15_000;
 
 function getRecentLiveFinancialCommit(key: string | null): any | null {
