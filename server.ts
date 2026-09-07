@@ -2430,6 +2430,24 @@ ${activeSalaryCycleText}
                             activeSalaryCycleYear: activeSalaryCycleContext.year,
                           };
                         }
+                        const isGenerateReportCall = effectiveCall.name === 'generate_report' || effectiveCall.name === 'generateReport';
+                        const reportArgsText = JSON.stringify(toolArgs || {});
+                        const reportHasMonth = Boolean(toolArgs.month || toolArgs.salaryMonth || toolArgs.monthNumber || parseSalaryCycleMonth(String(toolArgs.title || '')));
+                        const reportRequestsAllHistory = /كل\s*التاريخ|كل\s*السنوات|من\s*البداية|كل\s*البيانات|all\s*history|entire\s*history/i.test(reportArgsText);
+                        if (isGenerateReportCall && String(toolArgs.timeframe || toolArgs.period || '').toLowerCase() === 'all' && !reportRequestsAllHistory && !reportHasMonth) {
+                          liveReportScopeMissingUntilMs = Date.now() + 30_000;
+                          return {
+                            id: effectiveCall.id || call.id,
+                            name: effectiveCall.name,
+                            response: {
+                              success: false,
+                              needsClarification: true,
+                              retryable: true,
+                              reason: 'REPORT_SCOPE_MONTH_REQUIRED',
+                              message: 'وصل طلب التقرير إلى الخادم بـ timeframe=all بدون شهر واضح. لن أنشئ تقرير الدورة الحالية بالخطأ. أعد استدعاء generate_report مع timeframe="salary_cycle" و month الصحيح، مثلاً month=8.'
+                            }
+                          };
+                        }
                         const isQueryTransactionsCall = effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions';
                         if (isQueryTransactionsCall
                           && (liveReportScopeMissingUntilMs > Date.now() || batchHasAmbiguousCompleteReport)
