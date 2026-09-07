@@ -1405,14 +1405,16 @@ export async function generateReport(args: any, userId: string, token: string) {
   
   const now = new Date();
   const requestedTimeframe = String(args.timeframe || args.period || '').trim();
-  const reportIntentText = `${args.title || ''} ${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''}`;
-  const monthFromReportText = parseSalaryCycleMonth(reportIntentText);
+  const reportUserIntentText = `${args.currentUserText || ''} ${args.userText || ''} ${args.question || ''} ${args.query || ''}`;
+  const reportTitleText = `${args.title || ''}`;
+  const monthFromUserText = parseSalaryCycleMonth(reportUserIntentText);
+  const monthFromTitle = parseSalaryCycleMonth(reportTitleText);
   const explicitReportMonth = parseSalaryCycleMonth(args.month || args.salaryMonth || args.monthNumber);
-  // The user's wording/title is more trustworthy than a model-filled month
-  // argument. Gemini can incorrectly send month=9 because it is the current
-  // cycle while the title says "شهر 8"; in that case the report must follow
-  // the user's explicit text.
-  const inferredReportMonth = monthFromReportText ?? explicitReportMonth;
+  // Trust the user's actual words first. Gemini may generate a wrong title or
+  // month argument such as month=9 while the user asked for "شهر 8". The title
+  // and model-filled month are only fallbacks when the original user text has no
+  // explicit month.
+  const inferredReportMonth = monthFromUserText ?? monthFromTitle ?? explicitReportMonth;
   const hasExplicitRange = Boolean(args.startDate && args.endDate);
   const hasMonth = inferredReportMonth !== null;
   // If the user/title says "شهر 8", that explicit salary-cycle month must win
