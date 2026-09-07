@@ -1829,8 +1829,10 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     try {
       const { generateReport } = await import('./src/server/tools');
       const token = req.headers.authorization.split('Bearer ')[1];
-      const { title, timeframe = 'all', category } = req.body;
-      const result = await generateReport({ title, timeframe, category }, req.user.uid, token);
+      // Preserve the complete report scope from the client. Dropping month/year
+      // here caused "تقرير شهر 8" to reach generateReport as timeframe=all,
+      // then the assistant fell back to the current salary cycle (month 9).
+      const result = await generateReport({ ...(req.body || {}) }, req.user.uid, token);
       res.json(result);
     } catch (e: any) {
       console.error("Generate report API error:", e.message);
