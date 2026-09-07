@@ -1450,10 +1450,13 @@ export async function generateReport(args: any, userId: string, token: string) {
     startIso = `${thisMonth}-01T00:00:00.000Z`;
     endExclusiveIso = `${nextMonth.toISOString().slice(0, 10)}T00:00:00.000Z`;
   } else if (timeframe === 'month' || timeframe === 'salary_cycle' || timeframe === 'current_salary_cycle' || hasMonth) {
-    const cycleArgs = inferredReportMonth !== null
-      ? { ...args, month: inferredReportMonth, salaryMonth: inferredReportMonth, monthNumber: inferredReportMonth, period: 'salary_cycle' }
-      : { ...args, period: timeframe === 'current_salary_cycle' ? undefined : args.period };
-    salaryCycleForReport = resolveSalaryCycleFromArgs(cycleArgs, now);
+    if (inferredReportMonth !== null) {
+      const explicitYear = Number(args.year || args.salaryYear || args.cycleYear || now.getUTCFullYear());
+      salaryCycleForReport = buildSalaryCycleForMonth(explicitYear, inferredReportMonth);
+    } else {
+      const cycleArgs = { ...args, period: timeframe === 'current_salary_cycle' ? undefined : args.period };
+      salaryCycleForReport = resolveSalaryCycleFromArgs(cycleArgs, now);
+    }
     startIso = salaryCycleForReport.startIso;
     endExclusiveIso = salaryCycleForReport.endExclusiveIso;
   }
