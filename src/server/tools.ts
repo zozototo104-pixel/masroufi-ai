@@ -1511,16 +1511,31 @@ export async function generateReport(args: any, userId: string, token: string) {
     category: categoryQuery || 'كافة البنود',
     transactions: filtered,
   });
+  const reportToSave = {
+    ...report,
+    salaryCycle: salaryCycleForReport ? {
+      cycleId: salaryCycleForReport.cycleId,
+      name: salaryCycleForReport.name,
+      start: salaryCycleForReport.cycleStart,
+      endExclusive: salaryCycleForReport.cycleEndExclusive,
+    } : null,
+    requestedFullWrittenReport: true,
+    readPartial: reportReadPartial,
+    readDiagnostics: reportReadDiagnostics,
+    warning: reportReadPartial ? 'تم حفظ التقرير من القراءة المتاحة، لكن وصلنا حد القراءة المسموح لهذه الفترة؛ قد تحتاج لاحقاً إلى تصدير على دفعات إذا زادت العمليات جداً.' : '',
+  };
   
-  await reportRef.set(report);
+  await reportRef.set(reportToSave);
 
-  await addNotification(userId, `تم إنجاز ${defaultTitle} بنجاح (${filtered.length} عملية)! تجده في حافظة المهام.`, 'success', adminDb);
+  await addNotification(userId, `تم إنجاز ${defaultTitle} بنجاح (${filtered.length} عملية)! تجده في حافظة التقارير.`, 'success', adminDb);
 
   return { 
     success: true, 
     reportId: reportRef.id, 
-    transactionsCount: filtered.length, 
-    message: `Report generated with ${filtered.length} transactions and saved to inbox.` 
+    transactionsCount: filtered.length,
+    readPartial: reportReadPartial,
+    salaryCycle: reportToSave.salaryCycle,
+    message: `تم إنشاء التقرير الكتابي الكامل وحفظه في حافظة التقارير (${filtered.length} عملية). رقم التقرير: ${reportRef.id}`
   };
 }
 
