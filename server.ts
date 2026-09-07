@@ -2371,6 +2371,10 @@ ${activeSalaryCycleText}
                   const hasMonth = Boolean(a.month || a.salaryMonth || a.monthNumber || parseSalaryCycleMonth(String(a.title || '')));
                   return isReportCall && isAllWithoutAllHistory && !hasMonth;
                 });
+                if (batchHasAmbiguousCompleteReport) {
+                  liveReportScopeMissingUntilMs = Date.now() + 30_000;
+                  console.warn('[live-report] ambiguous complete report scope detected before tool execution; blocking current-cycle fallback reads', { requestId });
+                }
                 const seenToolKeys = new Set<string>();
                 const functionResponses = await Promise.all(
                   liveFunctionCalls.map(async (call: FunctionCall) => {
