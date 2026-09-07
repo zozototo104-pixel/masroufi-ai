@@ -1406,8 +1406,13 @@ export async function generateReport(args: any, userId: string, token: string) {
   const now = new Date();
   const requestedTimeframe = String(args.timeframe || args.period || '').trim();
   const reportIntentText = `${args.title || ''} ${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''}`;
+  const monthFromReportText = parseSalaryCycleMonth(reportIntentText);
   const explicitReportMonth = parseSalaryCycleMonth(args.month || args.salaryMonth || args.monthNumber);
-  const inferredReportMonth = explicitReportMonth ?? parseSalaryCycleMonth(reportIntentText);
+  // The user's wording/title is more trustworthy than a model-filled month
+  // argument. Gemini can incorrectly send month=9 because it is the current
+  // cycle while the title says "شهر 8"; in that case the report must follow
+  // the user's explicit text.
+  const inferredReportMonth = monthFromReportText ?? explicitReportMonth;
   const hasExplicitRange = Boolean(args.startDate && args.endDate);
   const hasMonth = inferredReportMonth !== null;
   const timeframe = requestedTimeframe || (hasExplicitRange ? 'custom' : hasMonth ? 'salary_cycle' : 'current_salary_cycle');
