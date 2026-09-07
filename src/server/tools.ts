@@ -1426,12 +1426,32 @@ export async function generateReport(args: any, userId: string, token: string) {
   // over model-filled current/custom ranges. Otherwise Gemini may send current
   // cycle dates while keeping a "شهر 8" title, producing a month-9 report.
   const timeframe = hasMonth ? 'salary_cycle' : (requestedTimeframe || (hasExplicitRange ? 'custom' : 'current_salary_cycle'));
+  const reportScopeTrace: any = {
+    rawArgs: args,
+    requestedTimeframe,
+    reportUserIntentText,
+    reportTitleText,
+    monthFromUserText,
+    monthFromTitle,
+    explicitReportMonth,
+    inferredReportMonth,
+    hasMonth,
+    hasExplicitRange,
+    hasExplicitCurrentCycleText,
+    hasExplicitAllHistoryText,
+    hasReportIntentText,
+    hasCompleteReportText,
+    finalTimeframeBeforeRange: timeframe,
+  };
+  console.warn('[REPORT_SCOPE_TRACE] generate_report_scope_resolved_pre_range', reportScopeTrace);
   if ((String(requestedTimeframe).toLowerCase() === 'all' && !hasExplicitAllHistoryText && !args.allowFullLedgerReport) || (hasReportIntentText && hasCompleteReportText && !hasMonth && !hasExplicitRange && !hasExplicitCurrentCycleText && !hasExplicitAllHistoryText)) {
+    console.warn('[REPORT_SCOPE_TRACE] generate_report_scope_rejected', reportScopeTrace);
     return {
       success: false,
       needsClarification: true,
       retryable: true,
       reason: 'REPORT_SCOPE_MONTH_REQUIRED',
+      reportScopeTrace,
       message: 'لم يصل شهر التقرير إلى الأداة أو وصل timeframe=all بدون طلب صريح لكل التاريخ. لا يجوز إنشاء تقرير للدورة الحالية افتراضياً. أعد استدعاء generate_report مع timeframe="salary_cycle" و month=رقم شهر الدورة الذي ذكره المستخدم، مثلاً month=8 لدورة شهر 8. عبارة كافة البنود تعني category="all" فقط وليست timeframe="all".',
     };
   }
