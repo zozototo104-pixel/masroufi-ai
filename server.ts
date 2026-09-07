@@ -2414,6 +2414,22 @@ ${activeSalaryCycleText}
                             activeSalaryCycleYear: activeSalaryCycleContext.year,
                           };
                         }
+                        if (effectiveCall.name === 'query_transactions'
+                          && liveReportScopeMissingUntilMs > Date.now()
+                          && !toolArgs.month && !toolArgs.salaryMonth && !toolArgs.monthNumber && !toolArgs.date && !toolArgs.startDate && !toolArgs.endDate
+                          && String(toolArgs.period || '').toLowerCase().includes('current_salary_cycle')) {
+                          return {
+                            id: effectiveCall.id || call.id,
+                            name: effectiveCall.name,
+                            response: {
+                              success: false,
+                              needsClarification: true,
+                              retryable: true,
+                              reason: 'REPORT_SCOPE_MONTH_REQUIRED',
+                              message: 'طلب التقرير السابق لم يصل معه شهر الدورة، لذلك لن أقرأ الدورة الحالية بالخطأ. اسأل المستخدم عن رقم الشهر أو أعد استدعاء generate_report مع month الصحيح.'
+                            }
+                          };
+                        }
                         // Keep every explicit date/range exactly as requested. Only broad,
                         // date-unspecified Live reads are capped so one voice turn cannot pull
                         // an unnecessarily large ledger payload into Gemini context.
