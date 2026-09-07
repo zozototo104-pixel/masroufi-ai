@@ -1415,7 +1415,10 @@ export async function generateReport(args: any, userId: string, token: string) {
   const inferredReportMonth = monthFromReportText ?? explicitReportMonth;
   const hasExplicitRange = Boolean(args.startDate && args.endDate);
   const hasMonth = inferredReportMonth !== null;
-  const timeframe = requestedTimeframe || (hasExplicitRange ? 'custom' : hasMonth ? 'salary_cycle' : 'current_salary_cycle');
+  // If the user/title says "شهر 8", that explicit salary-cycle month must win
+  // over model-filled current/custom ranges. Otherwise Gemini may send current
+  // cycle dates while keeping a "شهر 8" title, producing a month-9 report.
+  const timeframe = hasMonth ? 'salary_cycle' : (requestedTimeframe || (hasExplicitRange ? 'custom' : 'current_salary_cycle'));
   const categoryQuery = args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود' ? args.category : '';
   const subcategoryQuery = String(args.subcategory || '').trim();
   const typeQuery = String(args.type || '').trim();
