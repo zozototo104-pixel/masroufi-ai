@@ -48,8 +48,12 @@ export function base64ToPcm(base64: string): Float32Array {
 /**
  * Creates an audio buffer from PCM data.
  */
-export function createAudioBuffer(ctx: AudioContext, pcmData: Float32Array): AudioBuffer {
-  const buffer = ctx.createBuffer(1, pcmData.length, ctx.sampleRate);
+export function createAudioBuffer(ctx: AudioContext, pcmData: Float32Array, sourceSampleRate = 24000): AudioBuffer {
+  // Gemini Live returns 16-bit PCM at 24kHz. On iPhone/Safari the output
+  // AudioContext often runs at 44.1/48kHz even if we request 24kHz. Tagging the
+  // buffer with Gemini's source sample rate lets the browser resample smoothly
+  // instead of playing each chunk too short/fast, which sounds like chopping.
+  const buffer = ctx.createBuffer(1, pcmData.length, sourceSampleRate);
   buffer.getChannelData(0).set(pcmData);
   return buffer;
 }
