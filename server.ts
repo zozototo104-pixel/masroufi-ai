@@ -2444,7 +2444,7 @@ ${activeSalaryCycleText}
                         // Keep every explicit date/range exactly as requested. Only broad,
                         // date-unspecified Live reads are capped so one voice turn cannot pull
                         // an unnecessarily large ledger payload into Gemini context.
-                        if (effectiveCall.name === 'query_transactions' && !toolArgs.startDate && !toolArgs.endDate) {
+                        if (isQueryTransactionsCall && !toolArgs.startDate && !toolArgs.endDate) {
                           const requestedLimit = Number(toolArgs.limit);
                           toolArgs = {
                             ...toolArgs,
