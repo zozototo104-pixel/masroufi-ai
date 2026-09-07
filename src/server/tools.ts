@@ -1405,8 +1405,11 @@ export async function generateReport(args: any, userId: string, token: string) {
   
   const now = new Date();
   const requestedTimeframe = String(args.timeframe || args.period || '').trim();
+  const reportIntentText = `${args.title || ''} ${args.userText || ''} ${args.currentUserText || ''} ${args.question || ''} ${args.query || ''}`;
+  const explicitReportMonth = parseSalaryCycleMonth(args.month || args.salaryMonth || args.monthNumber);
+  const inferredReportMonth = explicitReportMonth ?? parseSalaryCycleMonth(reportIntentText);
   const hasExplicitRange = Boolean(args.startDate && args.endDate);
-  const hasMonth = parseSalaryCycleMonth(args.month || args.salaryMonth || args.monthNumber) !== null;
+  const hasMonth = inferredReportMonth !== null;
   const timeframe = requestedTimeframe || (hasExplicitRange ? 'custom' : hasMonth ? 'salary_cycle' : 'current_salary_cycle');
   const categoryQuery = args.category && args.category !== 'all' && args.category !== 'الكل' && args.category !== 'كافة البنود' ? args.category : '';
   const subcategoryQuery = String(args.subcategory || '').trim();
