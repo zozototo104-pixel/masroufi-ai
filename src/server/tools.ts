@@ -1607,6 +1607,7 @@ export async function generateReport(args: any, userId: string, token: string) {
     transactionsCount: filtered.length,
     readPartial: reportReadPartial,
     salaryCycle: reportToSave.salaryCycle,
+    reportScopeTrace,
     message: `تم إنشاء التقرير الكتابي الكامل وحفظه في حافظة التقارير (${filtered.length} عملية). رقم التقرير: ${reportRef.id}`
   };
 }
