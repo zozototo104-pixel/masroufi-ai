@@ -5882,8 +5882,8 @@ export const functionDeclarations = [
       type: "object",
       properties: {
         title: { type: "string", description: "عنوان التقرير (مثال: 'التقرير المالي التفصيلي الشامل', 'تقرير مصروفات الأبناء', 'تقرير زيارات وضيافة')" },
-        timeframe: { type: "string", description: "الفترة: 'current_salary_cycle' أو 'salary_cycle' أو 'custom' أو 'today' أو 'week' أو 'all'. أي شهر يعني دورة راتب 27→26 وليس شهر ميلادي إلا إذا calendarMonth=true" },
-        month: { type: "string", description: "رقم/اسم شهر دورة الراتب للتقرير؛ شهر 7 يعني 27/06→26/07" },
+        timeframe: { type: "string", description: "الفترة: 'current_salary_cycle' أو 'salary_cycle' أو 'custom' أو 'today' أو 'week' أو 'all'. عند ذكر شهر محدد استخدم salary_cycle. لا تستخدم all إلا لكل التاريخ/كل السنوات، وليس لكل البنود." },
+        month: { type: "string", description: "رقم/اسم شهر دورة الراتب للتقرير؛ شهر 8 يعني 27/07→26/08، وشهر 9 يعني 27/08→26/09" },
         year: { type: "number", description: "سنة دورة الراتب أو التقرير" },
         startDate: { type: "string", description: "بداية فترة مخصصة YYYY-MM-DD، مطلوبة إذا timeframe=custom" },
         endDate: { type: "string", description: "نهاية فترة مخصصة YYYY-MM-DD، مطلوبة إذا timeframe=custom" },
