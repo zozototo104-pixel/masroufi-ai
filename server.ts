@@ -2445,6 +2445,17 @@ ${activeSalaryCycleText}
                         const reportArgsText = JSON.stringify(toolArgs || {});
                         const reportHasMonth = Boolean(toolArgs.month || toolArgs.salaryMonth || toolArgs.monthNumber || parseSalaryCycleMonth(String(toolArgs.title || '')));
                         const reportRequestsAllHistory = /كل\s*التاريخ|كل\s*السنوات|من\s*البداية|كل\s*البيانات|all\s*history|entire\s*history/i.test(reportArgsText);
+                        if (isGenerateReportCall || effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions') {
+                          console.warn('[REPORT_SCOPE_TRACE] live_tool_before', {
+                            requestId,
+                            toolName: effectiveCall.name,
+                            toolArgs,
+                            reportHasMonth,
+                            reportRequestsAllHistory,
+                            liveReportScopeMissingUntilMs,
+                            batchHasAmbiguousCompleteReport,
+                          });
+                        }
                         if (isGenerateReportCall && String(toolArgs.timeframe || toolArgs.period || '').toLowerCase() === 'all' && !reportRequestsAllHistory && !reportHasMonth) {
                           liveReportScopeMissingUntilMs = Date.now() + 30_000;
                           return {
