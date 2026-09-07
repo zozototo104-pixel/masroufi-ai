@@ -2488,6 +2488,29 @@ ${activeSalaryCycleText}
                         }
                         const isQueryTransactionsCall = effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions';
                         if (isQueryTransactionsCall
+                          && liveReportScopeOverride.untilMs
+                          && liveReportScopeOverride.untilMs > Date.now()
+                          && liveReportScopeOverride.month
+                          && !toolArgs.month && !toolArgs.salaryMonth && !toolArgs.monthNumber && !toolArgs.date && !toolArgs.startDate && !toolArgs.endDate
+                          && String(toolArgs.period || '').toLowerCase().includes('current_salary_cycle')) {
+                          toolArgs = {
+                            ...toolArgs,
+                            period: 'salary_cycle',
+                            timeframe: 'salary_cycle',
+                            month: liveReportScopeOverride.month,
+                            salaryMonth: liveReportScopeOverride.month,
+                            monthNumber: liveReportScopeOverride.month,
+                            year: liveReportScopeOverride.year || activeSalaryCycleContext.year || new Date().getUTCFullYear(),
+                          };
+                          console.warn('[REPORT_SCOPE_TRACE] live_query_scope_overridden_from_report', {
+                            requestId,
+                            toolName: effectiveCall.name,
+                            month: toolArgs.month,
+                            year: toolArgs.year,
+                            originalPeriod: 'current_salary_cycle',
+                          });
+                        }
+                        if (isQueryTransactionsCall
                           && (liveReportScopeMissingUntilMs > Date.now() || batchHasAmbiguousCompleteReport)
                           && !toolArgs.month && !toolArgs.salaryMonth && !toolArgs.monthNumber && !toolArgs.date && !toolArgs.startDate && !toolArgs.endDate
                           && String(toolArgs.period || '').toLowerCase().includes('current_salary_cycle')) {
