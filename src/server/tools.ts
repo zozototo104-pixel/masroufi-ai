@@ -1497,6 +1497,19 @@ export async function generateReport(args: any, userId: string, token: string) {
     endExclusiveIso = salaryCycleForReport.endExclusiveIso;
   }
 
+  reportScopeTrace.finalTimeframe = timeframe;
+  reportScopeTrace.startIso = startIso;
+  reportScopeTrace.endExclusiveIso = endExclusiveIso;
+  reportScopeTrace.salaryCycle = salaryCycleForReport ? {
+    cycleId: salaryCycleForReport.cycleId,
+    name: salaryCycleForReport.name,
+    month: salaryCycleForReport.month,
+    year: salaryCycleForReport.year,
+    cycleStart: salaryCycleForReport.cycleStart,
+    cycleEndExclusive: salaryCycleForReport.cycleEndExclusive,
+  } : null;
+  console.warn('[REPORT_SCOPE_TRACE] generate_report_range_resolved', reportScopeTrace);
+
   let allUserTxs: any[] = [];
   let reportReadPartial = false;
   let reportReadDiagnostics: any = null;
