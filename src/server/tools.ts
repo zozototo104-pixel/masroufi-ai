@@ -5689,14 +5689,21 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   add_savings_vault_adjustment: addSavingsVaultAdjustment,
   repair_savings_vault_meta: repairSavingsVaultMeta,
   query_transactions: queryTransactions,
+  // Gemini Live logs/normalizes some tool names as camelCase. Keep aliases only
+  // for report/read tools so scope guards and handlers behave identically.
+  queryTransactions: queryTransactions,
   memory_save: memorySave,
   memory_search: memorySearch,
+  memorySearch: memorySearch,
   create_recurring_item: createRecurringItem,
   search_market_information: searchMarketInformation,
   send_palpay_payment: sendPalPayPayment,
   generate_report: generateReport,
+  generateReport: generateReport,
   generate_treasurer_report: generateTreasurerReport,
+  generateTreasurerReport: generateTreasurerReport,
   delete_report: deleteReport,
+  deleteReport: deleteReport,
   clear_all_reports: clearAllReports
 };
 
