@@ -115,9 +115,7 @@ export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any;
     let errorMessage = "تعذر تسجيل الدخول بواسطة Google";
     if (error.code === 'auth/popup-blocked') {
       try {
-        markGoogleRedirectPending();
-        await signInWithRedirect(auth, googleProvider);
-        return { success: true, redirecting: true };
+        return { success: false, error: "حظر Safari نافذة Google. اضغط زر Google مباشرة مرة واحدة بعد تحميل الصفحة، أو استخدم الدخول الفوري بالبريد الإلكتروني." };
       } catch (redirectErr: any) {
         errorMessage = redirectErr?.message || "حظر المتصفح النافذة المنبثقة وتعذر بدء تحويل تسجيل الدخول.";
       }
