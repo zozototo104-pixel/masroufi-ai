@@ -172,7 +172,6 @@ export default function App() {
   const getReportTransactions = (report: any | null, allTransactions: any[]) => {
     if (!report) return allTransactions;
     
-    const hasSavedReportTransactions = Array.isArray(report.transactions) && report.transactions.length > 0;
     const titleText = String(report.title || '');
     const titleLooksLikeScopeReport = /تقرير|مصروفات|شهر|دورة|راتب|\b20\d{2}\b|report|month|salary/i.test(titleText);
     const explicitCategory = report.category && report.category !== 'all' && report.category !== 'الكل' && report.category !== 'كافة البنود' && report.category !== 'التقرير الشامل'
