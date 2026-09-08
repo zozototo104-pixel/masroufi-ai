@@ -48,6 +48,23 @@ export function clearGoogleRedirectPending() {
   }
 }
 
+export function isGoogleRedirectPending(maxAgeMs = 120_000): boolean {
+  try {
+    const raw = localStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const startedAt = Number(parsed?.startedAt || 0);
+    if (!startedAt || Date.now() - startedAt > maxAgeMs) {
+      clearGoogleRedirectPending();
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('Could not read Google redirect pending state:', e);
+    return false;
+  }
+}
+
 /**
  * Safari/Mobile login uses Firebase's provider-controlled redirect flow.
  * The client never asks our server to mint an identity from an email address.
