@@ -272,6 +272,23 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+
+    // 0. Complete Firebase redirect login after Safari returns from Google.
+    completeGoogleRedirectLogin()
+      .then(async (res) => {
+        if (!mounted || !res.success || !res.user) return;
+        setUser(res.user);
+        try {
+          const token = await res.user.getIdToken();
+          if (mounted) setIdToken(token);
+        } catch (e) {
+          console.warn("Failed getting redirect idToken", e);
+        } finally {
+          if (mounted) setAuthLoading(false);
+        }
+      })
+      .catch((e) => console.warn("Redirect login completion failed", e));
+
     // 1. Check local direct session first
     try {
       const savedSession = localStorage.getItem('masrofi_direct_session');
