@@ -1593,7 +1593,14 @@ export async function generateReport(args: any, userId: string, token: string) {
     requestedFullWrittenReport: true,
     readPartial: reportReadPartial,
     readDiagnostics: reportReadDiagnostics,
-    reportScopeTrace,
+    reportScope: {
+      timeframe,
+      startIso,
+      endExclusiveIso,
+      salaryCycle: reportScopeTrace.salaryCycle,
+      inferredReportMonth,
+      requestedTimeframe,
+    },
     warning: reportReadPartial ? 'تم حفظ التقرير من القراءة المتاحة، لكن وصلنا حد القراءة المسموح لهذه الفترة؛ قد تحتاج لاحقاً إلى تصدير على دفعات إذا زادت العمليات جداً.' : '',
   };
   
