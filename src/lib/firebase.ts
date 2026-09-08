@@ -71,15 +71,21 @@ export function isGoogleRedirectPending(maxAgeMs = 120_000): boolean {
  * Google/Firebase performs the identity proof, and onAuthStateChanged restores
  * the authenticated user after the browser returns from the redirect.
  */
-export const loginWithSafariDirect = async (_email?: string): Promise<{ success: boolean; redirecting?: boolean; error?: string }> => {
+export const loginWithSafariDirect = async (_email?: string): Promise<{ success: boolean; user?: any; error?: string }> => {
   try {
-    await setPersistence(auth, browserLocalPersistence);
-    markGoogleRedirectPending();
-    await signInWithRedirect(auth, googleProvider);
-    return { success: true, redirecting: true };
+    clearGoogleRedirectPending();
+    // Do not use redirect on Safari here. Keeping signInWithPopup as the first
+    // awaited auth action preserves the user's click gesture and avoids the
+    // redirect/session loop seen on iOS Safari.
+    const result = await signInWithPopup(auth, googleProvider);
+    return { success: true, user: result.user };
   } catch (err: any) {
-    console.error("Safari redirect login error:", err);
-    return { success: false, error: err?.message || "فشل بدء تسجيل الدخول الآمن بواسطة Google" };
+    console.error("Safari popup login error:", err);
+    let errorMessage = err?.message || "فشل بدء تسجيل الدخول الآمن بواسطة Google";
+    if (err?.code === 'auth/popup-blocked') {
+      errorMessage = "حظر Safari نافذة Google. اضغط زر Google مرة واحدة مباشرة بعد تحميل الصفحة، أو افتح الموقع من Safari وليس من داخل تطبيق آخر.";
+    }
+    return { success: false, error: errorMessage };
   }
 };
 
