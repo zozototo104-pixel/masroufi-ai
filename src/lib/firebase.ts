@@ -90,6 +90,7 @@ export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any;
     let errorMessage = "تعذر تسجيل الدخول بواسطة Google";
     if (error.code === 'auth/popup-blocked') {
       try {
+        markGoogleRedirectPending();
         await signInWithRedirect(auth, googleProvider);
         return { success: true, redirecting: true };
       } catch (redirectErr: any) {
