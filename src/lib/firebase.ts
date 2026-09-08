@@ -100,12 +100,14 @@ function shouldUseRedirectLogin(): boolean {
 
 export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any; redirecting?: boolean; error?: string }> => {
   try {
-    await setPersistence(auth, browserLocalPersistence);
+    clearGoogleRedirectPending();
     if (shouldUseRedirectLogin()) {
-      markGoogleRedirectPending();
-      await signInWithRedirect(auth, googleProvider);
-      return { success: true, redirecting: true };
+      // On Safari/iOS, do not await anything before opening the popup; otherwise
+      // Safari loses the user gesture and blocks the window or redirect loops.
+      const result = await signInWithPopup(auth, googleProvider);
+      return { success: true, user: result.user };
     }
+    await setPersistence(auth, browserLocalPersistence);
     const result = await signInWithPopup(auth, googleProvider);
     return { success: true, user: result.user };
   } catch (error: any) {
