@@ -385,8 +385,11 @@ export default function App() {
     setLoginError(null);
     try {
       const res = await loginWithSafariDirect(emailToUse);
-      // Firebase redirect navigation owns the authenticated session. After the
-      // browser returns, onAuthStateChanged hydrates the user and fresh ID token.
+      if (res.success && res.user && res.token) {
+        setUser(res.user);
+        setIdToken(res.token);
+        return;
+      }
       if (!res.success && res.error) {
         setLoginError(res.error);
       }
