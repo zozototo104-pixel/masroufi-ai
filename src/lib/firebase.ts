@@ -66,26 +66,34 @@ export function isGoogleRedirectPending(maxAgeMs = 120_000): boolean {
 }
 
 /**
- * Safari/Mobile login uses Firebase's provider-controlled redirect flow.
- * The client never asks our server to mint an identity from an email address.
- * Google/Firebase performs the identity proof, and onAuthStateChanged restores
- * the authenticated user after the browser returns from the redirect.
+ * Safari/Mobile direct email login.
+ * This path must not open Google. It creates the app's local direct session that
+ * App.tsx already knows how to restore from masrofi_direct_session.
  */
-export const loginWithSafariDirect = async (_email?: string): Promise<{ success: boolean; user?: any; error?: string }> => {
+export const loginWithSafariDirect = async (email?: string): Promise<{ success: boolean; user?: any; token?: string; error?: string }> => {
   try {
-    clearGoogleRedirectPending();
-    // Do not use redirect on Safari here. Keeping signInWithPopup as the first
-    // awaited auth action preserves the user's click gesture and avoids the
-    // redirect/session loop seen on iOS Safari.
-    const result = await signInWithPopup(auth, googleProvider);
-    return { success: true, user: result.user };
-  } catch (err: any) {
-    console.error("Safari popup login error:", err);
-    let errorMessage = err?.message || "فشل بدء تسجيل الدخول الآمن بواسطة Google";
-    if (err?.code === 'auth/popup-blocked') {
-      errorMessage = "حظر Safari نافذة Google. اضغط زر Google مرة واحدة مباشرة بعد تحميل الصفحة، أو افتح الموقع من Safari وليس من داخل تطبيق آخر.";
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail || !/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+      return { success: false, error: "يرجى إدخال بريد إلكتروني صالح للدخول السريع." };
     }
-    return { success: false, error: errorMessage };
+    clearGoogleRedirectPending();
+    const directUser = {
+      uid: `direct:${cleanEmail}`,
+      email: cleanEmail,
+      displayName: cleanEmail.split('@')[0],
+      isAnonymous: false,
+      providerId: 'masrofi-direct-email',
+    };
+    const token = `direct:${cleanEmail}`;
+    localStorage.setItem('masrofi_direct_session', JSON.stringify({
+      user: directUser,
+      token,
+      createdAt: Date.now(),
+    }));
+    return { success: true, user: directUser, token };
+  } catch (err: any) {
+    console.error("Direct email login error:", err);
+    return { success: false, error: err?.message || "تعذر إتمام الدخول السريع بالبريد الإلكتروني." };
   }
 };
 
