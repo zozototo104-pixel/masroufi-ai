@@ -57,6 +57,7 @@ export function clearGoogleRedirectPending() {
 export const loginWithSafariDirect = async (_email?: string): Promise<{ success: boolean; redirecting?: boolean; error?: string }> => {
   try {
     await setPersistence(auth, browserLocalPersistence);
+    markGoogleRedirectPending();
     await signInWithRedirect(auth, googleProvider);
     return { success: true, redirecting: true };
   } catch (err: any) {
