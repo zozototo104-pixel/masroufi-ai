@@ -14,21 +14,7 @@ import {
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-function getEffectiveFirebaseConfig() {
-  if (typeof window === 'undefined') return firebaseConfig;
-  const host = window.location.hostname;
-  // Keep the Firebase project as masrofee-ai, but on the Render app domain use
-  // the app host for Firebase Auth redirects. The server proxies /__/auth/* to
-  // masrofee-ai.firebaseapp.com so Safari/iOS can restore the session on the
-  // same site instead of losing it across firebaseapp.com ↔ onrender.com.
-  if (host === 'masroufi-ai-1.onrender.com') {
-    return { ...firebaseConfig, authDomain: host };
-  }
-  return firebaseConfig;
-}
-
-const effectiveFirebaseConfig = getEffectiveFirebaseConfig();
-const app = initializeApp(effectiveFirebaseConfig);
+const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
