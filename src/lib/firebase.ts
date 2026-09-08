@@ -87,6 +87,17 @@ export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any;
   }
 };
 
+export const completeGoogleRedirectLogin = async (): Promise<{ success: boolean; user?: any; error?: string }> => {
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    const result = await getRedirectResult(auth);
+    return result?.user ? { success: true, user: result.user } : { success: true };
+  } catch (error: any) {
+    console.warn("Google redirect result error:", error);
+    return { success: false, error: error?.message || "تعذر إكمال تسجيل الدخول بعد الرجوع من Google" };
+  }
+};
+
 export const logout = async () => {
   try {
     localStorage.removeItem('masrofi_direct_session');
