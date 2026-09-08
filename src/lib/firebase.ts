@@ -30,6 +30,23 @@ try {
 }
 
 export const googleProvider = new GoogleAuthProvider();
+export const GOOGLE_REDIRECT_PENDING_KEY = 'masrofi_google_redirect_pending';
+
+function markGoogleRedirectPending() {
+  try {
+    localStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, JSON.stringify({ startedAt: Date.now() }));
+  } catch (e) {
+    console.warn('Could not mark Google redirect pending:', e);
+  }
+}
+
+export function clearGoogleRedirectPending() {
+  try {
+    localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
+  } catch (e) {
+    console.warn('Could not clear Google redirect pending:', e);
+  }
+}
 
 /**
  * Safari/Mobile login uses Firebase's provider-controlled redirect flow.
