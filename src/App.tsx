@@ -272,19 +272,30 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+    const googleRedirectPendingAtStart = isGoogleRedirectPending();
+    let redirectGraceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const finishAuthLoading = () => {
+      if (mounted) setAuthLoading(false);
+    };
 
     // 0. Complete Firebase redirect login after Safari returns from Google.
     completeGoogleRedirectLogin()
       .then(async (res) => {
-        if (!mounted || !res.success || !res.user) return;
-        setUser(res.user);
-        try {
-          const token = await res.user.getIdToken();
-          if (mounted) setIdToken(token);
-        } catch (e) {
-          console.warn("Failed getting redirect idToken", e);
-        } finally {
-          if (mounted) setAuthLoading(false);
+        if (!mounted) return;
+        if (res.success && res.user) {
+          clearGoogleRedirectPending();
+          setUser(res.user);
+          try {
+            const token = await res.user.getIdToken();
+            if (mounted) setIdToken(token);
+          } catch (e) {
+            console.warn("Failed getting redirect idToken", e);
+          } finally {
+            finishAuthLoading();
+          }
+        } else if (!googleRedirectPendingAtStart) {
+          // No redirect was pending; regular onAuthStateChanged can finish load.
         }
       })
       .catch((e) => console.warn("Redirect login completion failed", e));
@@ -297,6 +308,7 @@ export default function App() {
         if (parsed && parsed.user && parsed.token) {
           setUser(parsed.user);
           setIdToken(parsed.token);
+          clearGoogleRedirectPending();
           setAuthLoading(false);
         }
       }
@@ -308,6 +320,7 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!mounted) return;
       if (currentUser) {
+        clearGoogleRedirectPending();
         setUser(currentUser);
         try {
           const token = await currentUser.getIdToken();
@@ -315,25 +328,49 @@ export default function App() {
         } catch (e) {
           console.warn("Failed getting idToken", e);
         }
+        finishAuthLoading();
       } else {
         const savedSession = localStorage.getItem('masrofi_direct_session');
         if (savedSession) {
           try {
             const parsed = JSON.parse(savedSession);
             if (parsed && parsed.user && parsed.token) {
+              clearGoogleRedirectPending();
               setUser(parsed.user);
               setIdToken(parsed.token);
+              finishAuthLoading();
+              return;
             }
           } catch (e) {}
-        } else {
-          setUser(null);
-          setIdToken(null);
         }
+
+        if (googleRedirectPendingAtStart || isGoogleRedirectPending()) {
+          // Safari can report null briefly after returning from Google before the
+          // redirect result/session is restored. Do not show the login page too
+          // early; keep the loading screen for a short grace period.
+          if (!redirectGraceTimer) {
+            redirectGraceTimer = setTimeout(() => {
+              if (!mounted) return;
+              if (!auth.currentUser) {
+                clearGoogleRedirectPending();
+                setUser(null);
+                setIdToken(null);
+                setLoginError('رجعنا من Google لكن لم تثبت جلسة Firebase. تأكد أن النطاق masroufi-ai-1.onrender.com مضاف في Firebase Authentication > Settings > Authorized domains، ثم جرّب مرة ثانية.');
+                finishAuthLoading();
+              }
+            }, 8000);
+          }
+          return;
+        }
+
+        setUser(null);
+        setIdToken(null);
+        finishAuthLoading();
       }
-      setAuthLoading(false);
     });
     return () => {
       mounted = false;
+      if (redirectGraceTimer) clearTimeout(redirectGraceTimer);
       unsubscribe();
     };
   }, []);
