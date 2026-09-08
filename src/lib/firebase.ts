@@ -4,6 +4,7 @@ import {
   GoogleAuthProvider, 
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signOut,
   setPersistence,
   browserLocalPersistence,
