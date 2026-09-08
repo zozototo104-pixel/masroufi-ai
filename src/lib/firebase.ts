@@ -128,6 +128,7 @@ export const completeGoogleRedirectLogin = async (): Promise<{ success: boolean;
   try {
     await setPersistence(auth, browserLocalPersistence);
     const result = await getRedirectResult(auth);
+    if (result?.user) clearGoogleRedirectPending();
     return result?.user ? { success: true, user: result.user } : { success: true };
   } catch (error: any) {
     console.warn("Google redirect result error:", error);
