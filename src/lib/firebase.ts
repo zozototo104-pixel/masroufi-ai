@@ -79,6 +79,7 @@ export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any;
   try {
     await setPersistence(auth, browserLocalPersistence);
     if (shouldUseRedirectLogin()) {
+      markGoogleRedirectPending();
       await signInWithRedirect(auth, googleProvider);
       return { success: true, redirecting: true };
     }
