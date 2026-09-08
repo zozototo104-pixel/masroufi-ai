@@ -2105,38 +2105,6 @@ ${relationshipContext}
     }
   });
 
-  // Firebase Auth redirect helper proxy for Safari/iOS.
-  // When the browser Firebase config uses authDomain=masroufi-ai-1.onrender.com,
-  // Firebase requests /__/auth/* on this app host. Proxy those helper files and
-  // callbacks to the real Firebase project host without changing the project.
-  app.use('/__/auth', async (req, res) => {
-    try {
-      const targetUrl = `https://masrofee-ai.firebaseapp.com/__/auth${req.originalUrl.replace(/^\/__\/auth/, '')}`;
-      const upstream = await fetch(targetUrl, {
-        method: req.method,
-        headers: {
-          'accept': String(req.headers.accept || '*/*'),
-          'accept-language': String(req.headers['accept-language'] || ''),
-          'user-agent': String(req.headers['user-agent'] || ''),
-          'content-type': String(req.headers['content-type'] || ''),
-        },
-        body: req.method === 'GET' || req.method === 'HEAD' ? undefined : JSON.stringify(req.body || {}),
-        redirect: 'manual',
-      });
-      upstream.headers.forEach((value, key) => {
-        if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(key.toLowerCase())) {
-          res.setHeader(key, value);
-        }
-      });
-      res.status(upstream.status);
-      const body = Buffer.from(await upstream.arrayBuffer());
-      res.send(body);
-    } catch (error: any) {
-      console.error('Firebase auth helper proxy error:', error);
-      res.status(502).send('Firebase auth helper proxy failed');
-    }
-  });
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
