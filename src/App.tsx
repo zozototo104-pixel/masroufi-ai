@@ -1218,9 +1218,7 @@ export default function App() {
     const dateStr = activeReport ? new Date(activeReport.date || activeReport.createdAt).toLocaleDateString('ar-EG') : new Date().toLocaleDateString('ar-EG');
     const text = buildWhatsAppReportText(title, dateStr, userName, reportData);
     const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    // iPhone Safari often blocks window.open as a popup. Navigating the same
-    // window is treated as a direct user action and reliably opens WhatsApp.
-    window.location.href = waUrl;
+    window.open(waUrl, '_blank');
   };
 
   const handleShareEmail = () => {
