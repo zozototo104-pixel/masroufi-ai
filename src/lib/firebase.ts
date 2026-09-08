@@ -47,15 +47,34 @@ export const loginWithSafariDirect = async (_email?: string): Promise<{ success:
   }
 };
 
-export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any; error?: string }> => {
+function shouldUseRedirectLogin(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const vendor = navigator.vendor || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1);
+  const isSafari = /Safari/i.test(ua) && /Apple/i.test(vendor) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+  return isIOS || isSafari;
+}
+
+export const loginWithGoogle = async (): Promise<{ success: boolean; user?: any; redirecting?: boolean; error?: string }> => {
   try {
+    await setPersistence(auth, browserLocalPersistence);
+    if (shouldUseRedirectLogin()) {
+      await signInWithRedirect(auth, googleProvider);
+      return { success: true, redirecting: true };
+    }
     const result = await signInWithPopup(auth, googleProvider);
     return { success: true, user: result.user };
   } catch (error: any) {
-    console.warn("Google popup login error:", error);
+    console.warn("Google login error:", error);
     let errorMessage = "تعذر تسجيل الدخول بواسطة Google";
     if (error.code === 'auth/popup-blocked') {
-      errorMessage = "قام متصفح Safari بحظر النافذة المنبثقة. يمكنك استخدام زر «الدخول المباشر السريع» بالأسفل للدخول الفوري دون نوافذ منبثقة.";
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return { success: true, redirecting: true };
+      } catch (redirectErr: any) {
+        errorMessage = redirectErr?.message || "حظر المتصفح النافذة المنبثقة وتعذر بدء تحويل تسجيل الدخول.";
+      }
     } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
       errorMessage = "تم إغلاق نافذة تسجيل الدخول قبل إتمام العملية.";
     } else if (error.code === 'auth/network-request-failed') {
