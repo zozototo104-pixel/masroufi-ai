@@ -172,9 +172,15 @@ export default function App() {
   const getReportTransactions = (report: any | null, allTransactions: any[]) => {
     if (!report) return allTransactions;
     
-    const targetCat = report.category && report.category !== 'all' && report.category !== 'الكل' && report.category !== 'كافة البنود' && report.category !== 'التقرير الشامل'
-      ? report.category 
-      : (report.title && !report.title.includes('شامل') && !report.title.includes('كافة البنود') && !report.title.includes('الشامل') ? report.title : '');
+    const hasSavedReportTransactions = Array.isArray(report.transactions) && report.transactions.length > 0;
+    const titleText = String(report.title || '');
+    const titleLooksLikeScopeReport = /تقرير|مصروفات|شهر|دورة|راتب|\b20\d{2}\b|report|month|salary/i.test(titleText);
+    const explicitCategory = report.category && report.category !== 'all' && report.category !== 'الكل' && report.category !== 'كافة البنود' && report.category !== 'التقرير الشامل'
+      ? report.category
+      : '';
+    const targetCat = explicitCategory
+      ? explicitCategory
+      : (titleText && !titleLooksLikeScopeReport && !titleText.includes('شامل') && !titleText.includes('كافة البنود') && !titleText.includes('الشامل') ? titleText : '');
 
     const isSpecificCategory = Boolean(targetCat);
 
