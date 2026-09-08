@@ -11,7 +11,7 @@ import { useGeminiLive } from './lib/useGeminiLive';
 import MindMapChart from './components/MindMapChart';
 import { DataBackupModal } from './components/DataBackupModal';
 import { FloatingAssistant } from './components/FloatingAssistant';
-import { auth, loginWithGoogle, loginWithSafariDirect, completeGoogleRedirectLogin, logout } from './lib/firebase';
+import { auth, loginWithGoogle, loginWithSafariDirect, completeGoogleRedirectLogin, isGoogleRedirectPending, clearGoogleRedirectPending, logout } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { buildHierarchicalReport, buildWordDocumentContent, buildWhatsAppReportText, matchesArabicCategory } from './lib/reportUtils';
