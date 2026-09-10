@@ -362,6 +362,8 @@ test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and m
   const tools = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   assert.ok(server.includes('lastLiveUserTranscript') && server.includes('currentUserText: liveCurrentUserText'),
     'Live financial tool calls must receive the latest spoken transcript when Gemini provides it');
+  assert.ok(server.includes('lastLiveUserTranscriptAt') && server.includes('Date.now() - lastLiveUserTranscriptAt < 15_000'),
+    'Live financial tool calls must not reuse a stale spoken transcript for a later payment decision');
   assert.ok(tools.includes('explicitDebtInUserText') && tools.includes('hasOriginalUserUtterance') && tools.includes('explicitUserPaymentAccount'),
     'payment intent and account choice must be checked against the original user words when available');
   assert.equal(tools.includes('Boolean(args.creditor && type ==='), false,
