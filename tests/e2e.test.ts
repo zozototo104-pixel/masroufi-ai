@@ -357,6 +357,19 @@ test('LIVE-AUDIO: backend must forward every Gemini Live audio part, not only th
     'Live disconnect logs must summarize whether audio was received/forwarded before closing');
 });
 
+test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and must not invent debt from creditor fields', async () => {
+  const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  const tools = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
+  assert.ok(server.includes('lastLiveUserTranscript') && server.includes('currentUserText: liveCurrentUserText'),
+    'Live financial tool calls must receive the latest spoken transcript when Gemini provides it');
+  assert.ok(tools.includes('explicitDebtInUserText') && tools.includes('hasOriginalUserUtterance'),
+    'payment intent must be checked against the original user words when available');
+  assert.equal(tools.includes('Boolean(args.creditor && type ==='), false,
+    'merchant/creditor extracted from "من عند فلان" must not be treated as an explicit debt payment method');
+  assert.ok(tools.includes('MISSING_PAYMENT_METHOD') && tools.includes('هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟'),
+    'completed purchase details without an explicit payment method must ask cash/PalPay/debt instead of choosing debt');
+});
+
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
   const app = await readFile(join(process.cwd(), 'src/App.tsx'), 'utf8');
   const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
