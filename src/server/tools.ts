@@ -736,7 +736,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type !== 'income' && type !== 'expense') type = 'expense';
 
   const explicitDebtInUserText = /(?:^|[^ء-يa-z0-9])(?:دين|دينا|بالدين|اجل|على الحساب|عال حساب|عالحساب|credit_purchase|debt)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
-  const explicitCashOrPalPayInUserText = /(?:^|[^ء-يa-z0-9])(?:كاش|نقد|نقدا|نقدي|palpay|pal pay|بال باي|البال باي|محفظه|محفظة)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
+  const explicitPalPayInUserText = /(?:^|[^ء-يa-z0-9])(?:palpay|pal pay|بال باي|البال باي|محفظه|محفظة)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
+  const explicitCashInUserText = /(?:^|[^ء-يa-z0-9])(?:كاش|نقد|نقدا|نقدي)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
+  const explicitUserPaymentAccount = explicitDebtInUserText ? 'debt' : explicitPalPayInUserText ? 'palPay' : explicitCashInUserText ? 'cash' : '';
   const mentionsDebt = hasOriginalUserUtterance
     ? explicitDebtInUserText
     : /دين|بالدين|اجل|آجل|على الحساب|credit_purchase|paymentmethod debt|account debt/.test(textToCheck);
