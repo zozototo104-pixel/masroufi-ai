@@ -721,8 +721,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
   
   const amount = parseAbsoluteFinancialAmount(args.amount);
 
-  const intentTextRaw = `${args.userText || ''} ${args.currentUserText || ''} ${args.type || ''} ${args.account || ''} ${args.paymentMethod || ''} ${args.transactionType || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''} ${args.description || ''} ${args.item || ''} ${args.purchaseItem || ''} ${args.merchant || ''} ${args.creditor || ''} ${args.seller || ''}`;
-  const textToCheck = normalizeArabicText(intentTextRaw).toLowerCase();
+  const originalUtteranceText = normalizeArabicText(`${args.currentUserText || ''} ${args.userText || ''}`).toLowerCase();
+  const hasOriginalUserUtterance = Boolean(originalUtteranceText.trim());
+  const modelIntentText = normalizeArabicText(`${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''} ${args.description || ''} ${args.item || ''} ${args.purchaseItem || ''} ${args.merchant || ''} ${args.creditor || ''} ${args.seller || ''}`).toLowerCase();
+  const textToCheck = `${originalUtteranceText} ${modelIntentText}`;
 
   if (args.fromAccount && args.toAccount) {
     return await transferMoney(args, userId, token);
@@ -733,16 +735,27 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type.includes('دخل') || type.includes('قبض') || type.includes('راتب') || type.includes('إيداع') || type.includes('ايداع') || type.includes('مرحل') || type.includes('تحويل لي') || type.includes('income')) type = 'income';
   if (type !== 'income' && type !== 'expense') type = 'expense';
 
-  const mentionsDebt = /دين|بالدين|اجل|آجل|على الحساب|credit_purchase|paymentmethod debt|account debt/.test(textToCheck);
+  const explicitDebtInUserText = /(?:^|[^ء-يa-z0-9])(?:دين|دينا|بالدين|اجل|على الحساب|عال حساب|عالحساب|credit_purchase|debt)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
+  const explicitCashOrPalPayInUserText = /(?:^|[^ء-يa-z0-9])(?:كاش|نقد|نقدا|نقدي|palpay|pal pay|بال باي|البال باي|محفظه|محفظة)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
+  const mentionsDebt = hasOriginalUserUtterance
+    ? explicitDebtInUserText
+    : /دين|بالدين|اجل|آجل|على الحساب|credit_purchase|paymentmethod debt|account debt/.test(textToCheck);
   const mentionsPurchase = /اشتريت|شريت|شراء|مشتريات|مصروف|سجل|سجلي|قيد|قيدي/.test(textToCheck);
   const mentionsDebtRepayment = /سداد|تسديد|سدد|سديت|دفع دين|دفعت دين/.test(textToCheck);
   const mentionsCashBorrowing = /اخذت دين نقدي|اخدت دين نقدي|استدنت|اقترضت|سلفه|سلفة/.test(textToCheck) && !/اشتريت|شريت|شراء|مشتريات/.test(textToCheck);
   const structuredCreditPurchaseIntent = String(args.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE'
     || normalizeAccount(args.paymentMethod) === 'debt'
     || normalizeAccount(args.account) === 'debt';
-  const forcedCreditPurchaseIntent = type === 'expense' && (structuredCreditPurchaseIntent || (mentionsDebt && mentionsPurchase)) && !mentionsDebtRepayment && !mentionsCashBorrowing;
+  const forcedCreditPurchaseIntent = type === 'expense'
+    && (hasOriginalUserUtterance
+      ? ((structuredCreditPurchaseIntent && explicitDebtInUserText) || (explicitDebtInUserText && mentionsPurchase))
+      : structuredCreditPurchaseIntent || (mentionsDebt && mentionsPurchase))
+    && !mentionsDebtRepayment
+    && !mentionsCashBorrowing;
 
-  const paymentWasProvided = Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
+  const paymentWasProvided = hasOriginalUserUtterance
+    ? Boolean(explicitDebtInUserText || explicitCashOrPalPayInUserText || forcedCreditPurchaseIntent)
+    : Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
   let account = forcedCreditPurchaseIntent ? 'debt' : normalizeAccount(args.paymentMethod || args.account || 'cash');
   let category = String(args.category || '').trim();
   let subcategory = String(args.subcategory || '').trim();
