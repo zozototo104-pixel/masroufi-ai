@@ -362,8 +362,8 @@ test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and m
   const tools = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
   assert.ok(server.includes('lastLiveUserTranscript') && server.includes('currentUserText: liveCurrentUserText'),
     'Live financial tool calls must receive the latest spoken transcript when Gemini provides it');
-  assert.ok(tools.includes('explicitDebtInUserText') && tools.includes('hasOriginalUserUtterance'),
-    'payment intent must be checked against the original user words when available');
+  assert.ok(tools.includes('explicitDebtInUserText') && tools.includes('hasOriginalUserUtterance') && tools.includes('explicitUserPaymentAccount'),
+    'payment intent and account choice must be checked against the original user words when available');
   assert.equal(tools.includes('Boolean(args.creditor && type ==='), false,
     'merchant/creditor extracted from "من عند فلان" must not be treated as an explicit debt payment method');
   assert.ok(tools.includes('MISSING_PAYMENT_METHOD') && tools.includes('هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟'),
