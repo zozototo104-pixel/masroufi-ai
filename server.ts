@@ -2441,7 +2441,8 @@ ${activeSalaryCycleText}
                         const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
                         const stableOperationId = liveKey ? `live:${liveBucket}:${liveKey}` : null;
                         const modelProvidedUserText = String((effectiveCall.args as any)?.currentUserText || (effectiveCall.args as any)?.userText || '').trim();
-                        const liveCurrentUserText = lastLiveUserTranscript || modelProvidedUserText;
+                        const recentLiveTranscript = lastLiveUserTranscript && Date.now() - lastLiveUserTranscriptAt < 15_000 ? lastLiveUserTranscript : '';
+                        const liveCurrentUserText = recentLiveTranscript || modelProvidedUserText;
                         let toolArgs: Record<string, any> = stableOperationId
                           ? { ...(effectiveCall.args || {}), operationId: stableOperationId, ...(liveCurrentUserText ? { userText: liveCurrentUserText, currentUserText: liveCurrentUserText } : {}) }
                           : { ...(effectiveCall.args || {}), ...(liveCurrentUserText ? { userText: liveCurrentUserText, currentUserText: liveCurrentUserText } : {}) };
