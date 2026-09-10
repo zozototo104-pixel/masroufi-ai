@@ -2176,6 +2176,7 @@ function setupLiveApi(wss: WebSocketServer) {
     let aiOutputActive = false;
     let clientInterruptOverrideUntilMs = 0;
     let droppedEchoAudioChunks = 0;
+    let lastLiveUserTranscript = '';
     let liveReportScopeMissingUntilMs = 0;
     let liveReportScopeOverride: { month?: number; year?: number; untilMs?: number } = {};
     let activeSalaryCycleContext: { cycleId?: string; name?: string; month?: number; year?: number } = {};
