@@ -841,9 +841,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
       }
       return { success: true, splitIncome: true, results, message: `تم توزيع الدخل: ${allocations.map(a => `${a.amount} ₪ ${a.account === 'palPay' ? 'PalPay' : 'كاش'}`).join('، ')}.` };
     }
-    // Live tool calls do not carry a transcript/userText; in that path the model's
-    // structured income fields are the only available evidence. Text chat still
-    // prefers the user's original words when they are available.
+    // Prefer the user's original words when they are available. Some API/queued
+    // calls can still arrive without a transcript, so structured fields remain a fallback.
     const originalUserIncomeText = normalizeArabicText(args.userText || args.currentUserText || '');
     const toolIncomeText = normalizeArabicText(`${category} ${subcategory} ${notes} ${args.source || ''} ${args.description || ''}`);
     const explicitIncomeDestination = paymentWasProvided && (account === 'cash' || account === 'palPay');
