@@ -6056,7 +6056,9 @@ export const functionDeclarations = [
         necessity: { type: "string", description: "اختياري. تصنيف الأهمية: 'ضروري' أو 'كمالي'. لا تطلبه من المستخدم إذا كان وصف الشراء واضحاً؛ اتركه فارغاً ليصنفه النظام وفق واقع غزة." },
         riskConfirmed: { type: "boolean", description: "true فقط إذا حذر النظام المستخدم من تجاوز/خطر مالي ووافق صراحة على المتابعة." },
         duplicateConfirmed: { type: "boolean", description: "true فقط إذا أخبر النظام المستخدم بوجود عملية سابقة قريبة وسأله هل هذه عملية جديدة مستقلة، ثم أكد المستخدم صراحة أنها جديدة. لا تستخدمها من نفسك." },
-        confirmedNewTransaction: { type: "boolean", description: "مرادف duplicateConfirmed للتأكيد الصريح أن القيد الجديد مستقل عن القيد السابق." }
+        confirmedNewTransaction: { type: "boolean", description: "مرادف duplicateConfirmed للتأكيد الصريح أن القيد الجديد مستقل عن القيد السابق." },
+        userText: { type: "string", description: "النص الأصلي الذي قاله المستخدم لهذا القيد. مهم جداً: مرره كما قيل حتى يميّز الخادم بين اسم محل/شخص وبين طريقة دفع دين/كاش/PalPay." },
+        currentUserText: { type: "string", description: "آخر جملة أصلية من المستخدم عند الاستدعاء الصوتي أو النصي؛ لا تخترعها." }
       },
       required: ["amount", "type", "account", "category", "subcategory", "paymentMethod"]
     }
