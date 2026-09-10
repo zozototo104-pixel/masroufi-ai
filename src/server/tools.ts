@@ -739,11 +739,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const mentionsCashBorrowing = /اخذت دين نقدي|اخدت دين نقدي|استدنت|اقترضت|سلفه|سلفة/.test(textToCheck) && !/اشتريت|شريت|شراء|مشتريات/.test(textToCheck);
   const structuredCreditPurchaseIntent = String(args.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE'
     || normalizeAccount(args.paymentMethod) === 'debt'
-    || normalizeAccount(args.account) === 'debt'
-    || Boolean(args.creditor && type === 'expense' && !mentionsDebtRepayment && !mentionsCashBorrowing);
+    || normalizeAccount(args.account) === 'debt';
   const forcedCreditPurchaseIntent = type === 'expense' && (structuredCreditPurchaseIntent || (mentionsDebt && mentionsPurchase)) && !mentionsDebtRepayment && !mentionsCashBorrowing;
 
-  const paymentWasProvided = Boolean(args.paymentMethod || args.account || args.creditor || forcedCreditPurchaseIntent);
+  const paymentWasProvided = Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
   let account = forcedCreditPurchaseIntent ? 'debt' : normalizeAccount(args.paymentMethod || args.account || 'cash');
   let category = String(args.category || '').trim();
   let subcategory = String(args.subcategory || '').trim();
