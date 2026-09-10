@@ -756,9 +756,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
     && !mentionsCashBorrowing;
 
   const paymentWasProvided = hasOriginalUserUtterance
-    ? Boolean(explicitDebtInUserText || explicitCashOrPalPayInUserText || forcedCreditPurchaseIntent)
+    ? Boolean(explicitUserPaymentAccount || forcedCreditPurchaseIntent)
     : Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
-  let account = forcedCreditPurchaseIntent ? 'debt' : normalizeAccount(args.paymentMethod || args.account || 'cash');
+  let account = forcedCreditPurchaseIntent ? 'debt' : (explicitUserPaymentAccount || normalizeAccount(args.paymentMethod || args.account || 'cash'));
   let category = String(args.category || '').trim();
   let subcategory = String(args.subcategory || '').trim();
   const merchant = String(args.merchant || args.creditor || args.seller || args.store || args.vendor || args.person || '').trim();
