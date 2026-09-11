@@ -1358,6 +1358,7 @@ test('LIVE-02: Gemini Live quota exhaustion is classified and surfaced to the us
   assert.ok(liveSrc.includes('if (msg.liveError)'), 'client must handle non-quota Live API errors explicitly');
   assert.ok(liveSrc.includes('msg.liveClosed && receivedAudioFramesRef.current === 0'), 'client must surface early Live close before any audio arrives');
   assert.ok(liveSrc.includes('انتهت حصة Gemini Live API'), 'client must show a clear Arabic quota message');
+  assert.ok(liveSrc.includes('outputGain.gain.value = 1.6') && liveSrc.includes('outputGain.disconnect()'), 'client must boost quiet Gemini Live playback on mobile without changing microphone input and must clean up gain nodes');
   assert.ok(liveSrc.includes("setStatus('idle')") && liveSrc.includes('setIsRecording(false)'), 'client must stop the voice UI when Live quota is exhausted');
 });
 
