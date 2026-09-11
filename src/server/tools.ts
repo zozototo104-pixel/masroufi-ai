@@ -6289,10 +6289,17 @@ export const functionDeclarations = [
   },
   {
     name: "get_recent_transactions",
-    description: "يجلب أحدث العمليات المالية ويرجع ملخصاً جاهزاً للقراءة بصوت واضح. استخدمه لأي سؤال مثل: شو آخر العمليات المالية؟ آخر مصروفات؟ آخر القيود؟ ولا تستخدم query_transactions لهذا السؤال إلا إذا طلب المستخدم فترة محددة.",
+    description: "يجلب أحدث العمليات المالية ويرجع ملخصاً جاهزاً للقراءة بصوت واضح. استخدمه لأي سؤال مثل: شو آخر العمليات المالية؟ آخر العمليات اللي تسجلت اليوم؟ آخر مصروفات؟ آخر القيود؟ إذا قال المستخدم اليوم/تسجلت اليوم فمرر userText كما هو أو today=true. لا تستخدم memory_search لهذا السؤال ولا تستخدم query_transactions إلا إذا طلب فترة محددة.",
     parameters: {
       type: "object",
-      properties: {}
+      properties: {
+        limit: { type: "number", description: "عدد العمليات المطلوبة، افتراضياً 10 وبحد أقصى 20" },
+        today: { type: "boolean", description: "true إذا قال المستخدم اليوم أو تسجلت اليوم" },
+        date: { type: "string", description: "today أو تاريخ YYYY-MM-DD إذا طلب أحدث عمليات ليوم محدد" },
+        type: { type: "string", description: "expense أو income إذا طلب آخر مصروفات أو آخر دخل" },
+        userText: { type: "string", description: "النص الأصلي كما قاله المستخدم، خصوصاً إذا قال اليوم/تسجلت اليوم" },
+        currentUserText: { type: "string", description: "آخر جملة أصلية من المستخدم عند الاستدعاء الصوتي" }
+      }
     }
   },
   {
