@@ -2974,8 +2974,11 @@ ${activeSalaryCycleText}
                     await session.sendToolResponse({ functionResponses: functionResponsesForModel });
                     liveToolResponsesSent += 1;
                     liveAudioSinceLastToolResponse = 0;
-                    awaitingPostToolAudio = true;
-                    console.log('[live-audio] tool response sent', { requestId, toolResponses: liveToolResponsesSent, functionResponses: functionResponses.length });
+                    awaitingPostToolAudio = Boolean(deterministicReadReply);
+                    if (deterministicReadReply) {
+                      schedulePostToolAudioFallback(deterministicReadReply);
+                    }
+                    console.log('[live-audio] tool response sent', { requestId, toolResponses: liveToolResponsesSent, functionResponses: functionResponses.length, awaitingPostToolAudio });
                   } catch (toolErr) {
                     console.error("Error sending tool response:", toolErr);
                   }
