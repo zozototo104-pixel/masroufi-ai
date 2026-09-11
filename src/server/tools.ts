@@ -2553,9 +2553,15 @@ function resolveDebtSettlementDate(args: any, creditorTransactions: any[], now: 
 
 export async function payDebt(args:any,userId:string,token:string){
   const adminDb=getDb(token), amount=parsePositiveFinancialAmount(args.amount);
-  if(amount<=0)return{success:false,error:'المبلغ يجب أن يكون أكبر من صفر'};
-  let fromAccount=normalizeAccount(args.paymentMethod||args.fromAccount||'cash');
-  if(fromAccount==='debt')fromAccount='cash';
+  if(amount<=0)return{success:false,needsClarification:true,reason:'INVALID_AMOUNT',missingFields:['amount'],message:'كم مبلغ سداد الدين؟'};
+  const rawPaymentAccount = args.paymentMethod || args.fromAccount;
+  if (!rawPaymentAccount) {
+    return { success:false, needsClarification:true, reason:'MISSING_DEBT_PAYMENT_ACCOUNT', missingFields:['debtPaymentAccount'], message:'هل سددت الدين من الكاش أم من محفظة PalPay؟' };
+  }
+  let fromAccount=normalizeAccount(rawPaymentAccount);
+  if(fromAccount==='debt'){
+    return { success:false, needsClarification:true, reason:'MISSING_DEBT_PAYMENT_ACCOUNT', missingFields:['debtPaymentAccount'], message:'سداد الدين لازم يكون من الكاش أو PalPay، وليس من حساب الدين. من أين دفعت؟' };
+  }
   const fromName=fromAccount==='palPay'?'محفظة PalPay':'النقدي (كاش)';
   const requestedCreditor = String(args.creditor||args.person||args.merchant||'').trim();
   const requestedCreditorKey = normalizeCreditorName(requestedCreditor);
