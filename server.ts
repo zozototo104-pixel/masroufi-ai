@@ -2608,6 +2608,41 @@ ${activeSalaryCycleText}
                 lastLiveUserTranscript = inputTranscript;
                 lastLiveUserTranscriptAt = Date.now();
                 console.log('[live-input] transcript captured', { requestId, chars: inputTranscript.length });
+
+                const pendingClarificationCall = buildPendingFinancialClarificationCall(userId, inputTranscript, `live_${requestId}_${Date.now()}`);
+                if (pendingClarificationCall && userId && userToken && !livePendingClarificationRunning && toolHandlers[pendingClarificationCall.name]) {
+                  livePendingClarificationRunning = true;
+                  (async () => {
+                    try {
+                      const stableOperationId = buildStableOperationIdForToolCall(pendingClarificationCall, `live_${requestId}_${Date.now()}`);
+                      const toolArgs = {
+                        ...(pendingClarificationCall.args || {}),
+                        ...(stableOperationId ? { operationId: stableOperationId } : {}),
+                        activeSalaryCycleId: activeSalaryCycleContext.cycleId,
+                        activeSalaryCycleName: activeSalaryCycleContext.name,
+                        activeSalaryCycleMonth: activeSalaryCycleContext.month,
+                        activeSalaryCycleYear: activeSalaryCycleContext.year,
+                      };
+                      console.warn('[financial-clarification] completing pending clarification from Live transcript', {
+                        requestId,
+                        name: pendingClarificationCall.name,
+                        transcript: inputTranscript.slice(0, 80),
+                      });
+                      const result = await toolHandlers[pendingClarificationCall.name](toolArgs, userId, userToken);
+                      const responses = [{ id: 'live_pending_financial_clarification', name: pendingClarificationCall.name, args: toolArgs, requestArgs: toolArgs, response: result }];
+                      updatePendingFinancialClarificationFromResponses(userId, responses, `live_${requestId}_${Date.now()}`, 'live');
+                      const refreshDecision = liveRefreshScopeForTools(responses as any);
+                      safeSend(refreshDecision.refresh
+                        ? { status: 'ready', refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds, completedPendingClarification: true }
+                        : { status: 'ready', completedPendingClarification: true }
+                      );
+                    } catch (e: any) {
+                      console.error('[financial-clarification] Live transcript clarification failed', { requestId, message: e?.message || String(e) });
+                    } finally {
+                      livePendingClarificationRunning = false;
+                    }
+                  })();
+                }
               }
               const parts = message.serverContent?.modelTurn?.parts || [];
               let audioChunksInMessage = 0;
