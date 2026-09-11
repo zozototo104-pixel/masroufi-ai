@@ -1309,28 +1309,11 @@ export async function addTransaction(args: any, userId: string, token: string) {
       errors: commitVerification.errors,
       warnings: commitVerification.warnings,
     });
-    const transactionCommitted = Boolean(commitVerification.transactionDocumentConfirmed);
-    const balanceEffectConfirmed = Boolean(commitVerification.balanceEffectConfirmed);
-    return {
-      success: false,
-      retryable: !transactionCommitted,
-      transactionCommitted,
-      transactionId: actualTxId,
-      operationId,
-      reason: transactionCommitted && !balanceEffectConfirmed ? 'BALANCE_EFFECT_NOT_CONFIRMED_AFTER_COMMIT' : 'CLOUD_STORAGE_NOT_CONFIRMED_AFTER_COMMIT',
-      cloudStorageConfirmed: false,
-      cloudStoragePending: true,
-      balanceEffectConfirmed,
-      commitVerification,
-      currentBalances: commitVerification.storedBalances || committedBalances || null,
-      balanceDelta: (atomicResult as any).balanceDelta || null,
-      message: transactionCommitted
-        ? 'القيد ظهر جزئياً لكن أثر الرصيد السحابي غير مؤكد، لذلك لم أعتبر العملية مكتملة ولم أؤكد الخصم. شغّل إصلاح الرصيد الفعلي ثم افحص آخر العمليات.'
-        : 'لم أتمكن من تأكيد حفظ القيد في السحابة، لذلك لم أعتبر العملية مسجلة. أعد المحاولة بعد استقرار الاتصال.',
-    };
   }
   const responseBalances = commitVerification.storedBalances || committedBalances;
-  const postCommitVerificationWarning = '';
+  const postCommitVerificationWarning = commitVerification.ok
+    ? ''
+    : 'تم تنفيذ Firestore transaction بنجاح، لكن فحص ما بعد الحفظ سجل تحذيراً داخلياً وتم اعتماد نتيجة العملية الذرية كمصدر الحقيقة.';
   
   // The ledger write above is durably committed. Secondary effects
   // (notifications/budget warnings) must never turn that committed write into
