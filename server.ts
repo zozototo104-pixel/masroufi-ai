@@ -758,6 +758,210 @@ function accountFromFinancialText(text: string): 'cash' | 'palPay' | 'debt' | nu
   return null;
 }
 
+type PendingFinancialClarification = {
+  name: string;
+  args: any;
+  reason: string;
+  missingFields: string[];
+  message?: string;
+  clientMessageId?: string;
+  createdAt: number;
+  source: 'chat' | 'live';
+};
+
+const pendingFinancialClarifications = new Map<string, PendingFinancialClarification>();
+const PENDING_FINANCIAL_CLARIFICATION_TTL_MS = 10 * 60_000;
+
+function pendingClarificationKey(userId: string | null | undefined): string | null {
+  return userId ? String(userId) : null;
+}
+
+function getPendingFinancialClarification(userId: string | null | undefined): PendingFinancialClarification | null {
+  const key = pendingClarificationKey(userId);
+  if (!key) return null;
+  const pending = pendingFinancialClarifications.get(key);
+  if (!pending) return null;
+  if (Date.now() - pending.createdAt > PENDING_FINANCIAL_CLARIFICATION_TTL_MS) {
+    pendingFinancialClarifications.delete(key);
+    return null;
+  }
+  return pending;
+}
+
+function clearPendingFinancialClarification(userId: string | null | undefined) {
+  const key = pendingClarificationKey(userId);
+  if (key) pendingFinancialClarifications.delete(key);
+}
+
+function financialClarificationFieldsFromResult(result: any): string[] {
+  const explicit = Array.isArray(result?.missingFields) ? result.missingFields.map((f: any) => String(f || '').trim()).filter(Boolean) : [];
+  if (explicit.length > 0) return explicit;
+  switch (String(result?.reason || '')) {
+    case 'MISSING_PAYMENT_METHOD': return ['paymentMethod'];
+    case 'MISSING_BORROW_DESTINATION': return ['borrowDestination'];
+    case 'MISSING_DEBT_PAYMENT_ACCOUNT': return ['debtPaymentAccount'];
+    case 'MISSING_INCOME_DESTINATION_CONFIRMATION': return ['incomeDestination'];
+    case 'MISSING_CREDITOR':
+    case 'MISSING_CREDITOR_BOUNDED': return ['creditor'];
+    case 'MISSING_PURCHASE_ITEM': return ['purchaseItem'];
+    case 'MISSING_PURCHASE_BENEFICIARY_OR_PURPOSE': return ['beneficiary'];
+    case 'MISSING_INCOME_NATURE_CONFIRMATION': return ['incomeNature'];
+    case 'MISSING_INCOME_SOURCE': return ['incomeSource'];
+    case 'POSSIBLE_LOAN_NOT_INCOME': return ['incomeNature'];
+    case 'INCOME_SPLIT_MISMATCH': return ['incomeSplit'];
+    default: return [];
+  }
+}
+
+function rememberPendingFinancialClarification(userId: string | null | undefined, callName: string, args: any, result: any, clientMessageId: string, source: 'chat' | 'live') {
+  if (!result?.needsClarification) return;
+  const name = String(callName || '');
+  if (!['add_transaction', 'transfer_money', 'pay_debt'].includes(name)) return;
+  const missingFields = financialClarificationFieldsFromResult(result);
+  if (missingFields.length === 0) return;
+  const key = pendingClarificationKey(userId);
+  if (!key) return;
+  pendingFinancialClarifications.set(key, {
+    name,
+    args: { ...(args || {}) },
+    reason: String(result.reason || missingFields[0] || 'NEEDS_CLARIFICATION'),
+    missingFields,
+    message: result.message,
+    clientMessageId,
+    createdAt: Date.now(),
+    source,
+  });
+  console.warn('[financial-clarification] stored pending financial clarification', {
+    userIdHash: stableShortFingerprint(key),
+    name,
+    reason: result.reason || null,
+    missingFields,
+    source,
+  });
+}
+
+function updatePendingFinancialClarificationFromResponses(userId: string | null | undefined, responses: Array<any>, clientMessageId: string, source: 'chat' | 'live') {
+  const committed = responses.some((r: any) => isFinancialMutationToolName(r?.name) && isCommittedFinancialMutationResponse(r?.response));
+  if (committed) {
+    clearPendingFinancialClarification(userId);
+    return;
+  }
+  const clarification = responses.find((r: any) => r?.response?.needsClarification && ['add_transaction', 'transfer_money', 'pay_debt'].includes(String(r?.name || '')));
+  if (clarification) {
+    rememberPendingFinancialClarification(userId, clarification.name, clarification.requestArgs || clarification.args || {}, clarification.response, clientMessageId, source);
+  }
+}
+
+function isShortClarificationAnswer(text: string): boolean {
+  const normalized = normalizeArabicForIntent(text);
+  if (!normalized || normalized.length > 120) return false;
+  if (extractAmountFromFinancialText(normalized) && looksLikeFinancialWriteIntent(normalized)) return false;
+  return true;
+}
+
+function buildPendingClarificationPatch(userText: string, pending: PendingFinancialClarification): any | null {
+  if (!isShortClarificationAnswer(userText)) return null;
+  const answer = String(userText || '').trim();
+  const normalized = normalizeArabicForIntent(answer);
+  const account = accountFromFinancialText(answer);
+  const fields = new Set(pending.missingFields || []);
+  const patch: any = { currentUserText: answer };
+
+  if (fields.has('paymentMethod')) {
+    if (!account) return null;
+    patch.paymentMethod = account;
+    patch.account = account;
+    if (account === 'debt') patch.transactionType = 'CREDIT_PURCHASE';
+    return patch;
+  }
+  if (fields.has('borrowDestination')) {
+    if (!account || account === 'debt') return null;
+    patch.toAccount = account;
+    return patch;
+  }
+  if (fields.has('debtPaymentAccount')) {
+    if (!account || account === 'debt') return null;
+    patch.paymentMethod = account;
+    patch.fromAccount = account;
+    return patch;
+  }
+  if (fields.has('incomeDestination')) {
+    if (!account || account === 'debt') return null;
+    patch.account = account;
+    patch.paymentMethod = account;
+    patch.incomeDestinationConfirmed = true;
+    patch.destinationConfirmed = true;
+    return patch;
+  }
+  if (fields.has('creditor')) {
+    if (!answer || account || /^(نعم|اه|اها|تمام|اوكي|ok)$/i.test(normalized)) return null;
+    patch.creditor = answer;
+    patch.person = answer;
+    patch.merchant = answer;
+    return patch;
+  }
+  if (fields.has('purchaseItem')) {
+    if (!answer || account) return null;
+    patch.purchaseItem = answer;
+    patch.item = answer;
+    patch.description = answer;
+    return patch;
+  }
+  if (fields.has('beneficiary')) {
+    if (!answer || account) return null;
+    patch.beneficiary = answer;
+    patch.forWhom = answer;
+    return patch;
+  }
+  if (fields.has('incomeSource')) {
+    if (!answer || account) return null;
+    patch.source = answer;
+    patch.merchant = answer;
+    return patch;
+  }
+  if (fields.has('incomeNature')) {
+    if (/راتب/.test(normalized)) {
+      patch.category = 'دخل';
+      patch.subcategory = 'راتب';
+      patch.incomeNatureConfirmed = true;
+      patch.natureConfirmed = true;
+      return patch;
+    }
+    if (/مساعد|منحه|منحة|هديه|هدية|دعم|لا ترد|مش سلف|مش قرض/.test(normalized)) {
+      patch.category = 'دخل';
+      patch.subcategory = 'مساعدة/منحة';
+      patch.incomeNatureConfirmed = true;
+      patch.natureConfirmed = true;
+      return patch;
+    }
+    if (/سلف|دين|قرض|استدن|اقترض/.test(normalized)) {
+      return { convertToTool: 'transfer_money', fromAccount: 'debt', creditor: pending.args.creditor || pending.args.merchant || undefined };
+    }
+  }
+  return null;
+}
+
+function buildPendingFinancialClarificationCall(userId: string | null | undefined, userText: string, clientMessageId: string): FunctionCall | null {
+  const pending = getPendingFinancialClarification(userId);
+  if (!pending) return null;
+  const patch = buildPendingClarificationPatch(userText, pending);
+  if (!patch) return null;
+  const nextName = patch.convertToTool || pending.name;
+  const { convertToTool, ...actualPatch } = patch;
+  return {
+    name: nextName,
+    args: {
+      ...pending.args,
+      ...actualPatch,
+      userText: pending.args.userText || pending.args.currentUserText || '',
+      clarificationReplyText: userText,
+      clarifiedFromReason: pending.reason,
+      originalClarificationClientMessageId: pending.clientMessageId,
+      clientMessageId,
+    },
+  } as any;
+}
+
 function inferFallbackExpenseCategory(text: string): { category: string; subcategory: string; purchaseItem: string; beneficiary: string } {
   const t = normalizeArabicForIntent(text);
   const beneficiary =
