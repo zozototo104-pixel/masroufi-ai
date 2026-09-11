@@ -2715,10 +2715,18 @@ export async function getRecentTransactions(args: any, userId: string, token: st
   const limit = Math.max(1, Math.min(20, Number(args?.limit) || 10));
   const userText = String(args?.userText || args?.currentUserText || '').trim();
   const normalizedUserText = normalizeArabicText(userText).toLowerCase();
-  const localDateKey = (value: any): string | null => {
+  const asDate = (value: any): Date | null => {
     if (!value) return null;
-    const parsed = value instanceof Date ? value : new Date(String(value));
-    if (Number.isNaN(parsed.getTime())) return null;
+    if (value instanceof Date) return value;
+    if (typeof value?.toDate === 'function') return value.toDate();
+    if (typeof value?.toMillis === 'function') return new Date(value.toMillis());
+    if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000);
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+  const localDateKey = (value: any): string | null => {
+    const parsed = asDate(value);
+    if (!parsed) return null;
     // User/session timezone is GMT+3 in Render logs and the mobile UI.
     return new Date(parsed.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   };
