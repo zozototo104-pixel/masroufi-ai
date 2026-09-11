@@ -3031,6 +3031,8 @@ ${activeSalaryCycleText}
                   })
                 );
 
+                updatePendingFinancialClarificationFromResponses(userId, functionResponses as any, `live_${requestId}_${liveTurnsCompleted}`, 'live');
+
                 if (session && isActive) {
                   const deterministicReadReply = buildDeterministicFinancialReply(functionResponses as any);
                   const normalizedFunctionResponses = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any);
