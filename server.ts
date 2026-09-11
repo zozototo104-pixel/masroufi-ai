@@ -3525,6 +3525,7 @@ ${activeSalaryCycleText}
       awaitingPostToolAudio = false;
       postToolInputGateUntilMs = 0;
       clearPostToolAudioFallback();
+      clearLiveServerFinancialCompletionTimer();
       if (userId && activeLiveSocketsByUser.get(userId) === clientWs) {
         activeLiveSocketsByUser.delete(userId);
       }
