@@ -2303,6 +2303,8 @@ ${relationshipContext}
         }
       }
 
+      updatePendingFinancialClarificationFromResponses(req.user.uid, executedFunctionResponses, String(clientMessageId || ''), 'chat');
+
       const financialToolResults = executedFunctionResponses
         .filter((r: any) => isFinancialToolName(r.name))
         .map((r: any) => r.response)
