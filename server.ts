@@ -1110,36 +1110,30 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
   const isBorrowing = /(دين نقدي|سلفه|سلفة|استدنت|اقترضت|سلفني)/.test(text);
 
   if (isBorrowing) {
-    const creditor = extractMerchantFromFinancialText(userText) || 'غير محدد';
-    return { name: 'transfer_money', args: { amount, fromAccount: 'debt', toAccount: 'cash', creditor, notes: userText, date: transactionDate || undefined } } as any;
+    const creditor = extractMerchantFromFinancialText(userText);
+    return { name: 'transfer_money', args: { amount, fromAccount: 'debt', ...(account && account !== 'debt' ? { toAccount: account } : {}), ...(creditor ? { creditor } : {}), notes: userText, date: transactionDate || undefined } } as any;
   }
 
   if (isIncome) {
-    if (!account || account === 'debt') return null;
     const isSalary = /راتب/.test(text);
     return { name: 'add_transaction', args: {
       amount,
       type: 'income',
-      paymentMethod: account,
-      account,
+      ...(account && account !== 'debt' ? { paymentMethod: account, account, incomeDestinationConfirmed: true, destinationConfirmed: true } : {}),
       category: 'دخل',
       subcategory: isSalary ? 'راتب' : 'دخل عام',
       notes: userText,
-      incomeDestinationConfirmed: true,
-      destinationConfirmed: true,
       date: transactionDate || undefined,
     }} as any;
   }
 
   if (isPurchase) {
-    if (!account) return null;
     const merchant = extractMerchantFromFinancialText(userText);
     const inferred = inferFallbackExpenseCategory(userText);
     return { name: 'add_transaction', args: {
       amount,
       type: 'expense',
-      paymentMethod: account,
-      account,
+      ...(account ? { paymentMethod: account, account } : {}),
       category: inferred.category,
       subcategory: inferred.subcategory,
       purchaseItem: inferred.purchaseItem,
