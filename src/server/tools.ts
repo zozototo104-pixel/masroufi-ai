@@ -721,7 +721,11 @@ export async function addTransaction(args: any, userId: string, token: string) {
   
   const amount = parseAbsoluteFinancialAmount(args.amount);
 
-  const originalUtteranceText = normalizeArabicText(String(args.currentUserText || args.userText || '')).toLowerCase();
+  const originalUtteranceText = normalizeArabicText([
+    args.userText,
+    args.currentUserText,
+    args.clarificationReplyText,
+  ].map(v => String(v || '').trim()).filter(Boolean).join(' ')).toLowerCase();
   const hasOriginalUserUtterance = Boolean(originalUtteranceText.trim());
   const modelIntentText = normalizeArabicText(`${args.type || ''} ${args.category || ''} ${args.subcategory || ''} ${args.notes || ''} ${args.description || ''} ${args.item || ''} ${args.purchaseItem || ''} ${args.merchant || ''} ${args.creditor || ''} ${args.seller || ''}`).toLowerCase();
   const textToCheck = `${originalUtteranceText} ${modelIntentText}`;
