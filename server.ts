@@ -2600,6 +2600,8 @@ function setupLiveApi(wss: WebSocketServer) {
     let activeSalaryCycleContext: { cycleId?: string; name?: string; month?: number; year?: number } = {};
     let liveServerFinancialCompletionTimer: NodeJS.Timeout | null = null;
     let liveServerFinancialCompletionRunning = false;
+    let liveServerFinancialCompletionBlockUntilMs = 0;
+    let liveServerFinancialCompletionTranscriptKey = '';
     const liveServerFinancialCompletionKeys = new Map<string, number>();
     let liveExpenseIntakeDraft: { args: any; texts: string[]; createdAt: number; updatedAt: number } | null = null;
 
