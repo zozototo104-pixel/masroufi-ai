@@ -2597,6 +2597,182 @@ function setupLiveApi(wss: WebSocketServer) {
       }, 2500);
     };
 
+    const clearLiveServerFinancialCompletionTimer = () => {
+      if (liveServerFinancialCompletionTimer) {
+        clearTimeout(liveServerFinancialCompletionTimer);
+        liveServerFinancialCompletionTimer = null;
+      }
+    };
+
+    const pruneLiveServerFinancialCompletionKeys = () => {
+      const now = Date.now();
+      for (const [key, timestamp] of liveServerFinancialCompletionKeys.entries()) {
+        if (now - timestamp > 90_000) liveServerFinancialCompletionKeys.delete(key);
+      }
+    };
+
+    const recordLiveExpenseIntakeTranscript = (transcript: string) => {
+      const text = String(transcript || '').trim();
+      if (!text || text.length < 2) return;
+      const normalized = normalizeArabicForIntent(text);
+      const now = Date.now();
+      if (liveExpenseIntakeDraft && now - liveExpenseIntakeDraft.updatedAt > 90_000) {
+        liveExpenseIntakeDraft = null;
+      }
+      const readOnly = /(شو|ايش|كم|اخر|آخر|احدث|أحدث|اعطني|اعطيني|ورجيني|اعرض|عرض|تقرير|ملخص|استعلام|بحث)/.test(normalized);
+      const account = accountFromFinancialText(text);
+      const hasAmount = Boolean(extractAmountFromFinancialText(text));
+      const isWriteLike = looksLikeFinancialWriteIntent(text) || /(مصروف|مشتريات|شراء|اشتريت|شريت|دفعت|سجل|سجلي|سجليه|ضيف|ضيفي|اضف|أضف)/.test(normalized);
+      const canExtendExistingDraft = Boolean(liveExpenseIntakeDraft && !readOnly && (account || hasAmount || isShortClarificationAnswer(text)));
+      if (readOnly || (!isWriteLike && !hasAmount && !canExtendExistingDraft)) return;
+      if (!liveExpenseIntakeDraft) {
+        liveExpenseIntakeDraft = { args: {}, texts: [], createdAt: now, updatedAt: now };
+      }
+      if (!liveExpenseIntakeDraft.texts.includes(text)) liveExpenseIntakeDraft.texts.push(text);
+      if (liveExpenseIntakeDraft.texts.length > 8) liveExpenseIntakeDraft.texts = liveExpenseIntakeDraft.texts.slice(-8);
+      liveExpenseIntakeDraft.updatedAt = now;
+    };
+
+    const buildLiveServerFinancialCompletionCall = (transcript: string, clientMessageId: string): FunctionCall | null => {
+      const text = String(transcript || '').trim();
+      if (!userId || !userToken || !text) return null;
+      const pendingCall = buildPendingFinancialClarificationCall(userId, text, clientMessageId);
+      if (pendingCall && ['add_transaction', 'transfer_money', 'pay_debt'].includes(pendingCall.name)) return pendingCall;
+      const normalized = normalizeArabicForIntent(text);
+      const account = accountFromFinancialText(text);
+      const isExplicitCommitAnswer = /(سجل|سجلي|سجليه|احفظ|احفظي|ثبت|ثبتي|تمام|اوكي|ok)/i.test(normalized);
+      const now = Date.now();
+      if (liveExpenseIntakeDraft && now - liveExpenseIntakeDraft.updatedAt > 90_000) liveExpenseIntakeDraft = null;
+      if (liveExpenseIntakeDraft && account && (isExplicitCommitAnswer || isShortClarificationAnswer(text))) {
+        const combinedText = [...liveExpenseIntakeDraft.texts, text].filter(Boolean).join(' ');
+        const draftCall = buildFallbackFinancialToolCall(combinedText, clientMessageId);
+        if (draftCall && ['add_transaction', 'transfer_money', 'pay_debt'].includes(draftCall.name) && Number((draftCall.args as any)?.amount || 0) > 0) {
+          return {
+            ...draftCall,
+            args: {
+              ...(draftCall.args || {}),
+              userText: combinedText,
+              currentUserText: text,
+              clarificationReplyText: text,
+              completedFromLiveExpenseDraft: true,
+              clientMessageId,
+            },
+          } as FunctionCall;
+        }
+      }
+      const directCall = buildFallbackFinancialToolCall(text, clientMessageId);
+      if (directCall && ['add_transaction', 'transfer_money', 'pay_debt'].includes(directCall.name) && Number((directCall.args as any)?.amount || 0) > 0 && account) {
+        return {
+          ...directCall,
+          args: {
+            ...(directCall.args || {}),
+            userText: text,
+            currentUserText: text,
+            completedFromLiveTranscript: true,
+            clientMessageId,
+          },
+        } as FunctionCall;
+      }
+      return null;
+    };
+
+    const runLiveServerFinancialCompletion = async (transcript: string, clientMessageId: string) => {
+      if (!isActive || !userId || !userToken || liveServerFinancialCompletionRunning) return;
+      const call = buildLiveServerFinancialCompletionCall(transcript, clientMessageId);
+      if (!call) return;
+      const handler = toolHandlers[call.name];
+      if (!handler) return;
+      const liveKey = liveFinancialCommitKey(call, userId) || `${userId}|server_completion|${stableShortFingerprint(JSON.stringify(call.args || {}))}`;
+      pruneLiveServerFinancialCompletionKeys();
+      if (liveServerFinancialCompletionKeys.has(liveKey) || getRecentLiveFinancialCommit(liveKey) || getLiveFinancialInFlight(liveKey)) {
+        console.warn('[live-server-financial] skipped duplicate deterministic completion', { requestId, name: call.name, liveKey });
+        return;
+      }
+      const liveBucket = Math.floor(Date.now() / LIVE_FINANCIAL_DEDUPE_MS);
+      const operationId = (call.args as any)?.operationId || `live-server:${liveBucket}:${stableShortFingerprint(liveKey)}`;
+      const toolArgs = {
+        ...(call.args || {}),
+        operationId,
+        activeSalaryCycleId: activeSalaryCycleContext.cycleId,
+        activeSalaryCycleName: activeSalaryCycleContext.name,
+        activeSalaryCycleMonth: activeSalaryCycleContext.month,
+        activeSalaryCycleYear: activeSalaryCycleContext.year,
+      };
+      liveServerFinancialCompletionRunning = true;
+      liveServerFinancialCompletionKeys.set(liveKey, Date.now());
+      safeSend({ status: 'thinking' });
+      try {
+        console.warn('[live-server-financial] executing deterministic completion from transcript', {
+          requestId,
+          name: call.name,
+          account: (toolArgs as any).account || (toolArgs as any).paymentMethod || (toolArgs as any).fromAccount || (toolArgs as any).toAccount || null,
+          amount: (toolArgs as any).amount || null,
+        });
+        const inFlightPromise = handler(toolArgs, userId, userToken);
+        rememberLiveFinancialInFlight(liveKey, inFlightPromise);
+        let result: any = await inFlightPromise;
+        if (result?.success === false && (result?.inFlight || result?.retryable)) {
+          const committedResult = getRecentLiveFinancialCommit(liveKey);
+          if (committedResult?.success === true && (committedResult?.cloudStorageConfirmed === true || committedResult?.durability === 'committed' || committedResult?.transactionId)) {
+            result = { ...committedResult, deduped: true, recoveredFromServerCompletionDuplicate: true };
+          }
+        }
+        rememberLiveFinancialCommit(liveKey, result);
+        const functionResponses = [{ id: `server_${Date.now()}`, name: call.name, args: toolArgs, requestArgs: toolArgs, response: result }];
+        updatePendingFinancialClarificationFromResponses(userId, functionResponses as any, clientMessageId, 'live');
+        const reply = buildDeterministicFinancialReply(functionResponses as any) || result?.message || 'انتهت محاولة تنفيذ العملية المالية.';
+        const refreshDecision = liveRefreshScopeForTools(functionResponses as any);
+        safeSend(refreshDecision.refresh
+          ? { status: 'thinking', refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds }
+          : { status: 'thinking' }
+        );
+        if (session && isActive) {
+          try {
+            awaitingPostToolAudio = true;
+            liveAudioSinceLastToolResponse = 0;
+            await session.sendClientContent({
+              turns: [{ role: 'user', parts: [{ text: `النتيجة الحقيقية من السيرفر للعملية المالية، اقرأها فقط ولا تستخدم أدوات جديدة ولا تقل تم إذا كانت فاشلة: ${reply}` }] }],
+              turnComplete: true,
+            });
+            schedulePostToolAudioFallback(reply);
+          } catch (speakErr: any) {
+            console.error('[live-server-financial] failed to ask Gemini to speak deterministic completion result', { requestId, message: speakErr?.message || String(speakErr) });
+            awaitingPostToolAudio = false;
+            safeSend({ status: 'ready', liveError: true, message: reply });
+          }
+        }
+        if (result?.success === true || result?.transactionCommitted === true) {
+          liveExpenseIntakeDraft = null;
+        }
+      } catch (err: any) {
+        console.error('[live-server-financial] deterministic completion failed', { requestId, message: err?.message || String(err) });
+        safeSend({ status: 'ready', liveError: true, message: `لم أسجل العملية بسبب خطأ داخلي: ${err?.message || String(err)}` });
+      } finally {
+        liveServerFinancialCompletionRunning = false;
+      }
+    };
+
+    const scheduleLiveServerFinancialCompletion = (transcript: string) => {
+      const text = String(transcript || '').trim();
+      if (!text || !userId || !userToken) return;
+      const normalized = normalizeArabicForIntent(text);
+      const account = accountFromFinancialText(text);
+      const hasPending = Boolean(getPendingFinancialClarification(userId));
+      const hasDraft = Boolean(liveExpenseIntakeDraft && Date.now() - liveExpenseIntakeDraft.updatedAt <= 90_000);
+      const hasAmount = Boolean(extractAmountFromFinancialText(text));
+      const fullDirect = hasAmount && Boolean(account) && looksLikeFinancialWriteIntent(text);
+      const shortCommitAnswer = Boolean(account) && (hasPending || hasDraft) && !/(شو|ايش|كم|اخر|آخر|اعطيني|اعطني|ورجيني|اعرض|عرض|تقرير)/.test(normalized);
+      if (!fullDirect && !shortCommitAnswer) return;
+      const clientMessageId = `live_server_${requestId}_${Date.now()}_${stableShortFingerprint(text)}`;
+      clearLiveServerFinancialCompletionTimer();
+      liveServerFinancialCompletionTimer = setTimeout(() => {
+        liveServerFinancialCompletionTimer = null;
+        runLiveServerFinancialCompletion(text, clientMessageId).catch(err => {
+          console.error('[live-server-financial] scheduled completion failed', { requestId, message: err?.message || String(err) });
+        });
+      }, 1200);
+    };
+
     const pingInterval = setInterval(() => {
       if (clientWs.readyState === WebSocket.OPEN) {
         try {
