@@ -2496,6 +2496,14 @@ function setupLiveApi(wss: WebSocketServer) {
             turns: [{ role: 'user', parts: [{ text: `اقرأ للمستخدم الآن بصوت واضح ومختصر دون استخدام أدوات جديدة: ${text}` }] }],
             turnComplete: true,
           });
+          postToolAudioFallbackTimer = setTimeout(() => {
+            postToolAudioFallbackTimer = null;
+            if (!isActive || !awaitingPostToolAudio) return;
+            console.warn('[live-audio] no audio after post-tool fallback prompt', { requestId });
+            awaitingPostToolAudio = false;
+            postToolInputGateUntilMs = 0;
+            safeSend({ status: 'ready', liveError: true, message: 'نفذت قراءة الأداة لكن Gemini Live لم يرسل صوتاً بعد الملخص. أعد السؤال أو استخدم الكتابة مؤقتاً.' });
+          }, 6000);
         } catch (fallbackErr: any) {
           console.error('[live-audio] post-tool audio fallback failed', { requestId, message: fallbackErr?.message || String(fallbackErr) });
           awaitingPostToolAudio = false;
