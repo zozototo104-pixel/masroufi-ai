@@ -622,6 +622,19 @@ function buildDeterministicFinancialReply(functionResponses: Array<{ name: strin
   const readResult = financial.find(r => r.response?.success === true && (r.name === 'query_transactions' || r.name === 'queryTransactions' || r.name === 'get_salary_cycle_summary'));
   if (readResult) {
     const response = readResult.response || {};
+    const transactions = Array.isArray(response.transactions) ? response.transactions : [];
+    if (transactions.length > 0) {
+      const shown = transactions.slice(0, 10);
+      return `وجدت ${transactions.length} عملية مالية. ${shown.map((t: any, idx: number) => {
+        const amount = Number(t.amount || 0).toLocaleString();
+        const date = String(t.date || t.createdAt || '').slice(0, 10) || 'بدون تاريخ';
+        const account = t.account === 'palPay' ? 'PalPay' : t.account === 'cash' ? 'كاش' : t.account === 'debt' ? 'دين' : (t.account || t.paymentMethod || 'غير محدد');
+        const kind = t.type === 'income' ? 'دخل' : t.type === 'transfer' ? 'تحويل' : t.transactionType === 'DEBT_PAYMENT' ? 'سداد دين' : 'مصروف';
+        const what = t.purchaseItem || t.subcategory || t.category || t.notes || 'عملية مالية';
+        return `${idx + 1}) ${date}: ${kind} ${amount} ₪ من ${account} - ${what}`;
+      }).join('، ')}`;
+    }
+    if (response.totalCount === 0 || response.count === 0) return 'لا توجد عمليات مالية مطابقة لهذا السؤال.';
     const cycle = response.salaryCycle || response;
     const debtSummary = response.debtSummary || cycle.debtSummary;
     if (debtSummary && (debtSummary.currentRemainingForCycleCreditors !== undefined || debtSummary.debtCreatedInCycle !== undefined)) {
