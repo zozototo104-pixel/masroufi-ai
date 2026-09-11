@@ -2899,8 +2899,6 @@ ${activeSalaryCycleText}
                   })
                 );
 
-                updatePendingFinancialClarificationFromResponses(userId, functionResponses as any, `live_${requestId}_${liveTurnsCompleted}`, 'live');
-
                 if (session && isActive) {
                   const functionResponsesForModel = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any);
                   console.log("Sending Tool Response:", functionResponsesForModel.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed'), normalizedAfterCommit: Boolean(r.response?.canonicalCommittedTransactionId) })));
