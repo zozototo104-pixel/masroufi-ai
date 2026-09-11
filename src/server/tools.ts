@@ -936,8 +936,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
 
   // Financial writes must never silently invent missing accounting dimensions.
   // The AI is expected to collect these slots conversationally; the backend remains the final guard.
-  if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', message: 'ما قيمة العملية بالضبط؟' };
-  if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
+  if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', missingFields: ['amount'], message: 'ما قيمة العملية بالضبط؟' };
+  if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', missingFields: ['paymentMethod'], message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
   if (type === 'expense') {
     const hasOriginalUserContext = Boolean(originalExpenseText);
     const userProvidedPurchaseIdentity = cleanedPurchaseItemIdentity.length >= 3;
