@@ -361,7 +361,12 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           
           const source = outputCtxRef.current.createBufferSource();
           source.buffer = buffer;
-          source.connect(outputCtxRef.current.destination);
+          const outputGain = outputCtxRef.current.createGain();
+          // Gemini Live audio can be quiet on mobile Safari speakers.
+          // Raise playback only; do not change microphone gain or input processing.
+          outputGain.gain.value = 1.6;
+          source.connect(outputGain);
+          outputGain.connect(outputCtxRef.current.destination);
           
           const currentTime = outputCtxRef.current.currentTime;
           // Use a stable playback cushion for clear speech. Do not stop queued
