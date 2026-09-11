@@ -2807,6 +2807,17 @@ ${activeSalaryCycleText}
                       if (pendingMerge.merged) {
                         effectiveCall = { ...effectiveCall, name: pendingMerge.name, args: pendingMerge.args } as FunctionCall;
                       }
+                      const normalizedLiveUserTextForRouting = normalizeArabicForIntent(liveUserTextBeforeMerge || liveArgsText);
+                      const liveRecentOperationsQuestion = /(اخر|آخر|احدث|أحدث)\s*(?:ال)?(?:عمليات|عمليه|عملية|قيود|قيد|مصروف|مصروفات|صرف|مشتريات)/.test(normalizedLiveUserTextForRouting)
+                        || /(?:شو|ايش|اعطيني|اعطني|ورجيني|اعرض|عرض)\s+.*(?:عمليات|قيود|مصروفات|مشتريات)\s+.*(?:سجلنا|سجلتها|انضافت|اضفنا|أضفنا)/.test(normalizedLiveUserTextForRouting);
+                      if (liveRecentOperationsQuestion && (effectiveCall.name === 'memory_search' || effectiveCall.name === 'memorySearch' || effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions')) {
+                        console.warn('[live-tool] rerouted latest operations read to get_recent_transactions', { requestId, originalName: effectiveCall.name });
+                        effectiveCall = {
+                          ...effectiveCall,
+                          name: 'get_recent_transactions',
+                          args: { limit: 10, userText: liveUserTextBeforeMerge || String((effectiveCall.args as any)?.userText || '') },
+                        } as FunctionCall;
+                      }
                       const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, JSON.stringify(effectiveCall.args || {}), seenToolKeys, liveFunctionCalls);
                       if (guard.skip) {
                         return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
