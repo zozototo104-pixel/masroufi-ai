@@ -2757,7 +2757,16 @@ function setupLiveApi(wss: WebSocketServer) {
     const runLiveServerFinancialCompletion = async (transcript: string, clientMessageId: string) => {
       if (!isActive || !userId || !userToken || liveServerFinancialCompletionRunning) return;
       const call = buildLiveServerFinancialCompletionCall(transcript, clientMessageId);
-      if (!call) return;
+      if (!call) {
+        console.warn('[live-server-financial] deterministic completion candidate did not build a tool call', {
+          requestId,
+          hasPending: Boolean(getPendingFinancialClarification(userId)),
+          hasDraft: Boolean(liveExpenseIntakeDraft),
+          account: accountFromFinancialText(transcript),
+          amount: extractAmountFromFinancialText(transcript),
+        });
+        return;
+      }
       const handler = toolHandlers[call.name];
       if (!handler) return;
       const liveKey = liveFinancialCommitKey(call, userId) || `${userId}|server_completion|${stableShortFingerprint(JSON.stringify(call.args || {}))}`;
