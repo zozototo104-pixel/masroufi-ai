@@ -2681,6 +2681,9 @@ ${activeSalaryCycleText}
               if (message.serverContent?.interrupted) {
                 liveInterruptions += 1;
                 aiOutputActive = false;
+                awaitingPostToolAudio = false;
+                postToolInputGateUntilMs = 0;
+                clearPostToolAudioFallback();
                 console.log('[live-audio] interrupted', { requestId, interruptions: liveInterruptions, awaitingPostToolAudio, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, droppedEchoAudioChunks });
                 safeSend({ interrupted: true });
               }
