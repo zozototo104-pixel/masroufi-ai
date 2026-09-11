@@ -2751,9 +2751,13 @@ export async function getRecentTransactions(args: any, userId: string, token: st
   const typeFilter = String(args?.type || '').trim().toLowerCase()
     || (/مصروف|مصروفات|مشتريات|صرف/.test(normalizedUserText) ? 'expense' : '');
   const boundedLimit = Math.max(300, limit * 25);
+  const timestampMs = (value: any): number => {
+    const parsed = asDate(value);
+    return parsed ? parsed.getTime() : 0;
+  };
   const sortByRecency = (items: any[]) => items.sort((a: any, b: any) => {
-    const aTime = Date.parse(String(a.createdAt || a.updatedAt || a.date || '')) || 0;
-    const bTime = Date.parse(String(b.createdAt || b.updatedAt || b.date || '')) || 0;
+    const aTime = timestampMs(a.createdAt || a.updatedAt || a.date);
+    const bTime = timestampMs(b.createdAt || b.updatedAt || b.date);
     if (bTime !== aTime) return bTime - aTime;
     return String(b.id || '').localeCompare(String(a.id || ''));
   });
