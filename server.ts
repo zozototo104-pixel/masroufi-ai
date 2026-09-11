@@ -2701,6 +2701,14 @@ function setupLiveApi(wss: WebSocketServer) {
       if (!liveExpenseIntakeDraft.texts.includes(text)) liveExpenseIntakeDraft.texts.push(text);
       if (liveExpenseIntakeDraft.texts.length > 8) liveExpenseIntakeDraft.texts = liveExpenseIntakeDraft.texts.slice(-8);
       liveExpenseIntakeDraft.updatedAt = now;
+      if (account || hasAmount || isWriteLike) {
+        console.warn('[live-server-financial] tracked expense intake transcript', {
+          requestId,
+          hasAmount,
+          account: account || null,
+          draftParts: liveExpenseIntakeDraft.texts.length,
+        });
+      }
     };
 
     const buildLiveServerFinancialCompletionCall = (transcript: string, clientMessageId: string): FunctionCall | null => {
