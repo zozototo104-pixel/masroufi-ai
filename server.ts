@@ -2293,7 +2293,7 @@ ${relationshipContext}
               ? { ...(fallbackCall.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
               : { ...(fallbackCall.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
             const fallbackResult = await toolHandlers[fallbackCall.name](toolArgs, req.user.uid, authToken);
-            executedFunctionResponses.push({ id: 'server_fallback', name: fallbackCall.name, response: fallbackResult });
+            executedFunctionResponses.push({ id: 'server_fallback', name: fallbackCall.name, args: toolArgs, requestArgs: toolArgs, response: fallbackResult });
             const deterministicFallbackReply = buildDeterministicFinancialReply(executedFunctionResponses as any);
             if (deterministicFallbackReply) replyText = deterministicFallbackReply;
           } catch (e: any) {
