@@ -3162,6 +3162,9 @@ ${activeSalaryCycleText}
           // mic frames may pass after client-side playback has been stopped.
           clientInterruptOverrideUntilMs = Date.now() + 2200;
           aiOutputActive = false;
+          awaitingPostToolAudio = false;
+          postToolInputGateUntilMs = 0;
+          clearPostToolAudioFallback();
           safeSend({ interrupted: true });
           return;
         }
