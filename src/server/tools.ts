@@ -975,9 +975,15 @@ export async function addTransaction(args: any, userId: string, token: string) {
     || (type === 'expense' && category.includes('سداد'))
     || ((textToCheck.includes('سداد') || textToCheck.includes('سدد') || textToCheck.includes('تسديد')) && (textToCheck.includes('دين') || textToCheck.includes('الديون') || textToCheck.includes('لشخص') || textToCheck.includes('لصديق')));
   if (explicitDebtSettlementIntent) {
-    let fromAcc = normalizeAccount(args.paymentMethod || args.fromAccount || 'cash');
-    if (fromAcc === 'debt') fromAcc = 'cash'; 
-    return await payDebt({ amount, paymentMethod: fromAcc, creditor: args.merchant || args.subcategory || 'سداد دين', notes: args.notes }, userId, token);
+    const rawPaymentAccount = args.paymentMethod || args.fromAccount || explicitUserPaymentAccount;
+    if (!rawPaymentAccount || normalizeAccount(rawPaymentAccount) === 'debt') {
+      return { success: false, needsClarification: true, reason: 'MISSING_DEBT_PAYMENT_ACCOUNT', missingFields: ['debtPaymentAccount'], message: 'هل سددت الدين من الكاش أم من محفظة PalPay؟' };
+    }
+    const creditorForSettlement = String(args.creditor || args.person || args.merchant || '').trim();
+    if (!creditorForSettlement) {
+      return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'لأي دائن تريد تسجيل السداد؟' };
+    }
+    return await payDebt({ ...args, amount, paymentMethod: normalizeAccount(rawPaymentAccount), fromAccount: normalizeAccount(rawPaymentAccount), creditor: creditorForSettlement, notes: args.notes }, userId, token);
   }
 
   if ((textToCheck.includes('تحويل') && (textToCheck.includes('من') || textToCheck.includes('إلى') || textToCheck.includes('لبال') || textToCheck.includes('كاش'))) || args.category === 'تحويل' || args.category === 'تحويل داخلي') {
