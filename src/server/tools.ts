@@ -2331,7 +2331,10 @@ export async function transferMoney(args: any, userId: string, token: string) {
   }
 
   const fromAccount = normalizeLedgerAccount(args.fromAccount || args.account || 'cash');
-  if (fromAccount === 'debt' && !args.toAccount) {
+  const originalBorrowText = normalizeArabicText(`${args.currentUserText || ''} ${args.userText || ''} ${args.clarificationReplyText || ''}`);
+  const explicitBorrowCash = /كاش|نقد|نقدي|نقدا/.test(originalBorrowText);
+  const explicitBorrowPalPay = /palpay|pal pay|بال باي|بالباي|محفظه|محفظة/.test(originalBorrowText);
+  if (fromAccount === 'debt' && (!args.toAccount || (!args.clarificationReplyText && !explicitBorrowCash && !explicitBorrowPalPay))) {
     return { success: false, needsClarification: true, reason: 'MISSING_BORROW_DESTINATION', missingFields: ['borrowDestination'], message: 'استلمت المبلغ نقدي (كاش) أم في محفظة PalPay؟' };
   }
   let toAccount = normalizeLedgerAccount(args.toAccount || (fromAccount === 'cash' ? 'palPay' : 'cash'));
