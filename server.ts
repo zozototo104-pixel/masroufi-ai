@@ -3003,6 +3003,9 @@ ${activeSalaryCycleText}
           onerror: (err: any) => {
             const classified = classifyGeminiLiveError(err);
             console.error("Gemini Live session error:", { requestId, quotaExceeded: classified.quotaExceeded, code: classified.code, status: classified.status, message: err?.message });
+            awaitingPostToolAudio = false;
+            postToolInputGateUntilMs = 0;
+            clearPostToolAudioFallback();
             safeSend({
               status: "ready",
               liveError: true,
