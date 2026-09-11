@@ -2983,10 +2983,17 @@ ${activeSalaryCycleText}
                     console.error("Error sending tool response:", toolErr);
                   }
                   const refreshDecision = liveRefreshScopeForTools(functionResponses as any);
-                  safeSend(refreshDecision.refresh
-                    ? { status: "ready", refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds }
-                    : { status: "ready" }
-                  );
+                  if (deterministicReadReply) {
+                    safeSend(refreshDecision.refresh
+                      ? { status: "thinking", refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds }
+                      : { status: "thinking" }
+                    );
+                  } else {
+                    safeSend(refreshDecision.refresh
+                      ? { status: "ready", refresh: true, refreshScope: refreshDecision.scope, affectedCycleIds: refreshDecision.affectedCycleIds }
+                      : { status: "ready" }
+                    );
+                  }
                 }
               }
             } catch (cbErr) {
