@@ -2623,6 +2623,7 @@ ${activeSalaryCycleText}
                         transcript: inputTranscript.slice(0, 80),
                       });
                       const result = await toolHandlers[pendingClarificationCall.name](toolArgs, userId!, userToken!);
+                      rememberLiveFinancialCommit(liveFinancialCommitKey({ ...pendingClarificationCall, args: toolArgs } as FunctionCall, userId), result);
                       const responses = [{ id: 'live_pending_financial_clarification', name: pendingClarificationCall.name, args: toolArgs, requestArgs: toolArgs, response: result }];
                       updatePendingFinancialClarificationFromResponses(userId, responses, `live_${requestId}_${Date.now()}`, 'live');
                       const refreshDecision = liveRefreshScopeForTools(responses as any);
