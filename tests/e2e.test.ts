@@ -370,6 +370,10 @@ test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and m
     'merchant/creditor extracted from "من عند فلان" must not be treated as an explicit debt payment method');
   assert.ok(tools.includes('MISSING_PAYMENT_METHOD') && tools.includes('هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟'),
     'completed purchase details without an explicit payment method must ask cash/PalPay/debt instead of choosing debt');
+  assert.ok(tools.includes('mentionsCashBorrowing') && tools.includes("fromAccount: 'debt'") && tools.includes('transactionType: \'DEBT_BORROWING\''),
+    'borrowed money phrases must be routed to debt-to-wallet transfer, not income on the debt account');
+  assert.ok(tools.includes('explicitDebtSettlementIntent') && !tools.includes("account === 'debt' && type === 'expense' && (textToCheck.includes('سداد') || textToCheck.includes('تسديد') || textToCheck.includes('سدد') || textToCheck.includes('دفع')"),
+    'credit purchases must not be routed to debt settlement because of generic payment words');
 });
 
 test('CLOUD-BADGE: partial ledger fallback must not override a successful cloud-health check', async () => {
