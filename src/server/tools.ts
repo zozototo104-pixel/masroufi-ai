@@ -2574,9 +2574,10 @@ export async function payDebt(args:any,userId:string,token:string){
   if(amount<=0)return{success:false,needsClarification:true,reason:'INVALID_AMOUNT',missingFields:['amount'],message:'كم مبلغ سداد الدين؟'};
   const rawPaymentAccount = args.paymentMethod || args.fromAccount;
   const originalPaymentText = normalizeArabicText(`${args.currentUserText || ''} ${args.userText || ''} ${args.clarificationReplyText || ''}`);
+  const hasPaymentText = Boolean(originalPaymentText.trim());
   const explicitPaymentCash = /كاش|نقد|نقدي|نقدا/.test(originalPaymentText);
   const explicitPaymentPalPay = /palpay|pal pay|بال باي|بالباي|محفظه|محفظة/.test(originalPaymentText);
-  if (!rawPaymentAccount || (!args.clarificationReplyText && !explicitPaymentCash && !explicitPaymentPalPay)) {
+  if (!rawPaymentAccount || (hasPaymentText && !args.clarificationReplyText && !explicitPaymentCash && !explicitPaymentPalPay)) {
     return { success:false, needsClarification:true, reason:'MISSING_DEBT_PAYMENT_ACCOUNT', missingFields:['debtPaymentAccount'], message:'هل سددت الدين من الكاش أم من محفظة PalPay؟' };
   }
   let fromAccount=normalizeAccount(rawPaymentAccount);
