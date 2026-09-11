@@ -2577,6 +2577,7 @@ export async function payDebt(args:any,userId:string,token:string){
       success:false,
       needsClarification:true,
       reason:'MISSING_CREDITOR_BOUNDED',
+      missingFields:['creditor'],
       options,
       partial: Boolean((recentDebtSnap as any).partial),
       message:'لأي دائن تريد سداد الدين؟ اذكر اسم الشخص أو المحل حتى أتحقق باستعلام محدود بدل قراءة كل السجل.'
