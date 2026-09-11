@@ -2689,8 +2689,60 @@ export async function payDebt(args:any,userId:string,token:string){
 
 export async function getRecentTransactions(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
-  const snapshot = await adminDb.collection('transactions').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(10).get();
-  return { transactions: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) };
+  const limit = Math.max(1, Math.min(20, Number(args?.limit) || 10));
+  let docs: any[] = [];
+  let source = 'createdAt_desc';
+  try {
+    const snapshot = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (primaryErr: any) {
+    console.warn('[get_recent_transactions] createdAt order query failed; falling back to bounded user query', { message: primaryErr?.message || String(primaryErr) });
+    source = 'bounded_user_query_sorted_in_memory';
+    const fallback = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .limit(200)
+      .get();
+    docs = fallback.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a: any, b: any) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')))
+      .slice(0, limit);
+  }
+
+  const transactions = docs.map((t: any) => ({
+    id: t.id,
+    amount: parsePositiveFinancialAmount(t.amount),
+    type: t.type || '',
+    account: t.account || t.paymentMethod || '',
+    date: String(t.date || t.createdAt || '').slice(0, 10),
+    category: t.category || '',
+    subcategory: t.subcategory || '',
+    merchant: t.merchant || t.creditor || '',
+    purchaseItem: t.purchaseItem || '',
+    beneficiary: t.beneficiary || '',
+    notes: t.notes || '',
+    transactionType: t.transactionType || '',
+  }));
+
+  const lines = transactions.map((t: any, idx: number) => {
+    const kind = t.type === 'income' ? 'دخل' : t.type === 'transfer' ? 'تحويل' : t.transactionType === 'DEBT_PAYMENT' ? 'سداد دين' : 'مصروف';
+    const account = t.account === 'palPay' ? 'PalPay' : t.account === 'cash' ? 'كاش' : t.account === 'debt' ? 'دين' : t.account || 'غير محدد';
+    const what = t.purchaseItem || t.subcategory || t.category || t.notes || 'عملية مالية';
+    const merchant = t.merchant ? ` - ${t.merchant}` : '';
+    return `${idx + 1}) ${t.date || 'بدون تاريخ'}: ${kind} ${t.amount} ₪ (${account}) - ${what}${merchant}`;
+  });
+
+  return {
+    success: true,
+    transactions,
+    count: transactions.length,
+    source,
+    message: transactions.length
+      ? `آخر ${transactions.length} عمليات مالية:\n${lines.join('\n')}`
+      : 'لا توجد عمليات مالية مسجلة حتى الآن.',
+  };
 }
 
 function auditLedgerFingerprint(t: any): string {
