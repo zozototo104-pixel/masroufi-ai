@@ -2442,6 +2442,7 @@ function setupLiveApi(wss: WebSocketServer) {
     let droppedEchoAudioChunks = 0;
     let lastLiveUserTranscript = '';
     let lastLiveUserTranscriptAt = 0;
+    let livePendingClarificationRunning = false;
     let liveReportScopeMissingUntilMs = 0;
     let liveReportScopeOverride: { month?: number; year?: number; untilMs?: number } = {};
     let activeSalaryCycleContext: { cycleId?: string; name?: string; month?: number; year?: number } = {};
