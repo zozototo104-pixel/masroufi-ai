@@ -3129,6 +3129,22 @@ ${activeSalaryCycleText}
                       const handler = toolHandlers[effectiveCall.name];
                       if (handler) {
                         const liveKey = liveFinancialCommitKey(effectiveCall, userId);
+                        const serverCompletionBlockMatches = isFinancialMutationToolName(effectiveCall.name)
+                          && Date.now() < liveServerFinancialCompletionBlockUntilMs
+                          && (liveServerFinancialCompletionRunning || stableShortFingerprint(liveUserTextBeforeMerge || '') === liveServerFinancialCompletionTranscriptKey);
+                        if (serverCompletionBlockMatches) {
+                          return {
+                            id: effectiveCall.id || call.id,
+                            name: effectiveCall.name,
+                            response: {
+                              success: true,
+                              skipped: true,
+                              deduped: true,
+                              reason: 'SERVER_TRANSCRIPT_COMPLETION_IN_PROGRESS',
+                              message: 'السيرفر ينفذ رد التوضيح المالي الآن، لذلك تجاهلت استدعاء Gemini المتأخر حتى لا يتكرر القيد.'
+                            }
+                          };
+                        }
                         if (liveKey && isFinancialMutationToolName(effectiveCall.name) && liveServerFinancialCompletionKeys.has(liveKey)) {
                           return {
                             id: effectiveCall.id || call.id,
