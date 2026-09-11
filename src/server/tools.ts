@@ -2694,26 +2694,93 @@ export async function payDebt(args:any,userId:string,token:string){
 export async function getRecentTransactions(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const limit = Math.max(1, Math.min(20, Number(args?.limit) || 10));
+  const userText = String(args?.userText || args?.currentUserText || '').trim();
+  const normalizedUserText = normalizeArabicText(userText).toLowerCase();
+  const localDateKey = (value: any): string | null => {
+    if (!value) return null;
+    const parsed = value instanceof Date ? value : new Date(String(value));
+    if (Number.isNaN(parsed.getTime())) return null;
+    // User/session timezone is GMT+3 in Render logs and the mobile UI.
+    return new Date(parsed.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  };
+  const normalizeDateKey = (value: any): string | null => {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    if (/^(today|اليوم)$/i.test(raw)) return localDateKey(new Date());
+    const iso = raw.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+    if (iso) {
+      const y = Number(iso[1]);
+      const m = String(Number(iso[2])).padStart(2, '0');
+      const d = String(Number(iso[3])).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return localDateKey(raw);
+  };
+  const wantsToday = Boolean(args?.today)
+    || /اليوم|نهار اليوم|اليوميه|اليومية/.test(normalizedUserText)
+    || /^(today|اليوم)$/i.test(String(args?.date || '').trim());
+  const requestedDateKey = normalizeDateKey(args?.date || args?.createdDate || args?.targetDate)
+    || (wantsToday ? localDateKey(new Date()) : null);
+  const typeFilter = String(args?.type || '').trim().toLowerCase()
+    || (/مصروف|مصروفات|مشتريات|صرف/.test(normalizedUserText) ? 'expense' : '');
+  const boundedLimit = Math.max(300, limit * 25);
+  const sortByRecency = (items: any[]) => items.sort((a: any, b: any) => {
+    const aTime = Date.parse(String(a.createdAt || a.updatedAt || a.date || '')) || 0;
+    const bTime = Date.parse(String(b.createdAt || b.updatedAt || b.date || '')) || 0;
+    if (bTime !== aTime) return bTime - aTime;
+    return String(b.id || '').localeCompare(String(a.id || ''));
+  });
+  const matchesRequestedScope = (t: any) => {
+    if (typeFilter && String(t.type || '').toLowerCase() !== typeFilter) return false;
+    if (!requestedDateKey) return true;
+    const txDateKey = String(t.date || '').slice(0, 10);
+    const txLocalDateKey = localDateKey(t.date);
+    const createdLocalDateKey = localDateKey(t.createdAt || t.updatedAt);
+    // "تسجلت اليوم" means created today; "مصروف اليوم" means transaction date today.
+    return txDateKey === requestedDateKey || txLocalDateKey === requestedDateKey || createdLocalDateKey === requestedDateKey;
+  };
+  const compactDocs = (snap: any) => (snap?.docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
   let docs: any[] = [];
-  let source = 'createdAt_desc';
+  let source = requestedDateKey ? 'bounded_user_query_today_scope' : 'createdAt_desc';
+  const mergeUnique = (items: any[]) => {
+    const map = new Map<string, any>();
+    for (const item of items || []) {
+      const id = String(item?.id || item?.operationId || `${item?.createdAt || ''}:${item?.date || ''}:${item?.amount || ''}:${map.size}`);
+      if (!map.has(id)) map.set(id, item);
+    }
+    return Array.from(map.values());
+  };
+
   try {
-    const snapshot = await adminDb.collection('transactions')
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-      .get();
-    docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!requestedDateKey) {
+      const snapshot = await adminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
+      docs = compactDocs(snapshot);
+      if (docs.length === 0) {
+        console.warn('[get_recent_transactions] createdAt query returned 0 docs; falling back to bounded user scan', { userIdHash: stableDocId(userId), limit });
+        const fallback = await adminDb.collection('transactions').where('userId', '==', userId).limit(boundedLimit).get();
+        docs = compactDocs(fallback);
+        source = 'bounded_user_query_after_empty_createdAt';
+      }
+    } else {
+      const fallback = await adminDb.collection('transactions').where('userId', '==', userId).limit(boundedLimit).get();
+      docs = compactDocs(fallback);
+      source = 'bounded_user_query_filtered_by_date_or_createdAt';
+    }
   } catch (primaryErr: any) {
-    console.warn('[get_recent_transactions] createdAt order query failed; falling back to bounded user query', { message: primaryErr?.message || String(primaryErr) });
+    console.warn('[get_recent_transactions] primary query failed; falling back to bounded user query', { message: primaryErr?.message || String(primaryErr), requestedDateKey });
     source = 'bounded_user_query_sorted_in_memory';
     const fallback = await adminDb.collection('transactions')
       .where('userId', '==', userId)
-      .limit(200)
+      .limit(boundedLimit)
       .get();
-    docs = fallback.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a: any, b: any) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')))
-      .slice(0, limit);
+    docs = compactDocs(fallback);
   }
+
+  docs = sortByRecency(mergeUnique(docs).filter(matchesRequestedScope)).slice(0, limit);
 
   const transactions = docs.map((t: any) => ({
     id: t.id,
@@ -2721,6 +2788,7 @@ export async function getRecentTransactions(args: any, userId: string, token: st
     type: t.type || '',
     account: t.account || t.paymentMethod || '',
     date: String(t.date || t.createdAt || '').slice(0, 10),
+    createdAt: t.createdAt || '',
     category: t.category || '',
     subcategory: t.subcategory || '',
     merchant: t.merchant || t.creditor || '',
@@ -2738,14 +2806,17 @@ export async function getRecentTransactions(args: any, userId: string, token: st
     return `${idx + 1}) ${t.date || 'بدون تاريخ'}: ${kind} ${t.amount} ₪ (${account}) - ${what}${merchant}`;
   });
 
+  const scopeText = requestedDateKey ? ` بتاريخ/تسجيل ${requestedDateKey}` : '';
   return {
     success: true,
     transactions,
     count: transactions.length,
     source,
+    requestedDateKey: requestedDateKey || undefined,
+    typeFilter: typeFilter || undefined,
     message: transactions.length
-      ? `آخر ${transactions.length} عمليات مالية:\n${lines.join('\n')}`
-      : 'لا توجد عمليات مالية مسجلة حتى الآن.',
+      ? `آخر ${transactions.length} عمليات مالية${scopeText}:\n${lines.join('\n')}`
+      : `لا توجد عمليات مالية${scopeText} مطابقة حتى الآن.`,
   };
 }
 
