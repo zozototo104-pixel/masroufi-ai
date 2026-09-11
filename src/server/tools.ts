@@ -2785,9 +2785,42 @@ export async function getRecentTransactions(args: any, userId: string, token: st
         source = 'bounded_user_query_after_empty_createdAt';
       }
     } else {
+      const targetedDocs: any[] = [];
+      const dateParts = requestedDateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const startUtcIso = dateParts
+        ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])) - 3 * 60 * 60 * 1000).toISOString()
+        : `${requestedDateKey}T00:00:00.000Z`;
+      const endUtcIso = dateParts
+        ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]) + 1) - 3 * 60 * 60 * 1000).toISOString()
+        : `${requestedDateKey}T23:59:59.999Z`;
+      const nextDateKey = dateParts
+        ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]) + 1)).toISOString().slice(0, 10)
+        : requestedDateKey;
+      try {
+        const createdSnap = await adminDb.collection('transactions')
+          .where('userId', '==', userId)
+          .where('createdAt', '>=', startUtcIso)
+          .where('createdAt', '<', endUtcIso)
+          .limit(boundedLimit)
+          .get();
+        targetedDocs.push(...compactDocs(createdSnap));
+      } catch (createdErr: any) {
+        console.warn('[get_recent_transactions] createdAt day-range query failed; continuing with date/fallback', { message: createdErr?.message || String(createdErr), requestedDateKey });
+      }
+      try {
+        const dateSnap = await adminDb.collection('transactions')
+          .where('userId', '==', userId)
+          .where('date', '>=', requestedDateKey)
+          .where('date', '<', nextDateKey)
+          .limit(boundedLimit)
+          .get();
+        targetedDocs.push(...compactDocs(dateSnap));
+      } catch (dateErr: any) {
+        console.warn('[get_recent_transactions] date day-range query failed; continuing with fallback', { message: dateErr?.message || String(dateErr), requestedDateKey });
+      }
       const fallback = await adminDb.collection('transactions').where('userId', '==', userId).limit(boundedLimit).get();
-      docs = compactDocs(fallback);
-      source = 'bounded_user_query_filtered_by_date_or_createdAt';
+      docs = targetedDocs.concat(compactDocs(fallback));
+      source = targetedDocs.length > 0 ? 'targeted_createdAt_or_date_day_range_then_fallback' : 'bounded_user_query_filtered_by_date_or_createdAt';
     }
   } catch (primaryErr: any) {
     console.warn('[get_recent_transactions] primary query failed; falling back to bounded user query', { message: primaryErr?.message || String(primaryErr), requestedDateKey });
