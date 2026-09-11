@@ -2914,6 +2914,8 @@ ${activeSalaryCycleText}
               if (inputTranscript) {
                 lastLiveUserTranscript = inputTranscript;
                 lastLiveUserTranscriptAt = Date.now();
+                recordLiveExpenseIntakeTranscript(inputTranscript);
+                scheduleLiveServerFinancialCompletion(inputTranscript);
                 console.log('[live-input] transcript captured', { requestId, chars: inputTranscript.length });
               }
               const parts = message.serverContent?.modelTurn?.parts || [];
