@@ -2777,7 +2777,7 @@ ${activeSalaryCycleText}
                   liveFunctionCalls.map(async (call: FunctionCall) => {
                     try {
                       const liveArgsText = JSON.stringify(call.args || {});
-                      const effectiveCall = isVaultCloseIntentText(liveArgsText) && call.name !== 'recalculate_salary_cycle'
+                      let effectiveCall = isVaultCloseIntentText(liveArgsText) && call.name !== 'recalculate_salary_cycle'
                         ? ({
                             ...call,
                             name: 'recalculate_salary_cycle',
@@ -2794,7 +2794,20 @@ ${activeSalaryCycleText}
                             },
                           } as FunctionCall)
                         : call;
-                      const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, liveArgsText, seenToolKeys, liveFunctionCalls);
+                      const modelProvidedUserTextBeforeMerge = String((effectiveCall.args as any)?.currentUserText || (effectiveCall.args as any)?.userText || '').trim();
+                      const recentLiveTranscriptBeforeMerge = lastLiveUserTranscript && Date.now() - lastLiveUserTranscriptAt < 15_000 ? lastLiveUserTranscript : '';
+                      const liveUserTextBeforeMerge = recentLiveTranscriptBeforeMerge || modelProvidedUserTextBeforeMerge;
+                      const pendingMerge = mergePendingFinancialClarificationIntoToolCall(
+                        userId,
+                        String(effectiveCall.name || ''),
+                        effectiveCall.args || {},
+                        liveUserTextBeforeMerge,
+                        `live_${requestId}_${liveTurnsCompleted}`,
+                      );
+                      if (pendingMerge.merged) {
+                        effectiveCall = { ...effectiveCall, name: pendingMerge.name, args: pendingMerge.args } as FunctionCall;
+                      }
+                      const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, JSON.stringify(effectiveCall.args || {}), seenToolKeys, liveFunctionCalls);
                       if (guard.skip) {
                         return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
                       }
