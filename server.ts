@@ -671,6 +671,35 @@ function normalizeLiveFunctionResponsesForCommittedWrite(functionResponses: Arra
   });
 }
 
+function makeJsonSafeForLive(value: any): any {
+  try {
+    return JSON.parse(JSON.stringify(value ?? {}));
+  } catch (_) {
+    return { success: false, error: 'NON_SERIALIZABLE_TOOL_RESPONSE', message: 'تعذر تجهيز رد الأداة للصوت.' };
+  }
+}
+
+function compactLiveReadToolResponse(name: string, response: any, deterministicReadReply?: string | null): any {
+  const isReadTool = name === 'get_recent_transactions' || name === 'getRecentTransactions' || name === 'query_transactions' || name === 'queryTransactions' || name === 'get_salary_cycle_summary';
+  if (!isReadTool) return response;
+  const message = String(deterministicReadReply || response?.message || '').trim();
+  if (!message) return response;
+  return {
+    success: response?.success !== false,
+    summaryOnly: true,
+    count: Number(response?.count || response?.transactions?.length || response?.totalCount || 0) || undefined,
+    message,
+  };
+}
+
+function sanitizeLiveFunctionResponsesForGemini(functionResponses: Array<any>, deterministicReadReply?: string | null): Array<any> {
+  return functionResponses.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    response: makeJsonSafeForLive(compactLiveReadToolResponse(String(r.name || ''), r.response || {}, deterministicReadReply)),
+  }));
+}
+
 function liveFinancialCommitKey(call: FunctionCall, userId: string | null | undefined): string | null {
   if (!userId) return null;
   const args: any = call.args || {};
