@@ -2896,7 +2896,7 @@ ${activeSalaryCycleText}
                           }
                         }
                         rememberLiveFinancialCommit(liveKey, result);
-                        return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: result };
+                        return { id: effectiveCall.id || call.id, name: effectiveCall.name, args: toolArgs, requestArgs: toolArgs, response: result };
                       }
                       return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { error: "Function not found" } };
                     } catch (e: any) {
