@@ -962,6 +962,46 @@ function buildPendingFinancialClarificationCall(userId: string | null | undefine
   } as any;
 }
 
+function mergePendingFinancialClarificationIntoToolCall(
+  userId: string | null | undefined,
+  callName: string,
+  toolArgs: any,
+  userText: string,
+  clientMessageId: string,
+): { name: string; args: any; merged: boolean } {
+  const pending = getPendingFinancialClarification(userId);
+  if (!pending) return { name: callName, args: toolArgs, merged: false };
+  if (!['add_transaction', 'transfer_money', 'pay_debt'].includes(callName) && callName !== pending.name) {
+    return { name: callName, args: toolArgs, merged: false };
+  }
+  const args = toolArgs || {};
+  const looksLikeFreshFullCommand = Number(args.amount || 0) > 0 && !isShortClarificationAnswer(userText || '') && looksLikeFinancialWriteIntent(userText || '');
+  if (looksLikeFreshFullCommand) return { name: callName, args: toolArgs, merged: false };
+  const syntheticAnswer = String(userText || args.paymentMethod || args.account || args.fromAccount || args.toAccount || args.creditor || args.person || args.merchant || args.purchaseItem || args.beneficiary || '').trim();
+  const patch = buildPendingClarificationPatch(syntheticAnswer, pending);
+  if (!patch) return { name: callName, args: toolArgs, merged: false };
+  const nextName = patch.convertToTool || pending.name;
+  const { convertToTool, ...actualPatch } = patch;
+  const mergedArgs = {
+    ...pending.args,
+    ...actualPatch,
+    userText: pending.args.userText || pending.args.currentUserText || '',
+    currentUserText: syntheticAnswer,
+    clarificationReplyText: syntheticAnswer,
+    clarifiedFromReason: pending.reason,
+    originalClarificationClientMessageId: pending.clientMessageId,
+    clientMessageId,
+  };
+  console.warn('[financial-clarification] merged pending clarification into tool call', {
+    userIdHash: stableShortFingerprint(String(userId || '')),
+    originalName: callName,
+    nextName,
+    reason: pending.reason,
+    missingFields: pending.missingFields,
+  });
+  return { name: nextName, args: mergedArgs, merged: true };
+}
+
 function inferFallbackExpenseCategory(text: string): { category: string; subcategory: string; purchaseItem: string; beneficiary: string } {
   const t = normalizeArabicForIntent(text);
   const beneficiary =
