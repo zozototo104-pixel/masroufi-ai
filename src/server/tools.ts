@@ -6195,7 +6195,7 @@ export const functionDeclarations = [
   },
   {
     name: "get_recent_transactions",
-    description: "يجلب أحدث العمليات المالية. مفيد لمعرفة الـ id لتعديل أو حذف عملية.",
+    description: "يجلب أحدث العمليات المالية ويرجع ملخصاً جاهزاً للقراءة بصوت واضح. استخدمه لأي سؤال مثل: شو آخر العمليات المالية؟ آخر مصروفات؟ آخر القيود؟ ولا تستخدم query_transactions لهذا السؤال إلا إذا طلب المستخدم فترة محددة.",
     parameters: {
       type: "object",
       properties: {}
