@@ -692,24 +692,47 @@ function makeJsonSafeForLive(value: any): any {
   }
 }
 
-function compactLiveReadToolResponse(name: string, response: any, deterministicReadReply?: string | null): any {
+function compactLiveToolResponseForGemini(name: string, response: any, deterministicReply?: string | null): any {
+  const message = String(deterministicReply || response?.message || response?.error || '').trim();
   const isReadTool = name === 'get_recent_transactions' || name === 'getRecentTransactions' || name === 'query_transactions' || name === 'queryTransactions' || name === 'get_salary_cycle_summary';
-  if (!isReadTool) return response;
-  const message = String(deterministicReadReply || response?.message || '').trim();
-  if (!message) return response;
-  return {
-    success: response?.success !== false,
-    summaryOnly: true,
-    count: Number(response?.count || response?.transactions?.length || response?.totalCount || 0) || undefined,
-    message,
-  };
+  if (isReadTool && message) {
+    return {
+      success: response?.success !== false,
+      summaryOnly: true,
+      count: Number(response?.count || response?.transactions?.length || response?.totalCount || 0) || undefined,
+      requestedDateKey: response?.requestedDateKey || undefined,
+      typeFilter: response?.typeFilter || undefined,
+      message,
+    };
+  }
+  if (isFinancialMutationToolName(name)) {
+    return {
+      success: response?.success === true,
+      reason: response?.reason || response?.error || undefined,
+      message: message || (response?.success === true ? 'تم تنفيذ العملية المالية.' : 'لم تكتمل العملية المالية.'),
+      needsClarification: response?.needsClarification === true || undefined,
+      needsConfirmation: response?.needsConfirmation === true || undefined,
+      retryable: response?.retryable === true || undefined,
+      inFlight: response?.inFlight === true || undefined,
+      transactionId: response?.transactionId || undefined,
+      transactionCommitted: response?.transactionCommitted === true || undefined,
+      cloudStorageConfirmed: response?.cloudStorageConfirmed === true || undefined,
+      cloudStoragePending: response?.cloudStoragePending === true || undefined,
+      durability: response?.durability || undefined,
+      balanceEffectConfirmed: response?.balanceEffectConfirmed === false ? false : response?.balanceEffectConfirmed === true ? true : undefined,
+      missingFields: response?.missingFields || undefined,
+      affectedCycleId: response?.affectedCycleId || undefined,
+      affectedCycleIds: response?.affectedCycleIds || undefined,
+    };
+  }
+  return response;
 }
 
-function sanitizeLiveFunctionResponsesForGemini(functionResponses: Array<any>, deterministicReadReply?: string | null): Array<any> {
+function sanitizeLiveFunctionResponsesForGemini(functionResponses: Array<any>, deterministicReply?: string | null): Array<any> {
   return functionResponses.map((r: any) => ({
     id: r.id,
     name: r.name,
-    response: makeJsonSafeForLive(compactLiveReadToolResponse(String(r.name || ''), r.response || {}, deterministicReadReply)),
+    response: makeJsonSafeForLive(compactLiveToolResponseForGemini(String(r.name || ''), r.response || {}, deterministicReply)),
   }));
 }
 
