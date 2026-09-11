@@ -391,6 +391,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           activeSourcesRef.current.push(source);
           source.onended = () => {
             try { source.disconnect(); } catch (e) { /* ignore */ }
+            try { outputGain.disconnect(); } catch (e) { /* ignore */ }
             if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) return;
             activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== source);
             if (activeSourcesRef.current.length === 0 && ws.readyState === WebSocket.OPEN) {
