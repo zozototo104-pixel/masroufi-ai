@@ -2970,6 +2970,11 @@ ${activeSalaryCycleText}
 
               if (message.toolCall && message.toolCall.functionCalls) {
                 const liveFunctionCalls = message.toolCall.functionCalls || [];
+                if (liveFunctionCalls.some((c: FunctionCall) => isFinancialMutationToolName(String(c.name || '')))) {
+                  // If Gemini is correctly executing the financial write, cancel
+                  // the deterministic transcript fallback so only one path writes.
+                  clearLiveServerFinancialCompletionTimer();
+                }
                 console.log("Received Tool Call:", liveFunctionCalls);
                 safeSend({ status: "thinking" });
 
