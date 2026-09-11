@@ -3464,6 +3464,7 @@ ${activeSalaryCycleText}
             awaitingPostToolAudio = false;
             postToolInputGateUntilMs = 0;
             clearPostToolAudioFallback();
+            clearLiveServerFinancialCompletionTimer();
             safeSend({ status: "ready", liveClosed: true });
           }
         },
