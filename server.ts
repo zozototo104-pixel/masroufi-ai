@@ -2673,6 +2673,8 @@ ${activeSalaryCycleText}
                 console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio });
                 liveAudioSinceLastToolResponse = 0;
                 awaitingPostToolAudio = false;
+                postToolInputGateUntilMs = 0;
+                clearPostToolAudioFallback();
                 aiOutputActive = false;
               }
 
