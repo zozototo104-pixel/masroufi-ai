@@ -2820,6 +2820,18 @@ ${activeSalaryCycleText}
                           args: { limit: 10, userText: liveUserTextBeforeMerge || String((effectiveCall.args as any)?.userText || '') },
                         } as FunctionCall;
                       }
+                      if ((effectiveCall.name === 'get_recent_transactions' || effectiveCall.name === 'getRecentTransactions') && liveUserTextBeforeMerge) {
+                        const wantsTodayRecent = /اليوم|نهار اليوم|اليوميه|اليومية/.test(normalizedLiveUserTextForRouting);
+                        effectiveCall = {
+                          ...effectiveCall,
+                          args: {
+                            ...(effectiveCall.args || {}),
+                            userText: String((effectiveCall.args as any)?.userText || liveUserTextBeforeMerge),
+                            currentUserText: String((effectiveCall.args as any)?.currentUserText || liveUserTextBeforeMerge),
+                            ...(wantsTodayRecent ? { today: true, date: 'today' } : {}),
+                          },
+                        } as FunctionCall;
+                      }
                       const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, JSON.stringify(effectiveCall.args || {}), seenToolKeys, liveFunctionCalls);
                       if (guard.skip) {
                         return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
