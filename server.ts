@@ -2655,7 +2655,11 @@ ${activeSalaryCycleText}
                   audioChunksInMessage += 1;
                   liveAudioChunksForwarded += 1;
                   liveAudioSinceLastToolResponse += 1;
-                  if (awaitingPostToolAudio) awaitingPostToolAudio = false;
+                  if (awaitingPostToolAudio) {
+                    awaitingPostToolAudio = false;
+                    postToolInputGateUntilMs = 0;
+                    clearPostToolAudioFallback();
+                  }
                   aiOutputActive = true;
                   safeSend({ audio });
                 }
