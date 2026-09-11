@@ -1008,7 +1008,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
       if (balanceResult.partial === true) {
         console.warn('[add-transaction] preflight balance read was partial; attempting authoritative repair before write', {
           userIdHash: stableDocId(userId),
-          reason: balanceResult.reason || balanceResult.error || 'partial_balance_read',
+          reason: (balanceResult as any).reason || (balanceResult as any).error || 'partial_balance_read',
         });
         const repaired = await repairAccountBalanceSnapshot({ reason: 'add_transaction_preflight_partial_balance' }, userId, token);
         if (repaired.success === true) {
