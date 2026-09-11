@@ -3125,6 +3125,19 @@ ${activeSalaryCycleText}
                       const handler = toolHandlers[effectiveCall.name];
                       if (handler) {
                         const liveKey = liveFinancialCommitKey(effectiveCall, userId);
+                        if (liveKey && isFinancialMutationToolName(effectiveCall.name) && liveServerFinancialCompletionKeys.has(liveKey)) {
+                          return {
+                            id: effectiveCall.id || call.id,
+                            name: effectiveCall.name,
+                            response: {
+                              success: true,
+                              skipped: true,
+                              deduped: true,
+                              reason: 'SERVER_TRANSCRIPT_COMPLETION_ALREADY_HANDLED',
+                              message: 'تم التعامل مع رد التوضيح من السيرفر مباشرة، لذلك لم أكرر نفس العملية.'
+                            }
+                          };
+                        }
                         const recentResult = getRecentLiveFinancialCommit(liveKey);
                         if (recentResult) {
                           const args: any = effectiveCall.args || {};
