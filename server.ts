@@ -2769,6 +2769,8 @@ function setupLiveApi(wss: WebSocketServer) {
         activeSalaryCycleYear: activeSalaryCycleContext.year,
       };
       liveServerFinancialCompletionRunning = true;
+      liveServerFinancialCompletionBlockUntilMs = Date.now() + 15_000;
+      liveServerFinancialCompletionTranscriptKey = stableShortFingerprint(transcript);
       liveServerFinancialCompletionKeys.set(liveKey, Date.now());
       safeSend({ status: 'thinking' });
       try {
