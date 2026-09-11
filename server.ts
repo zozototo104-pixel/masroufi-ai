@@ -3066,7 +3066,7 @@ ${activeSalaryCycleText}
                           retryable: result?.retryable === true,
                           needsClarification: result?.needsClarification === true,
                           needsConfirmation: result?.needsConfirmation === true,
-                          transactionCommitted: Boolean(result?.transactionId || result?.cloudStorageConfirmed === true || result?.durability === 'committed'),
+                          transactionCommitted: Boolean(result?.transactionCommitted === true || result?.cloudStorageConfirmed === true || result?.durability === 'committed'),
                           timedOut: result?.error === 'LIVE_TOOL_TIMEOUT',
                         });
                         // A duplicate Live tool call can arrive while the first call is still
