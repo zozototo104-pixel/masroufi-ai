@@ -815,15 +815,83 @@ function normalizeArabicDigits(value: string): string {
     .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 }
 
+function parseArabicAmountWords(phrase: string): number | null {
+  const words = normalizeArabicForIntent(phrase)
+    .replace(/[،,.]/g, ' ')
+    .split(/\s+|و/)
+    .map(w => w.trim())
+    .filter(Boolean);
+  if (words.length === 0 || words.length > 6) return null;
+  const units: Record<string, number> = {
+    واحد: 1, وحد: 1, وحده: 1, واحدة: 1, احد: 1, احدى: 1,
+    اثنين: 2, اثنان: 2, ثنين: 2, اتنين: 2, تنين: 2,
+    ثلاث: 3, ثلاثة: 3, ثلاثه: 3, تلات: 3, تلاته: 3,
+    اربع: 4, اربعة: 4, اربعه: 4,
+    خمس: 5, خمسة: 5, خمسه: 5,
+    ست: 6, سته: 6, ستة: 6,
+    سبع: 7, سبعة: 7, سبعه: 7,
+    ثمان: 8, ثمانية: 8, ثمانيه: 8, تمن: 8, تمانية: 8, تمانيه: 8,
+    تسع: 9, تسعة: 9, تسعه: 9,
+    عشر: 10, عشرة: 10, عشره: 10,
+  };
+  const teens: Record<string, number> = {
+    حداشر: 11, احدعشر: 11, احداشر: 11, احدىعشر: 11,
+    اتناشر: 12, اثناعشر: 12, اثنعشر: 12,
+    تلاتعشر: 13, ثلاثتعشر: 13, ثلاثةعشر: 13,
+    اربعطعشر: 14, اربعتعشر: 14, اربعةعشر: 14,
+    خمستعشر: 15, خمسةعشر: 15,
+    ستعشر: 16, ستةعشر: 16,
+    سبعتعشر: 17, سبعةعشر: 17,
+    ثمنتعشر: 18, ثمانتعشر: 18, ثمانيةعشر: 18,
+    تسعتعشر: 19, تسعةعشر: 19,
+  };
+  const tens: Record<string, number> = {
+    عشرين: 20, عشرون: 20,
+    ثلاثين: 30, ثلاثون: 30, تلاتين: 30,
+    اربعين: 40, اربعون: 40,
+    خمسين: 50, خمسون: 50,
+    ستين: 60, ستون: 60,
+    سبعين: 70, سبعون: 70,
+    ثمانين: 80, ثمانون: 80, تمانين: 80,
+    تسعين: 90, تسعون: 90,
+  };
+  let total = 0;
+  let matched = false;
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const pair = i + 1 < words.length ? `${word}${words[i + 1]}` : '';
+    if (teens[pair]) {
+      total += teens[pair];
+      matched = true;
+      i += 1;
+      continue;
+    }
+    if (teens[word]) { total += teens[word]; matched = true; continue; }
+    if (tens[word]) { total += tens[word]; matched = true; continue; }
+    if (units[word]) { total += units[word]; matched = true; continue; }
+    if (/^(ميه|مية|مئه|مئة)$/.test(word)) { total += 100; matched = true; continue; }
+    if (/^(ميتين|مئتين|مائتين)$/.test(word)) { total += 200; matched = true; continue; }
+    if (/^(الف|ألف)$/.test(word)) { total += 1000; matched = true; continue; }
+  }
+  return matched && total > 0 ? total : null;
+}
+
 function extractAmountFromFinancialText(text: string): number | null {
   const normalized = normalizeArabicDigits(normalizeArabicForIntent(text))
     // Do not mistake explicit dates such as 27/8 or 2026-08-27 for the amount.
     .replace(/(?:^|\D)\d{4}-\d{1,2}-\d{1,2}(?=\D|$)/g, ' ')
     .replace(/(?:^|\D)\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?=\D|$)/g, ' ');
   const matches = Array.from(normalized.matchAll(/(?:^|\s)(\d+(?:[\.,]\d+)?)(?=\s*(?:ش|شيكل|₪|دولار|دينار|ils|nis|$|\s))/g));
-  if (matches.length === 0) return null;
-  const amount = Number(String(matches[matches.length - 1][1]).replace(',', '.'));
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
+  if (matches.length > 0) {
+    const amount = Number(String(matches[matches.length - 1][1]).replace(',', '.'));
+    return Number.isFinite(amount) && amount > 0 ? amount : null;
+  }
+  const wordMatches = Array.from(normalized.matchAll(/((?:[\u0621-\u064A]+\s*(?:و\s*)?){1,6})(?=\s*(?:ش|شيكل|₪|دولار|دينار|ils|nis|$))/g));
+  for (let i = wordMatches.length - 1; i >= 0; i--) {
+    const parsed = parseArabicAmountWords(wordMatches[i][1]);
+    if (parsed && parsed > 0) return parsed;
+  }
+  return null;
 }
 
 function accountFromFinancialText(text: string): 'cash' | 'palPay' | 'debt' | null {
