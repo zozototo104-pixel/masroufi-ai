@@ -3001,21 +3001,9 @@ ${activeSalaryCycleText}
 
                 if (session && isActive) {
                   const deterministicReadReply = buildDeterministicFinancialReply(functionResponses as any);
-                  const functionResponsesForModel = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any).map((r: any) => {
-                    if (deterministicReadReply && (r.name === 'get_recent_transactions' || r.name === 'getRecentTransactions' || r.name === 'query_transactions' || r.name === 'queryTransactions')) {
-                      return {
-                        ...r,
-                        response: {
-                          ...(r.response || {}),
-                          spokenSummary: deterministicReadReply,
-                          instruction: 'قل للمستخدم هذا الملخص صوتياً الآن ولا تبقَ صامتاً.',
-                          scheduling: 'INTERRUPT',
-                        },
-                      };
-                    }
-                    return r;
-                  });
-                  console.log("Sending Tool Response:", functionResponsesForModel.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, hasSpokenSummary: Boolean(r.response?.spokenSummary), transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed'), normalizedAfterCommit: Boolean(r.response?.canonicalCommittedTransactionId) })));
+                  const normalizedFunctionResponses = normalizeLiveFunctionResponsesForCommittedWrite(functionResponses as any);
+                  const functionResponsesForModel = sanitizeLiveFunctionResponsesForGemini(normalizedFunctionResponses as any, deterministicReadReply);
+                  console.log("Sending Tool Response:", functionResponsesForModel.map((r: any) => ({ id: r.id, name: r.name, success: r.response?.success === true, reason: r.response?.reason || r.response?.error || null, summaryOnly: Boolean(r.response?.summaryOnly), messageChars: String(r.response?.message || '').length, transactionCommitted: Boolean(r.response?.transactionId || r.response?.cloudStorageConfirmed === true || r.response?.durability === 'committed'), normalizedAfterCommit: Boolean(r.response?.canonicalCommittedTransactionId) })));
                   try {
                     await session.sendToolResponse({ functionResponses: functionResponsesForModel });
                     liveToolResponsesSent += 1;
