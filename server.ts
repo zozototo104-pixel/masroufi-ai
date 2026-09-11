@@ -2678,12 +2678,21 @@ ${activeSalaryCycleText}
 
               if (message.serverContent?.turnComplete) {
                 liveTurnsCompleted += 1;
-                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio });
+                const completedPostToolTurnWithoutAudio = awaitingPostToolAudio && liveAudioSinceLastToolResponse === 0;
+                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio, completedPostToolTurnWithoutAudio });
                 liveAudioSinceLastToolResponse = 0;
-                awaitingPostToolAudio = false;
-                postToolInputGateUntilMs = 0;
-                clearPostToolAudioFallback();
-                aiOutputActive = false;
+                if (completedPostToolTurnWithoutAudio) {
+                  // Gemini sometimes closes the function-response turn without
+                  // emitting audio. Keep the fallback timer alive so it can ask
+                  // Gemini to speak the deterministic summary instead of leaving
+                  // the user stuck on "thinking".
+                  aiOutputActive = false;
+                } else {
+                  awaitingPostToolAudio = false;
+                  postToolInputGateUntilMs = 0;
+                  clearPostToolAudioFallback();
+                  aiOutputActive = false;
+                }
               }
 
               if (message.serverContent?.interrupted) {
