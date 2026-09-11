@@ -969,7 +969,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     reason: 'MISSING_NECESSITY_CONTEXT',
     message: `لم أستطع تصنيف هذا المصروف كضروري أو كمالي وفق واقع غزة من الوصف الحالي. ${necessitySuggestion?.reason || ''} قل لي باختصار: ما الحاجة من هذا الشراء؟`
   };
-  if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
+  if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
 
   const explicitDebtSettlementIntent = mentionsDebtRepayment
     || (type === 'expense' && category.includes('سداد'))
