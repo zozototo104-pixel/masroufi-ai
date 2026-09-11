@@ -2472,6 +2472,39 @@ function setupLiveApi(wss: WebSocketServer) {
       }
     };
 
+    const clearPostToolAudioFallback = () => {
+      if (postToolAudioFallbackTimer) {
+        clearTimeout(postToolAudioFallbackTimer);
+        postToolAudioFallbackTimer = null;
+      }
+    };
+
+    const schedulePostToolAudioFallback = (spokenText: string | null | undefined) => {
+      clearPostToolAudioFallback();
+      const text = String(spokenText || '').trim();
+      if (!text) return;
+      postToolInputGateUntilMs = Date.now() + 6500;
+      postToolAudioFallbackTimer = setTimeout(async () => {
+        postToolAudioFallbackTimer = null;
+        if (!isActive || !session || !awaitingPostToolAudio) return;
+        try {
+          console.warn('[live-audio] post-tool audio fallback prompting Gemini to speak deterministic summary', {
+            requestId,
+            chars: text.length,
+          });
+          await session.sendClientContent({
+            turns: [{ role: 'user', parts: [{ text: `اقرأ للمستخدم الآن بصوت واضح ومختصر دون استخدام أدوات جديدة: ${text}` }] }],
+            turnComplete: true,
+          });
+        } catch (fallbackErr: any) {
+          console.error('[live-audio] post-tool audio fallback failed', { requestId, message: fallbackErr?.message || String(fallbackErr) });
+          awaitingPostToolAudio = false;
+          postToolInputGateUntilMs = 0;
+          safeSend({ status: 'ready', liveError: true, message: 'انتهت قراءة الأداة لكن الصوت لم يرد. أعد السؤال أو استخدم الكتابة مؤقتاً.' });
+        }
+      }, 2500);
+    };
+
     const pingInterval = setInterval(() => {
       if (clientWs.readyState === WebSocket.OPEN) {
         try {
