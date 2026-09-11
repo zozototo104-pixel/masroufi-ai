@@ -2530,6 +2530,10 @@ function setupLiveApi(wss: WebSocketServer) {
     let liveReportScopeMissingUntilMs = 0;
     let liveReportScopeOverride: { month?: number; year?: number; untilMs?: number } = {};
     let activeSalaryCycleContext: { cycleId?: string; name?: string; month?: number; year?: number } = {};
+    let liveServerFinancialCompletionTimer: NodeJS.Timeout | null = null;
+    let liveServerFinancialCompletionRunning = false;
+    const liveServerFinancialCompletionKeys = new Map<string, number>();
+    let liveExpenseIntakeDraft: { args: any; texts: string[]; createdAt: number; updatedAt: number } | null = null;
 
     let authTimeout: NodeJS.Timeout | null = setTimeout(() => {
       if (!authState.authenticated) {
