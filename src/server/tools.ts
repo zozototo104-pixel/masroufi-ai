@@ -6098,7 +6098,7 @@ export const functionDeclarations = [
   },
   {
     name: "transfer_money",
-    description: "يحول مبلغاً بين الحسابات والمحافظ (مثلاً: من الكاش إلى بال باي PalPay أو العكس). التحويل الداخلي لا يعتبر دخلاً ولا مصروفاً بل ينقل الرصيد بدقة.",
+    description: "يحول مبلغاً بين الحسابات والمحافظ. استخدمه أيضاً عند أخذ/استدانة/اقتراض مبلغ من شخص: fromAccount='debt' و toAccount='cash' أو 'palPay' حسب مكان استلام المال؛ هذا يزيد الدين ويزيد الرصيد المستقبل ولا يعتبر دخلاً ولا مصروفاً. للسداد استخدم cash/palPay إلى debt أو pay_debt.",
     parameters: {
       type: "object",
       properties: {
