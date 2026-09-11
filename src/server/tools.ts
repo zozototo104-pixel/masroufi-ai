@@ -2324,7 +2324,7 @@ export async function transferMoney(args: any, userId: string, token: string) {
 
   const fromAccount = normalizeLedgerAccount(args.fromAccount || args.account || 'cash');
   if (fromAccount === 'debt' && !args.toAccount) {
-    return { success: false, needsClarification: true, reason: 'MISSING_BORROW_DESTINATION', message: 'استلمت المبلغ نقدي (كاش) أم في محفظة PalPay؟' };
+    return { success: false, needsClarification: true, reason: 'MISSING_BORROW_DESTINATION', missingFields: ['borrowDestination'], message: 'استلمت المبلغ نقدي (كاش) أم في محفظة PalPay؟' };
   }
   let toAccount = normalizeLedgerAccount(args.toAccount || (fromAccount === 'cash' ? 'palPay' : 'cash'));
   
