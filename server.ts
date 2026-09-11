@@ -3016,6 +3016,9 @@ ${activeSalaryCycleText}
           },
           onclose: () => {
             console.log("Gemini Live session closed");
+            awaitingPostToolAudio = false;
+            postToolInputGateUntilMs = 0;
+            clearPostToolAudioFallback();
             safeSend({ status: "ready", liveClosed: true });
           }
         },
