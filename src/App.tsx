@@ -1486,7 +1486,12 @@ export default function App() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.message || data?.reason || data?.error || 'تعذر تصحيح فائض الدائن الخاطئ');
       setVaultCycleMessage(data?.message || 'تم تصحيح آخر عملية فائض دائن خاطئة.');
-      await fetchVaultData({ Authorization: `Bearer ${token}` });
+      const vaultRes = await fetch('/api/savings-vault?limit=12', { headers: { Authorization: `Bearer ${token}` } });
+      const vaultPayload = await vaultRes.json().catch(() => ({}));
+      if (vaultRes.ok && vaultPayload?.success && !vaultPayload.partial) {
+        setVaultData(vaultPayload);
+        await idbSet('lkgs_savings_vault', vaultPayload);
+      }
       const affectedCycleId = data?.affectedCycleId || selectedVaultCycleId;
       if (affectedCycleId) await loadVaultCycleDetails(affectedCycleId);
       window.dispatchEvent(new CustomEvent('masrofi:refresh', { detail: { scope: 'transactions+vault', affectedCycleIds: data?.affectedCycleIds || [], reason: 'repair_misrouted_vault_close' } }));
