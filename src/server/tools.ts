@@ -2339,7 +2339,7 @@ export async function transferMoney(args: any, userId: string, token: string) {
 
   // Borrowing money (debt -> cash/PalPay) must identify the creditor; otherwise later repayment cannot be resolved safely.
   if (fromAccount === 'debt' && !creditor) {
-    return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'ممن استدنت هذا المبلغ؟' };
+    return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'ممن استدنت هذا المبلغ؟' };
   }
 
   // Internal wallet transfers cannot create money by driving the source wallet below zero.
