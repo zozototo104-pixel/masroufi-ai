@@ -3158,6 +3158,13 @@ ${activeSalaryCycleText}
             return;
           }
 
+          if (awaitingPostToolAudio && Date.now() < postToolInputGateUntilMs) {
+            if (liveAudioChunksForwarded <= 5 || liveAudioChunksForwarded % 25 === 0) {
+              console.log('[live-audio] held mic chunk while waiting for post-tool answer audio', { requestId });
+            }
+            return;
+          }
+
           if (session && isActive) {
             try {
               session.sendRealtimeInput({
