@@ -744,7 +744,13 @@ export async function addTransaction(args: any, userId: string, token: string) {
     : /دين|بالدين|اجل|آجل|على الحساب|credit_purchase|paymentmethod debt|account debt/.test(textToCheck);
   const mentionsPurchase = /اشتريت|شريت|شراء|مشتريات|مصروف|سجل|سجلي|قيد|قيدي/.test(textToCheck);
   const mentionsDebtRepayment = /سداد|تسديد|سدد|سديت|دفع دين|دفعت دين/.test(textToCheck);
-  const mentionsCashBorrowing = /اخذت دين نقدي|اخدت دين نقدي|استدنت|اقترضت|سلفه|سلفة/.test(textToCheck) && !/اشتريت|شريت|شراء|مشتريات/.test(textToCheck);
+  const mentionsCashBorrowing = (
+    /اخذت\s+(?:مبلغ\s+)?(?:دين|دينا|ديناً|كدين|سلفه|سلفة|قرض)/.test(textToCheck)
+    || /اخدت\s+(?:مبلغ\s+)?(?:دين|دينا|ديناً|كدين|سلفه|سلفة|قرض)/.test(textToCheck)
+    || /استلمت\s+(?:مبلغ\s+)?(?:دين|دينا|ديناً|كدين|سلفه|سلفة|قرض)/.test(textToCheck)
+    || /(?:اخذت|اخدت|استلمت)\s+.*(?:من|مِن|عن\s+طريق)\s+.*(?:دين|دينا|ديناً|كدين|سلفه|سلفة|قرض)/.test(textToCheck)
+    || /استدنت|اقترضت|سلفني|سلفتني|داينني|دينني|اعطاني\s+دين|اعطتني\s+دين|أعطاني\s+دين|أعطتني\s+دين/.test(textToCheck)
+  ) && !/اشتريت|شريت|شراء|مشتريات/.test(textToCheck);
   const structuredCreditPurchaseIntent = String(args.transactionType || '').toUpperCase() === 'CREDIT_PURCHASE'
     || normalizeAccount(args.paymentMethod) === 'debt'
     || normalizeAccount(args.account) === 'debt';
