@@ -891,8 +891,13 @@ function rememberPendingFinancialClarification(userId: string | null | undefined
 }
 
 function updatePendingFinancialClarificationFromResponses(userId: string | null | undefined, responses: Array<any>, clientMessageId: string, source: 'chat' | 'live') {
-  const committed = responses.some((r: any) => isFinancialMutationToolName(r?.name) && isCommittedFinancialMutationResponse(r?.response));
-  if (committed) {
+  const writeReachedCloud = responses.some((r: any) => isFinancialMutationToolName(r?.name)
+    && (isCommittedFinancialMutationResponse(r?.response) || r?.response?.transactionCommitted === true));
+  if (writeReachedCloud) {
+    // Clear the clarification memory even if the balance effect was not
+    // confirmed. Keeping it would let a short follow-up answer repeat the same
+    // purchase and create a duplicate while the first transaction document may
+    // already exist.
     clearPendingFinancialClarification(userId);
     return;
   }
