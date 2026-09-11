@@ -1140,8 +1140,14 @@ function buildFallbackFinancialToolCall(userText: string, clientMessageId: strin
   if (isDelete && /(مصروف|مصروفات|صرف|اشتريت|شراء)/.test(text)) {
     return { name: 'delete_recent_transactions', args: { count: extractRecentDeleteCountFromText(userText), kind: 'expense', confirmed: true, userText } } as any;
   }
+  const isRecentOperationsQuestion = /(اخر|آخر|احدث|أحدث)\s*(?:ال)?(?:عمليات|عمليه|عملية|قيود|قيد|مصروف|مصروفات|صرف|مشتريات)/.test(text)
+    || /(?:شو|ايش|اعطيني|اعطني|ورجيني|اعرض|عرض)\s+.*(?:عمليات|قيود|مصروفات|مشتريات)\s+.*(?:سجلنا|سجلتها|انضافت|اضفنا|أضفنا)/.test(text);
+  if (isRecentOperationsQuestion && !/(احذف|احذفي|امسح|اشطب|شطب|عدل|عدلي|تعديل|اشتريت|شريت|دفعت\s+\d|سدد|حول|حوّل)/.test(text)) {
+    return { name: 'get_recent_transactions', args: { limit: 10, userText } } as any;
+  }
   const isReadQuestion = /(كم|اعطيني|اعطني|عرض|ورجيني|شو|ما هي|ماهو|مصروفات|مصروف|صرف|دخل|دين|ديون)/.test(text)
-    && !/(سجل|سجلي|ضيف|ضيفي|اضف|أضف|اشتريت|شريت|دفعت|حول|حوّل|سدد)/.test(text);
+    && !/(سجلي|ضيف|ضيفي|اضف|أضف|اشتريت|شريت|دفعت|حول|حوّل|سدد)/.test(text)
+    && !(/سجل/.test(text) && !isRecentOperationsQuestion);
   if (isReadQuestion && /(مصروف|مصروفات|صرف)/.test(text)) {
     return { name: 'query_transactions', args: { period: 'salary_cycle', type: 'expense', userText, limit: 120 } } as any;
   }
