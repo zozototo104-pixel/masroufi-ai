@@ -611,7 +611,15 @@ function buildDeterministicFinancialReply(functionResponses: Array<{ name: strin
   if (retryable) {
     return retryable.response?.message || 'العملية لم تُسجّل الآن لأن حالة الحفظ غير مؤكدة، أعد المحاولة لاحقاً.';
   }
-  const readResult = financial.find(r => r.response?.success === true && (r.name === 'query_transactions' || r.name === 'get_salary_cycle_summary'));
+  const recentReadResult = financial.find(r => r.response?.success === true && (r.name === 'get_recent_transactions' || r.name === 'getRecentTransactions'));
+  if (recentReadResult) {
+    const response = recentReadResult.response || {};
+    if (response.message) return response.message;
+    const transactions = Array.isArray(response.transactions) ? response.transactions : [];
+    if (transactions.length === 0) return 'لا توجد عمليات مالية مسجلة حتى الآن.';
+    return `آخر ${transactions.length} عمليات مالية: ${transactions.map((t: any, idx: number) => `${idx + 1}) ${String(t.date || '').slice(0, 10) || 'بدون تاريخ'} ${Number(t.amount || 0).toLocaleString()} ₪ ${t.category || t.subcategory || t.notes || 'عملية مالية'}`).join('، ')}`;
+  }
+  const readResult = financial.find(r => r.response?.success === true && (r.name === 'query_transactions' || r.name === 'queryTransactions' || r.name === 'get_salary_cycle_summary'));
   if (readResult) {
     const response = readResult.response || {};
     const cycle = response.salaryCycle || response;
