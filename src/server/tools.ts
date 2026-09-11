@@ -938,13 +938,10 @@ export async function addTransaction(args: any, userId: string, token: string) {
   };
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
 
-  if (
-    textToCheck.includes('دفع دين') || 
-    textToCheck.includes('دفعت دين') || 
-    (type === 'expense' && category.includes('سداد')) || 
-    ((textToCheck.includes('سداد') || textToCheck.includes('سدد') || textToCheck.includes('تسديد')) && (textToCheck.includes('دين') || textToCheck.includes('الديون') || textToCheck.includes('لشخص') || textToCheck.includes('لصديق'))) ||
-    (account === 'debt' && type === 'expense' && (textToCheck.includes('سداد') || textToCheck.includes('تسديد') || textToCheck.includes('سدد') || textToCheck.includes('دفع') || category.includes('سداد')))
-  ) {
+  const explicitDebtSettlementIntent = mentionsDebtRepayment
+    || (type === 'expense' && category.includes('سداد'))
+    || ((textToCheck.includes('سداد') || textToCheck.includes('سدد') || textToCheck.includes('تسديد')) && (textToCheck.includes('دين') || textToCheck.includes('الديون') || textToCheck.includes('لشخص') || textToCheck.includes('لصديق')));
+  if (explicitDebtSettlementIntent) {
     let fromAcc = normalizeAccount(args.paymentMethod || args.fromAccount || 'cash');
     if (fromAcc === 'debt') fromAcc = 'cash'; 
     return await payDebt({ amount, paymentMethod: fromAcc, creditor: args.merchant || args.subcategory || 'سداد دين', notes: args.notes }, userId, token);
