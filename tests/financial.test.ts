@@ -155,6 +155,26 @@ test('FIN-08: pay debt (cash → debt) → cash -amount, debt -amount', () => {
   assert.equal(r.debt, -100);
 });
 
+test('FIN-08B: borrowed money (debt → cash/PalPay) increases both debt and the receiving balance', () => {
+  const cashLoan = calc([tx({
+    type: 'transfer', amount: 120, fromAccount: 'debt', toAccount: 'cash',
+    transactionType: 'DEBT_BORROWING', creditor: 'محمد'
+  })]);
+  assert.equal(cashLoan.cash, 120);
+  assert.equal(cashLoan.palPay, 0);
+  assert.equal(cashLoan.debt, 120);
+  assert.equal(cashLoan.total, 120);
+
+  const palPayLoan = calc([tx({
+    type: 'transfer', amount: 80, fromAccount: 'debt', toAccount: 'palPay',
+    transactionType: 'DEBT_BORROWING', creditor: 'محمد'
+  })]);
+  assert.equal(palPayLoan.cash, 0);
+  assert.equal(palPayLoan.palPay, 80);
+  assert.equal(palPayLoan.debt, 80);
+  assert.equal(palPayLoan.total, 80);
+});
+
 test('FIN-09: payDebt overpayment protection is enforced (verified at code level)', () => {
   // The payDebt function in tools.ts checks `amount > selected.remaining + 0.0001`
   // and returns OVERPAYMENT needsClarification. We verify by inspecting source.
