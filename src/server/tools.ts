@@ -958,6 +958,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
         success: false,
         needsClarification: true,
         reason: 'MISSING_PURCHASE_BENEFICIARY_OR_PURPOSE',
+        missingFields: ['beneficiary'],
         message: 'ولمين أو لأي غرض هذا المصروف؟ للبيت، للأولاد، لزوجتك، للعلاج، للضيافة، للعمل، أو لنفسك؟ لا أسجل القيد بدون الغرض.'
       };
     }
