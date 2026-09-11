@@ -2997,6 +2997,11 @@ ${activeSalaryCycleText}
         model: "gemini-3.1-flash-live-preview",
         config: {
           responseModalities: [Modality.AUDIO],
+          // Required for the server-side financial clarification guard. Gemini
+          // can understand the user's audio without exposing a transcript to our
+          // server, but then replies like "بال باي" never reach the deterministic
+          // completion path and the model keeps asking cash/PalPay again.
+          inputAudioTranscription: {},
           systemInstruction,
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
