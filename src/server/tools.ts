@@ -949,6 +949,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
         success: false,
         needsClarification: true,
         reason: 'MISSING_PURCHASE_ITEM',
+        missingFields: ['purchaseItem'],
         message: 'قبل تسجيل أي مصروف لازم أعرف شو اشتريت بالضبط. قل لي مثلاً: خبز، دواء، ملابس، تموين... بعدها أحدد أنا البند وهل هو ضروري أو كمالي وفق واقع غزة.'
       };
     }
