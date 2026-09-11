@@ -2120,6 +2120,22 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("No API key");
 
+      const pendingClarificationCall = buildPendingFinancialClarificationCall(req.user.uid, String(message || ''), String(clientMessageId || ''));
+      if (pendingClarificationCall && toolHandlers[pendingClarificationCall.name]) {
+        const authToken = req.headers.authorization.split('Bearer ')[1];
+        const stableOperationId = buildStableOperationIdForToolCall(pendingClarificationCall, String(clientMessageId || ''));
+        const toolArgs = stableOperationId
+          ? { ...(pendingClarificationCall.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
+          : { ...(pendingClarificationCall.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
+        const responseData = await toolHandlers[pendingClarificationCall.name](toolArgs, req.user.uid, authToken);
+        const directResponses = [{ id: 'pending_financial_clarification', name: pendingClarificationCall.name, args: toolArgs, requestArgs: toolArgs, response: responseData }];
+        updatePendingFinancialClarificationFromResponses(req.user.uid, directResponses, String(clientMessageId || ''), 'chat');
+        const replyText = buildDeterministicFinancialReply(directResponses as any) || responseData?.message || 'تمت معالجة جواب التوضيح.';
+        const financialToolResults = directResponses.map((r: any) => r.response).filter(Boolean);
+        const committedTransactions = financialToolResults.filter((r: any) => r?.success === true && r?.transaction).map((r: any) => r.transaction);
+        return res.json({ success: true, text: replyText, financialToolResults, committedTransactions, completedPendingClarification: true });
+      }
+
       const personalityMap: Record<string, string> = {
         friendly: "ودود وعفوي وخفيف الدم",
         playful: "مرح جداً ومشاكس بلطف ويستخدم الدعابة الطبيعية دون إفساد الجدية المالية",
