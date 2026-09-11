@@ -3201,6 +3201,9 @@ ${activeSalaryCycleText}
         authTimeout = null;
       }
       clearInterval(pingInterval);
+      awaitingPostToolAudio = false;
+      postToolInputGateUntilMs = 0;
+      clearPostToolAudioFallback();
       if (userId && activeLiveSocketsByUser.get(userId) === clientWs) {
         activeLiveSocketsByUser.delete(userId);
       }
