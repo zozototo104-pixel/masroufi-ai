@@ -2853,6 +2853,15 @@ function setupLiveApi(wss: WebSocketServer) {
       const shortCommitAnswer = Boolean(account) && (hasPending || hasDraft) && !/(شو|ايش|كم|اخر|آخر|اعطيني|اعطني|ورجيني|اعرض|عرض|تقرير)/.test(normalized);
       if (!fullDirect && !shortCommitAnswer) return;
       const clientMessageId = `live_server_${requestId}_${Date.now()}_${stableShortFingerprint(text)}`;
+      console.warn('[live-server-financial] scheduled deterministic completion candidate', {
+        requestId,
+        hasPending,
+        hasDraft,
+        account: account || null,
+        hasAmount,
+        fullDirect,
+        shortCommitAnswer,
+      });
       clearLiveServerFinancialCompletionTimer();
       liveServerFinancialCompletionTimer = setTimeout(() => {
         liveServerFinancialCompletionTimer = null;
