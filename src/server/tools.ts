@@ -755,6 +755,27 @@ export async function addTransaction(args: any, userId: string, token: string) {
     && !mentionsDebtRepayment
     && !mentionsCashBorrowing;
 
+  if (mentionsCashBorrowing) {
+    const creditor = String(args.creditor || args.person || args.merchant || args.seller || args.store || args.vendor || '').trim();
+    if (!creditor) {
+      return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'من أي شخص أخذت الدين؟' };
+    }
+    const borrowDestination = explicitPalPayInUserText || normalizeAccount(args.toAccount) === 'palPay' || normalizeAccount(args.account) === 'palPay'
+      ? 'palPay'
+      : 'cash';
+    return await transferMoney({
+      ...args,
+      amount,
+      fromAccount: 'debt',
+      toAccount: borrowDestination,
+      creditor,
+      person: creditor,
+      merchant: creditor,
+      transactionType: 'DEBT_BORROWING',
+      notes: args.notes || `أخذت دين ${amount} ₪ من ${creditor}`,
+    }, userId, token);
+  }
+
   const paymentWasProvided = hasOriginalUserUtterance
     ? Boolean(explicitUserPaymentAccount || forcedCreditPurchaseIntent)
     : Boolean(args.paymentMethod || args.account || forcedCreditPurchaseIntent);
