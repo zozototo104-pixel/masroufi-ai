@@ -3504,7 +3504,7 @@ export async function repairMisrecordedCreditPurchase(args: any, userId: string,
     if (!doc.exists || doc.data()?.userId !== userId) {
       return { success: false, reason: 'TRANSACTION_NOT_FOUND', message: 'لم أجد العملية المحددة أو ليست تابعة لحسابك.' };
     }
-    const target: any = { id: doc.id, ...doc.data() };
+    const target: any = { id: (doc as any).id || transactionId, ...doc.data() };
     if (String(target.type || '') !== 'expense') {
       return { success: false, reason: 'NOT_EXPENSE_TRANSACTION', message: 'هذه العملية ليست مصروفاً، لذلك لن أحولها إلى شراء دين.' };
     }
