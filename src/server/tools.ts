@@ -764,11 +764,17 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (mentionsCashBorrowing) {
     const creditor = String(args.creditor || args.person || args.merchant || args.seller || args.store || args.vendor || '').trim();
     if (!creditor) {
-      return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', message: 'من أي شخص أخذت الدين؟' };
+      return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'من أي شخص أخذت الدين؟' };
     }
-    const borrowDestination = explicitPalPayInUserText || normalizeAccount(args.toAccount) === 'palPay' || normalizeAccount(args.account) === 'palPay'
+    const structuredBorrowDestination = normalizeAccount(args.toAccount || args.account || args.paymentMethod);
+    const borrowDestination = explicitPalPayInUserText || structuredBorrowDestination === 'palPay'
       ? 'palPay'
-      : 'cash';
+      : explicitCashInUserText || structuredBorrowDestination === 'cash'
+        ? 'cash'
+        : '';
+    if (!borrowDestination) {
+      return { success: false, needsClarification: true, reason: 'MISSING_BORROW_DESTINATION', missingFields: ['borrowDestination'], message: 'استلمت الدين كاش أم في محفظة PalPay؟' };
+    }
     return await transferMoney({
       ...args,
       amount,
