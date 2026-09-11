@@ -2440,6 +2440,8 @@ function setupLiveApi(wss: WebSocketServer) {
     let liveAudioSinceLastToolResponse = 0;
     let liveInterruptions = 0;
     let awaitingPostToolAudio = false;
+    let postToolAudioFallbackTimer: NodeJS.Timeout | null = null;
+    let postToolInputGateUntilMs = 0;
     let aiOutputActive = false;
     let clientInterruptOverrideUntilMs = 0;
     let droppedEchoAudioChunks = 0;
