@@ -2247,6 +2247,7 @@ ${relationshipContext}
             }
             const handler = toolHandlers[effectiveCall.name];
             let responseData = { error: "Function not found" };
+            let requestArgsForMemory: any = effectiveCall.args || {};
             if (handler) {
               try {
                 const authToken = req.headers.authorization.split('Bearer ')[1];
@@ -2254,12 +2255,13 @@ ${relationshipContext}
                 const toolArgs = stableOperationId
                   ? { ...(effectiveCall.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
                   : { ...(effectiveCall.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
+                requestArgsForMemory = toolArgs;
                 responseData = await handler(toolArgs, req.user.uid, authToken);
               } catch (e: any) {
                 responseData = { error: e.message };
               }
             }
-            return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: responseData };
+            return { id: effectiveCall.id || call.id, name: effectiveCall.name, args: requestArgsForMemory, requestArgs: requestArgsForMemory, response: responseData };
           })
         );
         executedFunctionResponses = functionResponses as any[];
