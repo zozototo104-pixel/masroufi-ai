@@ -1,3 +1,5 @@
+import { matchesArabicCategory } from '../lib/reportUtils';
+
 type InputScalar = string | number | boolean | null | undefined;
 
 export type TransactionLike = Record<string, unknown> & {
