@@ -1371,7 +1371,7 @@ test('REPORTS-06: Treasurer monthly/category analysis must not refuse due to lar
   const treasurerSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/treasurerEngine.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('treasurerReadPartial') && toolsSrc.includes('ولم أرفض الطلب بسبب كثرة البيانات'), 'treasurer reports must return a bounded report instead of refusing because monthly data is large');
   assert.ok(!toolsSrc.includes('TREASURER_REPORT_QUERY_INCOMPLETE') && !toolsSrc.includes('لا أستطيع إصدار تقرير أمين صندوق دقيق'), 'treasurer reports must not tell the user to shrink the period/paginate for normal monthly analysis');
-  assert.ok(toolsSrc.includes("rawTimeframe === 'this_month' ? 'current_salary_cycle'") && toolsSrc.includes("timeframe === 'current_salary_cycle' || timeframe === 'salary_cycle'"), 'treasurer reports must treat this month/current month as the current salary cycle unless the user explicitly asks for a calendar month');
+  assert.ok(toolsSrc.includes('calendarMonthRequested') && toolsSrc.includes("rawTimeframe === 'this_month' || rawTimeframe === 'month'") && toolsSrc.includes("hasExplicitTreasurerMonth ? 'salary_cycle' : 'current_salary_cycle'") && toolsSrc.includes("timeframe === 'current_salary_cycle' || timeframe === 'salary_cycle'"), 'treasurer reports must treat this month/current month as the salary cycle unless the user explicitly asks for a calendar month');
   assert.ok(treasurerSrc.includes("import { matchesArabicCategory } from '../lib/reportUtils'") && treasurerSrc.includes('matchesArabicCategory(t, categoryQuery)'), 'treasurer category filtering must use the shared Arabic matcher so أولاد/الأولاد maps to الأبناء');
 });
 
