@@ -128,6 +128,16 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       inputCtxRef.current = null;
     }
 
+    if (outputGainRef.current) {
+      try { outputGainRef.current.disconnect(); } catch (e) { /* ignore */ }
+      outputGainRef.current = null;
+    }
+
+    if (outputCompressorRef.current) {
+      try { outputCompressorRef.current.disconnect(); } catch (e) { /* ignore */ }
+      outputCompressorRef.current = null;
+    }
+
     if (outputCtxRef.current) {
       try { outputCtxRef.current.close(); } catch (e) { /* ignore */ }
       outputCtxRef.current = null;
