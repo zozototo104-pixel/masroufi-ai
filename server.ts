@@ -3069,8 +3069,19 @@ ${activeSalaryCycleText}
               if (message.serverContent?.turnComplete) {
                 liveTurnsCompleted += 1;
                 const completedPostToolTurnWithoutAudio = awaitingPostToolAudio && liveAudioSinceLastToolResponse === 0;
-                console.log('[live-audio] turn complete', { requestId, turns: liveTurnsCompleted, audioSinceLastToolResponse: liveAudioSinceLastToolResponse, totalAudioChunks: liveAudioChunksForwarded, toolResponses: liveToolResponsesSent, awaitingPostToolAudio, completedPostToolTurnWithoutAudio });
+                console.log('[live-audio] turn complete', {
+                  requestId,
+                  turns: liveTurnsCompleted,
+                  audioSinceLastToolResponse: liveAudioSinceLastToolResponse,
+                  totalAudioChunks: liveAudioChunksForwarded,
+                  currentTurnMaxGeminiAudioInterArrivalMs,
+                  toolResponses: liveToolResponsesSent,
+                  awaitingPostToolAudio,
+                  completedPostToolTurnWithoutAudio
+                });
                 liveAudioSinceLastToolResponse = 0;
+                lastGeminiAudioChunkAt = 0;
+                currentTurnMaxGeminiAudioInterArrivalMs = 0;
                 if (completedPostToolTurnWithoutAudio) {
                   // Gemini sometimes closes the function-response turn without
                   // emitting audio. Keep the fallback timer alive so it can ask
