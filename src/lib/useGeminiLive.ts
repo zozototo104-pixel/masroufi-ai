@@ -565,7 +565,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       setTimeout(() => setError(null), 3500);
       disconnect();
     }
-  }, [clearLiveReadyWatchdog, clearResponseWatchdog, disconnect, stopPlayback]);
+  }, [clearLiveReadyWatchdog, clearResponseWatchdog, disconnect, ensureOutputChain, stopPlayback]);
 
   // Clean up on unmount
   useEffect(() => {
