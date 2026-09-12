@@ -377,6 +377,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           outputGain.connect(outputCtxRef.current.destination);
           
           const currentTime = outputCtxRef.current.currentTime;
+          const queuedLeadBeforeClampSeconds = nextPlayTimeRef.current - currentTime;
+          const likelyPlaybackUnderrun = receivedAudioFramesRef.current > 1 && queuedLeadBeforeClampSeconds < 0.02;
+          if (likelyPlaybackUnderrun) playbackUnderrunsRef.current += 1;
           // Use a stable playback cushion for clear speech. Do not stop queued
           // chunks during normal playback; stopping scheduled buffers is what
           // caused audible chopping. Old audio is cleared only on disconnect or
