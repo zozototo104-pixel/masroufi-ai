@@ -3668,7 +3668,7 @@ ${activeSalaryCycleText}
           lastClientAudioChunkAt = now;
           maxClientAudioInterArrivalMs = Math.max(maxClientAudioInterArrivalMs, interArrivalMs);
           liveClientAudioChunksReceived += 1;
-          if (liveClientAudioChunksReceived <= 5 || liveClientAudioChunksReceived % 100 === 0 || interArrivalMs > 250) {
+          if (LIVE_AUDIO_DIAGNOSTICS_ENABLED && (liveClientAudioChunksReceived <= 5 || liveClientAudioChunksReceived % 100 === 0 || interArrivalMs > 250)) {
             console.log('[live-audio-server-diagnostics] received client mic chunk', {
               requestId,
               received: liveClientAudioChunksReceived,
