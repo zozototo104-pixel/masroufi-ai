@@ -397,7 +397,11 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           adaptivePlaybackLeadSecondsRef.current = nextAdaptiveLeadSeconds;
           const minimumLeadTimeSeconds = nextAdaptiveLeadSeconds;
           const maximumLeadTimeSeconds = 6.0;
-          if (nextPlayTimeRef.current < currentTime + minimumLeadTimeSeconds) {
+          if (nextPlayTimeRef.current < currentTime + 0.02) {
+            // Only add the jitter cushion when starting a fresh queue or after a
+            // real underrun. Do not push every chunk to current+lead; that creates
+            // artificial gaps between already-queued chunks and sounds like
+            // stuttering even when the next chunk arrived before playback ended.
             nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
           }
           if (nextPlayTimeRef.current > currentTime + maximumLeadTimeSeconds) {
