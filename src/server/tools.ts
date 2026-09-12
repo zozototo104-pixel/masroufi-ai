@@ -5841,7 +5841,11 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   console.log('TOOL CALL: generateTreasurerReport', args);
   const now = new Date();
   const rawTimeframe = String(args?.timeframe || args?.period || 'month');
-  const timeframe = rawTimeframe === 'this_month' ? 'current_salary_cycle' : rawTimeframe;
+  const calendarMonthRequested = args?.calendarMonth === true || String(args?.calendarMonth || '').toLowerCase() === 'true';
+  const hasExplicitTreasurerMonth = args?.month !== undefined && args?.month !== null && String(args.month).trim() !== '';
+  const timeframe = !calendarMonthRequested && (rawTimeframe === 'this_month' || rawTimeframe === 'month')
+    ? (hasExplicitTreasurerMonth ? 'salary_cycle' : 'current_salary_cycle')
+    : rawTimeframe;
   if (timeframe === 'all' && !args?.allowFullLedgerReport) {
     return {
       success: false,
