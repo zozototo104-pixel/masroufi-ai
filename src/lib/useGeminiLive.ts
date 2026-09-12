@@ -224,6 +224,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       outputCtxRef.current = outputCtx;
       if (outputCtx.state === 'suspended') await outputCtx.resume();
+      ensureOutputChain(outputCtx);
       nextPlayTimeRef.current = outputCtx.currentTime;
 
       ws.onopen = async () => {
