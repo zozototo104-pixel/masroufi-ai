@@ -5917,6 +5917,7 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
         period: 'custom',
         startDate: startIso.slice(0, 10),
         endDate: new Date(new Date(endExclusiveIso).getTime() - 86400000).toISOString().slice(0, 10),
+        prefiltered: true,
         title: args?.title || `تحليل دورة راتب ${salaryCycleForTreasurer.name}`,
       }
     : { ...args, timeframe };
