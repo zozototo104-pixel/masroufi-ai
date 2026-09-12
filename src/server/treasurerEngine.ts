@@ -302,7 +302,7 @@ function addToMap<T extends SummaryRow>(map: Map<string, T>, key: string, seed: 
 
 export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions: TransactionLike[], budgets: Record<string, number> = {}, savingsGoals: SavingsGoalLike[] = []) {
   const range = getDateRange(args);
-  let txs = filterTransactionsByDate(allTransactions, range);
+  let txs = args?.prefiltered === true ? [...allTransactions] : filterTransactionsByDate(allTransactions, range);
   const categoryQuery = String(args?.category || '').trim();
   if (categoryQuery && !['all', 'الكل', 'كافة البنود'].includes(categoryQuery)) {
     txs = txs.filter(t => matchesArabicCategory(t, categoryQuery));
