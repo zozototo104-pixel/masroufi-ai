@@ -3038,7 +3038,10 @@ ${activeSalaryCycleText}
                   const now = Date.now();
                   const interArrivalMs = lastGeminiAudioChunkAt ? now - lastGeminiAudioChunkAt : 0;
                   lastGeminiAudioChunkAt = now;
-                  maxGeminiAudioInterArrivalMs = Math.max(maxGeminiAudioInterArrivalMs, interArrivalMs);
+                  if (interArrivalMs > 0) {
+                    maxGeminiAudioInterArrivalMs = Math.max(maxGeminiAudioInterArrivalMs, interArrivalMs);
+                    currentTurnMaxGeminiAudioInterArrivalMs = Math.max(currentTurnMaxGeminiAudioInterArrivalMs, interArrivalMs);
+                  }
                   audioChunksInMessage += 1;
                   liveAudioChunksForwarded += 1;
                   liveAudioSinceLastToolResponse += 1;
