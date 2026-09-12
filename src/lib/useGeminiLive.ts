@@ -406,7 +406,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             receivedAudioFramesRef.current <= 8 ||
             receivedAudioFramesRef.current % 25 === 0
           ) {
-            console.warn('[live-audio-client-diagnostics] output chunk', {
+            const diagnosticsPayload = {
               frame: receivedAudioFramesRef.current,
               interArrivalMs: Math.round(interArrivalMs),
               maxInterArrivalMs: Math.round(maxAudioInterArrivalMsRef.current),
@@ -417,7 +417,26 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
               audioContextState: outputCtxRef.current.state,
               visibilityState: document.visibilityState,
               hasFocus: document.hasFocus(),
-            });
+            };
+            console.warn('[live-audio-client-diagnostics] output chunk', diagnosticsPayload);
+            const shouldSendDiagnosticsToServer = ws.readyState === WebSocket.OPEN && (
+              likelyPlaybackUnderrun ||
+              interArrivalMs > 350 ||
+              receivedAudioFramesRef.current <= 8 ||
+              receivedAudioFramesRef.current % 50 === 0 ||
+              performance.now() - lastClientAudioDiagnosticsSentAtRef.current > 2500
+            );
+            if (shouldSendDiagnosticsToServer) {
+              lastClientAudioDiagnosticsSentAtRef.current = performance.now();
+              try {
+                ws.send(JSON.stringify({
+                  type: 'client_audio_playback_diagnostics',
+                  ...diagnosticsPayload,
+                }));
+              } catch (diagnosticsSendError) {
+                console.warn('[live-audio-client-diagnostics] failed to send diagnostics to server', diagnosticsSendError);
+              }
+            }
           }
           source.start(scheduledStartTime);
           nextPlayTimeRef.current += buffer.duration;
