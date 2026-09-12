@@ -3098,6 +3098,8 @@ ${activeSalaryCycleText}
 
               if (message.serverContent?.interrupted) {
                 liveInterruptions += 1;
+                lastGeminiAudioChunkAt = 0;
+                currentTurnMaxGeminiAudioInterArrivalMs = 0;
                 aiOutputActive = false;
                 awaitingPostToolAudio = false;
                 postToolInputGateUntilMs = 0;
