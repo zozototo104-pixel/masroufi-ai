@@ -1366,6 +1366,14 @@ test('LIVE-02: Gemini Live quota exhaustion is classified and surfaced to the us
   assert.ok(liveSrc.includes("setStatus('idle')") && liveSrc.includes('setIsRecording(false)'), 'client must stop the voice UI when Live quota is exhausted');
 });
 
+test('REPORTS-06: Treasurer monthly/category analysis must not refuse due to large data and must understand children aliases', async () => {
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  const treasurerSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/treasurerEngine.ts'), 'utf8'));
+  assert.ok(toolsSrc.includes('treasurerReadPartial') && toolsSrc.includes('ولم أرفض الطلب بسبب كثرة البيانات'), 'treasurer reports must return a bounded report instead of refusing because monthly data is large');
+  assert.ok(!toolsSrc.includes('TREASURER_REPORT_QUERY_INCOMPLETE') && !toolsSrc.includes('لا أستطيع إصدار تقرير أمين صندوق دقيق'), 'treasurer reports must not tell the user to shrink the period/paginate for normal monthly analysis');
+  assert.ok(treasurerSrc.includes("import { matchesArabicCategory } from '../lib/reportUtils'") && treasurerSrc.includes('matchesArabicCategory(t, categoryQuery)'), 'treasurer category filtering must use the shared Arabic matcher so أولاد/الأولاد maps to الأبناء');
+});
+
 test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bounded delete', async () => {
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
