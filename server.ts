@@ -3623,8 +3623,28 @@ ${activeSalaryCycleText}
         }
 
         if (msg.audio) {
+          const now = Date.now();
+          const interArrivalMs = lastClientAudioChunkAt ? now - lastClientAudioChunkAt : 0;
+          lastClientAudioChunkAt = now;
+          maxClientAudioInterArrivalMs = Math.max(maxClientAudioInterArrivalMs, interArrivalMs);
+          liveClientAudioChunksReceived += 1;
+          if (liveClientAudioChunksReceived <= 5 || liveClientAudioChunksReceived % 100 === 0 || interArrivalMs > 250) {
+            console.log('[live-audio-server-diagnostics] received client mic chunk', {
+              requestId,
+              received: liveClientAudioChunksReceived,
+              interArrivalMs,
+              maxClientAudioInterArrivalMs,
+              authenticated: authState.authenticated,
+              hasSession: Boolean(session),
+              pendingBuffered: pendingAudio.length,
+            });
+          }
+
           if (!authState.authenticated || !session) {
-            if (pendingAudio.length < 12) pendingAudio.push(msg.audio);
+            if (pendingAudio.length < 12) {
+              pendingAudio.push(msg.audio);
+              liveClientAudioChunksBufferedBeforeReady += 1;
+            }
             return;
           }
 
