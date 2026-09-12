@@ -396,7 +396,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           }
           adaptivePlaybackLeadSecondsRef.current = nextAdaptiveLeadSeconds;
           const minimumLeadTimeSeconds = nextAdaptiveLeadSeconds;
-          const maximumLeadTimeSeconds = 4.0;
+          const maximumLeadTimeSeconds = 6.0;
           if (nextPlayTimeRef.current < currentTime + minimumLeadTimeSeconds) {
             nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
           }
