@@ -180,7 +180,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       lastReceivedAudioAtRef.current = null;
       playbackUnderrunsRef.current = 0;
       maxAudioInterArrivalMsRef.current = 0;
-      adaptivePlaybackLeadSecondsRef.current = 0.75;
+      adaptivePlaybackLeadSecondsRef.current = 1.25;
       lastClientAudioDiagnosticsSentAtRef.current = 0;
       clearResponseWatchdog();
       clearLiveReadyWatchdog();
