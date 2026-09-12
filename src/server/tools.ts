@@ -5889,7 +5889,17 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   const treasurerReadPartial = Boolean((txSnapshot as any).partial === true || (timeframe !== 'all' && txSnapshot.docs.length >= treasurerReadLimit));
   const txs = txSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const savingsGoals = (savingsSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  const report = buildTreasurerReport({ ...args, timeframe }, txs, budgets, savingsGoals);
+  const reportArgs = salaryCycleForTreasurer
+    ? {
+        ...args,
+        timeframe: 'custom',
+        period: 'custom',
+        startDate: startIso.slice(0, 10),
+        endDate: new Date(new Date(endExclusiveIso).getTime() - 86400000).toISOString().slice(0, 10),
+        title: args?.title || `تحليل دورة راتب ${salaryCycleForTreasurer.name}`,
+      }
+    : { ...args, timeframe };
+  const report = buildTreasurerReport(reportArgs, txs, budgets, savingsGoals);
   if (args?.save !== false) {
     const reportRef = adminDb.collection('reports').doc();
     await reportRef.set({
