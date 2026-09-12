@@ -63,6 +63,29 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
     }
   }, []);
 
+  const ensureOutputChain = useCallback((ctx: AudioContext): GainNode => {
+    if (outputGainRef.current && outputCompressorRef.current) {
+      return outputGainRef.current;
+    }
+
+    const outputGain = ctx.createGain();
+    const outputCompressor = ctx.createDynamicsCompressor();
+    // Keep one stable output chain for the whole Live session. Recreating
+    // gain/compressor nodes for every 200-600ms Gemini chunk caused tiny
+    // boundaries that sounded like continuous light chopping on mobile Chrome.
+    outputGain.gain.value = 2.15;
+    outputCompressor.threshold.value = -14;
+    outputCompressor.knee.value = 18;
+    outputCompressor.ratio.value = 5;
+    outputCompressor.attack.value = 0.003;
+    outputCompressor.release.value = 0.18;
+    outputGain.connect(outputCompressor);
+    outputCompressor.connect(ctx.destination);
+    outputGainRef.current = outputGain;
+    outputCompressorRef.current = outputCompressor;
+    return outputGain;
+  }, []);
+
   const disconnect = useCallback(() => {
     clearResponseWatchdog();
     clearLiveReadyWatchdog();
