@@ -410,12 +410,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           const scheduledStartTime = nextPlayTimeRef.current;
           const scheduledDelayMs = Math.max(0, (scheduledStartTime - currentTime) * 1000);
           const chunkDurationMs = buffer.duration * 1000;
-          if (
+          const diagnosticsEnabled = isLiveAudioClientDiagnosticsEnabled();
+          if (diagnosticsEnabled && (
             likelyPlaybackUnderrun ||
             interArrivalMs > 350 ||
             receivedAudioFramesRef.current <= 8 ||
             receivedAudioFramesRef.current % 25 === 0
-          ) {
+          )) {
             const diagnosticsPayload = {
               frame: receivedAudioFramesRef.current,
               interArrivalMs: Math.round(interArrivalMs),
