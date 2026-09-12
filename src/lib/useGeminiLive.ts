@@ -548,6 +548,34 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         if (wsRef.current !== ws) return;
         wsRef.current = null;
         stopPlayback();
+        if (processorRef.current) {
+          try { processorRef.current.disconnect(); } catch (e) { /* ignore */ }
+          processorRef.current = null;
+        }
+        if (processorSinkRef.current) {
+          try { processorSinkRef.current.disconnect(); } catch (e) { /* ignore */ }
+          processorSinkRef.current = null;
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        if (inputCtxRef.current) {
+          try { inputCtxRef.current.close(); } catch (e) { /* ignore */ }
+          inputCtxRef.current = null;
+        }
+        if (outputGainRef.current) {
+          try { outputGainRef.current.disconnect(); } catch (e) { /* ignore */ }
+          outputGainRef.current = null;
+        }
+        if (outputCompressorRef.current) {
+          try { outputCompressorRef.current.disconnect(); } catch (e) { /* ignore */ }
+          outputCompressorRef.current = null;
+        }
+        if (outputCtxRef.current) {
+          try { outputCtxRef.current.close(); } catch (e) { /* ignore */ }
+          outputCtxRef.current = null;
+        }
         setIsConnected(false);
         setIsRecording(false);
         setStatus('idle');
