@@ -3172,7 +3172,39 @@ ${activeSalaryCycleText}
                       const normalizedLiveUserTextForRouting = normalizeArabicForIntent(liveUserTextBeforeMerge || liveArgsText);
                       const liveRecentOperationsQuestion = /(اخر|آخر|احدث|أحدث)\s*(?:ال)?(?:عمليات|عمليه|عملية|قيود|قيد|مصروف|مصروفات|صرف|مشتريات)/.test(normalizedLiveUserTextForRouting)
                         || /(?:شو|ايش|اعطيني|اعطني|ورجيني|اعرض|عرض)\s+.*(?:عمليات|قيود|مصروفات|مشتريات)\s+.*(?:سجلنا|سجلتها|انضافت|اضفنا|أضفنا)/.test(normalizedLiveUserTextForRouting);
-                      if (liveRecentOperationsQuestion && (effectiveCall.name === 'memory_search' || effectiveCall.name === 'memorySearch' || effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions')) {
+                      const liveMonthlyExpenseQuestion = /(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)\s+.*(?:الشهر|هالشهر|هذا\s+الشهر|الشهر\s+هذا|السهر|الحالي)/.test(normalizedLiveUserTextForRouting)
+                        || /(?:الشهر|هالشهر|هذا\s+الشهر|الشهر\s+هذا|السهر|الحالي)\s+.*(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)/.test(normalizedLiveUserTextForRouting);
+                      const liveChildrenExpenseQuestion = /(?:اولاد|الأولاد|الاولاد|اولادي|أولادي|ابناء|أبناء|الابناء|الأبناء|اطفال|أطفال)/.test(normalizedLiveUserTextForRouting);
+                      const liveMonthlyExpenseMisroutedRead = liveMonthlyExpenseQuestion
+                        && (effectiveCall.name === 'get_recent_transactions'
+                          || effectiveCall.name === 'getRecentTransactions'
+                          || effectiveCall.name === 'memory_search'
+                          || effectiveCall.name === 'memorySearch'
+                          || effectiveCall.name === 'query_transactions'
+                          || effectiveCall.name === 'queryTransactions');
+                      if (liveMonthlyExpenseMisroutedRead) {
+                        const existingMonthlyArgs: any = effectiveCall.args || {};
+                        const { today, date, transactionDate, operationDate, ...keptMonthlyArgs } = existingMonthlyArgs;
+                        console.warn('[live-tool] rerouted monthly expense read to current salary cycle transactions', { requestId, originalName: effectiveCall.name, text: liveUserTextBeforeMerge });
+                        effectiveCall = {
+                          ...effectiveCall,
+                          name: 'query_transactions',
+                          args: {
+                            ...keptMonthlyArgs,
+                            period: 'current_salary_cycle',
+                            timeframe: 'current_salary_cycle',
+                            type: 'expense',
+                            includeTransactions: true,
+                            returnTransactions: true,
+                            details: true,
+                            limit: 300,
+                            ...(keptMonthlyArgs.category ? {} : liveChildrenExpenseQuestion ? { category: 'الأبناء' } : {}),
+                            userText: String(keptMonthlyArgs.userText || liveUserTextBeforeMerge || ''),
+                            currentUserText: String(keptMonthlyArgs.currentUserText || liveUserTextBeforeMerge || ''),
+                          },
+                        } as FunctionCall;
+                      }
+                      if (liveRecentOperationsQuestion && !liveMonthlyExpenseQuestion && (effectiveCall.name === 'memory_search' || effectiveCall.name === 'memorySearch' || effectiveCall.name === 'query_transactions' || effectiveCall.name === 'queryTransactions')) {
                         console.warn('[live-tool] rerouted latest operations read to get_recent_transactions', { requestId, originalName: effectiveCall.name });
                         effectiveCall = {
                           ...effectiveCall,
