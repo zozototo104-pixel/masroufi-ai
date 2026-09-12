@@ -2591,6 +2591,7 @@ function setupLiveApi(wss: WebSocketServer) {
     let maxClientAudioInterArrivalMs = 0;
     let lastGeminiAudioChunkAt = 0;
     let maxGeminiAudioInterArrivalMs = 0;
+    let currentTurnMaxGeminiAudioInterArrivalMs = 0;
     let liveToolResponsesSent = 0;
     let liveTurnsCompleted = 0;
     let liveAudioSinceLastToolResponse = 0;
