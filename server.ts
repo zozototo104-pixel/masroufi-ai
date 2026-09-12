@@ -23,6 +23,8 @@ import { normalizeCreditorKey } from "./src/lib/balanceCalc";
 
 dotenv.config();
 
+const LIVE_AUDIO_DIAGNOSTICS_ENABLED = process.env.LIVE_AUDIO_DIAGNOSTICS === '1';
+
 function normalizeArabicForIntent(value: any): string {
   return String(value || '')
     .toLowerCase()
