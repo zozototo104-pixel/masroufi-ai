@@ -33,6 +33,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const lastReceivedAudioAtRef = useRef<number | null>(null);
   const playbackUnderrunsRef = useRef(0);
   const maxAudioInterArrivalMsRef = useRef(0);
+  const lastClientAudioDiagnosticsSentAtRef = useRef(0);
   const liveReadyRef = useRef(false);
   const pendingMicFramesRef = useRef<string[]>([]);
 
