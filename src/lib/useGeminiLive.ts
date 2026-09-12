@@ -380,15 +380,26 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           
           const currentTime = outputCtxRef.current.currentTime;
           const queuedLeadBeforeClampSeconds = nextPlayTimeRef.current - currentTime;
-          const likelyPlaybackUnderrun = receivedAudioFramesRef.current > 1 && queuedLeadBeforeClampSeconds < 0.02;
+          const likelyPlaybackUnderrun = receivedAudioFramesRef.current > 1 && interArrivalMs > 0 && interArrivalMs < 2500 && queuedLeadBeforeClampSeconds < 0.02;
           if (likelyPlaybackUnderrun) playbackUnderrunsRef.current += 1;
-          // Use a stable playback cushion for clear speech. Do not stop queued
-          // chunks during normal playback; stopping scheduled buffers is what
-          // caused audible chopping. Old audio is cleared only on disconnect or
-          // explicit interruption/reset paths. 0.55s is intentional for mobile
-          // Chrome/WebView jitter; 0.28s was too shallow and caused audible gaps
-          // whenever audio chunks arrived a few hundred ms late.
-          const minimumLeadTimeSeconds = 0.55;
+          // Use an adaptive playback cushion for clear speech. Mobile Chrome can
+          // receive one Gemini chunk 700-1200ms after the previous chunk while
+          // each chunk is only ~200-600ms long. A fixed shallow buffer causes
+          // underruns, so we raise the cushion when jitter is observed and slowly
+          // relax it once chunks become stable. This changes playback scheduling
+          // only; microphone, tools, transactions, and saving paths are untouched.
+          const previousAdaptiveLeadSeconds = adaptivePlaybackLeadSecondsRef.current;
+          let nextAdaptiveLeadSeconds = previousAdaptiveLeadSeconds;
+          if (likelyPlaybackUnderrun || (interArrivalMs > 750 && interArrivalMs < 2500)) {
+            nextAdaptiveLeadSeconds = Math.min(
+              1.45,
+              Math.max(previousAdaptiveLeadSeconds + 0.15, interArrivalMs / 1000 + 0.25)
+            );
+          } else if (interArrivalMs > 0 && interArrivalMs < 450 && queuedLeadBeforeClampSeconds > previousAdaptiveLeadSeconds + 0.35) {
+            nextAdaptiveLeadSeconds = Math.max(0.65, previousAdaptiveLeadSeconds - 0.03);
+          }
+          adaptivePlaybackLeadSecondsRef.current = nextAdaptiveLeadSeconds;
+          const minimumLeadTimeSeconds = nextAdaptiveLeadSeconds;
           const maximumLeadTimeSeconds = 4.0;
           if (nextPlayTimeRef.current < currentTime + minimumLeadTimeSeconds) {
             nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
