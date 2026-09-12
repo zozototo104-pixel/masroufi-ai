@@ -2583,6 +2583,14 @@ function setupLiveApi(wss: WebSocketServer) {
     const requestId = Math.random().toString(36).slice(2, 8);
     const pendingAudio: string[] = [];
     let liveAudioChunksForwarded = 0;
+    let liveClientAudioChunksReceived = 0;
+    let liveClientAudioChunksSentToGemini = 0;
+    let liveClientAudioChunksBufferedBeforeReady = 0;
+    let liveClientAudioChunksDroppedByGate = 0;
+    let lastClientAudioChunkAt = 0;
+    let maxClientAudioInterArrivalMs = 0;
+    let lastGeminiAudioChunkAt = 0;
+    let maxGeminiAudioInterArrivalMs = 0;
     let liveToolResponsesSent = 0;
     let liveTurnsCompleted = 0;
     let liveAudioSinceLastToolResponse = 0;
