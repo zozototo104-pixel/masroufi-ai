@@ -3692,7 +3692,7 @@ ${activeSalaryCycleText}
           if (echoGateActive) {
             droppedEchoAudioChunks += 1;
             liveClientAudioChunksDroppedByGate += 1;
-            if (droppedEchoAudioChunks <= 5 || droppedEchoAudioChunks % 25 === 0) {
+            if (LIVE_AUDIO_DIAGNOSTICS_ENABLED && (droppedEchoAudioChunks <= 5 || droppedEchoAudioChunks % 25 === 0)) {
               console.log('[live-audio-server-diagnostics] dropped mic chunk during AI output', {
                 requestId,
                 droppedEchoAudioChunks,
