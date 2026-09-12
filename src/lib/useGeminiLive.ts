@@ -396,7 +396,29 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             nextPlayTimeRef.current = Math.max(nextPlayTimeRef.current, currentTime + minimumLeadTimeSeconds);
           }
           
-          source.start(nextPlayTimeRef.current);
+          const scheduledStartTime = nextPlayTimeRef.current;
+          const scheduledDelayMs = Math.max(0, (scheduledStartTime - currentTime) * 1000);
+          const chunkDurationMs = buffer.duration * 1000;
+          if (
+            likelyPlaybackUnderrun ||
+            interArrivalMs > 350 ||
+            receivedAudioFramesRef.current <= 8 ||
+            receivedAudioFramesRef.current % 25 === 0
+          ) {
+            console.warn('[live-audio-client-diagnostics] output chunk', {
+              frame: receivedAudioFramesRef.current,
+              interArrivalMs: Math.round(interArrivalMs),
+              maxInterArrivalMs: Math.round(maxAudioInterArrivalMsRef.current),
+              chunkDurationMs: Math.round(chunkDurationMs),
+              queuedLeadBeforeClampMs: Math.round(queuedLeadBeforeClampSeconds * 1000),
+              scheduledDelayMs: Math.round(scheduledDelayMs),
+              underruns: playbackUnderrunsRef.current,
+              audioContextState: outputCtxRef.current.state,
+              visibilityState: document.visibilityState,
+              hasFocus: document.hasFocus(),
+            });
+          }
+          source.start(scheduledStartTime);
           nextPlayTimeRef.current += buffer.duration;
           
           activeSourcesRef.current.push(source);
