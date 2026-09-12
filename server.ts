@@ -3637,6 +3637,7 @@ ${activeSalaryCycleText}
             chunkDurationMs: Number(msg.chunkDurationMs || 0),
             queuedLeadBeforeClampMs: Number(msg.queuedLeadBeforeClampMs || 0),
             scheduledDelayMs: Number(msg.scheduledDelayMs || 0),
+            adaptivePlaybackLeadMs: Number(msg.adaptivePlaybackLeadMs || 0),
             underruns: Number(msg.underruns || 0),
             audioContextState: msg.audioContextState || 'unknown',
             visibilityState: msg.visibilityState || 'unknown',
