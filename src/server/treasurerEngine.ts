@@ -305,8 +305,7 @@ export function buildTreasurerReport(args: TreasurerReportArgs, allTransactions:
   let txs = filterTransactionsByDate(allTransactions, range);
   const categoryQuery = String(args?.category || '').trim();
   if (categoryQuery && !['all', 'الكل', 'كافة البنود'].includes(categoryQuery)) {
-    const q = normalizeArabicText(categoryQuery);
-    txs = txs.filter(t => normalizeArabicText(`${t.category || ''} ${t.subcategory || ''} ${t.notes || ''}`).includes(q));
+    txs = txs.filter(t => matchesArabicCategory(t, categoryQuery));
   }
   if (args?.type) txs = txs.filter(t => t.type === args.type);
   if (args?.necessity) txs = txs.filter(t => t.necessity === args.necessity);
