@@ -1370,6 +1370,7 @@ test('REPORTS-06: Treasurer/monthly expense analysis must not refuse or misroute
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   const treasurerSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/treasurerEngine.ts'), 'utf8'));
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const salaryCycleSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/lib/salaryCycle.ts'), 'utf8'));
   assert.ok(toolsSrc.includes('treasurerReadPartial') && toolsSrc.includes('ولم أرفض الطلب بسبب كثرة البيانات'), 'treasurer reports must return a bounded report instead of refusing because monthly data is large');
   assert.ok(!toolsSrc.includes('TREASURER_REPORT_QUERY_INCOMPLETE') && !toolsSrc.includes('لا أستطيع إصدار تقرير أمين صندوق دقيق'), 'treasurer reports must not tell the user to shrink the period/paginate for normal monthly analysis');
   assert.ok(toolsSrc.includes('calendarMonthRequested') && toolsSrc.includes("rawTimeframe === 'this_month' || rawTimeframe === 'month'") && toolsSrc.includes("hasExplicitTreasurerMonth ? 'salary_cycle' : 'current_salary_cycle'") && toolsSrc.includes("timeframe === 'current_salary_cycle' || timeframe === 'salary_cycle'"), 'treasurer reports must treat this month/current month as the salary cycle unless the user explicitly asks for a calendar month');
