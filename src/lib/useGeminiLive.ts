@@ -22,6 +22,8 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const wsRef = useRef<WebSocket | null>(null);
   const inputCtxRef = useRef<AudioContext | null>(null);
   const outputCtxRef = useRef<AudioContext | null>(null);
+  const outputGainRef = useRef<GainNode | null>(null);
+  const outputCompressorRef = useRef<DynamicsCompressorNode | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const processorSinkRef = useRef<GainNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
