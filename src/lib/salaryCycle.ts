@@ -215,13 +215,17 @@ export function getPreviousSalaryCycle(period: SalaryCyclePeriod, now: Date = ne
 }
 
 export function parseSalaryCycleMonth(value: unknown): number | null {
-  const raw = normalizeDigits(value).replace(/[أإآ]/g, 'ا').replace(/\s+/g, ' ').trim();
+  const raw = normalizeDigits(value).replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
   if (!raw) return null;
   const numeric = raw.match(/(?:^|\D)(1[0-2]|0?[1-9])(?:\D|$)/);
   if (numeric) return Number(numeric[1]);
   if (ARABIC_MONTHS[raw]) return ARABIC_MONTHS[raw];
+  if (ARABIC_MONTH_NUMBER_WORDS[raw]) return ARABIC_MONTH_NUMBER_WORDS[raw];
+  const monthNumberWords = Object.keys(ARABIC_MONTH_NUMBER_WORDS).sort((a, b) => b.length - a.length);
+  const matchedNumberWord = monthNumberWords.find(word => new RegExp(`(^|\\s)${word}(\\s|$)`).test(raw));
+  if (matchedNumberWord) return ARABIC_MONTH_NUMBER_WORDS[matchedNumberWord];
   const monthNames = Object.keys(ARABIC_MONTHS).sort((a, b) => b.length - a.length);
-  const matchedName = monthNames.find(name => raw.includes(name.replace(/[أإآ]/g, 'ا')));
+  const matchedName = monthNames.find(name => raw.includes(name.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه')));
   return matchedName ? ARABIC_MONTHS[matchedName] : null;
 }
 
