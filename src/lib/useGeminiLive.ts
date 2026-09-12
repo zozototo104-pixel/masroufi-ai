@@ -360,11 +360,19 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           const source = outputCtxRef.current.createBufferSource();
           source.buffer = buffer;
           const outputGain = outputCtxRef.current.createGain();
-          // Gemini Live audio can be quiet on mobile speakers.
-          // Raise playback only; do not change microphone gain or input processing.
-          outputGain.gain.value = 1.6;
+          const outputCompressor = outputCtxRef.current.createDynamicsCompressor();
+          // Gemini Live audio can be quiet on mobile speakers. Boost playback
+          // louder, then pass it through a compressor so the higher volume does
+          // not become harsh or clipped on phone speakers.
+          outputGain.gain.value = 2.15;
+          outputCompressor.threshold.value = -14;
+          outputCompressor.knee.value = 18;
+          outputCompressor.ratio.value = 5;
+          outputCompressor.attack.value = 0.003;
+          outputCompressor.release.value = 0.18;
           source.connect(outputGain);
-          outputGain.connect(outputCtxRef.current.destination);
+          outputGain.connect(outputCompressor);
+          outputCompressor.connect(outputCtxRef.current.destination);
           
           const currentTime = outputCtxRef.current.currentTime;
           const queuedLeadBeforeClampSeconds = nextPlayTimeRef.current - currentTime;
