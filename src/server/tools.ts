@@ -5893,11 +5893,11 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
       content: JSON.stringify(report, null, 2),
       data: report,
       createdAt: new Date().toISOString(),
-      readEfficiency: { timeframe, startIso: startIso || null, endExclusiveIso: timeframe === 'all' ? null : endExclusiveIso, transactionDocsRead: txs.length, savingsGoalLimit: 100 }
+      readEfficiency: { timeframe, startIso: startIso || null, endExclusiveIso: timeframe === 'all' ? null : endExclusiveIso, transactionDocsRead: txs.length, limit: treasurerReadLimit, partial: treasurerReadPartial, savingsGoalLimit: 100 }
     });
-    return { success: true, reportId: reportRef.id, report, readEfficiency: { transactionDocsRead: txs.length, timeframe } };
+    return { success: true, reportId: reportRef.id, report, partial: treasurerReadPartial, readEfficiency: { transactionDocsRead: txs.length, limit: treasurerReadLimit, partial: treasurerReadPartial, timeframe }, message: treasurerReadPartial ? 'أنشأت التقرير/التحليل بالبيانات المقروءة ضمن الحد الآمن، ولم أرفض الطلب بسبب كثرة البيانات.' : undefined };
   }
-  return { success: true, report, readEfficiency: { transactionDocsRead: txs.length, timeframe } };
+  return { success: true, report, partial: treasurerReadPartial, readEfficiency: { transactionDocsRead: txs.length, limit: treasurerReadLimit, partial: treasurerReadPartial, timeframe }, message: treasurerReadPartial ? 'أنشأت التحليل بالبيانات المقروءة ضمن الحد الآمن، ولم أرفض الطلب بسبب كثرة البيانات.' : undefined };
 }
 
 // In-memory cache to guard against rapid duplicate tool calls
