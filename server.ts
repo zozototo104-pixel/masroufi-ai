@@ -3034,6 +3034,10 @@ ${activeSalaryCycleText}
               for (const part of parts) {
                 const audio = part?.inlineData?.data;
                 if (audio) {
+                  const now = Date.now();
+                  const interArrivalMs = lastGeminiAudioChunkAt ? now - lastGeminiAudioChunkAt : 0;
+                  lastGeminiAudioChunkAt = now;
+                  maxGeminiAudioInterArrivalMs = Math.max(maxGeminiAudioInterArrivalMs, interArrivalMs);
                   audioChunksInMessage += 1;
                   liveAudioChunksForwarded += 1;
                   liveAudioSinceLastToolResponse += 1;
