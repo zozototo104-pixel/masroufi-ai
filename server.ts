@@ -3188,14 +3188,17 @@ ${activeSalaryCycleText}
                       if (liveMonthlyExpenseMisroutedRead) {
                         const existingMonthlyArgs: any = effectiveCall.args || {};
                         const { today, date, transactionDate, operationDate, ...keptMonthlyArgs } = existingMonthlyArgs;
-                        console.warn('[live-tool] rerouted monthly expense read to current salary cycle transactions', { requestId, originalName: effectiveCall.name, text: liveUserTextBeforeMerge });
+                        const salaryCycleMonthFromText = parseSalaryCycleMonth(liveUserTextBeforeMerge || liveArgsText);
+                        const targetSalaryCyclePeriod = liveExplicitSalaryCycleExpenseQuestion || salaryCycleMonthFromText ? 'salary_cycle' : 'current_salary_cycle';
+                        console.warn('[live-tool] rerouted monthly expense read to salary cycle transactions', { requestId, originalName: effectiveCall.name, period: targetSalaryCyclePeriod, month: salaryCycleMonthFromText, text: liveUserTextBeforeMerge });
                         effectiveCall = {
                           ...effectiveCall,
                           name: 'query_transactions',
                           args: {
                             ...keptMonthlyArgs,
-                            period: 'current_salary_cycle',
-                            timeframe: 'current_salary_cycle',
+                            period: targetSalaryCyclePeriod,
+                            timeframe: targetSalaryCyclePeriod,
+                            ...(salaryCycleMonthFromText && !keptMonthlyArgs.month ? { month: salaryCycleMonthFromText } : {}),
                             type: 'expense',
                             includeTransactions: true,
                             returnTransactions: true,
