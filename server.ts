@@ -3631,20 +3631,22 @@ ${activeSalaryCycleText}
         }
 
         if (msg.type === "client_audio_playback_diagnostics") {
-          console.log('[live-audio-client-diagnostics]', {
-            requestId,
-            frame: Number(msg.frame || 0),
-            interArrivalMs: Number(msg.interArrivalMs || 0),
-            maxInterArrivalMs: Number(msg.maxInterArrivalMs || 0),
-            chunkDurationMs: Number(msg.chunkDurationMs || 0),
-            queuedLeadBeforeClampMs: Number(msg.queuedLeadBeforeClampMs || 0),
-            scheduledDelayMs: Number(msg.scheduledDelayMs || 0),
-            adaptivePlaybackLeadMs: Number(msg.adaptivePlaybackLeadMs || 0),
-            underruns: Number(msg.underruns || 0),
-            audioContextState: msg.audioContextState || 'unknown',
-            visibilityState: msg.visibilityState || 'unknown',
-            hasFocus: typeof msg.hasFocus === 'boolean' ? msg.hasFocus : undefined,
-          });
+          if (LIVE_AUDIO_DIAGNOSTICS_ENABLED) {
+            console.log('[live-audio-client-diagnostics]', {
+              requestId,
+              frame: Number(msg.frame || 0),
+              interArrivalMs: Number(msg.interArrivalMs || 0),
+              maxInterArrivalMs: Number(msg.maxInterArrivalMs || 0),
+              chunkDurationMs: Number(msg.chunkDurationMs || 0),
+              queuedLeadBeforeClampMs: Number(msg.queuedLeadBeforeClampMs || 0),
+              scheduledDelayMs: Number(msg.scheduledDelayMs || 0),
+              adaptivePlaybackLeadMs: Number(msg.adaptivePlaybackLeadMs || 0),
+              underruns: Number(msg.underruns || 0),
+              audioContextState: msg.audioContextState || 'unknown',
+              visibilityState: msg.visibilityState || 'unknown',
+              hasFocus: typeof msg.hasFocus === 'boolean' ? msg.hasFocus : undefined,
+            });
+          }
           return;
         }
 
