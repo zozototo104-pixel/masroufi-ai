@@ -386,13 +386,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           // only; microphone, tools, transactions, and saving paths are untouched.
           const previousAdaptiveLeadSeconds = adaptivePlaybackLeadSecondsRef.current;
           let nextAdaptiveLeadSeconds = previousAdaptiveLeadSeconds;
-          if (likelyPlaybackUnderrun || (interArrivalMs > 750 && interArrivalMs < 2500)) {
+          if (likelyPlaybackUnderrun || (interArrivalMs > 650 && interArrivalMs < 3200)) {
             nextAdaptiveLeadSeconds = Math.min(
-              1.45,
-              Math.max(previousAdaptiveLeadSeconds + 0.15, interArrivalMs / 1000 + 0.25)
+              2.4,
+              Math.max(previousAdaptiveLeadSeconds + 0.25, interArrivalMs / 1000 + 0.55)
             );
-          } else if (interArrivalMs > 0 && interArrivalMs < 450 && queuedLeadBeforeClampSeconds > previousAdaptiveLeadSeconds + 0.35) {
-            nextAdaptiveLeadSeconds = Math.max(0.65, previousAdaptiveLeadSeconds - 0.03);
+          } else if (interArrivalMs > 0 && interArrivalMs < 420 && queuedLeadBeforeClampSeconds > previousAdaptiveLeadSeconds + 0.45) {
+            nextAdaptiveLeadSeconds = Math.max(1.05, previousAdaptiveLeadSeconds - 0.02);
           }
           adaptivePlaybackLeadSecondsRef.current = nextAdaptiveLeadSeconds;
           const minimumLeadTimeSeconds = nextAdaptiveLeadSeconds;
