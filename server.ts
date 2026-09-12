@@ -3056,7 +3056,7 @@ ${activeSalaryCycleText}
                   safeSend({ audio });
                 }
               }
-              if (audioChunksInMessage > 0) {
+              if (LIVE_AUDIO_DIAGNOSTICS_ENABLED && audioChunksInMessage > 0) {
                 console.log('[live-audio-server-diagnostics] forwarded output audio chunks', {
                   requestId,
                   chunks: audioChunksInMessage,
