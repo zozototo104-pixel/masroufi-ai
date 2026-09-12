@@ -5840,7 +5840,8 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   const adminDb = getDb(token);
   console.log('TOOL CALL: generateTreasurerReport', args);
   const now = new Date();
-  const timeframe = String(args?.timeframe || args?.period || 'month');
+  const rawTimeframe = String(args?.timeframe || args?.period || 'month');
+  const timeframe = rawTimeframe === 'this_month' ? 'current_salary_cycle' : rawTimeframe;
   if (timeframe === 'all' && !args?.allowFullLedgerReport) {
     return {
       success: false,
