@@ -168,6 +168,11 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       clientAudioAckSentRef.current = false;
       sentAudioFramesRef.current = 0;
       receivedAudioFramesRef.current = 0;
+      lastReceivedAudioAtRef.current = null;
+      playbackUnderrunsRef.current = 0;
+      maxAudioInterArrivalMsRef.current = 0;
+      adaptivePlaybackLeadSecondsRef.current = 0.75;
+      lastClientAudioDiagnosticsSentAtRef.current = 0;
       clearResponseWatchdog();
       clearLiveReadyWatchdog();
 
