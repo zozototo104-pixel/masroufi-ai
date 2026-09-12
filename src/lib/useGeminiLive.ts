@@ -64,8 +64,17 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   }, []);
 
   const ensureOutputChain = useCallback((ctx: AudioContext): GainNode => {
-    if (outputGainRef.current && outputCompressorRef.current) {
+    if (outputGainRef.current && outputCompressorRef.current && outputGainRef.current.context === ctx) {
       return outputGainRef.current;
+    }
+
+    if (outputGainRef.current) {
+      try { outputGainRef.current.disconnect(); } catch (e) { /* ignore */ }
+      outputGainRef.current = null;
+    }
+    if (outputCompressorRef.current) {
+      try { outputCompressorRef.current.disconnect(); } catch (e) { /* ignore */ }
+      outputCompressorRef.current = null;
     }
 
     const outputGain = ctx.createGain();
