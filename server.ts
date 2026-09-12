@@ -3708,6 +3708,12 @@ ${activeSalaryCycleText}
         code,
         reason: reason?.toString?.() || '',
         liveAudioChunksForwarded,
+        liveClientAudioChunksReceived,
+        liveClientAudioChunksSentToGemini,
+        liveClientAudioChunksBufferedBeforeReady,
+        liveClientAudioChunksDroppedByGate,
+        maxClientAudioInterArrivalMs,
+        maxGeminiAudioInterArrivalMs,
         liveToolResponsesSent,
         liveTurnsCompleted,
       });
