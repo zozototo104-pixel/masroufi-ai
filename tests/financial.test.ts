@@ -1374,6 +1374,7 @@ test('REPORTS-06: Treasurer/monthly expense analysis must not refuse or misroute
   assert.ok(!toolsSrc.includes('TREASURER_REPORT_QUERY_INCOMPLETE') && !toolsSrc.includes('لا أستطيع إصدار تقرير أمين صندوق دقيق'), 'treasurer reports must not tell the user to shrink the period/paginate for normal monthly analysis');
   assert.ok(toolsSrc.includes('calendarMonthRequested') && toolsSrc.includes("rawTimeframe === 'this_month' || rawTimeframe === 'month'") && toolsSrc.includes("hasExplicitTreasurerMonth ? 'salary_cycle' : 'current_salary_cycle'") && toolsSrc.includes("timeframe === 'current_salary_cycle' || timeframe === 'salary_cycle'"), 'treasurer reports must treat this month/current month as the salary cycle unless the user explicitly asks for a calendar month');
   assert.ok(treasurerSrc.includes("import { matchesArabicCategory } from '../lib/reportUtils'") && treasurerSrc.includes('matchesArabicCategory(t, categoryQuery)'), 'treasurer category filtering must use the shared Arabic matcher so أولاد/الأولاد maps to الأبناء');
+  assert.ok(serverSrc.includes('liveMonthlyExpenseMisroutedRead') && serverSrc.includes("name: 'query_transactions'") && serverSrc.includes("period: 'current_salary_cycle'") && serverSrc.includes('liveReadLimit = isSalaryCycleMonthlyRead ? 300 : 40'), 'Live monthly expense questions must be rerouted from get_recent_transactions/today to current salary cycle query_transactions with a large bounded read');
 });
 
 test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bounded delete', async () => {
