@@ -384,8 +384,10 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           // Use a stable playback cushion for clear speech. Do not stop queued
           // chunks during normal playback; stopping scheduled buffers is what
           // caused audible chopping. Old audio is cleared only on disconnect or
-          // explicit interruption/reset paths.
-          const minimumLeadTimeSeconds = 0.28;
+          // explicit interruption/reset paths. 0.55s is intentional for mobile
+          // Chrome/WebView jitter; 0.28s was too shallow and caused audible gaps
+          // whenever audio chunks arrived a few hundred ms late.
+          const minimumLeadTimeSeconds = 0.55;
           const maximumLeadTimeSeconds = 4.0;
           if (nextPlayTimeRef.current < currentTime + minimumLeadTimeSeconds) {
             nextPlayTimeRef.current = currentTime + minimumLeadTimeSeconds;
