@@ -3051,7 +3051,14 @@ ${activeSalaryCycleText}
                 }
               }
               if (audioChunksInMessage > 0) {
-                console.log('[live-audio] forwarded audio chunks', { requestId, chunks: audioChunksInMessage, total: liveAudioChunksForwarded });
+                console.log('[live-audio-server-diagnostics] forwarded output audio chunks', {
+                  requestId,
+                  chunks: audioChunksInMessage,
+                  total: liveAudioChunksForwarded,
+                  maxGeminiAudioInterArrivalMs,
+                  awaitingPostToolAudio,
+                  aiOutputActive,
+                });
               }
 
               if (message.serverContent?.turnComplete) {
