@@ -427,6 +427,7 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
               chunkDurationMs: Math.round(chunkDurationMs),
               queuedLeadBeforeClampMs: Math.round(queuedLeadBeforeClampSeconds * 1000),
               scheduledDelayMs: Math.round(scheduledDelayMs),
+              adaptivePlaybackLeadMs: Math.round(minimumLeadTimeSeconds * 1000),
               underruns: playbackUnderrunsRef.current,
               audioContextState: outputCtxRef.current.state,
               visibilityState: document.visibilityState,
