@@ -3651,21 +3651,44 @@ ${activeSalaryCycleText}
           const echoGateActive = aiOutputActive && Date.now() > clientInterruptOverrideUntilMs;
           if (echoGateActive) {
             droppedEchoAudioChunks += 1;
+            liveClientAudioChunksDroppedByGate += 1;
             if (droppedEchoAudioChunks <= 5 || droppedEchoAudioChunks % 25 === 0) {
-              console.log('[live-audio] dropped mic chunk during AI output', { requestId, droppedEchoAudioChunks });
+              console.log('[live-audio-server-diagnostics] dropped mic chunk during AI output', {
+                requestId,
+                droppedEchoAudioChunks,
+                droppedByGate: liveClientAudioChunksDroppedByGate,
+                sentToGemini: liveClientAudioChunksSentToGemini,
+              });
             }
             return;
           }
 
           if (awaitingPostToolAudio && Date.now() < postToolInputGateUntilMs) {
-            if (liveAudioChunksForwarded <= 5 || liveAudioChunksForwarded % 25 === 0) {
-              console.log('[live-audio] held mic chunk while waiting for post-tool answer audio', { requestId });
+            liveClientAudioChunksDroppedByGate += 1;
+            if (liveClientAudioChunksDroppedByGate <= 5 || liveClientAudioChunksDroppedByGate % 25 === 0) {
+              console.log('[live-audio-server-diagnostics] held mic chunk while waiting for post-tool answer audio', {
+                requestId,
+                droppedByGate: liveClientAudioChunksDroppedByGate,
+                sentToGemini: liveClientAudioChunksSentToGemini,
+              });
             }
             return;
           }
 
           if (session && isActive) {
             try {
+              liveClientAudioChunksSentToGemini += 1;
+              if (liveClientAudioChunksSentToGemini <= 5 || liveClientAudioChunksSentToGemini % 100 === 0 || interArrivalMs > 250) {
+                console.log('[live-audio-server-diagnostics] sent mic chunk to Gemini', {
+                  requestId,
+                  sentToGemini: liveClientAudioChunksSentToGemini,
+                  received: liveClientAudioChunksReceived,
+                  interArrivalMs,
+                  maxClientAudioInterArrivalMs,
+                  bufferedBeforeReady: liveClientAudioChunksBufferedBeforeReady,
+                  droppedByGate: liveClientAudioChunksDroppedByGate,
+                });
+              }
               session.sendRealtimeInput({
                 audio: { data: msg.audio, mimeType: "audio/pcm;rate=16000" },
               });
