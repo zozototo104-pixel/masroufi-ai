@@ -3172,8 +3172,11 @@ ${activeSalaryCycleText}
                       const normalizedLiveUserTextForRouting = normalizeArabicForIntent(liveUserTextBeforeMerge || liveArgsText);
                       const liveRecentOperationsQuestion = /(اخر|آخر|احدث|أحدث)\s*(?:ال)?(?:عمليات|عمليه|عملية|قيود|قيد|مصروف|مصروفات|صرف|مشتريات)/.test(normalizedLiveUserTextForRouting)
                         || /(?:شو|ايش|اعطيني|اعطني|ورجيني|اعرض|عرض)\s+.*(?:عمليات|قيود|مصروفات|مشتريات)\s+.*(?:سجلنا|سجلتها|انضافت|اضفنا|أضفنا)/.test(normalizedLiveUserTextForRouting);
-                      const liveMonthlyExpenseQuestion = /(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)\s+.*(?:الشهر|هالشهر|(?:هذا|هدا|هاد|هاذ)\s+الشهر|الشهر\s+(?:هذا|هدا|هاد|هاذ)|السهر|الحالي)/.test(normalizedLiveUserTextForRouting)
+                      const liveCurrentMonthExpenseQuestion = /(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)\s+.*(?:الشهر|هالشهر|(?:هذا|هدا|هاد|هاذ)\s+الشهر|الشهر\s+(?:هذا|هدا|هاد|هاذ)|السهر|الحالي)/.test(normalizedLiveUserTextForRouting)
                         || /(?:الشهر|هالشهر|(?:هذا|هدا|هاد|هاذ)\s+الشهر|الشهر\s+(?:هذا|هدا|هاد|هاذ)|السهر|الحالي)\s+.*(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)/.test(normalizedLiveUserTextForRouting);
+                      const liveExplicitSalaryCycleExpenseQuestion = /(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)\s+.*(?:دوره|دورة)\s*(?:راتب\s*)?شهر/.test(normalizedLiveUserTextForRouting)
+                        || /(?:دوره|دورة)\s*(?:راتب\s*)?شهر\s+.*(?:مصروف|مصروفات|مصاريف|صرف|مشتريات|شراء)/.test(normalizedLiveUserTextForRouting);
+                      const liveMonthlyExpenseQuestion = liveCurrentMonthExpenseQuestion || liveExplicitSalaryCycleExpenseQuestion;
                       const liveChildrenExpenseQuestion = /(?:اولاد|الأولاد|الاولاد|اولادي|أولادي|ابناء|أبناء|الابناء|الأبناء|اطفال|أطفال)/.test(normalizedLiveUserTextForRouting);
                       const liveMonthlyExpenseMisroutedRead = liveMonthlyExpenseQuestion
                         && (effectiveCall.name === 'get_recent_transactions'
