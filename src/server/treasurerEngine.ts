@@ -276,10 +276,23 @@ export function getDateRange(args: TreasurerReportArgs, now = new Date()): { sta
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
 function endOfDay(d: Date) { const x = new Date(d); x.setHours(23,59,59,999); return x; }
 
+function transactionTimeMs(value: unknown): number {
+  if (!value) return NaN;
+  if (typeof value === 'number') return value;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'object') {
+    const anyValue: any = value;
+    if (typeof anyValue.toDate === 'function') return anyValue.toDate().getTime();
+    if (typeof anyValue.seconds === 'number') return anyValue.seconds * 1000;
+    if (typeof anyValue._seconds === 'number') return anyValue._seconds * 1000;
+  }
+  return new Date(String(value)).getTime();
+}
+
 export function filterTransactionsByDate(txs: TransactionLike[], range: { start?: Date; end?: Date }): TransactionLike[] {
   return txs.filter(t => {
     const rawDate = t.date || t.createdAt || 0;
-    const ts = new Date(typeof rawDate === 'number' ? rawDate : String(rawDate)).getTime();
+    const ts = transactionTimeMs(rawDate);
     if (!Number.isFinite(ts)) return false;
     if (range.start && ts < range.start.getTime()) return false;
     if (range.end && ts > range.end.getTime()) return false;
@@ -288,7 +301,9 @@ export function filterTransactionsByDate(txs: TransactionLike[], range: { start?
 }
 
 function txMonth(t: TransactionLike): string {
-  return String(t.date || t.createdAt || '').slice(0, 7) || 'غير مؤرخ';
+  const rawDate = t.date || t.createdAt || '';
+  const ts = transactionTimeMs(rawDate);
+  return Number.isFinite(ts) ? new Date(ts).toISOString().slice(0, 7) : String(rawDate).slice(0, 7) || 'غير مؤرخ';
 }
 
 function round(n: number) { return Math.round((Number(n) || 0) * 100) / 100; }
