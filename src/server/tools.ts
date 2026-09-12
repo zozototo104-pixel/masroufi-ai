@@ -5862,7 +5862,12 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   let endExclusiveIso = now.toISOString();
   let salaryCycleForTreasurer: SalaryCyclePeriod | null = null;
   if (timeframe === 'current_salary_cycle' || timeframe === 'salary_cycle') {
-    salaryCycleForTreasurer = resolveSalaryCycleFromArgs({ ...args, period: timeframe === 'current_salary_cycle' ? undefined : args.period }, now);
+    const treasurerMonthFromText = parseSalaryCycleMonth(`${args?.title || ''} ${args?.userText || ''} ${args?.currentUserText || ''} ${args?.query || ''} ${args?.question || ''}`);
+    salaryCycleForTreasurer = resolveSalaryCycleFromArgs({
+      ...args,
+      ...(treasurerMonthFromText && !hasExplicitTreasurerMonth ? { month: treasurerMonthFromText } : {}),
+      period: timeframe === 'current_salary_cycle' && !treasurerMonthFromText ? undefined : args.period,
+    }, now);
     startIso = salaryCycleForTreasurer.startIso;
     endExclusiveIso = salaryCycleForTreasurer.endExclusiveIso;
   } else if (timeframe === 'today') {
