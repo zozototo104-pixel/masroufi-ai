@@ -5873,15 +5873,14 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
   if (startIso) txQuery = txQuery.where('date', '>=', startIso);
   if (endExclusiveIso && timeframe !== 'all') txQuery = txQuery.where('date', '<', endExclusiveIso);
-  if (timeframe !== 'all') txQuery = txQuery.limit(1000);
+  const treasurerReadLimit = SALARY_CYCLE_TRANSACTION_QUERY_LIMIT;
+  if (timeframe !== 'all') txQuery = txQuery.limit(treasurerReadLimit);
   const [txSnapshot, budgets, savingsSnap] = await Promise.all([
     txQuery.get(),
     getUserBudgets(userId, adminDb),
     adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [] }))
   ]);
-  if ((txSnapshot as any).partial === true || (timeframe !== 'all' && txSnapshot.docs.length >= 1000)) {
-    return { success: false, partial: true, retryable: true, reason: 'TREASURER_REPORT_QUERY_INCOMPLETE', message: 'لا أستطيع إصدار تقرير أمين صندوق دقيق لأن قراءة الفترة جزئية أو وصلت حدها. استخدم فترة أصغر أو pagination.' };
-  }
+  const treasurerReadPartial = Boolean((txSnapshot as any).partial === true || (timeframe !== 'all' && txSnapshot.docs.length >= treasurerReadLimit));
   const txs = txSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const savingsGoals = (savingsSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const report = buildTreasurerReport({ ...args, timeframe }, txs, budgets, savingsGoals);
