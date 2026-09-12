@@ -3397,14 +3397,20 @@ ${activeSalaryCycleText}
                         }
                         // Keep every explicit date/range exactly as requested. Only broad,
                         // date-unspecified Live reads are capped so one voice turn cannot pull
-                        // an unnecessarily large ledger payload into Gemini context.
+                        // an unnecessarily large ledger payload into Gemini context. Monthly
+                        // expense questions are not "latest only" reads; keep enough rows so
+                        // the assistant cannot say there are no monthly expenses just because
+                        // the read was incorrectly narrowed to today or to the first 40 rows.
                         if (isQueryTransactionsCall && !toolArgs.startDate && !toolArgs.endDate) {
                           const requestedLimit = Number(toolArgs.limit);
+                          const queryPeriodText = String(toolArgs.period || toolArgs.timeframe || '').toLowerCase();
+                          const isSalaryCycleMonthlyRead = queryPeriodText.includes('salary_cycle') || queryPeriodText === 'this_month';
+                          const liveReadLimit = isSalaryCycleMonthlyRead ? 300 : 40;
                           toolArgs = {
                             ...toolArgs,
                             limit: Number.isFinite(requestedLimit) && requestedLimit > 0
-                              ? Math.min(requestedLimit, 40)
-                              : 40,
+                              ? Math.min(requestedLimit, liveReadLimit)
+                              : liveReadLimit,
                           };
                         }
                         const liveToolStartedAt = Date.now();
