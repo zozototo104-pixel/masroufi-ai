@@ -5884,18 +5884,31 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
     endExclusiveIso = end.toISOString();
   }
 
-  let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
-  if (startIso) txQuery = txQuery.where('date', '>=', startIso);
-  if (endExclusiveIso && timeframe !== 'all') txQuery = txQuery.where('date', '<', endExclusiveIso);
   const treasurerReadLimit = SALARY_CYCLE_TRANSACTION_QUERY_LIMIT;
-  if (timeframe !== 'all') txQuery = txQuery.limit(treasurerReadLimit);
-  const [txSnapshot, budgets, savingsSnap] = await Promise.all([
-    txQuery.get(),
+  const [budgets, savingsSnap] = await Promise.all([
     getUserBudgets(userId, adminDb),
     adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [] }))
   ]);
-  const treasurerReadPartial = Boolean((txSnapshot as any).partial === true || (timeframe !== 'all' && txSnapshot.docs.length >= treasurerReadLimit));
-  const txs = txSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  let txs: any[] = [];
+  let treasurerReadPartial = false;
+  let treasurerQueryStats: any[] = [];
+  if (salaryCycleForTreasurer) {
+    // Use the same salary-cycle reader as query_transactions/vault. Direct
+    // userId+date range reads can miss rows stored as date keys or Firestore
+    // Timestamps and made "أكثر مصروفات دورة شهر 9" falsely return empty.
+    const cycleRead = await readTransactionsForSalaryCycle(salaryCycleForTreasurer, userId, token, treasurerReadLimit);
+    txs = cycleRead.transactions || [];
+    treasurerReadPartial = Boolean(cycleRead.partial || cycleRead.limitReached);
+    treasurerQueryStats = cycleRead.queryStats || [];
+  } else {
+    let txQuery: any = adminDb.collection('transactions').where('userId', '==', userId);
+    if (startIso) txQuery = txQuery.where('date', '>=', startIso);
+    if (endExclusiveIso && timeframe !== 'all') txQuery = txQuery.where('date', '<', endExclusiveIso);
+    if (timeframe !== 'all') txQuery = txQuery.limit(treasurerReadLimit);
+    const txSnapshot = await txQuery.get();
+    treasurerReadPartial = Boolean((txSnapshot as any).partial === true || (timeframe !== 'all' && txSnapshot.docs.length >= treasurerReadLimit));
+    txs = txSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  }
   const savingsGoals = (savingsSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const reportArgs = salaryCycleForTreasurer
     ? {
