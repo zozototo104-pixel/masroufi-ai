@@ -5852,7 +5852,12 @@ export async function generateTreasurerReport(args: any, userId: string, token: 
   }
   let startIso = '';
   let endExclusiveIso = now.toISOString();
-  if (timeframe === 'today') {
+  let salaryCycleForTreasurer: SalaryCyclePeriod | null = null;
+  if (timeframe === 'current_salary_cycle' || timeframe === 'salary_cycle') {
+    salaryCycleForTreasurer = resolveSalaryCycleFromArgs({ ...args, period: timeframe === 'current_salary_cycle' ? undefined : args.period }, now);
+    startIso = salaryCycleForTreasurer.startIso;
+    endExclusiveIso = salaryCycleForTreasurer.endExclusiveIso;
+  } else if (timeframe === 'today') {
     const today = now.toISOString().slice(0, 10);
     const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
     startIso = `${today}T00:00:00.000Z`;
