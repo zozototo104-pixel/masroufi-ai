@@ -3718,7 +3718,7 @@ ${activeSalaryCycleText}
           if (session && isActive) {
             try {
               liveClientAudioChunksSentToGemini += 1;
-              if (liveClientAudioChunksSentToGemini <= 5 || liveClientAudioChunksSentToGemini % 100 === 0 || interArrivalMs > 250) {
+              if (LIVE_AUDIO_DIAGNOSTICS_ENABLED && (liveClientAudioChunksSentToGemini <= 5 || liveClientAudioChunksSentToGemini % 100 === 0 || interArrivalMs > 250)) {
                 console.log('[live-audio-server-diagnostics] sent mic chunk to Gemini', {
                   requestId,
                   sentToGemini: liveClientAudioChunksSentToGemini,
