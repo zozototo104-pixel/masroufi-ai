@@ -6213,7 +6213,7 @@ export const functionDeclarations = [
       type: "object",
       properties: {
         title: { type: "string", description: "عنوان التقرير" },
-        period: { type: "string", description: "today, week, month, quarter, year, all أو custom" },
+        period: { type: "string", description: "today, week, month, current_salary_cycle, salary_cycle, quarter, year, all أو custom. عبارة الشهر هذا في سياق المصروفات تعني current_salary_cycle إلا إذا قال الشهر الميلادي." },
         year: { type: "number", description: "السنة عند التقرير السنوي أو الربعي أو شهر محدد" },
         quarter: { type: "number", description: "رقم الربع 1-4" },
         month: { type: "number", description: "رقم الشهر 1-12" },
