@@ -3705,7 +3705,7 @@ ${activeSalaryCycleText}
 
           if (awaitingPostToolAudio && Date.now() < postToolInputGateUntilMs) {
             liveClientAudioChunksDroppedByGate += 1;
-            if (liveClientAudioChunksDroppedByGate <= 5 || liveClientAudioChunksDroppedByGate % 25 === 0) {
+            if (LIVE_AUDIO_DIAGNOSTICS_ENABLED && (liveClientAudioChunksDroppedByGate <= 5 || liveClientAudioChunksDroppedByGate % 25 === 0)) {
               console.log('[live-audio-server-diagnostics] held mic chunk while waiting for post-tool answer audio', {
                 requestId,
                 droppedByGate: liveClientAudioChunksDroppedByGate,
