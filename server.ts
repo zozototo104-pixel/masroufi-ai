@@ -3059,6 +3059,7 @@ ${activeSalaryCycleText}
                   requestId,
                   chunks: audioChunksInMessage,
                   total: liveAudioChunksForwarded,
+                  currentTurnMaxGeminiAudioInterArrivalMs,
                   maxGeminiAudioInterArrivalMs,
                   awaitingPostToolAudio,
                   aiOutputActive,
