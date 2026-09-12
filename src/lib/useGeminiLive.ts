@@ -247,43 +247,17 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           processor.connect(processorSink);
           processorSink.connect(inputCtx.destination);
           
-          let userSpeechCounter = 0;
           processor.onaudioprocess = (e) => {
             if (myEpoch !== connectionEpochRef.current || wsRef.current !== ws) return;
             const channelData = e.inputBuffer.getChannelData(0);
             
-            // Calculate RMS volume level of user microphone input
-            let sumSquares = 0;
-            for (let i = 0; i < channelData.length; i++) {
-              sumSquares += channelData[i] * channelData[i];
-            }
-            const rms = Math.sqrt(sumSquares / channelData.length);
-
-            // If AI is currently talking and user speaks into mic (barge-in):
+            // Do NOT send microphone audio while AI is outputting voice. We also
+            // do not auto-stop playback from mic RMS anymore: phone speakers can
+            // leak the expert voice back into the microphone, and that false
+            // barge-in was one direct cause of chopped/unfinished speech.
             const isAiTalking = activeSourcesRef.current.length > 0;
             if (isAiTalking) {
-              if (rms > 0.08) {
-                userSpeechCounter++;
-                if (userSpeechCounter >= 6) {
-                  // User is actively interrupting: instantly halt audio playback
-                  stopPlayback();
-                  setStatus('listening');
-                  window.dispatchEvent(new CustomEvent('masrofi:user-interrupted'));
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ interrupt: true }));
-                    // Do not send the same frame that triggered barge-in; it may
-                    // contain speaker echo from the expert. After playback stops,
-                    // subsequent clean mic frames are sent normally.
-                  }
-                  userSpeechCounter = 0;
-                }
-              } else {
-                userSpeechCounter = Math.max(0, userSpeechCounter - 1);
-              }
-              // Do NOT send microphone audio while AI is outputting voice to avoid echo feedback loop
               return;
-            } else {
-              userSpeechCounter = 0;
             }
 
             const base64 = pcmToBase64(channelData);
