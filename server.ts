@@ -3230,6 +3230,16 @@ ${activeSalaryCycleText}
                           },
                         } as FunctionCall;
                       }
+                      if ((effectiveCall.name === 'generate_treasurer_report' || effectiveCall.name === 'generateTreasurerReport') && liveUserTextBeforeMerge) {
+                        effectiveCall = {
+                          ...effectiveCall,
+                          args: {
+                            ...(effectiveCall.args || {}),
+                            userText: String((effectiveCall.args as any)?.userText || liveUserTextBeforeMerge),
+                            currentUserText: String((effectiveCall.args as any)?.currentUserText || liveUserTextBeforeMerge),
+                          },
+                        } as FunctionCall;
+                      }
                       const guard = shouldSkipFinancialToolCallForIntent(effectiveCall, JSON.stringify(effectiveCall.args || {}), seenToolKeys, liveFunctionCalls);
                       if (guard.skip) {
                         return { id: effectiveCall.id || call.id, name: effectiveCall.name, response: { success: true, skipped: true, reason: guard.reason, message: 'تم تجاهل استدعاء مكرر في نفس الأمر الصوتي حتى لا يتضاعف القيد المالي.' } };
