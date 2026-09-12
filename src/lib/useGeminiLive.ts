@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { pcmToBase64, base64ToPcm, createAudioBuffer } from './audioUtils';
 
+function isLiveAudioClientDiagnosticsEnabled(): boolean {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('liveAudioDiagnostics') === '1' || window.localStorage.getItem('masrofi_live_audio_diagnostics') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function useGeminiLive(settings?: { voice: string; persona: string; apiKey: string; idToken: string | null; userName: string; aiName: string; relationship?: string; activeSalaryCycleId?: string; activeSalaryCycleName?: string; activeSalaryCycleMonth?: number; activeSalaryCycleYear?: number }) {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
