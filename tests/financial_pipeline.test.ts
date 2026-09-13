@@ -232,3 +232,27 @@ test('TREASURER-07: comprehensive financial audit is exposed to advisor and dash
   assert.ok(app.includes('تدقيق الدفتر المالي'), 'dashboard must render the advisor audit card');
   assert.ok(app.includes("idbSet('lkgs_advisor_audit'"), 'dashboard must cache last-known-good advisor audit');
 });
+
+test('TREASURER-08: market watchlist links local market intelligence with safe spending', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  assert.ok(tools.includes('export async function createMarketWatchItem'), 'market watchlist must create monitored purchases');
+  assert.ok(tools.includes('export async function getMarketWatchlist'), 'market watchlist must expose a read tool');
+  assert.ok(tools.includes('export async function updateMarketWatchItem'), 'market watchlist must update and re-evaluate items');
+  assert.ok(tools.includes('export async function reviewMarketWatchlist'), 'market watchlist must support bulk review');
+  assert.ok(tools.includes('create_market_watch_item: createMarketWatchItem'), 'create market watch tool must be registered');
+  assert.ok(tools.includes('review_market_watchlist: reviewMarketWatchlist'), 'review market watch tool must be registered');
+  assert.ok(tools.includes('name: "create_market_watch_item"'), 'market watch tools must be exposed to Gemini');
+  assert.ok(tools.includes('getSafeSpendingLimit({ period: \'salary_cycle\' }'), 'market watch evaluation must include safe spending context');
+  assert.ok(tools.includes('advisor-market-watch'), 'risky market watch evaluations must become advisor alerts');
+  assert.ok(tools.includes('marketWatchlist'), 'wipe must include the market watchlist collection');
+  assert.ok(server.includes('app.get("/api/advisor/market-watchlist", authMiddleware'), 'market watchlist API must be available behind auth');
+  assert.ok(server.includes('app.post("/api/advisor/market-watchlist/review", authMiddleware'), 'market watchlist review API must be available behind auth');
+  assert.ok(server.indexOf('app.post("/api/advisor/market-watchlist/review"') < server.indexOf('app.post("/api/advisor/market-watchlist/:id"'), 'review route must be registered before the :id route');
+  assert.ok(app.includes('const [marketWatchlist, setMarketWatchlist]'), 'dashboard must keep market watchlist state');
+  assert.ok(app.includes("fetch('/api/advisor/market-watchlist?limit=12'"), 'dashboard must fetch market watchlist');
+  assert.ok(app.includes('handleReviewMarketWatchlist'), 'dashboard must allow manual watchlist review');
+  assert.ok(app.includes('مراقب السوق والمشتريات'), 'dashboard must render market watchlist card');
+  assert.ok(app.includes("idbSet('lkgs_market_watchlist'"), 'dashboard must cache last-known-good market watchlist');
+});
