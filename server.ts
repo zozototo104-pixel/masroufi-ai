@@ -1257,10 +1257,10 @@ function mergePendingFinancialClarificationIntoToolCall(
   if (looksLikeFreshFullCommand) return { name: callName, args: toolArgs, merged: false };
   const syntheticAnswer = String(userText || args.paymentMethod || args.account || args.fromAccount || args.toAccount || args.creditor || args.person || args.merchant || args.purchaseItem || args.beneficiary || '').trim();
   const patch = buildPendingClarificationPatch(syntheticAnswer, pending);
-  if (!patch) return { name: callName, args: toolArgs, merged: false };
-  const nextName = patch.convertToTool || pending.name;
-  const { convertToTool, ...actualPatch } = patch;
   const pendingArgs = sanitizePendingFinancialArgs(pending.args || {});
+  if (!patch && !isBareConfirmationAnswer(normalizeArabicForIntent(syntheticAnswer))) return { name: callName, args: toolArgs, merged: false };
+  const nextName = patch?.convertToTool || pending.name;
+  const { convertToTool, ...actualPatch } = patch || {};
   const mergedArgs = {
     ...pendingArgs,
     ...actualPatch,
