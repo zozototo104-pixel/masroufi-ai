@@ -659,12 +659,21 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
     return sum + Math.max(0, Number(goal.safeSpendingMonthlyRequired || 0) - Number(goal.monthlySavedAmount || 0));
   }, 0));
 
+  const cycleTransactions = Array.isArray((cycleTxResult as any).transactions) ? (cycleTxResult as any).transactions : [];
+  const implicitlyPaidCommitments: any[] = [];
   const activeCommitments = (ctx.commitments || []).filter((c: any) => {
     const status = String(c.status || 'pending').toLowerCase();
     if (status === 'paid' || status === 'cancelled') return false;
     if (!c.dueDate) return false;
     const dueDate = auditAsDate(c.dueDate);
-    return dueDate ? dueDate.toISOString() <= protectionEndIso : String(c.dueDate || '') <= protectionEndIso;
+    const dueWithinHorizon = dueDate ? dueDate.toISOString() <= protectionEndIso : String(c.dueDate || '') <= protectionEndIso;
+    if (!dueWithinHorizon) return false;
+    const implicitPayment = findImplicitCommitmentPayment(c, cycleTransactions, horizon.salaryCycle.startIso, protectionEndIso);
+    if (implicitPayment) {
+      implicitlyPaidCommitments.push({ id: c.id, title: c.title, amount: c.amount, paidByTransactionId: implicitPayment.id, paidByDate: implicitPayment.date || implicitPayment.localDay || implicitPayment.createdAt });
+      return false;
+    }
+    return true;
   });
   const dueCommitments = roundMoney(activeCommitments.reduce((sum: number, c: any) => sum + parsePositiveFinancialAmount(c.amount), 0));
   const balances = ctx.balances || { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 };
