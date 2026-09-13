@@ -6581,6 +6581,16 @@ export const functionDeclarations = [
     parameters: { type: "object", properties: {} }
   },
   {
+    name: "get_safe_spending_limit",
+    description: "يحسب المبلغ الآمن للصرف اليوم/الأسبوع/حتى الراتب القادم بعد حماية الالتزامات القريبة، احتياطي الأمان، أهداف الادخار، ونمط الصرف المعتاد. استخدمه عند سؤال المستخدم: كم أقدر أصرف؟ هل أقدر أشتري؟ ما الحد الآمن؟ أو عند تقديم نبض مالي يومي.",
+    parameters: { type: "object", properties: {
+      period: { type: "string", description: "today أو week أو next_30_days أو salary_cycle. الافتراضي salary_cycle حتى نهاية دورة الراتب الحالية" },
+      untilDate: { type: "string", description: "تاريخ نهاية مخصص YYYY-MM-DD إن أراد المستخدم حد الصرف حتى يوم محدد" },
+      reserveTarget: { type: "number", description: "احتياطي أمان اختياري بالشيكل يتجاوز أو يعوض الموجود في ملف أمين الصندوق" },
+      strictness: { type: "string", description: "gentle أو balanced أو strict لتحديد هامش الأمان السلوكي" }
+    } }
+  },
+  {
     name: "assess_purchase",
     description: "يقيّم شراءً قبل تنفيذه مقابل الرصيد، معدل الصرف، الالتزامات والموازنة. لا يسجل أي عملية.",
     parameters: { type:"object", properties:{
