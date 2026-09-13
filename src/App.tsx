@@ -632,6 +632,7 @@ export default function App() {
       setCommitments(Array.isArray(cachedCommitments) ? cachedCommitments : []);
       setSavingsGoals(Array.isArray(cachedSavings) ? cachedSavings : []);
       if (cachedAdvisorPulse) setAdvisorPulse(cachedAdvisorPulse);
+      if (cachedTreasurerProfile) setTreasurerProfile(cachedTreasurerProfile);
       if (Array.isArray(cachedAdvisorAlerts)) setAdvisorAlerts(cachedAdvisorAlerts);
       if (cachedAdvisorAudit) setAdvisorAudit(cachedAdvisorAudit);
       if (Array.isArray(cachedMarketWatchlist)) setMarketWatchlist(cachedMarketWatchlist);
