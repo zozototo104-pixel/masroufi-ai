@@ -730,6 +730,7 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   if (profileCompleteness.status !== 'ready') warnings.push(`ملف أمين الصندوق مكتمل بنسبة ${profileCompleteness.score}%؛ دقة النصائح تتحسن عند استكمال البيانات الناقصة.`);
   if (discretionaryAfterExpectedRoutine < 0) warnings.push(`بعد نمط الصرف المعتاد يوجد عجز متوقع ${Math.abs(discretionaryAfterExpectedRoutine)} ₪ حتى ${horizon.label}.`);
   if (savingsRequiredThisPeriod > 0) warnings.push(`الأهداف النشطة تحتاج تقريباً ${savingsRequiredThisPeriod} ₪ هذا الشهر للبقاء على المسار.`);
+  if (implicitlyPaidCommitments.length > 0) warnings.push(`تم تجاهل ${implicitlyPaidCommitments.length} التزام من الحجز لأنه يبدو مدفوعاً كعملية مصروف داخل دورة الراتب الحالية.`);
 
   const recommendations = (status === 'safe'
     ? ['حافظ على الصرف اليومي ضمن الحد الآمن ولا تلمس مبلغ الالتزامات أو الاحتياطي.', 'أي شراء كمالي كبير يفضّل فحصه بالسوق المحلي أولاً.', profileCompleteness.nextPrompt ? `لزيادة دقة المستشار: ${profileCompleteness.nextPrompt}` : '']
