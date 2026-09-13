@@ -2978,7 +2978,10 @@ function setupLiveApi(wss: WebSocketServer) {
       liveServerFinancialCompletionRunning = true;
       liveServerFinancialCompletionBlockUntilMs = Date.now() + 15_000;
       liveServerFinancialCompletionTranscriptKey = stableShortFingerprint(transcript);
-      liveServerFinancialCompletionKeys.set(liveKey, Date.now());
+      // Do NOT mark this semantic operation as handled before the tool commits.
+      // A clarification attempt may return MISSING_PURPOSE/MISSING_NECESSITY/etc.
+      // If we store liveKey here, the user's next short answer can be blocked as
+      // a duplicate before add_transaction gets the now-complete details.
       safeSend({ status: 'thinking' });
       try {
         console.warn('[live-server-financial] executing deterministic completion from transcript', {
