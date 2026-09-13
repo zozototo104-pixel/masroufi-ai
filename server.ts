@@ -3035,39 +3035,21 @@ function classifyGeminiLiveError(err: any): { quotaExceeded: boolean; message: s
 }
 
 const GEMINI_LIVE_TOOL_NAMES = new Set([
+  // Keep Gemini Live small and stable. Text chat keeps the full tool surface;
+  // voice gets only the most common low-latency tools. Large Live setup payloads
+  // were observed to close the Bidi session cleanly before any microphone audio.
   'add_transaction',
   'transfer_money',
   'pay_debt',
-  'delete_transaction',
   'delete_recent_transactions',
-  'update_transaction',
   'get_recent_transactions',
   'query_transactions',
-  'get_salary_cycle_summary',
-  'generate_report',
   'get_balance',
   'get_safe_spending_limit',
-  'run_financial_audit',
-  'get_advisor_alerts',
   'generate_daily_financial_pulse',
   'forecast_month_end_financial_position',
-  'generate_weekly_financial_recommendations',
-  'generate_adaptive_budget_plan',
-  'apply_adaptive_budget_plan',
-  'analyze_financial_habits',
-  'assess_purchase',
-  'assess_financial_goal_impact',
-  'search_local_market',
   'memory_search',
   'memory_save',
-  'get_savings_goals',
-  'create_savings_goal',
-  'add_savings_contribution',
-  'update_savings_goal',
-  'detect_recurring_commitments',
-  'review_recurring_commitments',
-  'create_recurring_commitment_from_candidate',
-  'send_palpay_payment',
 ]);
 
 const LIVE_TOOL_DESCRIPTION_OVERRIDES: Record<string, string> = {
