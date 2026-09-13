@@ -613,8 +613,9 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const activeCommitments = (ctx.commitments || []).filter((c: any) => {
     const status = String(c.status || 'pending').toLowerCase();
     if (status === 'paid' || status === 'cancelled') return false;
-    const due = String(c.dueDate || '');
-    return !due || due <= horizon.endIso;
+    if (!c.dueDate) return true;
+    const dueDate = auditAsDate(c.dueDate);
+    return dueDate ? dueDate.toISOString() <= horizon.endIso : String(c.dueDate || '') <= horizon.endIso;
   });
   const dueCommitments = roundMoney(activeCommitments.reduce((sum: number, c: any) => sum + parsePositiveFinancialAmount(c.amount), 0));
   const balances = ctx.balances || { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 };
