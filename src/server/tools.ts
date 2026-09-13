@@ -1593,6 +1593,28 @@ export async function addTransaction(args: any, userId: string, token: string) {
         const confirmationReasons = Array.isArray((risk as any).confirmationReasons) && (risk as any).confirmationReasons.length
           ? (risk as any).confirmationReasons
           : risk.warnings;
+        await addNotification(
+          userId,
+          `🚨 أمين الصندوق أوقف عملية ${amount} ₪ على بند [${category}] قبل الحفظ: ${confirmationReasons.join(' ')}`,
+          'warning',
+          adminDb,
+          {
+            idempotencyKey: `advisor-risk-block:${args.operationId || `${dateResult.date}:${amount}:${account}:${category}:${merchant}`}`,
+            advisorAlert: true,
+            advisorStatus: 'open',
+            severity: risk.severity === 'critical' ? 'critical' : 'warning',
+            priority: risk.severity === 'critical' ? 'high' : 'medium',
+            category: 'treasurer_risk_gate',
+            source: 'addTransaction.preflight',
+            operationId: String(args.operationId || ''),
+            metadata: { amount, account, category, subcategory, merchant, necessity, riskAssessment: risk },
+            actions: [
+              { id: 'confirm_risk', label: 'أكد المخاطرة', type: 'confirm' },
+              { id: 'adjust_amount', label: 'عدّل المبلغ', type: 'edit' },
+              { id: 'cancel', label: 'إلغاء العملية', type: 'dismiss' },
+            ],
+          }
+        );
         return {
           success: false,
           needsConfirmation: true,
