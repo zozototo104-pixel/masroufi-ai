@@ -4798,6 +4798,20 @@ export async function runFinancialAudit(args: any, userId: string, token: string
     });
   }
 
+  const habitAnalysis = await analyzeFinancialHabits({ period: 'last_30_days', limit: Math.min(limit, 800), insightLimit: 5 }, userId, token).catch((e: any) => ({ success: false, insights: [], error: e?.message || String(e) }));
+  const habitInsights = Array.isArray((habitAnalysis as any).insights) ? (habitAnalysis as any).insights.filter((i: any) => i.severity === 'warning') : [];
+  if (habitInsights.length) {
+    addAuditFinding(findings, {
+      severity: habitInsights.length >= 3 ? 'critical' : 'warning',
+      category: 'habit_patterns',
+      title: 'أنماط صرف تحتاج ضبط',
+      message: `وجدت ${habitInsights.length} نمط صرف تحذيري مثل ارتفاع بند أو تاجر أو يوم صرف.`,
+      evidence: { insights: habitInsights.slice(0, 5).map((i: any) => ({ type: i.type, title: i.title, message: i.message, evidence: i.evidence })) },
+      relatedIds: habitInsights.flatMap((i: any) => i.evidence?.sampleIds || i.evidence?.smallPurchases?.sampleIds || []).slice(0, 20),
+      recommendedActions: ['ضع سقفاً مؤقتاً للبند المرتفع', 'راجع العمليات الصغيرة والمتكررة قبل نهاية الأسبوع'],
+    });
+  }
+
   const openCriticalAlerts = notifications.filter((n: any) => Boolean(n.advisorAlert) && normalizeAdvisorAlertStatus(n.advisorStatus) === 'open' && String(n.severity || '').toLowerCase() === 'critical');
   if (openCriticalAlerts.length) {
     addAuditFinding(findings, {
