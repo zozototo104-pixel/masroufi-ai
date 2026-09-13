@@ -896,6 +896,7 @@ export default function App() {
           if (wantsVault) {
             await fetchVaultData(headers);
             await refreshActiveSalaryCycle(headers);
+            await fetchAdvisorPulseData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
