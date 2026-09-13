@@ -1162,9 +1162,20 @@ export default function App() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to simulate financial scenario');
-      const nextScenarios = [data, ...financialScenarios.filter((s: any) => s.id !== data.savedScenarioId && s.savedScenarioId !== data.savedScenarioId)].slice(0, 8);
+      const scenarioListRes = await fetch('/api/advisor/scenarios?limit=8', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const scenarioListPayload = await scenarioListRes.json().catch(() => ({}));
+      const nextScenarios = scenarioListRes.ok && scenarioListPayload?.success !== false && Array.isArray(scenarioListPayload.scenarios)
+        ? scenarioListPayload.scenarios
+        : [data, ...financialScenarios.filter((s: any) => s.id !== data.savedScenarioId && s.savedScenarioId !== data.savedScenarioId)].slice(0, 8);
       setFinancialScenarios(nextScenarios);
       await idbSet('lkgs_financial_scenarios', nextScenarios);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
       setNotifications(prev => [...prev, { id: `scenario-simulated-${Date.now()}`, type: data.severity === 'critical' ? 'warning' : 'success', message: data.message || 'تمت محاكاة السيناريو المالي.' }]);
     } catch (err) {
       console.warn('Financial scenario simulation failed:', err);
