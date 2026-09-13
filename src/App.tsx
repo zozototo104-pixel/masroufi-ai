@@ -3073,6 +3073,57 @@ export default function App() {
             </div>
           )}
 
+          <div className="bg-slate-900 border border-cyan-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Bell className="w-4 h-4 text-cyan-300" />
+                نبض اليوم المالي
+              </h3>
+              <button onClick={handleGenerateDailyFinancialPulse} disabled={isDailyPulseGenerating} className="px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-200 text-[10px] font-bold disabled:opacity-50">
+                {isDailyPulseGenerating ? 'ينبض...' : 'نبض اليوم'}
+              </button>
+            </div>
+            {dailyFinancialPulses.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">آخر نبض</p>
+                    <p className="text-sm font-bold text-white">{dailyFinancialPulses[0]?.date || 'اليوم'}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                    {dailyFinancialPulses[0]?.status === 'daily_block' ? 'منع كمالي' : dailyFinancialPulses[0]?.status === 'daily_caution' ? 'حذر' : dailyFinancialPulses[0]?.status === 'daily_growth' ? 'تحسين' : 'مستقر'} · {Number(dailyFinancialPulses[0]?.score || 0).toLocaleString()}%
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-6 mb-3">{dailyFinancialPulses[0]?.headline}</p>
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">سقف اليوم</p>
+                    <p className="text-sm font-black text-white">{Number(dailyFinancialPulses[0]?.summary?.safeToSpendToday || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">تعويض</p>
+                    <p className="text-sm font-black text-white">{Number(dailyFinancialPulses[0]?.summary?.requiredRecovery || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">مهام</p>
+                    <p className="text-sm font-black text-white">{Number(dailyFinancialPulses[0]?.tasks?.length || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                {dailyFinancialPulses[0]?.biggestRisk && (
+                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3 mb-3">
+                    <p className="text-[11px] font-bold text-cyan-100 mb-1">{dailyFinancialPulses[0].biggestRisk.title}</p>
+                    <p className="text-[11px] text-slate-300 leading-5">{dailyFinancialPulses[0].biggestRisk.message}</p>
+                  </div>
+                )}
+                {dailyFinancialPulses[0]?.doNotSpend?.length > 0 && (
+                  <p className="text-[10px] text-slate-400 leading-5">لا تصرف اليوم على: {dailyFinancialPulses[0].doNotSpend.slice(0, 3).map((item: any) => item.category).join('، ')}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">اضغط “نبض اليوم” ليعطيك مصروفي سقف اليوم، أكبر خطر، أهم تذكير، وقائمة ما لا يجب صرفه اليوم.</p>
+            )}
+          </div>
+
           <div className="bg-slate-900 border border-blue-500/25 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between gap-3 mb-4">
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
