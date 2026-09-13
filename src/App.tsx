@@ -2784,6 +2784,43 @@ export default function App() {
             )}
           </div>
 
+          <div className="bg-slate-900 border border-orange-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-orange-300" />
+                مدير الاشتراكات والالتزامات
+              </h3>
+              <button onClick={handleDetectRecurringCommitments} disabled={isRecurringCommitmentDetecting} className="px-2.5 py-1 rounded-xl bg-orange-500/10 border border-orange-500/25 text-orange-200 text-[10px] font-bold disabled:opacity-50">
+                {isRecurringCommitmentDetecting ? 'يفحص...' : 'اكتشف التكرار'}
+              </button>
+            </div>
+            {recurringCommitmentCandidates.length > 0 ? (
+              <div className="space-y-3">
+                {recurringCommitmentCandidates.slice(0, 3).map((candidate: any) => (
+                  <div key={candidate.detectionKey || candidate.id} className="bg-slate-950/50 border border-slate-800 rounded-2xl p-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1">
+                        <p className="text-[12px] font-bold text-white">{candidate.title || 'مصروف متكرر محتمل'}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {Number(candidate.amount || 0).toLocaleString()} ₪ · {candidate.frequency === 'weekly' ? 'أسبوعي' : candidate.frequency === 'biweekly' ? 'كل أسبوعين' : candidate.frequency === 'quarterly' ? 'ربع سنوي' : candidate.frequency === 'yearly' ? 'سنوي' : 'شهري'} · الثقة {Math.round(Number(candidate.confidence || 0) * 100)}%
+                        </p>
+                      </div>
+                      <button onClick={() => handleCreateRecurringCommitment(candidate)} className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-200 text-[10px] font-bold whitespace-nowrap">
+                        حوّل لالتزام
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-5">الاستحقاق القادم المتوقع: {candidate.nextDueDate || 'غير محدد'} · ظهر {candidate.occurrenceCount || 0} مرات.</p>
+                  </div>
+                ))}
+                {recurringCommitmentCandidates.length > 3 && (
+                  <p className="text-[10px] text-slate-500">يوجد {recurringCommitmentCandidates.length - 3} مرشح إضافي.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">اضغط “اكتشف التكرار” ليفحص مصروفي آخر العمليات ويقترح الاشتراكات أو الأقساط التي تستحق جدولتها.</p>
+            )}
+          </div>
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
