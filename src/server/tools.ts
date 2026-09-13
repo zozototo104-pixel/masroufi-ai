@@ -732,6 +732,177 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   };
 }
 
+function normalizeGoalPriorityScore(value: any): number {
+  const raw = normalizeArabicText(String(value || 'medium')).toLowerCase();
+  const n = Number(value);
+  if (Number.isFinite(n) && n > 0) return Math.max(1, Math.min(5, 6 - Math.round(n)));
+  if (['critical', 'urgent', 'high', 'عالي', 'مهم', 'عاجل', 'حرج'].includes(raw)) return 5;
+  if (['medium', 'متوسط', 'normal', 'عادي'].includes(raw)) return 3;
+  if (['low', 'منخفض', 'خفيف'].includes(raw)) return 1;
+  return 3;
+}
+
+function estimateGoalDelayDays(pressureAmount: number, monthlyRequired: number): number {
+  const dailyRequired = monthlyRequired > 0 ? monthlyRequired / 30 : 0;
+  if (dailyRequired <= 0 || pressureAmount <= 0) return 0;
+  return Math.max(1, Math.min(365, Math.ceil(pressureAmount / dailyRequired)));
+}
+
+function goalImpactMessage(input: { decision: string; amount: number; topGoal?: any; delayDays: number; safeGap: number }) {
+  if (input.decision === 'GOAL_AT_RISK') {
+    return `هذا القرار يضغط أهدافك المالية. قد يؤخر ${input.topGoal?.name || input.topGoal?.title || 'أهم هدف'} حوالي ${input.delayDays} يوم، ويوجد تجاوز للحد الآمن بقيمة ${input.safeGap} ₪.`;
+  }
+  if (input.decision === 'GOAL_DELAY_WARNING') {
+    return `العملية ممكنة لكنها قد تبطئ أهدافك. أكبر أثر متوقع على ${input.topGoal?.name || input.topGoal?.title || 'هدف مالي'} حوالي ${input.delayDays} يوم.`;
+  }
+  return `العملية لا تظهر أثراً خطيراً على أهدافك ضمن البيانات الحالية، بشرط الالتزام بالحد الآمن للصرف.`;
+}
+
+export async function assessFinancialGoalImpact(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const amount = parsePositiveFinancialAmount(args?.amount ?? args?.expenseAmount ?? args?.price ?? args?.offeredPrice);
+  if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_GOAL_IMPACT_AMOUNT', message: 'كم قيمة المصروف أو الشراء الذي تريد قياس أثره على الأهداف؟' };
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const category = String(args?.category || args?.item || args?.product || 'غير محدد');
+  const necessity = String(args?.necessity || '');
+  const safe = await getSafeSpendingLimit({ period: args?.period || 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e), safeSpending: {} }));
+  const profileResult: any = await getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) }));
+  const profile = normalizeTreasurerProfile(profileResult.profile || {});
+  const horizon = resolveSafeSpendingHorizon({ period: args?.period || 'salary_cycle' }, safeNow);
+  const savingsPeriod = { startIso: horizon.salaryCycle.startIso, endExclusiveIso: horizon.salaryCycle.endExclusiveIso, label: horizon.salaryCycle.name };
+  const goalSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [], partial: true }));
+  const activeGoals = ((goalSnap as any).docs || [])
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((goal: any) => !['completed', 'cancelled', 'archived'].includes(String(goal.status || 'active').toLowerCase()));
+
+  let savingsContributionDocsRead = 0;
+  const safeUntilHorizon = parsePositiveFinancialAmount((safe as any)?.safeSpending?.safeToSpendUntilHorizon);
+  const safeToday = parsePositiveFinancialAmount((safe as any)?.safeSpending?.safeToSpendToday);
+  const amountAboveSafe = roundMoney(Math.max(0, amount - safeUntilHorizon));
+  const dailyPressure = roundMoney(Math.max(0, amount - safeToday));
+  const restricted = normalizeTreasurerStringList(profile.restrictedCategories || []).map((c: string) => normalizeArabicText(c).toLowerCase());
+  const isRestrictedCategory = restricted.some((c: string) => c && normalizeArabicText(category).toLowerCase().includes(c));
+  const isDiscretionary = normalizeArabicText(necessity).includes('كمالي') || isRestrictedCategory;
+
+  const impactedSavingsGoals: any[] = [];
+  for (const goal of activeGoals) {
+    let contributions: any[] = [];
+    try {
+      const contributionSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(String(goal.id)).collection('contributions')
+        .where('createdAt', '>=', savingsPeriod.startIso)
+        .where('createdAt', '<', savingsPeriod.endExclusiveIso)
+        .limit(100)
+        .get();
+      contributions = contributionSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      savingsContributionDocsRead += contributions.length;
+    } catch {}
+    const plan: any = buildSavingsGoalPlan({ goal, contributions, now: safeNow, period: savingsPeriod });
+    const hasDeadline = /^\d{4}-\d{2}-\d{2}$/.test(String(goal.dueDate || ''));
+    const monthlyRequired = roundMoney(hasDeadline ? Number(plan.monthlyRequired || 0) : parsePositiveFinancialAmount(goal.monthlyRequired));
+    const monthlyGap = roundMoney(Math.max(0, monthlyRequired - Number(plan.monthlySavedAmount || 0)));
+    const priorityScore = normalizeGoalPriorityScore(goal.priority);
+    const goalPressure = roundMoney(Math.min(amount, Math.max(monthlyGap, amountAboveSafe, dailyPressure)));
+    const delayDays = estimateGoalDelayDays(goalPressure, monthlyRequired);
+    const threatensGoal = monthlyGap > 0 || ['critical', 'warning'].includes(String(plan.alertLevel || '')) || amountAboveSafe > 0;
+    if (threatensGoal || delayDays > 0) {
+      impactedSavingsGoals.push({
+        id: goal.id,
+        name: goal.name || 'هدف ادخار',
+        priority: goal.priority || 'medium',
+        priorityScore,
+        targetAmount: plan.targetAmount,
+        savedAmount: plan.savedAmount,
+        remainingAmount: plan.remainingAmount,
+        dueDate: goal.dueDate || '',
+        alertLevel: plan.alertLevel,
+        monthlyRequired,
+        monthlySavedAmount: plan.monthlySavedAmount,
+        monthlyGap,
+        estimatedDelayDays: delayDays,
+        compensationNeeded: goalPressure,
+        message: delayDays > 0 ? `قد يتأخر الهدف حوالي ${delayDays} يوم إذا لم تعوض ${goalPressure} ₪.` : plan.alertMessage,
+      });
+    }
+  }
+
+  impactedSavingsGoals.sort((a: any, b: any) => b.priorityScore - a.priorityScore || b.monthlyGap - a.monthlyGap || b.estimatedDelayDays - a.estimatedDelayDays);
+  const profileGoals = [...(profile.financialPriorities || []), ...(profile.financialGoals || [])].slice(0, 10).map((goal: any) => {
+    const targetAmount = parsePositiveFinancialAmount(goal.targetAmount);
+    const priorityScore = normalizeGoalPriorityScore(goal.priority);
+    const delayDays = targetAmount > 0 ? estimateGoalDelayDays(Math.min(amount, targetAmount), Math.max(targetAmount / 6, 1)) : 0;
+    return { title: goal.title || goal.name, priority: goal.priority, priorityScore, targetAmount, dueDate: goal.dueDate || '', estimatedDelayDays: delayDays, notes: goal.notes || '' };
+  }).filter((goal: any) => goal.title);
+
+  const topGoal = impactedSavingsGoals[0] || profileGoals.sort((a: any, b: any) => b.priorityScore - a.priorityScore)[0];
+  const maxDelayDays = Math.max(0, ...impactedSavingsGoals.map((g: any) => Number(g.estimatedDelayDays || 0)), ...profileGoals.map((g: any) => Number(g.estimatedDelayDays || 0)));
+  const highPriorityThreat = impactedSavingsGoals.some((g: any) => g.priorityScore >= 5 && (g.monthlyGap > 0 || g.estimatedDelayDays >= 7));
+  let decision = 'GOAL_SAFE';
+  let severity = 'info';
+  if (amountAboveSafe > 0 && (highPriorityThreat || isDiscretionary || ['critical', 'danger'].includes(String((safe as any)?.decision || '')))) {
+    decision = 'GOAL_AT_RISK';
+    severity = 'critical';
+  } else if (maxDelayDays >= 7 || impactedSavingsGoals.some((g: any) => ['critical', 'warning'].includes(String(g.alertLevel || ''))) || (isDiscretionary && dailyPressure > 0)) {
+    decision = 'GOAL_DELAY_WARNING';
+    severity = 'warning';
+  }
+  const needsConfirmation = decision === 'GOAL_AT_RISK' && !parseBooleanLike(args?.riskConfirmed);
+  const warnings: string[] = [];
+  if (amountAboveSafe > 0) warnings.push(`المبلغ يتجاوز الحد الآمن المحمي للأهداف والالتزامات بـ ${amountAboveSafe} ₪.`);
+  if (highPriorityThreat) warnings.push('يوجد هدف عالي الأولوية قد يتأثر بهذا القرار.');
+  if (maxDelayDays >= 7) warnings.push(`أكبر تأخير تقديري على الأهداف حوالي ${maxDelayDays} يوم.`);
+  if (isRestrictedCategory) warnings.push('هذا البند ضمن البنود المقيدة في ملف أمين الصندوق.');
+
+  const result: any = {
+    success: true,
+    decision,
+    severity,
+    needsConfirmation,
+    message: goalImpactMessage({ decision, amount, topGoal, delayDays: maxDelayDays, safeGap: amountAboveSafe }),
+    goalImpact: {
+      amount,
+      category,
+      necessity,
+      isDiscretionary,
+      isRestrictedCategory,
+      safeToSpendToday: safeToday,
+      safeToSpendUntilHorizon: safeUntilHorizon,
+      amountAboveSafe,
+      dailyPressure,
+      maxEstimatedDelayDays: maxDelayDays,
+    },
+    impactedSavingsGoals: impactedSavingsGoals.slice(0, Math.max(1, Math.min(10, Number(args?.goalLimit) || 5))),
+    profileGoals,
+    warnings,
+    recommendations: decision === 'GOAL_SAFE'
+      ? ['تابع الهدف بدون تعويض إضافي حالياً.', 'ابقَ ضمن الحد الآمن للصرف.']
+      : ['عوّض نفس قيمة المصروف في أقرب دخل أو خفّض بنداً كمالياً آخر.', 'إذا كان الهدف عالي الأولوية، أجّل الشراء أو خفّض المبلغ.'],
+    profileCompleteness: profileResult.completeness,
+    partial: Boolean((goalSnap as any).partial || (safe as any)?.partial),
+    readEfficiency: { savingsGoalLimit: 100, savingsGoalDocsRead: activeGoals.length, savingsContributionDocsRead, safeSpendingPartial: Boolean((safe as any)?.partial) },
+  };
+
+  if (parseBooleanLike(args?.persistAlert) && ['critical', 'warning'].includes(severity)) {
+    await addNotification(userId, `🎯 تأثير على الأهداف: ${result.message}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-goal-impact:${stableDocId(`${userId}:${amount}:${category}:${decision}:${topGoal?.id || topGoal?.title || ''}`)}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity,
+      priority: severity === 'critical' ? 'high' : 'medium',
+      category: 'goal_impact',
+      source: 'assessFinancialGoalImpact',
+      metadata: { amount, category, decision, topGoal, goalImpact: result.goalImpact },
+      actions: [
+        { id: 'compensate_goal', label: 'عوّض الهدف', type: 'behavior' },
+        { id: 'reduce_spending', label: 'خفّض الصرف', type: 'behavior' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return result;
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
