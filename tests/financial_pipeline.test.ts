@@ -211,3 +211,23 @@ test('TREASURER-06: advisor alert center persists and resolves financial warning
   assert.ok(app.includes('مركز تنبيهات الخبير المالي'), 'dashboard must render the advisor alert center');
   assert.ok(app.includes('handleAdvisorAlertAction'), 'dashboard must allow resolving/dismissing/snoozing alerts');
 });
+
+test('TREASURER-07: comprehensive financial audit is exposed to advisor and dashboard', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  assert.ok(tools.includes('export async function runFinancialAudit'), 'comprehensive audit must be implemented as a server tool');
+  assert.ok(tools.includes('run_financial_audit: runFinancialAudit'), 'comprehensive audit must be registered in tool handlers');
+  assert.ok(tools.includes('name: "run_financial_audit"'), 'comprehensive audit must be exposed to Gemini');
+  assert.ok(tools.includes('FULL_FINANCIAL_AUDIT_REQUIRES_CONFIRMATION'), 'full-history audit must require explicit confirmation');
+  assert.ok(tools.includes('advisorAudits'), 'saved audit results must be persisted under advisorAudits');
+  assert.ok(tools.includes('audit_debt_integrity'), 'audit findings must be able to create persistent advisor alerts');
+  assert.ok(server.includes('app.get("/api/advisor/audit", authMiddleware'), 'advisor audit summary must be available behind auth');
+  assert.ok(server.includes('app.post("/api/advisor/audit", authMiddleware'), 'manual advisor audit run must be available behind auth');
+  assert.ok((server.match(/0\.3\.3- \*\*المدقق المالي الشامل\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to use the comprehensive audit');
+  assert.ok(app.includes('const [advisorAudit, setAdvisorAudit]'), 'dashboard must keep advisor audit state');
+  assert.ok(app.includes("fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6'"), 'dashboard must fetch a bounded advisor audit');
+  assert.ok(app.includes('handleRunAdvisorAudit'), 'dashboard must allow a saved manual audit run');
+  assert.ok(app.includes('تدقيق الدفتر المالي'), 'dashboard must render the advisor audit card');
+  assert.ok(app.includes("idbSet('lkgs_advisor_audit'"), 'dashboard must cache last-known-good advisor audit');
+});
