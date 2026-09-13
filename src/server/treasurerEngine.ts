@@ -191,8 +191,11 @@ export function inferCategory(input: {
 }): CategorySuggestion {
   const explicitCategory = String(input.category || '').trim();
   const explicitSubcategory = String(input.subcategory || '').trim();
+  const normalizedExplicitCategory = normalizeArabicText(explicitCategory);
+  const normalizedExplicitSubcategory = normalizeArabicText(explicitSubcategory);
   const knownCategories = new Set(Object.keys(TREASURER_CATEGORY_TAXONOMY));
-  if (explicitCategory && explicitSubcategory) {
+  const isWeakOtherCategory = normalizedExplicitCategory === 'اخرى' || normalizedExplicitCategory === 'غير مصنف' || normalizedExplicitCategory === 'متفرقات';
+  if (explicitCategory && explicitSubcategory && !isWeakOtherCategory) {
     return {
       category: explicitCategory,
       subcategory: explicitSubcategory,
@@ -203,7 +206,7 @@ export function inferCategory(input: {
     };
   }
 
-  const text = normalizeArabicText(`${input.category || ''} ${input.subcategory || ''} ${input.notes || ''} ${input.merchant || ''} ${input.item || ''}`);
+  const text = normalizeArabicText(`${isWeakOtherCategory ? '' : input.category || ''} ${input.subcategory || ''} ${input.notes || ''} ${input.merchant || ''} ${input.item || ''}`);
   for (const rule of CATEGORY_RULES) {
     if (rule.keywords.some(k => text.includes(normalizeArabicText(k)))) {
       return {
