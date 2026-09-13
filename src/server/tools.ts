@@ -2050,13 +2050,16 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   if (salary > 0) targetEnvelope = Math.min(targetEnvelope, roundBudgetLimit(salary * 0.95));
 
   const rawProposals = Array.from(categorySet).map((category) => {
-    const row: any = currentBudgetMap.get(category) || { category, limit: DEFAULT_BUDGETS[category] || 0, spent: 0, percentage: 0 };
-    const currentLimit = roundMoney(parsePositiveFinancialAmount(row.limit || DEFAULT_BUDGETS[category] || 0));
+    const row: any = currentBudgetMap.get(category) || { category, limit: 0, spent: 0, percentage: 0 };
+    const templateLimit = parsePositiveFinancialAmount(DEFAULT_BUDGETS[category] || 0);
+    const currentLimit = roundMoney(hasExplicitBudgets ? parsePositiveFinancialAmount(row.limit) : 0);
     const spent = roundMoney(parsePositiveFinancialAmount(row.spent));
     const ratio = currentLimit > 0 ? spent / currentLimit : 0;
     const kind = adaptiveBudgetCategoryKind(category, profile);
     const spikeInsight = findBudgetCategoryInsight(habits, category);
-    let proposed = currentLimit || DEFAULT_BUDGETS[category] || Math.max(100, spent * 1.1);
+    // When this is the user's first budget setup, use the default template only
+    // as category weights/base distribution, not as an existing 7300 ₪ budget.
+    let proposed = currentLimit || templateLimit || Math.max(100, spent * 1.1);
     if (kind === 'protected' || kind === 'essential') {
       proposed = Math.max(proposed, spent * 1.05, kind === 'protected' ? 250 : 150);
       if (ratio >= 0.9 && mode !== 'tighten') proposed *= 1.08;
