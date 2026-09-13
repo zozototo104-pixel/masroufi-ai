@@ -553,6 +553,10 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
   const guide = await src('FINANCIAL_ADVISOR_GUIDE_AR.md');
   assert.ok(tools.includes('protectionEndIso') && tools.includes('spendingPaceDays') && tools.includes('rawSafeToSpendUntilProtection'),
     'safe spending must protect the remaining salary cycle and pace daily/weekly caps instead of showing all cash as today spend');
+  assert.ok(tools.includes('const reserveTarget = roundMoney(explicitReserve)') && tools.includes('behaviorBufferForForecastOnly'),
+    'safe spending must not reserve average spending as a hidden buffer; average spending is forecast-only');
+  assert.ok(tools.includes('if (!c.dueDate) return false'),
+    'safe spending must not reserve undated commitments as upcoming unpaid obligations');
   assert.ok(tools.includes('transactionAnalysisDate') && tools.includes('tx?.localDay') && tools.includes('tx?.dateKey'),
     'habit and recurring engines must understand local transaction date fields, not only date');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS'),
