@@ -8366,6 +8366,18 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "review_recurring_commitments",
+    description: "يراجع الالتزامات المتكررة المحفوظة وينبه لما هو قريب أو متأخر خلال نافذة محددة. استخدمه عندما يسأل المستخدم عن الاشتراكات القادمة أو الفواتير القريبة.",
+    parameters: {
+      type: "object",
+      properties: {
+        lookAheadDays: { type: "number", description: "عدد الأيام القادمة للمراجعة، الافتراضي 7" },
+        limit: { type: "number", description: "عدد الالتزامات المقروءة، بحد أقصى 300" },
+        persistAlerts: { type: "boolean", description: "إنشاء تنبيهات دائمة للالتزامات القريبة أو المتأخرة" }
+      }
+    }
+  },
+  {
     name: "create_recurring_commitment_from_candidate",
     description: "يحوّل مرشح مصروف متكرر إلى التزام متكرر محفوظ. استخدمه فقط بعد موافقة المستخدم على المرشح أو عندما يعطي المستخدم اسم الالتزام والمبلغ والتكرار صراحة.",
     parameters: {
