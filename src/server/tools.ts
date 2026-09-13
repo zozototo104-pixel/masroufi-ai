@@ -7664,6 +7664,7 @@ export async function detectRecurringCommitments(args: any, userId: string, toke
       .get();
     transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     partial = Boolean((snap as any).partial || transactions.length >= limit);
+    if (transactions.length === 0) throw new Error('NO_DATE_SORTED_TRANSACTIONS_FOR_RECURRING_DETECTION');
   } catch (err: any) {
     readSource = 'createdAt_desc_bounded_fallback';
     try {
