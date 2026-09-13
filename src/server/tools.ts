@@ -7917,6 +7917,21 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "assess_financial_goal_impact",
+    description: "يقيس أثر مصروف أو شراء مقترح على أهداف الادخار والأولويات المالية: هل يؤخر هدفاً، كم يوم تقريباً، وهل يحتاج تأكيداً أو تعويضاً. لا يسجل مصروفاً. استخدمه قبل الشراء أو المصروف المهم، وخاصة الكماليات أو المبالغ التي قد تكسر الحد الآمن.",
+    parameters: { type: "object", properties: {
+      amount: { type: "number", description: "قيمة المصروف أو الشراء المراد تقييمه" },
+      category: { type: "string", description: "بند المصروف" },
+      item: { type: "string", description: "اسم السلعة أو الغرض" },
+      product: { type: "string", description: "اسم المنتج إن كان قرار شراء" },
+      necessity: { type: "string", description: "ضروري أو كمالي" },
+      period: { type: "string", description: "salary_cycle أو today أو week أو next_30_days" },
+      goalLimit: { type: "number", description: "عدد الأهداف المتأثرة المطلوب إرجاعها" },
+      persistAlert: { type: "boolean", description: "تحويل الأثر الخطر إلى تنبيه دائم عند الحاجة" },
+      riskConfirmed: { type: "boolean", description: "تأكيد المستخدم للمخاطرة إذا كان القرار يؤثر على هدف مهم" }
+    }, required: ["amount"] }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
