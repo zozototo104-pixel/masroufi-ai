@@ -1385,6 +1385,15 @@ test('REPORTS-06: Treasurer/monthly expense analysis must not refuse or misroute
   assert.ok(serverSrc.includes("effectiveCall.name === 'generate_treasurer_report'") && serverSrc.includes('currentUserText') && serverSrc.includes('liveUserTextBeforeMerge'), 'Live treasurer reports must receive the original user text so spoken cycle months are not lost');
 });
 
+test('CLARIFICATION-03: payment/account clarification must complete the original financial operation without repeating questions', async () => {
+  const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
+  const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
+  assert.ok(serverSrc.includes('sanitizePendingFinancialArgs') && serverSrc.includes('paymentMethodClarifiedByUser') && serverSrc.includes('accountClarifiedByUser'), 'pending clarification memory must preserve the original operation and mark user-confirmed payment answers');
+  assert.ok(serverSrc.includes('stored pending payment method from Live transcript draft'), 'Live speech-only clarification must remember a complete expense draft even when Gemini only asks verbally for cash/PalPay/debt');
+  assert.ok(toolsSrc.includes('userConfirmedPaymentByClarification') && toolsSrc.includes('structuredUserPaymentAccount'), 'add_transaction must trust server-confirmed payment clarification instead of asking cash/PalPay/debt again on the next missing field');
+  assert.ok(toolsSrc.includes('borrowDestinationClarifiedByUser') && toolsSrc.includes('debtPaymentAccountClarifiedByUser'), 'borrowed-cash and debt-payment flows must also retain clarified cash/PalPay account values across follow-up answers');
+});
+
 test('CYCLES-UI-01: Savings Vault exposes salary-cycle navigation details and bounded delete', async () => {
   const appSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/App.tsx'), 'utf8'));
   const serverSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'server.ts'), 'utf8'));
