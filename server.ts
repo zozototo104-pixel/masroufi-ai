@@ -2845,6 +2845,7 @@ function setupLiveApi(wss: WebSocketServer) {
             ...draftCall,
             args: {
               ...(draftCall.args || {}),
+              ...(liveExpenseIntakeDraft.args || {}),
               userText: combinedText,
               currentUserText: text,
               clarificationReplyText: text,
