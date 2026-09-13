@@ -158,3 +158,12 @@ test('TREASURER-02: debt purchases go through the same preflight risk gate', asy
   assert.ok(tools.includes("if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch)"), 'expense preflight must not exclude credit/debt purchases');
   assert.equal(tools.includes("if (type === 'expense' && !isCreditPurchase && !args.deferBalanceCheckToAtomicBatch)"), false, 'debt purchases must not bypass the treasurer preflight');
 });
+
+test('TREASURER-03: safe spending limit tool protects commitments, reserve, and goals', async () => {
+  const tools = await src('src/server/tools.ts');
+  assert.ok(tools.includes('export async function getSafeSpendingLimit'), 'safe spending advisor must be implemented as a server tool');
+  assert.ok(tools.includes('get_safe_spending_limit: getSafeSpendingLimit'), 'safe spending advisor must be registered in tool handlers');
+  assert.ok(tools.includes('name: "get_safe_spending_limit"'), 'safe spending advisor must be exposed to Gemini tool declarations');
+  assert.ok(tools.includes('dueCommitments + reserveTarget + savingsRequiredThisPeriod'), 'safe limit must protect commitments, reserve, and active savings goals');
+  assert.ok(tools.includes('getFinancialDecisionContext({}, userId, token)'), 'safe limit must reuse the unified financial decision context');
+});
