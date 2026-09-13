@@ -888,6 +888,25 @@ export default function App() {
       }
     };
 
+    const fetchDailyFinancialPulsesData = async (headers: Record<string, string>) => {
+      try {
+        const pulseRes = await fetch('/api/advisor/daily-pulse?limit=8', { headers });
+        const pulsePayload = await pulseRes.json().catch(() => ({}));
+        if (pulseRes.ok && pulsePayload?.success !== false) {
+          const nextPulses = Array.isArray(pulsePayload.pulses) ? pulsePayload.pulses : [];
+          setDailyFinancialPulses(nextPulses);
+          await idbSet('lkgs_daily_financial_pulses', nextPulses);
+        } else {
+          const cachedPulses = await idbGet<any[]>('lkgs_daily_financial_pulses');
+          if (Array.isArray(cachedPulses)) setDailyFinancialPulses(cachedPulses);
+        }
+      } catch (pulseErr) {
+        console.warn('Daily financial pulses refresh failed:', pulseErr);
+        const cachedPulses = await idbGet<any[]>('lkgs_daily_financial_pulses');
+        if (Array.isArray(cachedPulses)) setDailyFinancialPulses(cachedPulses);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
