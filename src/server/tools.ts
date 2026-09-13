@@ -490,7 +490,7 @@ export async function recordTransactionCommittedSideEffects(
             ],
           }
         );
-      } else if (ratio >= 0.8) {
+      } else if (ratio >= warningRatio) {
         await addNotification(
           userId,
           `⚠️ تنبيه ميزانية: اقتربت من سقف ميزانية [${category}] لهذا الشهر (وصلت ${Math.round(ratio * 100)}% - ${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
