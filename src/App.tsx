@@ -975,6 +975,7 @@ export default function App() {
             await fetchAdvisorPulseData(headers);
             await fetchAdvisorAlertsData(headers);
             await fetchAdvisorAuditData(headers);
+            await fetchMarketWatchlistData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
