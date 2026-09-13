@@ -923,6 +923,7 @@ export default function App() {
         await fetchAdvisorPulseData(headers);
         await fetchAdvisorAlertsData(headers);
         await fetchAdvisorAuditData(headers);
+        await fetchMarketWatchlistData(headers);
 
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
