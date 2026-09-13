@@ -578,7 +578,8 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
     adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [], partial: true })),
   ]);
 
-  const profile = (profileSnap as any).exists ? ((profileSnap as any).data() || {}) : {};
+  const profile = normalizeTreasurerProfile((profileSnap as any).exists ? ((profileSnap as any).data() || {}) : {});
+  const profileCompleteness = buildTreasurerProfileCompleteness(profile);
   const rawGoals = ((goalSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }))
     .filter((goal: any) => !['completed', 'cancelled', 'archived'].includes(String(goal.status || 'active').toLowerCase()));
   const savingsPeriod = {
