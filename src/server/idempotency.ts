@@ -82,6 +82,7 @@ export async function runIdempotent(
   userId: string,
   operationId: string | undefined,
   fn: () => Promise<any>,
+  allowNonDurableCacheBust = true,
 ): Promise<IdempotencyOutcome> {
   if (!operationId || typeof operationId !== 'string' || operationId.length < 4) {
     return {
