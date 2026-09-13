@@ -662,12 +662,16 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const warnings: string[] = [];
   if (dueCommitments > liquidTotal) warnings.push(`الالتزامات القريبة (${dueCommitments} ₪) أكبر من السيولة الحالية (${liquidTotal} ₪).`);
   if (deficitToProtected > 0) warnings.push(`السيولة ناقصة ${deficitToProtected} ₪ لحماية الالتزامات والاحتياطي والأهداف.`);
+  if (debtOverLimit) warnings.push(`إجمالي الدين الحالي (${currentDebt} ₪) أعلى من حد الدين المحدد في ملف أمين الصندوق (${effectiveDebtLimit} ₪).`);
+  if (profileDailyLimit > 0 && rawSafeToSpendToday > profileDailyLimit) warnings.push(`تم تقييد الصرف اليومي إلى ${profileDailyLimit} ₪ حسب ملف أمين الصندوق.`);
+  if (profileWeeklyLimit > 0 && safeToSpendThisWeek >= profileWeeklyLimit) warnings.push(`تم تقييد الصرف الأسبوعي إلى ${profileWeeklyLimit} ₪ حسب ملف أمين الصندوق.`);
+  if (profileCompleteness.status !== 'ready') warnings.push(`ملف أمين الصندوق مكتمل بنسبة ${profileCompleteness.score}%؛ دقة النصائح تتحسن عند استكمال البيانات الناقصة.`);
   if (discretionaryAfterExpectedRoutine < 0) warnings.push(`بعد نمط الصرف المعتاد يوجد عجز متوقع ${Math.abs(discretionaryAfterExpectedRoutine)} ₪ حتى ${horizon.label}.`);
   if (savingsRequiredThisPeriod > 0) warnings.push(`الأهداف النشطة تحتاج تقريباً ${savingsRequiredThisPeriod} ₪ هذا الشهر للبقاء على المسار.`);
 
   const recommendations = status === 'safe'
-    ? ['حافظ على الصرف اليومي ضمن الحد الآمن ولا تلمس مبلغ الالتزامات أو الاحتياطي.', 'أي شراء كمالي كبير يفضّل فحصه بالسوق المحلي أولاً.']
-    : ['أوقف الكماليات مؤقتاً حتى تغطي الالتزامات والاحتياطي.', 'راجع الالتزامات القريبة، وحوّل أي فائض صغير للأهداف ذات الأولوية العالية.'];
+    ? ['حافظ على الصرف اليومي ضمن الحد الآمن ولا تلمس مبلغ الالتزامات أو الاحتياطي.', 'أي شراء كمالي كبير يفضّل فحصه بالسوق المحلي أولاً.', profileCompleteness.nextPrompt ? `لزيادة دقة المستشار: ${profileCompleteness.nextPrompt}` : '']
+    : ['أوقف الكماليات مؤقتاً حتى تغطي الالتزامات والاحتياطي.', 'راجع الالتزامات القريبة، وحوّل أي فائض صغير للأهداف ذات الأولوية العالية.', profileCompleteness.nextPrompt ? `استكمل ملف أمين الصندوق: ${profileCompleteness.nextPrompt}` : ''];
 
   return {
     success: true,
