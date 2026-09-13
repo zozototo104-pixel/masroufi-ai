@@ -750,6 +750,25 @@ export default function App() {
       }
     };
 
+    const fetchFinancialScenariosData = async (headers: Record<string, string>) => {
+      try {
+        const scenarioRes = await fetch('/api/advisor/scenarios?limit=8', { headers });
+        const scenarioPayload = await scenarioRes.json().catch(() => ({}));
+        if (scenarioRes.ok && scenarioPayload?.success !== false) {
+          const nextScenarios = Array.isArray(scenarioPayload.scenarios) ? scenarioPayload.scenarios : [];
+          setFinancialScenarios(nextScenarios);
+          await idbSet('lkgs_financial_scenarios', nextScenarios);
+        } else {
+          const cachedScenarios = await idbGet<any[]>('lkgs_financial_scenarios');
+          if (Array.isArray(cachedScenarios)) setFinancialScenarios(cachedScenarios);
+        }
+      } catch (scenarioErr) {
+        console.warn('Financial scenarios refresh failed:', scenarioErr);
+        const cachedScenarios = await idbGet<any[]>('lkgs_financial_scenarios');
+        if (Array.isArray(cachedScenarios)) setFinancialScenarios(cachedScenarios);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
