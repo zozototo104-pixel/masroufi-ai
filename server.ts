@@ -1175,15 +1175,19 @@ function buildPendingClarificationPatch(userText: string, pending: PendingFinanc
       patch.purchaseItem = cleanedFreeText;
       patch.item = cleanedFreeText;
       patch.description = cleanedFreeText;
+      patch.purchaseItemClarifiedByUser = true;
       changed = true;
     }
     if (fields.has('beneficiary')) {
       patch.beneficiary = cleanedFreeText;
       patch.forWhom = cleanedFreeText;
+      patch.beneficiaryClarifiedByUser = true;
+      patch.purposeClarifiedByUser = true;
       changed = true;
     }
     if (fields.has('necessity')) {
       patch.necessity = cleanedFreeText;
+      patch.necessityClarifiedByUser = true;
       changed = true;
     }
   }
