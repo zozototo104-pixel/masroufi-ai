@@ -1390,6 +1390,7 @@ test('CLARIFICATION-03: payment/account clarification must complete the original
   const toolsSrc = await import('node:fs/promises').then(fs => fs.readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8'));
   assert.ok(serverSrc.includes('sanitizePendingFinancialArgs') && serverSrc.includes('paymentMethodClarifiedByUser') && serverSrc.includes('accountClarifiedByUser'), 'pending clarification memory must preserve the original operation and mark user-confirmed payment answers');
   assert.ok(serverSrc.includes('stored pending payment method from Live transcript draft'), 'Live speech-only clarification must remember a complete expense draft even when Gemini only asks verbally for cash/PalPay/debt');
+  assert.ok(serverSrc.includes('pendingClarificationOriginalText') && serverSrc.includes('clarificationUserText'), 'chat clarification completion must not overwrite the original purchase details with the short cash/PalPay/debt answer');
   assert.ok(toolsSrc.includes('userConfirmedPaymentByClarification') && toolsSrc.includes('structuredUserPaymentAccount'), 'add_transaction must trust server-confirmed payment clarification instead of asking cash/PalPay/debt again on the next missing field');
   assert.ok(toolsSrc.includes('borrowDestinationClarifiedByUser') && toolsSrc.includes('debtPaymentAccountClarifiedByUser'), 'borrowed-cash and debt-payment flows must also retain clarified cash/PalPay account values across follow-up answers');
 });
