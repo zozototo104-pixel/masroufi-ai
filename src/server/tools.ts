@@ -6769,6 +6769,24 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "get_advisor_alerts",
+    description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد التنبيهات المطلوب، بحد أقصى 100" },
+      includeResolved: { type: "boolean", description: "إظهار التنبيهات المحلولة أو المتجاهلة أيضاً" },
+      includeSnoozed: { type: "boolean", description: "إظهار التنبيهات المؤجلة حتى لو لم يحن موعدها" }
+    } }
+  },
+  {
+    name: "update_advisor_alert",
+    description: "يحدّث حالة تنبيه مالي في مركز الخبير: read أو resolve أو dismiss أو snooze أو reopen. استخدمه فقط عندما يطلب المستخدم التعامل مع تنبيه محدد أو بعد موافقته.",
+    parameters: { type: "object", properties: {
+      id: { type: "string", description: "معرف التنبيه" },
+      action: { type: "string", description: "read أو resolve أو dismiss أو snooze أو reopen" },
+      until: { type: "string", description: "تاريخ/وقت ISO عند التأجيل" }
+    }, required: ["id", "action"] }
+  },
+  {
     name: "assess_purchase",
     description: "يقيّم شراءً قبل تنفيذه مقابل الرصيد، معدل الصرف، الالتزامات والموازنة. لا يسجل أي عملية.",
     parameters: { type:"object", properties:{
