@@ -436,7 +436,8 @@ export async function recordTransactionCommittedSideEffects(
   if (type === 'expense' && category && category !== 'غير مصنف') {
     try {
       const userBudgets = options.preUserBudgets || await getUserBudgets(userId, db);
-      const budgetLimit = userBudgets[category] || DEFAULT_BUDGETS[category] || 1000;
+      const budgetLimit = Number(userBudgets[category] || 0);
+      if (!(budgetLimit > 0)) return;
 
       const txDate = new Date(tx?.date || new Date().toISOString());
       const safeTxDate = Number.isNaN(txDate.getTime()) ? new Date() : txDate;
