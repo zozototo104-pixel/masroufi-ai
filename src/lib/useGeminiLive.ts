@@ -327,6 +327,14 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
               return;
             }
 
+            const micRms = estimateMicRms(channelData);
+            const hasVoicedInput = micRms > 0.012;
+            if (hasVoicedInput) {
+              speechDetectedRef.current = true;
+              voicedAudioFramesRef.current += 1;
+              if (firstSpeechAtRef.current === null) firstSpeechAtRef.current = performance.now();
+            }
+
             const base64 = pcmToBase64(channelData);
             if (!liveReadyRef.current) {
               pendingMicFramesRef.current.push(base64);
