@@ -220,6 +220,7 @@ test('TREASURER-07: comprehensive financial audit is exposed to advisor and dash
   assert.ok(tools.includes('run_financial_audit: runFinancialAudit'), 'comprehensive audit must be registered in tool handlers');
   assert.ok(tools.includes('name: "run_financial_audit"'), 'comprehensive audit must be exposed to Gemini');
   assert.ok(tools.includes('FULL_FINANCIAL_AUDIT_REQUIRES_CONFIRMATION'), 'full-history audit must require explicit confirmation');
+  assert.ok(tools.includes('parseBooleanLike(args?.allowFullLedgerAudit)'), 'full-history audit confirmation must not treat "false" strings as true');
   assert.ok(tools.includes('advisorAudits'), 'saved audit results must be persisted under advisorAudits');
   assert.ok(tools.includes('category: `audit_${finding.category}`'), 'audit findings must be able to create persistent advisor alerts');
   assert.ok(server.includes('app.get("/api/advisor/audit", authMiddleware'), 'advisor audit summary must be available behind auth');
