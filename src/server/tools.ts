@@ -719,7 +719,7 @@ type ExpensePaymentSplit = { account: 'cash' | 'palPay' | 'debt'; amount: number
 
 function normalizeSplitPaymentAccount(value: unknown): ExpensePaymentSplit['account'] | null {
   const text = normalizeArabicText(String(value || ''));
-  if (/palpay|pal pay|بال\s*باي|بالباي|محفظ/.test(text)) return 'palPay';
+  if (/palpay|pal pay|بال\s*باي|بالباي|بال\s*بي|بالبي|بل\s*بي|بالبى|balbea|balbe|محفظ/.test(text)) return 'palPay';
   if (/كاش|نقد|نقدي|نقدا/.test(text)) return 'cash';
   if (/دين|بالدين|اجل|آجل|على الحساب|عال حساب|عالحساب/.test(text)) return 'debt';
   return null;
@@ -728,13 +728,14 @@ function normalizeSplitPaymentAccount(value: unknown): ExpensePaymentSplit['acco
 function parseExpensePaymentSplitsFromText(value: unknown): ExpensePaymentSplit[] {
   const text = normalizeArabicText(normalizeDigits(String(value || '')));
   if (!text) return [];
-  const amount = '(\\d+(?:[\\.,]\\d+)?)';
+  const amount = '(\\d+(?:[\\.,]\\d+)?|شيكل|واحد|واحدة)';
   const currency = '(?:\\s*(?:ش|شيكل|₪|ils|nis|دولار|دينار|دنانير))?';
-  const account = '(palpay|pal pay|بال\\s*باي|بالباي|محفظه|محفظة|كاش|نقد|نقدي|نقدا|دين|بالدين|اجل|آجل|على\\s*الحساب|عال\\s*حساب|عالحساب)';
+  const account = '(palpay|pal pay|بال\\s*باي|بالباي|بال\\s*بي|بالبي|بل\\s*بي|بالبى|balbea|balbe|محفظه|محفظة|كاش|نقد|نقدي|نقدا|دين|بالدين|اجل|آجل|على\\s*الحساب|عال\\s*حساب|عالحساب)';
   const candidates: Array<{ account: ExpensePaymentSplit['account']; amount: number; index: number }> = [];
   const addCandidate = (rawAccount: string, rawAmount: string, index: number) => {
     const normalizedAccount = normalizeSplitPaymentAccount(rawAccount);
-    const parsedAmount = Number(String(rawAmount || '').replace(',', '.'));
+    const normalizedAmountText = normalizeArabicText(String(rawAmount || ''));
+    const parsedAmount = /^(شيكل|واحد|واحدة)$/.test(normalizedAmountText) ? 1 : Number(String(rawAmount || '').replace(',', '.'));
     if (!normalizedAccount || !Number.isFinite(parsedAmount) || parsedAmount <= 0) return;
     candidates.push({ account: normalizedAccount, amount: Math.round(parsedAmount * 100) / 100, index });
   };
