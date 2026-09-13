@@ -2784,7 +2784,8 @@ function setupLiveApi(wss: WebSocketServer) {
       }
       const readOnly = /(شو|ايش|كم|اخر|آخر|احدث|أحدث|اعطني|اعطيني|ورجيني|اعرض|عرض|تقرير|ملخص|استعلام|بحث)/.test(normalized);
       const account = accountFromFinancialText(text);
-      const hasAmount = Boolean(extractAmountFromFinancialText(text));
+      const amount = extractAmountFromFinancialText(text);
+      const hasAmount = Boolean(amount);
       const isWriteLike = looksLikeFinancialWriteIntent(text) || /(مصروف|مشتريات|شراء|اشتريت|شريت|دفعت|سجل|سجلي|سجليه|ضيف|ضيفي|اضف|أضف)/.test(normalized);
       const canExtendExistingDraft = Boolean(liveExpenseIntakeDraft && !readOnly && (account || hasAmount || isShortClarificationAnswer(text)));
       if (readOnly || (!isWriteLike && !hasAmount && !canExtendExistingDraft)) return;
@@ -2793,12 +2794,34 @@ function setupLiveApi(wss: WebSocketServer) {
       }
       if (!liveExpenseIntakeDraft.texts.includes(text)) liveExpenseIntakeDraft.texts.push(text);
       if (liveExpenseIntakeDraft.texts.length > 8) liveExpenseIntakeDraft.texts = liveExpenseIntakeDraft.texts.slice(-8);
+      const draftPatch: any = {};
+      if (amount && !hasPendingFinancialValue(liveExpenseIntakeDraft.args, ['amount'])) draftPatch.amount = amount;
+      if (account) {
+        draftPatch.paymentMethod = account;
+        draftPatch.account = account;
+        if (account === 'debt') draftPatch.transactionType = 'CREDIT_PURCHASE';
+      }
+      const merchantFromText = extractMerchantFromFinancialText(text);
+      if (merchantFromText && !hasPendingFinancialValue(liveExpenseIntakeDraft.args, ['merchant', 'creditor', 'seller', 'store', 'vendor', 'person'])) {
+        draftPatch.merchant = merchantFromText;
+      }
+      const cleanedDetail = cleanFinancialClarificationText(text);
+      const detailIsUseful = cleanedDetail && !account && !isBareConfirmationAnswer(normalized);
+      if (detailIsUseful && !merchantFromText && !hasPendingFinancialValue(liveExpenseIntakeDraft.args, ['purchaseItem', 'item', 'description'])) {
+        draftPatch.purchaseItem = cleanedDetail;
+        draftPatch.item = cleanedDetail;
+        draftPatch.description = cleanedDetail;
+      }
+      applyExpenseInferenceToPatch(draftPatch, liveExpenseIntakeDraft.args || {}, text);
+      liveExpenseIntakeDraft.args = { ...(liveExpenseIntakeDraft.args || {}), ...draftPatch };
       liveExpenseIntakeDraft.updatedAt = now;
       if (account || hasAmount || isWriteLike) {
         console.warn('[live-server-financial] tracked expense intake transcript', {
           requestId,
           hasAmount,
           account: account || null,
+          merchant: liveExpenseIntakeDraft.args.merchant || null,
+          purchaseItem: liveExpenseIntakeDraft.args.purchaseItem || null,
           draftParts: liveExpenseIntakeDraft.texts.length,
         });
       }
