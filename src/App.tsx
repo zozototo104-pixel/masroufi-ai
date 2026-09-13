@@ -661,6 +661,25 @@ export default function App() {
       }
     };
 
+    const fetchAdvisorAlertsData = async (headers: Record<string, string>) => {
+      try {
+        const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers });
+        const alertsPayload = await alertsRes.json().catch(() => ({}));
+        if (alertsRes.ok && alertsPayload?.success !== false) {
+          const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+          setAdvisorAlerts(nextAlerts);
+          await idbSet('lkgs_advisor_alerts', nextAlerts);
+        } else {
+          const cachedAlerts = await idbGet<any[]>('lkgs_advisor_alerts');
+          if (Array.isArray(cachedAlerts)) setAdvisorAlerts(cachedAlerts);
+        }
+      } catch (alertsErr) {
+        console.warn('Advisor alerts refresh failed:', alertsErr);
+        const cachedAlerts = await idbGet<any[]>('lkgs_advisor_alerts');
+        if (Array.isArray(cachedAlerts)) setAdvisorAlerts(cachedAlerts);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
