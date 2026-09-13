@@ -2886,6 +2886,54 @@ export default function App() {
             )}
           </div>
 
+          <div className="bg-slate-900 border border-lime-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-lime-300" />
+                محرك العادات والأنماط
+              </h3>
+              <button onClick={handleAnalyzeFinancialHabits} disabled={isFinancialHabitsAnalyzing} className="px-2.5 py-1 rounded-xl bg-lime-500/10 border border-lime-500/25 text-lime-200 text-[10px] font-bold disabled:opacity-50">
+                {isFinancialHabitsAnalyzing ? 'يحلل...' : 'حلل العادات'}
+              </button>
+            </div>
+            {financialHabitReports.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">آخر تقرير</p>
+                    <p className="text-sm font-bold text-white">{financialHabitReports[0]?.window?.label || 'تحليل عادات الصرف'}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                    {financialHabitReports[0]?.status === 'habit_risk' ? 'خطر عادات' : financialHabitReports[0]?.status === 'watch' ? 'راقب' : 'مستقر'} · {Number(financialHabitReports[0]?.score || 0).toLocaleString()}%
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-6 mb-3">{financialHabitReports[0]?.message}</p>
+                {financialHabitReports[0]?.insights?.[0] && (
+                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
+                    <p className="text-[11px] font-bold text-lime-100 mb-1">{financialHabitReports[0].insights[0].title}</p>
+                    <p className="text-[11px] text-slate-300 leading-5">{financialHabitReports[0].insights[0].message}</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-3 gap-2 text-center mt-3">
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">صرف الفترة</p>
+                    <p className="text-sm font-black text-white">{Number(financialHabitReports[0]?.totals?.currentExpense || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">التغير</p>
+                    <p className="text-sm font-black text-white">{Number(financialHabitReports[0]?.totals?.deltaPct || 0).toLocaleString()}%</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">أنماط</p>
+                    <p className="text-sm font-black text-white">{Number(financialHabitReports[0]?.insights?.length || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">اضغط “حلل العادات” ليقارن مصروفي صرفك الحالي بالفترة السابقة ويكشف البنود أو الأيام التي تحتاج ضبط.</p>
+            )}
+          </div>
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
