@@ -1073,6 +1073,33 @@ export default function App() {
     }
   };
 
+  const handleReviewMarketWatchlist = async () => {
+    if (!idToken || isMarketWatchReviewing) return;
+    setIsMarketWatchReviewing(true);
+    try {
+      const res = await fetch('/api/advisor/market-watchlist/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ limit: 20, reviewLimit: 5 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to review market watchlist');
+      const listRes = await fetch('/api/advisor/market-watchlist?limit=12', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const listPayload = await listRes.json().catch(() => ({}));
+      if (listRes.ok && listPayload?.success !== false) {
+        const nextItems = Array.isArray(listPayload.items) ? listPayload.items : [];
+        setMarketWatchlist(nextItems);
+        await idbSet('lkgs_market_watchlist', nextItems);
+      }
+      setNotifications(prev => [...prev, { id: `market-watch-reviewed-${Date.now()}`, type: 'success', message: data?.message || 'تمت مراجعة قائمة مراقبة السوق.' }]);
+    } catch (err) {
+      console.warn('Market watchlist review failed:', err);
+      setNotifications(prev => [...prev, { id: `market-watch-failed-${Date.now()}`, type: 'warning', message: 'تعذرت مراجعة قائمة السوق الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsMarketWatchReviewing(false);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
