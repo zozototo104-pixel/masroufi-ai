@@ -2782,7 +2782,6 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   const due30 = commitments.filter((c: any) => c.status !== 'paid' && c.status !== 'cancelled')
     .reduce((a: number, c: any) => a + (Number(c.amount) || 0), 0);
   const projected30 = Math.round((balances.total || 0) + dailyIncome * 30 - dailyExpense * 30 - due30);
-  const monthExpenses = monthExpenseSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const budgetStatus = Object.entries(budgets).map(([category, limitRaw]) => {
     const limit = Number(limitRaw) || 0;
     const spent = monthExpenses.filter((t:any)=>t.category===category).reduce((a:number,t:any)=>a+parsePositiveFinancialAmount(t.amount),0);
