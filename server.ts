@@ -4222,13 +4222,26 @@ ${activeSalaryCycleText}
               message: classified.message,
             });
           },
-          onclose: () => {
-            console.log("Gemini Live session closed");
+          onclose: (event: any) => {
+            const liveCloseInfo = {
+              requestId,
+              code: event?.code ?? null,
+              reason: event?.reason || event?.message || '',
+              wasClean: event?.wasClean ?? null,
+              liveAudioChunksForwarded,
+              liveClientAudioChunksReceived,
+              liveClientAudioChunksSentToGemini,
+              liveToolResponsesSent,
+              liveTurnsCompleted,
+              toolCount: liveFunctionDeclarations.length,
+              liveSystemInstructionChars: liveSystemInstruction.length,
+            };
+            console.warn("Gemini Live session closed", liveCloseInfo);
             awaitingPostToolAudio = false;
             postToolInputGateUntilMs = 0;
             clearPostToolAudioFallback();
             clearLiveServerFinancialCompletionTimer();
-            safeSend({ status: "ready", liveClosed: true });
+            safeSend({ status: "ready", liveClosed: true, reason: liveCloseInfo.reason, code: liveCloseInfo.code });
           }
         },
       });
