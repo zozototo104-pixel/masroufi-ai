@@ -939,6 +939,29 @@ function clearPendingFinancialClarification(userId: string | null | undefined) {
   if (key) pendingFinancialClarifications.delete(key);
 }
 
+function sanitizePendingFinancialArgs(args: any): any {
+  const {
+    operationId,
+    clientMessageId,
+    clarificationReplyText,
+    clarifiedFromReason,
+    originalClarificationClientMessageId,
+    completedFromLiveExpenseDraft,
+    completedFromLiveTranscript,
+    currentUserText,
+    ...safeArgs
+  } = args || {};
+  return { ...safeArgs };
+}
+
+function hasPendingFinancialValue(args: any, keys: string[]): boolean {
+  return keys.some(key => args?.[key] !== undefined && args?.[key] !== null && String(args[key]).trim() !== '');
+}
+
+function isBareConfirmationAnswer(normalized: string): boolean {
+  return /^(نعم|اه|اها|تمام|اوكي|ok|ايوه|ايوا|صح|مزبوط|سجل|سجله|سجلي|سجلها|اعتمد|اعتمدي)$/i.test(normalized);
+}
+
 function financialClarificationFieldsFromResult(result: any): string[] {
   const explicit = Array.isArray(result?.missingFields) ? result.missingFields.map((f: any) => String(f || '').trim()).filter(Boolean) : [];
   if (explicit.length > 0) return explicit;
