@@ -2354,6 +2354,18 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/commitments/recurring/review", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { reviewRecurringCommitments } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      const result = await reviewRecurringCommitments(req.body || {}, req.user.uid, token);
+      res.json(result);
+    } catch (e: any) {
+      console.error('Recurring commitment review error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/commitments/recurring/create", authMiddleware, async (req: any, res: any) => {
     try {
       const { createRecurringCommitmentFromCandidate } = await import('./src/server/tools');
