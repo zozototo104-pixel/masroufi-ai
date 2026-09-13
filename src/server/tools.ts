@@ -6932,6 +6932,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_recent_transactions: getRecentTransactions,
   getRecentTransactions: getRecentTransactions,
   audit_financial_duplicates: auditFinancialDuplicates,
+  run_financial_audit: runFinancialAudit,
   check_budget_status: checkBudgetStatus,
   set_category_budget: setCategoryBudget,
   get_budgets_overview: getBudgetsOverview,
