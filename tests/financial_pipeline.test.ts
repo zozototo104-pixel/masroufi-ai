@@ -167,6 +167,7 @@ test('TREASURER-03: safe spending limit tool protects commitments, reserve, and 
   assert.ok(tools.includes('dueCommitments + reserveTarget + savingsRequiredThisPeriod'), 'safe limit must protect commitments, reserve, and active savings goals');
   assert.ok(tools.includes('getFinancialDecisionContext({}, userId, token)'), 'safe limit must reuse the unified financial decision context');
   assert.ok(tools.includes("collection('contributions')"), 'safe limit must subtract current-cycle savings contributions already made');
+  assert.ok(tools.includes('safeSpendingMonthlyRequired'), 'safe limit must avoid over-reserving unscheduled savings goals');
   assert.ok(tools.includes('savingsContributionDocsRead'), 'safe limit must expose savings contribution read cost');
 });
 
