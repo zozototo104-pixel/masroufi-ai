@@ -3060,7 +3060,7 @@ function setupLiveApi(wss: WebSocketServer) {
         runLiveServerFinancialCompletion(text, clientMessageId).catch(err => {
           console.error('[live-server-financial] scheduled completion failed', { requestId, message: err?.message || String(err) });
         });
-      }, 1200);
+      }, 250);
     };
 
     const pingInterval = setInterval(() => {
