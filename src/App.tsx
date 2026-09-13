@@ -622,7 +622,7 @@ export default function App() {
     };
 
     const applyCachedDashboardData = async () => {
-      const [cachedTx, cachedRep, cachedBudgets, cachedCommitments, cachedSavings, cachedAdvisorPulse, cachedTreasurerProfile, cachedAdvisorAlerts, cachedAdvisorAudit, cachedMarketWatchlist, cachedFinancialScenarios, cachedRecurringCommitmentCandidates, cachedFinancialHabitReports, cachedWeeklyFinancialPlans, cachedAdaptiveBudgetPlans, cachedMonthEndForecasts] = await Promise.all([
+      const [cachedTx, cachedRep, cachedBudgets, cachedCommitments, cachedSavings, cachedAdvisorPulse, cachedTreasurerProfile, cachedAdvisorAlerts, cachedAdvisorAudit, cachedMarketWatchlist, cachedFinancialScenarios, cachedRecurringCommitmentCandidates, cachedFinancialHabitReports, cachedWeeklyFinancialPlans, cachedAdaptiveBudgetPlans, cachedMonthEndForecasts, cachedDailyFinancialPulses] = await Promise.all([
         idbGet<any[]>('lkgs_transactions'),
         idbGet<any[]>('lkgs_reports'),
         idbGet<any>('lkgs_budgets'),
@@ -639,6 +639,7 @@ export default function App() {
         idbGet<any[]>('lkgs_weekly_financial_plans'),
         idbGet<any[]>('lkgs_adaptive_budget_plans'),
         idbGet<any[]>('lkgs_month_end_forecasts'),
+        idbGet<any[]>('lkgs_daily_financial_pulses'),
       ]);
       const safeTx = Array.isArray(cachedTx) ? cachedTx.filter(t => !t.deleted) : [];
       setTransactions(safeTx);
