@@ -3128,6 +3128,62 @@ export default function App() {
             )}
           </div>
 
+          <div className="bg-slate-900 border border-amber-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Settings className="w-4 h-4 text-amber-300" />
+                الميزانية المتكيّفة
+              </h3>
+              <button onClick={handleGenerateAdaptiveBudgetPlan} disabled={isAdaptiveBudgetGenerating} className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-[10px] font-bold disabled:opacity-50">
+                {isAdaptiveBudgetGenerating ? 'يقترح...' : 'اقترح ميزانية'}
+              </button>
+            </div>
+            {adaptiveBudgetPlans.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">آخر خطة</p>
+                    <p className="text-sm font-bold text-white">{adaptiveBudgetPlans[0]?.month || 'الشهر الحالي'} · {adaptiveBudgetPlans[0]?.mode || 'balanced'}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                    {adaptiveBudgetPlans[0]?.applied ? 'مطبقة' : adaptiveBudgetPlans[0]?.status === 'tightened' ? 'مشددة' : adaptiveBudgetPlans[0]?.status === 'rebalanced_growth' ? 'نمو' : adaptiveBudgetPlans[0]?.status === 'needs_manual_review' ? 'تحتاج مراجعة' : 'متوازنة'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-6 mb-3">{adaptiveBudgetPlans[0]?.message}</p>
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">المقترح</p>
+                    <p className="text-sm font-black text-white">{Number(adaptiveBudgetPlans[0]?.summary?.totalProposedBudget || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">التغير</p>
+                    <p className="text-sm font-black text-white">{Number(adaptiveBudgetPlans[0]?.summary?.totalChange || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">بنود</p>
+                    <p className="text-sm font-black text-white">{Number(adaptiveBudgetPlans[0]?.proposals?.length || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                {adaptiveBudgetPlans[0]?.proposals?.[0] && (
+                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3 mb-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[11px] font-bold text-amber-100 truncate">{adaptiveBudgetPlans[0].proposals[0].category}</p>
+                      <span className="text-[10px] text-amber-200 whitespace-nowrap">{Number(adaptiveBudgetPlans[0].proposals[0].currentLimit || 0).toLocaleString()} ← {Number(adaptiveBudgetPlans[0].proposals[0].proposedLimit || 0).toLocaleString()} ₪</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-5">{adaptiveBudgetPlans[0].proposals[0].reason}</p>
+                  </div>
+                )}
+                {!adaptiveBudgetPlans[0]?.applied && (
+                  <button onClick={() => handleApplyAdaptiveBudgetPlan(adaptiveBudgetPlans[0])} className="w-full px-3 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-200 text-[11px] font-bold">
+                    طبّق الخطة على الميزانيات
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">اضغط “اقترح ميزانية” ليعيد مصروفي توزيع حدود البنود حسب الالتزامات، الأهداف، العادات، والحد الآمن.</p>
+            )}
+          </div>
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
