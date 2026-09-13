@@ -169,6 +169,35 @@ export default function App() {
   const [isMonthEndForecasting, setIsMonthEndForecasting] = useState(false);
   const [dailyFinancialPulses, setDailyFinancialPulses] = useState<any[]>([]);
   const [isDailyPulseGenerating, setIsDailyPulseGenerating] = useState(false);
+
+  useEffect(() => {
+    const timers = notificationDismissTimersRef.current;
+    const visibleIds = new Set(notifications.map((n: any) => String(n.id || '')).filter(Boolean));
+    Object.keys(timers).forEach((id) => {
+      if (!visibleIds.has(id)) {
+        window.clearTimeout(timers[id]);
+        delete timers[id];
+      }
+    });
+    notifications.forEach((notification: any) => {
+      const id = String(notification?.id || '');
+      if (!id || notification?.sticky || timers[id]) return;
+      const type = String(notification?.type || 'info').toLowerCase();
+      const delay = type === 'error' ? 12000 : type === 'warning' ? 9000 : 6000;
+      timers[id] = window.setTimeout(() => {
+        setNotifications(prev => prev.filter((item: any) => item.id !== id));
+        delete timers[id];
+      }, delay);
+    });
+  }, [notifications]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(notificationDismissTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+      notificationDismissTimersRef.current = {};
+    };
+  }, []);
+
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
