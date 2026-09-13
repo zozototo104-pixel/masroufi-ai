@@ -563,7 +563,7 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'commitment review must not hide real due commitments just because recurring=true is missing');
   assert.ok(tools.includes('dailyAverage <= 0') && tools.includes('لا أعتبر المبلغ المتبقي كله فائضاً'),
     'month-end forecast must not claim current remaining cash is a surplus when spending pace is missing');
-  assert.ok(app.includes('notificationDismissTimersRef') && app.includes('const delay = type === \'error\' ? 12000'),
+  assert.ok(app.includes('notificationDismissTimersRef') && app.includes("const delay = type === 'error' ? 12000"),
     'top notifications must auto-dismiss after a visible delay');
   assert.ok(app.includes('إغلاق التنبيه') && app.includes('لا يعدّل العمليات المالية تلقائياً'),
     'advisor alert action must clarify that resolving an alert does not auto-fix ledger data');
