@@ -2383,6 +2383,50 @@ export default function App() {
             </div>
           )}
 
+          {advisorAudit && (
+            <div className={`border rounded-3xl p-5 shadow-xl ${
+              advisorAudit.status === 'critical'
+                ? 'bg-rose-950/30 border-rose-500/40'
+                : advisorAudit.status === 'warning'
+                  ? 'bg-amber-950/20 border-amber-500/30'
+                  : 'bg-emerald-950/20 border-emerald-500/30'
+            }`}>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-cyan-300" />
+                  تدقيق الدفتر المالي
+                </h3>
+                <button onClick={handleRunAdvisorAudit} disabled={isAdvisorAuditRunning} className="px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-200 text-[10px] font-bold disabled:opacity-50">
+                  {isAdvisorAuditRunning ? 'يدقق...' : 'تشغيل تدقيق'}
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-[10px] text-slate-400 mb-1">درجة سلامة الدفتر</p>
+                  <p className="text-3xl font-black text-white">{Number(advisorAudit.score || 0).toLocaleString()}<span className="text-sm text-slate-500">/100</span></p>
+                </div>
+                <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                  {advisorAudit.status === 'critical' ? 'حرج' : advisorAudit.status === 'warning' ? 'بحاجة مراجعة' : 'نظيف'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 leading-6 mb-3">{advisorAudit.message}</p>
+              {advisorAudit.findings?.[0] && (
+                <div className="space-y-2">
+                  {advisorAudit.findings.slice(0, 2).map((finding: any) => (
+                    <div key={finding.id || finding.title} className="bg-black/20 border border-white/10 rounded-2xl p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-[11px] font-bold text-white">{finding.title}</p>
+                        <span className="text-[10px] text-slate-400">{finding.severity === 'critical' ? 'حرج' : finding.severity === 'warning' ? 'تنبيه' : 'معلومة'}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-5">{finding.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {advisorAudit.partial && <p className="text-[10px] text-slate-500 mt-3">قراءة جزئية بسبب حدود القراءة أو حماية الاستهلاك.</p>}
+            </div>
+          )}
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
