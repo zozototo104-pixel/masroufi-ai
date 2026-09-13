@@ -7581,7 +7581,7 @@ function buildRecurringCandidate(group: any[], key: string, now: Date) {
     amountDeviation: Math.round(amountDeviation * 100) / 100,
     intervalDeviation: Math.round(intervalDeviation * 100) / 100,
     sourceTransactionIds: sorted.map((tx: any) => tx.id).filter(Boolean).slice(0, 20),
-    sample: sorted.slice(-5).map((tx: any) => ({ id: tx.id, amount: tx.amount, date: tx.date || tx.createdAt, merchant: tx.merchant, category: tx.category })),
+    sample: sorted.slice(-5).map((tx: any) => ({ id: tx.id, amount: tx.amount, date: tx.date || tx.localDay || tx.localDate || tx.dateKey || tx.createdAt, merchant: tx.merchant, category: tx.category })),
   };
 }
 
