@@ -7507,7 +7507,10 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
     totalSpent,
     month: thisMonth,
     customBudgetCount: customBudgetDocs.length,
+    hasExplicitBudgets: customBudgetDocs.length > 0,
+    defaultBudgetTemplateTotal: Object.values(DEFAULT_BUDGETS).reduce((a, b) => a + b, 0),
     defaultBudgetCount: Object.keys(DEFAULT_BUDGETS).length,
+    note: customBudgetDocs.length > 0 ? undefined : 'لا توجد ميزانيات محفوظة؛ القالب الافتراضي ليس ميزانية فعلية.',
     partial,
     queryError: partial ? queryError : undefined
   };
