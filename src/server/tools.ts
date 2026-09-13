@@ -1834,8 +1834,20 @@ function adaptiveBudgetStatus(proposals: any[], totalCurrent: number, totalPropo
 function fitAdaptiveBudgetProposalsToIncomeEnvelope(proposals: any[], targetEnvelope: number, referenceMonthlyIncome: number) {
   const preCapTotal = roundMoney(proposals.reduce((sum: number, p: any) => sum + parsePositiveFinancialAmount(p.proposedLimit), 0));
   const envelope = roundMoney(parsePositiveFinancialAmount(targetEnvelope));
-  if (referenceMonthlyIncome <= 0 || envelope <= 0 || preCapTotal <= envelope) {
+  if (referenceMonthlyIncome <= 0 || preCapTotal <= envelope) {
     return { proposals, capApplied: false, preCapTotal, fittedTotal: preCapTotal, unableToFitIncome: false };
+  }
+  if (envelope <= 0) {
+    const fitted = proposals.map((p: any) => ({
+      ...p,
+      proposedLimit: 0,
+      change: roundMoney(0 - parsePositiveFinancialAmount(p.currentLimit)),
+      changePct: parsePositiveFinancialAmount(p.currentLimit) > 0 ? -100 : 0,
+      incomeEnvelopeScale: 0,
+      action: parsePositiveFinancialAmount(p.currentLimit) > 0 ? 'decrease' : 'keep',
+      reason: `${p.reason || ''} لا يوجد هامش دخل متاح بعد الالتزامات/الأهداف/التعويض، لذلك لا يجوز اقتراح سقوف صرف إضافية.`.trim(),
+    }));
+    return { proposals: fitted, capApplied: true, preCapTotal, fittedTotal: 0, unableToFitIncome: false };
   }
 
   const scale = Math.max(0, Math.min(1, envelope / Math.max(1, preCapTotal)));
