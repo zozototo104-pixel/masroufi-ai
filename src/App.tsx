@@ -994,6 +994,7 @@ export default function App() {
           if (wantsVault) {
             await fetchVaultData(headers);
             await refreshActiveSalaryCycle(headers);
+            await fetchTreasurerProfileData(headers);
             await fetchAdvisorPulseData(headers);
             await fetchAdvisorAlertsData(headers);
             await fetchAdvisorAuditData(headers);
