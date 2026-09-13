@@ -3489,6 +3489,20 @@ export default function App() {
                     <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.dailyCorrectionCap || 0).toLocaleString()} ₪</p>
                   </div>
                 </div>
+                {monthEndForecasts[0]?.forecast && (
+                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3 mb-3">
+                    <p className="text-[11px] font-bold text-purple-100 mb-2">تفصيل التوقع</p>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 mb-2">
+                      <div className="flex justify-between gap-2"><span>المتبقي الحالي</span><b className="text-white">{Number(monthEndForecasts[0].forecast.liquidTotal || 0).toLocaleString()} ₪</b></div>
+                      <div className="flex justify-between gap-2"><span>صرف متوقع</span><b className="text-white">{Number(monthEndForecasts[0].forecast.projectedRoutineSpend || 0).toLocaleString()} ₪</b></div>
+                      <div className="flex justify-between gap-2"><span>التزامات</span><b className="text-white">{Number(monthEndForecasts[0].forecast.dueCommitments || 0).toLocaleString()} ₪</b></div>
+                      <div className="flex justify-between gap-2"><span>أهداف</span><b className="text-white">{Number(monthEndForecasts[0].forecast.goalNeed || 0).toLocaleString()} ₪</b></div>
+                      <div className="flex justify-between gap-2"><span>حد حرج</span><b className="text-white">{Number(monthEndForecasts[0].forecast.reserveTarget || 0).toLocaleString()} ₪</b></div>
+                      <div className="flex justify-between gap-2"><span>أيام متبقية</span><b className="text-white">{Number(monthEndForecasts[0]?.window?.daysRemaining || 0).toLocaleString()}</b></div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-5">هامش نهاية الدورة = المتبقي الحالي - الصرف المتوقع - الالتزامات - الأهداف - الحد الحرج.</p>
+                  </div>
+                )}
                 {monthEndForecasts[0]?.correctionPlan?.actions?.[0] && (
                   <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
                     <p className="text-[11px] font-bold text-purple-100 mb-1">{monthEndForecasts[0].correctionPlan.actions[0].title}</p>
