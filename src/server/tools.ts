@@ -459,8 +459,15 @@ export async function recordTransactionCommittedSideEffects(
 
       const totalSpentForCat = monthExpenses.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
       const ratio = totalSpentForCat / budgetLimit;
+      let alertPrefs = TREASURER_PROFILE_DEFAULTS.alertPreferences;
+      try {
+        const profileSnap = await db.collection('users').doc(userId).collection('treasurer').doc('profile').get();
+        alertPrefs = normalizeTreasurerProfile(profileSnap.exists ? profileSnap.data() : {}).alertPreferences;
+      } catch {}
+      const warningRatio = Math.max(0.5, Math.min(0.99, Number(alertPrefs.budgetThresholdPct || 80) / 100));
+      const criticalRatio = Math.max(warningRatio + 0.01, Math.min(1.5, Number(alertPrefs.criticalBudgetThresholdPct || 100) / 100));
 
-      if (ratio >= 1.0) {
+      if (ratio >= criticalRatio) {
         await addNotification(
           userId,
           `⚠️ تنبيه ميزانية: تجاوزت سقف ميزانية [${category}] لهذا الشهر (${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
