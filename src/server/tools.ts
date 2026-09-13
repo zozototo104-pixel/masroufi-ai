@@ -1015,7 +1015,8 @@ export async function createMarketWatchItem(args: any, userId: string, token: st
   const idSeed = `${userId}:${product}:${watchDoc.model}:${watchDoc.variant}:${watchDoc.condition}:${watchDoc.seller || ''}`;
   const ref = adminDb.collection('users').doc(userId).collection('marketWatchlist').doc(stableDocId(idSeed));
   const existing = await ref.get().catch(() => null);
-  await ref.set({ ...(existing?.exists ? { createdAt: existing.data()?.createdAt || now } : {}), ...watchDoc }, { merge: true });
+  const preservedCreatedAt = existing?.exists ? (existing.data()?.createdAt || now) : now;
+  await ref.set({ ...watchDoc, createdAt: preservedCreatedAt }, { merge: true });
 
   if (['critical', 'warning'].includes(evaluation.severity)) {
     await addNotification(userId, `🛒 مراقب السوق: ${product} — ${evaluation.reasons[0]}`, 'warning', adminDb, {
