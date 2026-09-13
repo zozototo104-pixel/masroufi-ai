@@ -445,6 +445,7 @@ test('TREASURER-15: adaptive budget engine proposes and applies smarter category
   assert.ok(tools.includes('monthlyCommitmentAmount'), 'adaptive budgets must account for recurring commitments monthly');
   assert.ok(tools.includes('roundBudgetLimit'), 'adaptive budget limits must be rounded to usable amounts');
   assert.ok(tools.includes('fitAdaptiveBudgetProposalsToIncomeEnvelope'), 'adaptive budgets must cap proposed totals to the real available income envelope');
+  assert.ok(tools.includes('const incomeFitReference = referenceMonthlyIncome > 0 ? referenceMonthlyIncome : usingDefaultBudgetTemplate ? 1 : 0'), 'adaptive budgets must still cap the default template when income is missing');
   assert.ok(tools.includes("queryTransactions({ period: 'current_salary_cycle'"), 'adaptive budgets must infer income from the current salary cycle when the treasurer profile salary is missing');
   assert.ok(tools.includes('referenceMonthlyIncome'), 'adaptive budget output must expose the income used for the plan');
   assert.ok(tools.includes('usingDefaultBudgetTemplate'), 'adaptive budgets must detect the default 7300 ILS template instead of treating it as real income');
