@@ -9306,6 +9306,24 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "generate_weekly_financial_recommendations",
+    description: "ينشئ خطة توصيات أسبوعية عملية للمستخدم: ماذا يوقف، ماذا يخفض، ماذا يسدد، كم يحول للأهداف، وما الالتزامات القريبة. يعتمد على الحد الآمن، العادات، الأهداف، الاشتراكات، والتنبيهات. لا يسجل عملية مالية.",
+    parameters: { type: "object", properties: {
+      focus: { type: "string", description: "weekly أو recovery أو savings_growth أو debt_control" },
+      habitPeriod: { type: "string", description: "فترة تحليل العادات مثل last_14_days أو last_30_days" },
+      transactionLimit: { type: "number", description: "عدد العمليات المقروءة للتحليل" },
+      save: { type: "boolean", description: "حفظ الخطة في advisorWeeklyPlans" },
+      persistAlerts: { type: "boolean", description: "تحويل الخطة التحذيرية إلى تنبيه دائم" }
+    } }
+  },
+  {
+    name: "get_weekly_financial_recommendations",
+    description: "يعرض آخر خطط التوصيات الأسبوعية المحفوظة من advisorWeeklyPlans.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد الخطط، بحد أقصى 50" }
+    } }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
