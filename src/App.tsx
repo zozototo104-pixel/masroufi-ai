@@ -971,6 +971,29 @@ export default function App() {
     };
   }, [idToken]);
 
+  const handleAdvisorAlertAction = async (alertId: string, action: 'read' | 'resolve' | 'dismiss' | 'snooze' | 'reopen') => {
+    if (!idToken || !alertId) return;
+    const previousAlerts = advisorAlerts;
+    const nextAlerts = action === 'read'
+      ? advisorAlerts.map((alert: any) => alert.id === alertId ? { ...alert, read: true } : alert)
+      : advisorAlerts.filter((alert: any) => alert.id !== alertId);
+    setAdvisorAlerts(nextAlerts);
+    await idbSet('lkgs_advisor_alerts', nextAlerts);
+    try {
+      const res = await fetch(`/api/advisor/alerts/${encodeURIComponent(alertId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || 'Failed to update advisor alert');
+    } catch (err) {
+      console.warn('Advisor alert action failed:', err);
+      setAdvisorAlerts(previousAlerts);
+      await idbSet('lkgs_advisor_alerts', previousAlerts);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
