@@ -10,6 +10,17 @@ function isLiveAudioClientDiagnosticsEnabled(): boolean {
   }
 }
 
+function estimateMicRms(samples: Float32Array): number {
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < samples.length; i += 8) {
+    const sample = samples[i] || 0;
+    sum += sample * sample;
+    count += 1;
+  }
+  return count > 0 ? Math.sqrt(sum / count) : 0;
+}
+
 export function useGeminiLive(settings?: { voice: string; persona: string; apiKey: string; idToken: string | null; userName: string; aiName: string; relationship?: string; activeSalaryCycleId?: string; activeSalaryCycleName?: string; activeSalaryCycleMonth?: number; activeSalaryCycleYear?: number }) {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
