@@ -2454,6 +2454,19 @@ export default function App() {
                   <p className="text-[11px] text-slate-300 leading-5">{advisorPulse.pulse.warnings[0]}</p>
                 </div>
               )}
+              {advisorPulse.pulse.savingsAlerts?.length > 0 && (
+                <div className="bg-violet-950/20 border border-violet-500/25 rounded-2xl p-3 mt-3">
+                  <p className="text-[11px] font-bold text-violet-100 mb-2">أهداف تحتاج حماية</p>
+                  <div className="space-y-1.5">
+                    {advisorPulse.pulse.savingsAlerts.slice(0, 2).map((goal: any) => (
+                      <div key={goal.id || goal.name} className="flex items-center justify-between gap-2 text-[10px] text-slate-300">
+                        <span className="truncate">{goal.name || 'هدف ادخار'}</span>
+                        <span className="text-violet-200 whitespace-nowrap">{Number(goal.monthlyRequired || 0).toLocaleString()} ₪/شهر</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
