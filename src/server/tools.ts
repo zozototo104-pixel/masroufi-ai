@@ -1435,8 +1435,11 @@ export async function analyzeFinancialHabits(args: any, userId: string, token: s
   const insights = buildFinancialHabitInsights(current, previous, profile, args || {}).slice(0, Math.max(1, Math.min(20, Number(args?.insightLimit) || 8)));
   const warningCount = insights.filter((i: any) => i.severity === 'warning').length;
   const infoPatternCount = insights.filter((i: any) => i.severity === 'info' && i.type !== 'stable').length;
-  const score = Math.max(0, Math.min(100, 100 - warningCount * 18 - infoPatternCount * 6 - (partial ? 5 : 0)));
-  const status = warningCount >= 3 ? 'habit_risk' : warningCount > 0 || infoPatternCount >= 2 ? 'watch' : 'stable';
+  const noCurrentExpenses = current.expenseCount === 0 || current.expenseTotal <= 0;
+  const score = noCurrentExpenses
+    ? Math.max(25, Math.min(60, 55 - (partial ? 10 : 0)))
+    : Math.max(0, Math.min(100, 100 - warningCount * 18 - infoPatternCount * 6 - (partial ? 5 : 0)));
+  const status = noCurrentExpenses ? 'insufficient_data' : warningCount >= 3 ? 'habit_risk' : warningCount > 0 || infoPatternCount >= 2 ? 'watch' : 'stable';
   const delta = roundMoney(current.expenseTotal - previous.expenseTotal);
   const deltaPct = previous.expenseTotal > 0 ? Math.round((delta / previous.expenseTotal) * 100) : (current.expenseTotal > 0 ? 100 : 0);
   const result: any = {
