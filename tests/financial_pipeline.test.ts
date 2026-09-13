@@ -546,3 +546,37 @@ test('TREASURER-17: daily financial pulse gives a practical today plan without p
   assert.ok(app.includes("idbSet('lkgs_daily_financial_pulses'"), 'dashboard must cache last-known-good daily pulses');
   assert.ok(rules.includes('match /advisorDailyPulses/{pulseId}'), 'Firestore rules must allow user-scoped daily pulses');
 });
+
+test('TREASURER-18: advisor dashboard numbers remain explainable and tied to real transaction dates', async () => {
+  const tools = await src('src/server/tools.ts');
+  const app = await src('src/App.tsx');
+  const guide = await src('FINANCIAL_ADVISOR_GUIDE_AR.md');
+  assert.ok(tools.includes('protectionEndIso') && tools.includes('spendingPaceDays') && tools.includes('rawSafeToSpendUntilProtection'),
+    'safe spending must protect the remaining salary cycle and pace daily/weekly caps instead of showing all cash as today spend');
+  assert.ok(tools.includes('transactionAnalysisDate') && tools.includes('tx?.localDay') && tools.includes('tx?.dateKey'),
+    'habit and recurring engines must understand local transaction date fields, not only date');
+  assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS'),
+    'habit analysis must fall back when date-sorted queries miss localDay-only transactions');
+  assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_RECURRING_DETECTION'),
+    'recurring detection must fall back when date-sorted queries miss localDay-only transactions');
+  assert.ok(tools.includes("return Boolean(c.dueDate || c.recurring || c.recurringFrequency || c.recurringDetectionKey)"),
+    'commitment review must not hide real due commitments just because recurring=true is missing');
+  assert.ok(tools.includes('dailyAverage <= 0') && tools.includes('لا أعتبر المبلغ المتبقي كله فائضاً'),
+    'month-end forecast must not claim current remaining cash is a surplus when spending pace is missing');
+  assert.ok(app.includes('notificationDismissTimersRef') && app.includes('const delay = type === \'error\' ? 12000'),
+    'top notifications must auto-dismiss after a visible delay');
+  assert.ok(app.includes('إغلاق التنبيه') && app.includes('لا يعدّل العمليات المالية تلقائياً'),
+    'advisor alert action must clarify that resolving an alert does not auto-fix ledger data');
+  assert.ok(app.includes("fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6'") && app.includes("idbSet('lkgs_advisor_audit'"),
+    'resolving or dismissing an alert must refresh the audit score shown on the dashboard');
+  assert.ok(app.includes('window.confirm') && app.includes('تطبيق الخطة سيغيّر حدود الميزانيات'),
+    'adaptive budget application must require visible user confirmation');
+  assert.ok(app.includes('الهامش بعده') && app.includes('المحاكاة لا تسجل عملية'),
+    'scenario card must explain that it is a what-if simulation, not a transaction');
+  assert.ok(app.includes('سقف الأسبوع') && app.includes('weeklyFinancialPlans[0].actions.slice(0, 3)'),
+    'weekly plan card must use clearer labels and show multiple recommendations');
+  assert.ok(app.includes('يوجد {commitments.length} التزام محفوظ'),
+    'commitments dashboard must show saved commitments even when no new recurring candidates exist');
+  assert.ok(guide.includes('ماذا يحدث خلف الكواليس') && guide.includes('السقف اليومي = الهامش القابل للتوزيع / عدد الأيام المتبقية'),
+    'Arabic advisor guide must document features and behind-the-scenes calculations');
+});
