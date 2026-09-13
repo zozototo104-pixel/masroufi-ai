@@ -2333,7 +2333,7 @@ export async function transferMoney(args: any, userId: string, token: string) {
   
   const amount = parseAbsoluteFinancialAmount(args.amount);
   if (amount <= 0) {
-    return { error: "Amount must be greater than 0" };
+    return { success: false, needsClarification: true, reason: 'INVALID_AMOUNT', missingFields: ['amount'], message: 'ما قيمة التحويل أو الدين بالضبط؟' };
   }
 
   const fromAccount = normalizeLedgerAccount(args.fromAccount || args.account || 'cash');
