@@ -1020,6 +1020,34 @@ export default function App() {
     }
   };
 
+  const handleRunAdvisorAudit = async () => {
+    if (!idToken || isAdvisorAuditRunning) return;
+    setIsAdvisorAuditRunning(true);
+    try {
+      const res = await fetch('/api/advisor/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ scope: 'salary_cycle', save: true, persistAlerts: true, findingLimit: 20 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to run advisor audit');
+      setAdvisorAudit(data);
+      await idbSet('lkgs_advisor_audit', data);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+    } catch (err) {
+      console.warn('Advisor audit run failed:', err);
+      setNotifications(prev => [...prev, { id: `advisor-audit-failed-${Date.now()}`, type: 'warning', message: 'تعذر تشغيل المدقق المالي الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsAdvisorAuditRunning(false);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
