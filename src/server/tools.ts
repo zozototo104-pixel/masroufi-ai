@@ -1915,6 +1915,7 @@ function adaptiveBudgetStatus(proposals: any[], totalCurrent: number, totalPropo
   const increased = proposals.filter((p: any) => p.change > 0).length;
   if (incomeGuard?.missingIncome && incomeGuard?.usingDefaultBudgetTemplate) return 'needs_income_profile';
   if (incomeGuard?.unableToFitIncome) return 'income_conflict';
+  if (incomeGuard?.initialBudgetSetup) return 'initial_setup';
   if (totalProposed > envelope) return 'needs_manual_review';
   if (reduced > increased) return 'tightened';
   if (increased > reduced) return 'rebalanced_growth';
