@@ -819,6 +819,25 @@ export default function App() {
       }
     };
 
+    const fetchWeeklyFinancialPlansData = async (headers: Record<string, string>) => {
+      try {
+        const planRes = await fetch('/api/advisor/weekly-plan?limit=8', { headers });
+        const planPayload = await planRes.json().catch(() => ({}));
+        if (planRes.ok && planPayload?.success !== false) {
+          const nextPlans = Array.isArray(planPayload.plans) ? planPayload.plans : [];
+          setWeeklyFinancialPlans(nextPlans);
+          await idbSet('lkgs_weekly_financial_plans', nextPlans);
+        } else {
+          const cachedPlans = await idbGet<any[]>('lkgs_weekly_financial_plans');
+          if (Array.isArray(cachedPlans)) setWeeklyFinancialPlans(cachedPlans);
+        }
+      } catch (planErr) {
+        console.warn('Weekly financial plans refresh failed:', planErr);
+        const cachedPlans = await idbGet<any[]>('lkgs_weekly_financial_plans');
+        if (Array.isArray(cachedPlans)) setWeeklyFinancialPlans(cachedPlans);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
