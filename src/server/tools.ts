@@ -7575,7 +7575,7 @@ function buildRecurringCandidate(group: any[], key: string, now: Date) {
     category: lastTx.category || 'أقساط والتزامات',
     subcategory: lastTx.subcategory || '',
     account: lastTx.account || '',
-    nextDueDate: estimateNextRecurringDueDate(lastTx.date || lastTx.createdAt, frequency, now),
+    nextDueDate: estimateNextRecurringDueDate(lastTx.date || lastTx.localDay || lastTx.localDate || lastTx.dateKey || lastTx.createdAt, frequency, now),
     occurrenceCount: sorted.length,
     intervals,
     amountDeviation: Math.round(amountDeviation * 100) / 100,
