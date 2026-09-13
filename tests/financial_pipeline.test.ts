@@ -331,3 +331,32 @@ test('TREASURER-11: financial scenario simulator forecasts outcomes without reco
   assert.ok(app.includes("idbSet('lkgs_financial_scenarios'"), 'dashboard must cache last-known-good financial scenarios');
   assert.ok(rules.includes('match /advisorScenarios/{scenarioId}'), 'Firestore rules must allow user-scoped saved scenarios');
 });
+
+test('TREASURER-12: recurring commitment manager detects subscriptions and converts them safely', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  assert.ok(tools.includes('normalizeRecurringCommitmentFrequency'), 'recurring commitment frequency normalization must exist');
+  assert.ok(tools.includes('buildRecurringCandidate'), 'recurring commitment candidate builder must exist');
+  assert.ok(tools.includes('export async function detectRecurringCommitments'), 'recurring commitment detection tool must exist');
+  assert.ok(tools.includes('export async function createRecurringCommitmentFromCandidate'), 'recurring commitment conversion tool must exist');
+  assert.ok(tools.includes('recurringDetectionKey'), 'converted commitments must carry recurrence detection metadata');
+  assert.ok(tools.includes('duplicate: true'), 'direct recurring conversion must avoid duplicate commitments');
+  assert.ok(tools.includes('advisor-recurring-detected'), 'high-confidence recurring candidates must become advisor alerts when requested');
+  assert.ok(tools.includes('category: \'recurring_commitments\''), 'comprehensive audit must flag untracked recurring commitments');
+  assert.ok(tools.includes('detect_recurring_commitments: detectRecurringCommitments'), 'recurring detection must be registered in handlers');
+  assert.ok(tools.includes('create_recurring_commitment_from_candidate: createRecurringCommitmentFromCandidate'), 'recurring conversion must be registered in handlers');
+  assert.ok(tools.includes('name: "detect_recurring_commitments"'), 'recurring detection must be exposed to Gemini');
+  assert.ok(tools.includes('name: "create_recurring_commitment_from_candidate"'), 'recurring conversion must be exposed to Gemini');
+  assert.ok(server.includes('app.get("/api/commitments/recurring/detect", authMiddleware'), 'recurring detection API must be available behind auth');
+  assert.ok(server.includes('app.post("/api/commitments/recurring/create", authMiddleware'), 'recurring conversion API must be available behind auth');
+  assert.ok(server.indexOf('app.get("/api/commitments/recurring/detect"') < server.indexOf('app.delete("/api/commitments/:id"'), 'recurring routes must be registered before id routes');
+  assert.ok((server.match(/0\.3\.6- \*\*مدير الاشتراكات والالتزامات المتكررة\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to manage recurring commitments');
+  assert.ok(app.includes('const [recurringCommitmentCandidates, setRecurringCommitmentCandidates]'), 'dashboard must keep recurring candidate state');
+  assert.ok(app.includes("fetch('/api/commitments/recurring/detect?candidateLimit=6&minOccurrences=2'"), 'dashboard must fetch bounded recurring candidates');
+  assert.ok(app.includes('handleDetectRecurringCommitments'), 'dashboard must allow manual recurring detection');
+  assert.ok(app.includes('handleCreateRecurringCommitment'), 'dashboard must allow converting a candidate to a recurring commitment');
+  assert.ok(app.includes('مدير الاشتراكات والالتزامات'), 'dashboard must render recurring commitments manager card');
+  assert.ok(app.includes("idbSet('lkgs_recurring_commitment_candidates'"), 'dashboard must cache last-known-good recurring candidates');
+  assert.ok(app.includes('CalendarDays'), 'dashboard must import the recurring commitment icon it renders');
+});
