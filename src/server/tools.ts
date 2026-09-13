@@ -3668,7 +3668,10 @@ export async function runFinancialAudit(args: any, userId: string, token: string
 
   const nowKey = safeNow.toISOString().slice(0, 10);
   const pendingCommitments = commitments.filter((c: any) => !['paid', 'cancelled'].includes(String(c.status || 'pending').toLowerCase()));
-  const overdueCommitments = pendingCommitments.filter((c: any) => String(c.dueDate || '').slice(0, 10) < nowKey);
+  const overdueCommitments = pendingCommitments.filter((c: any) => {
+    const dueKey = auditDateKey(c.dueDate);
+    return /^\d{4}-\d{2}-\d{2}$/.test(dueKey) && dueKey < nowKey;
+  });
   const dueSoonCommitments = pendingCommitments.filter((c: any) => {
     const due = auditAsDate(c.dueDate);
     if (!due) return false;
