@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { motion } from 'motion/react';
-import { Mic, MicOff, AlertCircle, Loader2, Volume2, TrendingUp, TrendingDown, PiggyBank, Settings, FileText, X, Download, Printer, List, CheckCircle, Bell, LogIn, LogOut, Camera, MessageSquare, Send, Target, Calendar, Share2, Copy, ShieldAlert, Sparkles, Check, Trash2, HardDrive, ArrowUpDown, Mail, Lock, KeyRound, Phone, Code2, Brain } from 'lucide-react';
+import { Mic, MicOff, AlertCircle, Loader2, Volume2, TrendingUp, TrendingDown, PiggyBank, Settings, FileText, X, Download, Printer, List, CheckCircle, Bell, LogIn, LogOut, Camera, MessageSquare, Send, Target, Calendar, CalendarDays, Share2, Copy, ShieldAlert, Sparkles, Check, Trash2, HardDrive, ArrowUpDown, Mail, Lock, KeyRound, Phone, Code2, Brain } from 'lucide-react';
 import { useGeminiLive } from './lib/useGeminiLive';
 import MindMapChart from './components/MindMapChart';
 import { DataBackupModal } from './components/DataBackupModal';
