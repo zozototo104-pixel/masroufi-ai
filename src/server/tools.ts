@@ -1859,8 +1859,12 @@ export async function addTransaction(args: any, userId: string, token: string) {
           .filter((t:any) => t.transactionType !== 'DEBT_BORROWING')
           .reduce((s:number, t:any) => s + parsePositiveFinancialAmount(t.amount), 0);
         const monthlyIncome90d = income90d / 3;
-        const debtToIncomeRatio = monthlyIncome90d > 0 ? projectedDebt / monthlyIncome90d : Infinity;
-        if (!args.riskConfirmed && (debtToIncomeRatio > 1.0 || amount > 5000)) {
+        const referenceMonthlyIncome = monthlyIncome90d > 0 ? monthlyIncome90d : parsePositiveFinancialAmount(preflightTreasurerProfile.monthlySalary);
+        const debtToIncomeRatio = referenceMonthlyIncome > 0 ? projectedDebt / referenceMonthlyIncome : Infinity;
+        const debtRatioLimit = Number(preflightTreasurerProfile.debtLimitRatio || 1) || 1;
+        const explicitDebtLimit = parsePositiveFinancialAmount(preflightTreasurerProfile.maxDebtBalance);
+        const breaksProfileDebtLimit = (explicitDebtLimit > 0 && projectedDebt > explicitDebtLimit) || (Number.isFinite(debtToIncomeRatio) && debtToIncomeRatio > debtRatioLimit);
+        if (!args.riskConfirmed && (breaksProfileDebtLimit || amount > 5000)) {
           await addNotification(
             userId,
             `🚨 خطر دين: الشراء بالدين بقيمة ${amount} ₪ سيرفع إجمالي الدين إلى ${projectedDebt} ₪ قبل الحفظ.`,
