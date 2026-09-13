@@ -591,6 +591,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'scenario card must explain that it is a what-if simulation, not a transaction');
   assert.ok(app.includes('سقف الأسبوع') && app.includes('weeklyFinancialPlans[0].actions.slice(0, 3)'),
     'weekly plan card must use clearer labels and show multiple recommendations');
+  assert.ok(app.includes('تفصيل التوقع') && app.includes('هامش نهاية الدورة = المتبقي الحالي - الصرف المتوقع'),
+    'month-end forecast card must show the calculation behind projected surplus/pressure');
   assert.ok(app.includes('يوجد {commitments.length} التزام محفوظ'),
     'commitments dashboard must show saved commitments even when no new recurring candidates exist');
   assert.ok(guide.includes('ماذا يحدث خلف الكواليس') && guide.includes('السقف اليومي = الهامش القابل للتوزيع / عدد الأيام المتبقية') && guide.includes('ولا يُحجز كالتزام فعلي'),
