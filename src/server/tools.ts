@@ -6099,6 +6099,7 @@ export async function detectRecurringCommitments(args: any, userId: string, toke
 }
 
 export async function createRecurringCommitmentFromCandidate(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
   const candidateArg = args?.candidate && typeof args.candidate === 'object' ? args.candidate : null;
   let candidate = candidateArg;
   if (!candidate && args?.detectionKey) {
