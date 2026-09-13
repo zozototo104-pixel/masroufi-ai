@@ -9642,6 +9642,36 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "generate_adaptive_budget_plan",
+    description: "يقترح ميزانية متكيّفة لكل بند حسب الراتب، الالتزامات، أهداف الادخار، الحد الآمن، والعادات. لا يغيّر الميزانيات المحفوظة إلا إذا استُخدمت أداة التطبيق بعد موافقة صريحة.",
+    parameters: { type: "object", properties: {
+      mode: { type: "string", description: "balanced أو tighten أو growth أو relaxed" },
+      focus: { type: "string", description: "مرادف لوضع الخطة مثل recovery أو savings_growth" },
+      habitPeriod: { type: "string", description: "فترة تحليل العادات مثل last_30_days" },
+      transactionLimit: { type: "number", description: "عدد العمليات المقروءة للتحليل" },
+      save: { type: "boolean", description: "حفظ الخطة في advisorBudgetPlans" },
+      persistAlert: { type: "boolean", description: "تحويل الخطة التي تحتاج مراجعة إلى تنبيه دائم" }
+    } }
+  },
+  {
+    name: "get_adaptive_budget_plans",
+    description: "يعرض آخر خطط الميزانية المتكيّفة المحفوظة من advisorBudgetPlans.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد الخطط، بحد أقصى 50" }
+    } }
+  },
+  {
+    name: "apply_adaptive_budget_plan",
+    description: "يطبّق خطة ميزانية متكيّفة على حدود الميزانيات المحفوظة. استخدمه فقط بعد موافقة صريحة من المستخدم لأنه يغيّر حدود البنود.",
+    parameters: { type: "object", properties: {
+      planId: { type: "string", description: "معرف خطة محفوظة في advisorBudgetPlans" },
+      plan: { type: "object", description: "خطة كاملة من generate_adaptive_budget_plan" },
+      proposals: { type: "array", description: "قائمة حدود مقترحة للتطبيق" },
+      applyConfirmed: { type: "boolean", description: "تأكيد صريح من المستخدم لتطبيق الخطة" },
+      confirmed: { type: "boolean", description: "مرادف للتأكيد" }
+    } }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
