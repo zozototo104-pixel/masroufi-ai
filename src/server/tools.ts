@@ -2101,7 +2101,7 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     result.savedPlanId = planId;
   }
 
-  if (parseBooleanLike(args?.persistAlert) && (decreasedCategories.length || requiredRecovery > 0 || result.status === 'needs_manual_review')) {
+  if (parseBooleanLike(args?.persistAlert) && (decreasedCategories.length || requiredRecovery > 0 || ['needs_manual_review', 'needs_income_profile', 'income_conflict'].includes(result.status))) {
     await addNotification(userId, `🧮 ميزانية متكيّفة: ${result.message}`, 'warning', adminDb, {
       idempotencyKey: `advisor-adaptive-budget:${stableDocId(`${userId}:${result.month}:${mode}:${result.status}`)}`,
       advisorAlert: true,
