@@ -669,9 +669,9 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   if (discretionaryAfterExpectedRoutine < 0) warnings.push(`بعد نمط الصرف المعتاد يوجد عجز متوقع ${Math.abs(discretionaryAfterExpectedRoutine)} ₪ حتى ${horizon.label}.`);
   if (savingsRequiredThisPeriod > 0) warnings.push(`الأهداف النشطة تحتاج تقريباً ${savingsRequiredThisPeriod} ₪ هذا الشهر للبقاء على المسار.`);
 
-  const recommendations = status === 'safe'
+  const recommendations = (status === 'safe'
     ? ['حافظ على الصرف اليومي ضمن الحد الآمن ولا تلمس مبلغ الالتزامات أو الاحتياطي.', 'أي شراء كمالي كبير يفضّل فحصه بالسوق المحلي أولاً.', profileCompleteness.nextPrompt ? `لزيادة دقة المستشار: ${profileCompleteness.nextPrompt}` : '']
-    : ['أوقف الكماليات مؤقتاً حتى تغطي الالتزامات والاحتياطي.', 'راجع الالتزامات القريبة، وحوّل أي فائض صغير للأهداف ذات الأولوية العالية.', profileCompleteness.nextPrompt ? `استكمل ملف أمين الصندوق: ${profileCompleteness.nextPrompt}` : ''];
+    : ['أوقف الكماليات مؤقتاً حتى تغطي الالتزامات والاحتياطي.', 'راجع الالتزامات القريبة، وحوّل أي فائض صغير للأهداف ذات الأولوية العالية.', profileCompleteness.nextPrompt ? `استكمل ملف أمين الصندوق: ${profileCompleteness.nextPrompt}` : '']).filter(Boolean);
 
   return {
     success: true,
