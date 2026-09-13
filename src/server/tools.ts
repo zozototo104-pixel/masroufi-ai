@@ -113,6 +113,81 @@ export async function markNotificationRead(args: any, userId: string, token: str
   return { success: true };
 }
 
+function normalizeAdvisorAlertStatus(value: any) {
+  const raw = String(value || 'open').toLowerCase();
+  return ['open', 'resolved', 'dismissed', 'snoozed'].includes(raw) ? raw : 'open';
+}
+
+export async function getAdvisorAlerts(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const requestedLimit = Math.max(1, Math.min(100, Number(args?.limit) || 50));
+  const includeResolved = Boolean(args?.includeResolved);
+  const includeSnoozed = Boolean(args?.includeSnoozed);
+  const nowIso = new Date().toISOString();
+  const snap = await adminDb.collection('users').doc(userId).collection('notifications')
+    .orderBy('createdAt', 'desc')
+    .limit(requestedLimit)
+    .get();
+  const alerts = snap.docs
+    .map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((item: any) => Boolean(item.advisorAlert))
+    .filter((item: any) => {
+      const status = normalizeAdvisorAlertStatus(item.advisorStatus);
+      if (!includeResolved && ['resolved', 'dismissed'].includes(status)) return false;
+      if (!includeSnoozed && status === 'snoozed' && item.snoozedUntil && String(item.snoozedUntil) > nowIso) return false;
+      return true;
+    })
+    .slice(0, requestedLimit);
+
+  const counts = alerts.reduce((acc: any, item: any) => {
+    const status = normalizeAdvisorAlertStatus(item.advisorStatus);
+    const severity = String(item.severity || item.type || 'info');
+    acc.total += 1;
+    acc.byStatus[status] = (acc.byStatus[status] || 0) + 1;
+    acc.bySeverity[severity] = (acc.bySeverity[severity] || 0) + 1;
+    if (!item.read) acc.unread += 1;
+    return acc;
+  }, { total: 0, unread: 0, byStatus: {}, bySeverity: {} });
+
+  return {
+    success: true,
+    alerts,
+    counts,
+    partial: Boolean((snap as any).partial),
+    readEfficiency: { notificationsLimit: requestedLimit, docsRead: snap.docs.length, advisorAlertsReturned: alerts.length },
+  };
+}
+
+export async function updateAdvisorAlert(args: any, userId: string, token: string) {
+  if (!args?.id) return { success: false, error: 'Advisor alert ID is required' };
+  const action = String(args.action || 'read').toLowerCase();
+  const adminDb = getDb(token);
+  const ref = adminDb.collection('users').doc(userId).collection('notifications').doc(String(args.id));
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, error: 'Advisor alert not found' };
+  const current = snap.data() || {};
+  if (!current.advisorAlert) return { success: false, error: 'Notification is not an advisor alert' };
+
+  const nowIso = new Date().toISOString();
+  const patch: any = { read: true, readAt: current.readAt || nowIso, lastAdvisorAction: action, lastAdvisorActionAt: nowIso };
+  if (action === 'resolve' || action === 'resolved') {
+    Object.assign(patch, { advisorStatus: 'resolved', resolvedAt: nowIso, dismissedAt: null, snoozedUntil: null });
+  } else if (action === 'dismiss' || action === 'dismissed') {
+    Object.assign(patch, { advisorStatus: 'dismissed', dismissedAt: nowIso, resolvedAt: null, snoozedUntil: null });
+  } else if (action === 'snooze' || action === 'snoozed') {
+    const until = args?.until ? new Date(String(args.until)) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const safeUntil = Number.isFinite(until.getTime()) ? until : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    Object.assign(patch, { advisorStatus: 'snoozed', snoozedUntil: safeUntil.toISOString(), resolvedAt: null, dismissedAt: null });
+  } else if (action === 'reopen' || action === 'open') {
+    Object.assign(patch, { advisorStatus: 'open', resolvedAt: null, dismissedAt: null, snoozedUntil: null });
+  } else if (action !== 'read') {
+    return { success: false, error: `Unsupported advisor alert action: ${action}` };
+  }
+
+  await ref.set(patch, { merge: true });
+  return { success: true, id: String(args.id), action, advisorStatus: patch.advisorStatus || normalizeAdvisorAlertStatus(current.advisorStatus) };
+}
+
 function stableDocId(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 40);
 }
