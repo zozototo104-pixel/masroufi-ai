@@ -560,8 +560,11 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
         if (msg.liveClosed && receivedAudioFramesRef.current === 0) {
           clearLiveReadyWatchdog();
           clearResponseWatchdog();
+          liveReadyRef.current = false;
+          pendingMicFramesRef.current = [];
           setStatus('idle');
           setIsRecording(false);
+          setIsConnected(false);
           const userActuallySpoke = speechDetectedRef.current && voicedAudioFramesRef.current >= 3;
           if (userActuallySpoke) {
             setError('سمعتك أرسلت صوتاً، لكن Gemini Live أغلق قبل أن يرجع صوتاً. جرّب مرة ثانية، وإذا تكررت فافحص حصة Gemini Live أو مفتاح API.');
