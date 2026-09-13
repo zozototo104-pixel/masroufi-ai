@@ -3470,6 +3470,395 @@ export async function auditFinancialDuplicates(args: any, userId: string, token:
   };
 }
 
+function auditAsDate(value: any): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
+  if (typeof value?.toDate === 'function') {
+    const d = value.toDate();
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  if (typeof value?.toMillis === 'function') {
+    const d = new Date(value.toMillis());
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  if (typeof value?.seconds === 'number') {
+    const d = new Date(value.seconds * 1000);
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  const parsed = new Date(String(value));
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+function auditDateKey(value: any): string {
+  const parsed = auditAsDate(value);
+  if (parsed) return parsed.toISOString().slice(0, 10);
+  const raw = String(value || '').trim();
+  const iso = raw.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, '0')}-${String(Number(iso[3])).padStart(2, '0')}`;
+  return raw.slice(0, 10);
+}
+
+function auditSeverityRank(value: any): number {
+  const s = String(value || 'info').toLowerCase();
+  return s === 'critical' ? 4 : s === 'warning' ? 3 : s === 'info' ? 2 : 1;
+}
+
+function addAuditFinding(findings: any[], input: any) {
+  const severity = String(input.severity || 'info').toLowerCase();
+  const category = String(input.category || 'general');
+  const title = String(input.title || 'ملاحظة تدقيق مالي');
+  const fingerprint = stableDocId(`${category}:${title}:${JSON.stringify(input.relatedIds || input.evidence || input.message || '')}`);
+  findings.push({
+    id: input.id || fingerprint,
+    severity,
+    category,
+    title,
+    message: input.message || title,
+    evidence: input.evidence || {},
+    relatedIds: input.relatedIds || [],
+    recommendedActions: input.recommendedActions || [],
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function auditGroup(items: any[], keyFn: (item: any) => string) {
+  const map = new Map<string, any[]>();
+  for (const item of items || []) {
+    const key = keyFn(item);
+    if (!key) continue;
+    const arr = map.get(key) || [];
+    arr.push(item);
+    map.set(key, arr);
+  }
+  return Array.from(map.entries()).filter(([, arr]) => arr.length > 1).map(([key, arr]) => ({ key, items: arr, count: arr.length }));
+}
+
+function isAuditBlank(value: any): boolean {
+  const raw = normalizeArabicText(String(value || '')).trim().toLowerCase();
+  return !raw || ['غير محدد', 'غير مصنف', 'اخرى', 'أخرى', 'other', 'unknown', 'undefined', 'null', '-'].includes(raw);
+}
+
+export async function runFinancialAudit(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const limit = Math.max(50, Math.min(1000, Number(args?.limit) || 500));
+  const notificationLimit = Math.max(50, Math.min(500, Number(args?.notificationLimit) || 200));
+  const scope = String(args?.scope || args?.period || 'salary_cycle').toLowerCase();
+  if ((args?.full === true || scope === 'all') && !args?.allowFullLedgerAudit) {
+    return { success: false, needsConfirmation: true, reason: 'FULL_FINANCIAL_AUDIT_REQUIRES_CONFIRMATION', message: 'المدقق المالي الشامل لكل التاريخ يحتاج قراءة واسعة. حدد دورة/فترة أو أكد allowFullLedgerAudit صراحة.' };
+  }
+
+  const findings: any[] = [];
+  let transactions: any[] = [];
+  let transactionReadPartial = false;
+  let transactionReadSource = 'salary_cycle';
+  let queryStats: any[] = [];
+  let period: any = null;
+
+  if (scope === 'salary_cycle' || scope === 'current_salary_cycle') {
+    period = resolveSalaryCycleFromArgs(args || {}, safeNow);
+    const read = await readTransactionsForSalaryCycle(period, userId, token, limit);
+    transactions = read.transactions || [];
+    transactionReadPartial = Boolean(read.partial || read.limitReached || read.boundedFallback);
+    queryStats = read.queryStats || [];
+  } else {
+    transactionReadSource = 'createdAt_desc_bounded';
+    try {
+      const snap = await adminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
+      transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      transactionReadPartial = Boolean((snap as any).partial || transactions.length >= limit);
+    } catch (err: any) {
+      transactionReadSource = 'userId_bounded_fallback';
+      const fallback = await adminDb.collection('transactions').where('userId', '==', userId).limit(limit).get();
+      transactions = fallback.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      transactionReadPartial = true;
+      queryStats.push({ label: 'createdAt_desc_failed', error: err?.message || String(err) });
+    }
+  }
+
+  const [budgets, commitmentsSnap, savingsSnap, notificationsSnap, safeSpending] = await Promise.all([
+    getUserBudgets(userId, adminDb).catch(() => ({})),
+    adminDb.collection('commitments').where('userId', '==', userId).orderBy('dueDate', 'asc').limit(150).get().catch(() => ({ docs: [], partial: true })),
+    adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [], partial: true })),
+    adminDb.collection('users').doc(userId).collection('notifications').orderBy('createdAt', 'desc').limit(notificationLimit).get().catch(() => ({ docs: [], partial: true })),
+    getSafeSpendingLimit({ period: 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e) })),
+  ]);
+
+  const commitments = ((commitmentsSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+  const savingsGoals = ((savingsSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+  const notifications = ((notificationsSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+  const expenses = transactions.filter((t: any) => String(t.type || '').toLowerCase() === 'expense');
+  const incomes = transactions.filter((t: any) => String(t.type || '').toLowerCase() === 'income');
+
+  const duplicateOperationIds = auditGroup(transactions.filter((t: any) => t.operationId), (t: any) => String(t.operationId));
+  if (duplicateOperationIds.length) {
+    addAuditFinding(findings, {
+      severity: 'critical',
+      category: 'duplicates',
+      title: 'عمليات مكررة بنفس معرف التشغيل',
+      message: `وجدت ${duplicateOperationIds.length} مجموعة عمليات تحمل نفس operationId. هذا قد يعني تسجيل مزدوج ويحتاج مراجعة قبل الاعتماد على الرصيد.`,
+      evidence: { groups: duplicateOperationIds.slice(0, 5).map((g: any) => ({ key: g.key, count: g.count, ids: g.items.map((t: any) => t.id) })) },
+      relatedIds: duplicateOperationIds.flatMap((g: any) => g.items.map((t: any) => t.id)).slice(0, 20),
+      recommendedActions: ['راجع المجموعات المكررة', 'احذف أو ادمج النسخ الزائدة فقط بعد التأكد من العملية الأصلية'],
+    });
+  }
+
+  const duplicateFingerprints = auditGroup(transactions, auditLedgerFingerprint)
+    .filter((g: any) => !/^transfer\|/.test(g.key));
+  if (duplicateFingerprints.length) {
+    addAuditFinding(findings, {
+      severity: duplicateFingerprints.some((g: any) => g.count >= 3) ? 'critical' : 'warning',
+      category: 'duplicates',
+      title: 'عمليات متشابهة قد تكون مكررة',
+      message: `وجدت ${duplicateFingerprints.length} مجموعة عمليات متطابقة تقريباً في المبلغ والحساب والغرض.`,
+      evidence: { groups: duplicateFingerprints.slice(0, 5).map((g: any) => ({ key: g.key, count: g.count, ids: g.items.map((t: any) => t.id), amount: g.items[0]?.amount })) },
+      relatedIds: duplicateFingerprints.flatMap((g: any) => g.items.map((t: any) => t.id)).slice(0, 20),
+      recommendedActions: ['افتح العمليات المتشابهة', 'تأكد هل هي تكرار أم مشتريات منفصلة بنفس القيمة'],
+    });
+  }
+
+  const salaryLikeIncome = incomes.filter((t: any) => {
+    const text = normalizeArabicText(`${t.category || ''} ${t.subcategory || ''} ${t.notes || ''} ${t.merchant || ''} ${t.beneficiary || ''}`).toLowerCase();
+    return parsePositiveFinancialAmount(t.amount) >= 500 && /راتب|salary|معاش/.test(text);
+  });
+  const duplicateSalary = auditGroup(salaryLikeIncome, (t: any) => `${auditDateKey(t.date || t.createdAt).slice(0, 7)}:${roundFinancial(t.amount)}:${t.account || ''}`);
+  if (duplicateSalary.length) {
+    addAuditFinding(findings, {
+      severity: 'critical',
+      category: 'income_integrity',
+      title: 'اشتباه راتب مكرر',
+      message: 'يوجد دخل شبيه بالراتب مسجل أكثر من مرة بنفس الشهر والمبلغ والحساب.',
+      evidence: { groups: duplicateSalary.map((g: any) => ({ key: g.key, count: g.count, ids: g.items.map((t: any) => t.id) })) },
+      relatedIds: duplicateSalary.flatMap((g: any) => g.items.map((t: any) => t.id)).slice(0, 20),
+      recommendedActions: ['راجع قيود الراتب قبل حساب الحد الآمن', 'احذف النسخة الزائدة إن كانت مكررة فعلاً'],
+    });
+  }
+
+  const debtWithoutCreditor = expenses.filter((t: any) => String(t.account || '').toLowerCase() === 'debt' && isAuditBlank(t.creditor || t.merchant));
+  if (debtWithoutCreditor.length) {
+    addAuditFinding(findings, {
+      severity: 'critical',
+      category: 'debt_integrity',
+      title: 'ديون بلا دائن واضح',
+      message: `${debtWithoutCreditor.length} عملية دين لا تحتوي دائن/تاجر واضح، وهذا يضعف تتبع الديون والسداد.`,
+      evidence: { count: debtWithoutCreditor.length, sample: debtWithoutCreditor.slice(0, 5).map((t: any) => ({ id: t.id, amount: t.amount, date: t.date })) },
+      relatedIds: debtWithoutCreditor.map((t: any) => t.id).slice(0, 20),
+      recommendedActions: ['أضف اسم الدائن لكل عملية دين', 'راجع كشف الدائنين بعد التصحيح'],
+    });
+  }
+
+  const missingCategory = expenses.filter((t: any) => isAuditBlank(t.category));
+  const missingPurpose = expenses.filter((t: any) => parsePositiveFinancialAmount(t.amount) >= 50 && isAuditBlank(t.purchaseItem) && isAuditBlank(t.beneficiary) && isAuditBlank(t.notes) && isAuditBlank(t.subcategory) && isAuditBlank(t.merchant));
+  if (missingCategory.length || missingPurpose.length) {
+    addAuditFinding(findings, {
+      severity: missingCategory.length > 5 || missingPurpose.length > 5 ? 'warning' : 'info',
+      category: 'data_quality',
+      title: 'عمليات ناقصة التصنيف أو الغرض',
+      message: `يوجد ${missingCategory.length} مصروف بلا بند واضح و${missingPurpose.length} مصروف مهم بلا وصف كافٍ.`,
+      evidence: { missingCategory: missingCategory.slice(0, 5).map((t: any) => t.id), missingPurpose: missingPurpose.slice(0, 5).map((t: any) => t.id) },
+      relatedIds: [...missingCategory, ...missingPurpose].map((t: any) => t.id).slice(0, 20),
+      recommendedActions: ['صنّف العمليات الناقصة', 'أضف وصفاً للمصاريف الأكبر من 50 ₪'],
+    });
+  }
+
+  const nowKey = safeNow.toISOString().slice(0, 10);
+  const pendingCommitments = commitments.filter((c: any) => !['paid', 'cancelled'].includes(String(c.status || 'pending').toLowerCase()));
+  const overdueCommitments = pendingCommitments.filter((c: any) => String(c.dueDate || '').slice(0, 10) < nowKey);
+  const dueSoonCommitments = pendingCommitments.filter((c: any) => {
+    const due = auditAsDate(c.dueDate);
+    if (!due) return false;
+    const days = Math.ceil((due.getTime() - safeNow.getTime()) / 86400000);
+    return days >= 0 && days <= 7;
+  });
+  if (overdueCommitments.length) {
+    addAuditFinding(findings, {
+      severity: 'critical',
+      category: 'commitments',
+      title: 'التزامات متأخرة غير مغلقة',
+      message: `${overdueCommitments.length} التزام موعده فات وما زال pending.`,
+      evidence: { sample: overdueCommitments.slice(0, 5).map((c: any) => ({ id: c.id, title: c.title, amount: c.amount, dueDate: c.dueDate })) },
+      relatedIds: overdueCommitments.map((c: any) => c.id).slice(0, 20),
+      recommendedActions: ['علّم الالتزام كمدفوع إذا تم سداده', 'أو أجّل موعده إذا بقي مستحقاً'],
+    });
+  } else if (dueSoonCommitments.length) {
+    addAuditFinding(findings, {
+      severity: 'warning',
+      category: 'commitments',
+      title: 'التزامات قريبة خلال 7 أيام',
+      message: `يوجد ${dueSoonCommitments.length} التزام قريب يحتاج تجهيز سيولة.`,
+      evidence: { sample: dueSoonCommitments.slice(0, 5).map((c: any) => ({ id: c.id, title: c.title, amount: c.amount, dueDate: c.dueDate })) },
+      relatedIds: dueSoonCommitments.map((c: any) => c.id).slice(0, 20),
+      recommendedActions: ['احجز مبلغ الالتزامات قبل أي صرف كمالي', 'استخدم حد الصرف الآمن قبل الشراء'],
+    });
+  }
+
+  const activeBudgets = budgets || {};
+  const spentByCategory = new Map<string, number>();
+  for (const t of expenses) {
+    const category = String(t.category || 'غير مصنف');
+    spentByCategory.set(category, roundFinancial((spentByCategory.get(category) || 0) + parsePositiveFinancialAmount(t.amount)));
+  }
+  const budgetBreaches: any[] = [];
+  for (const [category, spent] of spentByCategory.entries()) {
+    const limitValue = parsePositiveFinancialAmount((activeBudgets as any)[category]);
+    if (limitValue > 0 && spent >= limitValue * 0.8) {
+      budgetBreaches.push({ category, spent, limit: limitValue, ratio: roundFinancial(spent / limitValue) });
+    }
+  }
+  if (budgetBreaches.length) {
+    addAuditFinding(findings, {
+      severity: budgetBreaches.some((b: any) => b.ratio >= 1) ? 'critical' : 'warning',
+      category: 'budget_control',
+      title: 'بنود ميزانية عند الحد أو فوقه',
+      message: `${budgetBreaches.length} بند ميزانية وصل 80% أو تجاوز السقف.`,
+      evidence: { breaches: budgetBreaches.sort((a: any, b: any) => b.ratio - a.ratio).slice(0, 8) },
+      recommendedActions: ['أوقف أو خفف الصرف في البنود المتجاوزة', 'راجع الحد الآمن قبل أي عملية جديدة'],
+    });
+  }
+
+  const activeGoals = savingsGoals.filter((g: any) => !['completed', 'cancelled', 'archived'].includes(String(g.status || 'active').toLowerCase()));
+  const riskyGoals = activeGoals.map((goal: any) => buildSavingsGoalPlan({ goal, now: safeNow }))
+    .filter((plan: any) => ['critical', 'warning'].includes(String(plan.alertLevel || '')));
+  if (riskyGoals.length) {
+    addAuditFinding(findings, {
+      severity: riskyGoals.some((g: any) => g.alertLevel === 'critical') ? 'critical' : 'warning',
+      category: 'savings_goals',
+      title: 'أهداف ادخار خارج المسار',
+      message: `${riskyGoals.length} هدف ادخار يحتاج متابعة حتى لا يتأخر.`,
+      evidence: { goals: riskyGoals.slice(0, 5).map((g: any) => ({ id: g.id, name: g.name, remainingAmount: g.remainingAmount, monthlyRequired: g.monthlyRequired, alertLevel: g.alertLevel })) },
+      relatedIds: riskyGoals.map((g: any) => g.id).slice(0, 20),
+      recommendedActions: ['حوّل مساهمة صغيرة للأهداف عالية الأولوية بعد الراتب', 'خفف الصرف الكمالي حتى يرجع الهدف للمسار'],
+    });
+  }
+
+  const openCriticalAlerts = notifications.filter((n: any) => Boolean(n.advisorAlert) && normalizeAdvisorAlertStatus(n.advisorStatus) === 'open' && String(n.severity || '').toLowerCase() === 'critical');
+  if (openCriticalAlerts.length) {
+    addAuditFinding(findings, {
+      severity: 'critical',
+      category: 'advisor_alerts',
+      title: 'تنبيهات حرجة مفتوحة',
+      message: `يوجد ${openCriticalAlerts.length} تنبيه مالي حرج لم يتم التعامل معه.`,
+      evidence: { sample: openCriticalAlerts.slice(0, 5).map((n: any) => ({ id: n.id, message: n.message, category: n.category, createdAt: n.createdAt })) },
+      relatedIds: openCriticalAlerts.map((n: any) => n.id).slice(0, 20),
+      recommendedActions: ['افتح مركز التنبيهات', 'حل أو أجّل أو تجاهل التنبيهات بقرار واعٍ'],
+    });
+  }
+
+  if ((safeSpending as any)?.success !== false && ['critical', 'danger', 'warning'].includes(String((safeSpending as any).decision || ''))) {
+    addAuditFinding(findings, {
+      severity: ['critical', 'danger'].includes(String((safeSpending as any).decision)) ? 'critical' : 'warning',
+      category: 'cash_safety',
+      title: 'حد الصرف الآمن منخفض',
+      message: (safeSpending as any).message || 'الحد الآمن للصرف يحتاج انتباه.',
+      evidence: { safeSpending: (safeSpending as any).safeSpending, breakdown: (safeSpending as any).breakdown },
+      recommendedActions: ['لا تسجل مصاريف كمالية قبل مراجعة الالتزامات', 'ارفع السيولة أو خفف الصرف اليومي'],
+    });
+  }
+
+  const futureTransactions = transactions.filter((t: any) => auditDateKey(t.date || t.createdAt) > new Date(safeNow.getTime() + 86400000).toISOString().slice(0, 10));
+  const invalidAmounts = transactions.filter((t: any) => parsePositiveFinancialAmount(t.amount) <= 0);
+  if (futureTransactions.length || invalidAmounts.length) {
+    addAuditFinding(findings, {
+      severity: 'warning',
+      category: 'ledger_integrity',
+      title: 'تواريخ أو مبالغ تحتاج مراجعة',
+      message: `وجدت ${futureTransactions.length} عملية بتاريخ مستقبلي و${invalidAmounts.length} عملية بمبلغ غير صالح.`,
+      evidence: { futureTransactions: futureTransactions.slice(0, 5).map((t: any) => t.id), invalidAmounts: invalidAmounts.slice(0, 5).map((t: any) => t.id) },
+      relatedIds: [...futureTransactions, ...invalidAmounts].map((t: any) => t.id).slice(0, 20),
+      recommendedActions: ['صحح التاريخ أو المبلغ قبل الاعتماد على التقارير'],
+    });
+  }
+
+  findings.sort((a: any, b: any) => auditSeverityRank(b.severity) - auditSeverityRank(a.severity) || String(a.title).localeCompare(String(b.title)));
+  const counts = findings.reduce((acc: any, f: any) => {
+    acc.total += 1;
+    acc.bySeverity[f.severity] = (acc.bySeverity[f.severity] || 0) + 1;
+    acc.byCategory[f.category] = (acc.byCategory[f.category] || 0) + 1;
+    return acc;
+  }, { total: 0, bySeverity: {}, byCategory: {} });
+  const penalty = findings.reduce((sum: number, f: any) => sum + (f.severity === 'critical' ? 20 : f.severity === 'warning' ? 8 : 2), 0);
+  const score = Math.max(0, Math.min(100, 100 - penalty));
+  const status = counts.bySeverity.critical ? 'critical' : counts.bySeverity.warning ? 'warning' : 'clean';
+  const message = status === 'critical'
+    ? `المدقق وجد ${counts.bySeverity.critical} مشكلة حرجة تحتاج علاج قبل الاعتماد الكامل على الرصيد.`
+    : status === 'warning'
+      ? `المدقق وجد ${counts.bySeverity.warning} ملاحظة تحتاج تحسين، لكن لا توجد مشكلة حرجة واضحة.`
+      : 'المدقق لم يجد مشاكل مالية مهمة ضمن نطاق القراءة الحالي.';
+
+  let savedAuditId: string | null = null;
+  if (args?.save === true) {
+    const auditId = stableDocId(`audit:${userId}:${scope}:${period?.cycleId || ''}:${safeNow.toISOString().slice(0, 10)}`);
+    savedAuditId = auditId;
+    await adminDb.collection('users').doc(userId).collection('advisorAudits').doc(auditId).set({
+      userId,
+      createdAt: new Date().toISOString(),
+      scope,
+      period,
+      score,
+      status,
+      counts,
+      message,
+      findings: findings.slice(0, 50),
+      partial: Boolean(transactionReadPartial || (commitmentsSnap as any).partial || (savingsSnap as any).partial || (notificationsSnap as any).partial),
+    }, { merge: true });
+  }
+
+  if (args?.persistAlerts === true) {
+    for (const finding of findings.filter((f: any) => ['critical', 'warning'].includes(f.severity)).slice(0, 10)) {
+      await addNotification(userId, `🧾 المدقق المالي: ${finding.title} — ${finding.message}`, 'warning', adminDb, {
+        idempotencyKey: `advisor-audit:${period?.cycleId || scope}:${finding.id}`,
+        advisorAlert: true,
+        advisorStatus: 'open',
+        severity: finding.severity,
+        priority: finding.severity === 'critical' ? 'high' : 'medium',
+        category: `audit_${finding.category}`,
+        source: 'runFinancialAudit',
+        metadata: { auditId: savedAuditId, finding },
+        actions: [
+          { id: 'review_finding', label: 'راجع الملاحظة', type: 'review' },
+          { id: 'resolve', label: 'تم التعامل', type: 'resolve' },
+          { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+        ],
+      });
+    }
+  }
+
+  return {
+    success: true,
+    score,
+    status,
+    message,
+    counts,
+    findings: findings.slice(0, Math.max(1, Math.min(50, Number(args?.findingLimit) || 20))),
+    savedAuditId,
+    scope: { type: scope, period, transactionReadSource, transactionLimit: limit, notificationLimit },
+    summary: {
+      transactions: transactions.length,
+      expenses: expenses.length,
+      incomes: incomes.length,
+      commitments: commitments.length,
+      savingsGoals: activeGoals.length,
+      openCriticalAlerts: openCriticalAlerts.length,
+    },
+    partial: Boolean(transactionReadPartial || (commitmentsSnap as any).partial || (savingsSnap as any).partial || (notificationsSnap as any).partial),
+    readEfficiency: {
+      transactionDocsRead: transactions.length,
+      transactionLimit: limit,
+      transactionReadSource,
+      queryStats,
+      commitmentDocsRead: commitments.length,
+      savingsGoalDocsRead: savingsGoals.length,
+      notificationDocsRead: notifications.length,
+      notificationLimit,
+    },
+  };
+}
+
 export async function updateTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: updateTransaction", args);
