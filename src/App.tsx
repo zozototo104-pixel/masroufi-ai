@@ -2480,6 +2480,54 @@ export default function App() {
             </div>
           )}
 
+          {marketWatchlist.length > 0 && (
+            <div className="bg-slate-900 border border-fuchsia-500/25 rounded-3xl p-5 shadow-xl">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-fuchsia-300" />
+                  مراقب السوق والمشتريات
+                </h3>
+                <button onClick={handleReviewMarketWatchlist} disabled={isMarketWatchReviewing} className="px-2.5 py-1 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/25 text-fuchsia-200 text-[10px] font-bold disabled:opacity-50">
+                  {isMarketWatchReviewing ? 'يراجع...' : 'راجع الأسعار'}
+                </button>
+              </div>
+              <div className="space-y-3">
+                {marketWatchlist.slice(0, 3).map((item: any) => {
+                  const decision = String(item.lastEvaluation?.decision || 'WATCH');
+                  const severity = String(item.lastEvaluation?.severity || 'info');
+                  return (
+                    <div key={item.id} className={`rounded-2xl p-3 border ${
+                      severity === 'critical'
+                        ? 'bg-rose-950/30 border-rose-500/30'
+                        : severity === 'warning'
+                          ? 'bg-amber-950/20 border-amber-500/25'
+                          : 'bg-slate-950/50 border-slate-800'
+                    }`}>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex-1">
+                          <p className="text-[12px] font-bold text-white">{item.product}{item.model ? ` — ${item.model}` : ''}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            هدف: {Number(item.targetPrice || item.maxBudget || 0).toLocaleString()} ₪
+                            {item.offeredPrice ? ` · معروض: ${Number(item.offeredPrice || 0).toLocaleString()} ₪` : ''}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1 whitespace-nowrap">
+                          {decision === 'BUY_OK' ? 'مناسب' : decision === 'BUY_WITH_CAUTION' ? 'بحذر' : decision.includes('WAIT') ? 'انتظر' : decision === 'NEGOTIATE' ? 'فاوض' : decision === 'VERIFY_TOO_CHEAP' ? 'تحقق' : 'مراقبة'}
+                        </span>
+                      </div>
+                      {item.lastEvaluation?.reasons?.[0] && (
+                        <p className="text-[11px] text-slate-300 leading-5">{item.lastEvaluation.reasons[0]}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {marketWatchlist.length > 3 && (
+                <p className="text-[10px] text-slate-500 mt-3">يوجد {marketWatchlist.length - 3} عنصر إضافي تحت المراقبة.</p>
+              )}
+            </div>
+          )}
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
