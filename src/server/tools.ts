@@ -2307,6 +2307,293 @@ export async function getMonthEndForecasts(args: any, userId: string, token: str
   return { success: true, forecasts, count: forecasts.length, limit, partial: Boolean((snap as any).partial || forecasts.length >= limit), readEfficiency: { advisorMonthEndForecastLimit: limit, docsRead: snap.docs.length } };
 }
 
+function normalizeDailyPulseMode(value: any) {
+  const raw = normalizeArabicText(String(value || 'morning')).toLowerCase();
+  if (/evening|مساء|ليل|نهاية اليوم/.test(raw)) return 'evening';
+  if (/quick|مختصر|سريع/.test(raw)) return 'quick';
+  return 'morning';
+}
+
+function dailyPulsePriorityRank(value: any) {
+  const raw = String(value || 'medium').toLowerCase();
+  if (raw === 'critical') return 4;
+  if (raw === 'high') return 3;
+  if (raw === 'medium') return 2;
+  if (raw === 'low') return 1;
+  return 0;
+}
+
+function addDailyPulseTask(tasks: any[], task: any) {
+  const id = task.id || stableDocId(`daily-pulse-task:${task.type}:${task.title}:${task.suggestedAmount || 0}`);
+  if (tasks.some((item: any) => item.id === id)) return;
+  tasks.push({
+    id,
+    type: task.type || 'review',
+    title: task.title || 'مهمة مالية لليوم',
+    message: task.message || '',
+    priority: task.priority || 'medium',
+    severity: task.severity || 'info',
+    suggestedAmount: roundMoney(parsePositiveFinancialAmount(task.suggestedAmount)),
+    source: task.source || 'daily_financial_pulse',
+    relatedIds: Array.isArray(task.relatedIds) ? task.relatedIds.slice(0, 20) : [],
+    evidence: task.evidence || {},
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function normalizeDailyPulseStatus(input: any) {
+  const safeDecision = String(input.safeDecision || '').toLowerCase();
+  const forecastStatus = String(input.forecastStatus || '').toLowerCase();
+  const criticalAlertCount = Number(input.criticalAlertCount || 0);
+  if (criticalAlertCount > 0 || ['critical', 'danger'].includes(safeDecision) || forecastStatus === 'month_end_deficit') return 'daily_block';
+  if (safeDecision === 'warning' || forecastStatus === 'month_end_pressure' || Number(input.warningTaskCount || 0) >= 2) return 'daily_caution';
+  if (forecastStatus === 'month_end_surplus' && Number(input.safeToSpendToday || 0) >= 50) return 'daily_growth';
+  return 'daily_ok';
+}
+
+function buildDailyPulseHeadline(status: string, data: any) {
+  if (status === 'daily_block') return `اليوم ممنوع الصرف الكمالي. ابدأ بتغطية الخطر الأعلى قبل أي شراء.`;
+  if (status === 'daily_caution') return `اليوم يحتاج ضبط: سقفك الآمن ${data.safeToSpendToday || 0} ₪ ولا تتجاوز خطة التصحيح.`;
+  if (status === 'daily_growth') return `اليوم وضعك يسمح بتحسين صغير: حافظ على السقف وحوّل جزءاً مناسباً لهدف أو دين.`;
+  return `اليوم مستقر: سقفك الآمن ${data.safeToSpendToday || 0} ₪ مع متابعة الالتزامات القريبة.`;
+}
+
+function buildDailyDoNotSpendList(habitWarnings: any[], weeklyActions: any[], profile: any) {
+  const restricted = normalizeTreasurerStringList(profile.restrictedCategories || []).map((c: string) => ({ category: c, reason: 'هذا بند مقيّد في ملف أمين الصندوق.' }));
+  const fromHabits = habitWarnings.slice(0, 4).map((insight: any) => {
+    const title = String(insight.title || insight.type || 'مصروف مرتفع');
+    return { category: title.replace(/^ارتفاع بند\s*/i, '').trim(), reason: insight.message || 'ظهر نمط صرف مرتفع في هذا البند.' };
+  });
+  const fromWeekly = weeklyActions
+    .filter((a: any) => ['stop', 'reduce'].includes(a.type))
+    .slice(0, 4)
+    .map((a: any) => ({ category: a.title || 'صرف كمالي', reason: a.message || 'الخطة الأسبوعية تقترح إيقافه أو تخفيضه.' }));
+  const merged: any[] = [];
+  for (const item of [...restricted, ...fromHabits, ...fromWeekly]) {
+    const category = String(item.category || '').trim();
+    if (!category || merged.some((m: any) => normalizeArabicText(m.category).toLowerCase() === normalizeArabicText(category).toLowerCase())) continue;
+    merged.push({ category, reason: item.reason });
+  }
+  return merged.slice(0, 6);
+}
+
+export async function generateDailyFinancialPulse(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const pulseMode = normalizeDailyPulseMode(args?.mode || args?.tone);
+  const todayKey = safeNow.toISOString().slice(0, 10);
+  const [profileResult, safe, habits, weeklyPlan, monthEndForecast, recurringReview, alertsResult] = await Promise.all([
+    getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) })),
+    getSafeSpendingLimit({ period: 'today', now: safeNow.toISOString() }, userId, token).catch((e: any) => ({ success: false, decision: 'unknown', safeSpending: {}, breakdown: {}, partial: true, error: e?.message || String(e) })),
+    analyzeFinancialHabits({ period: 'last_7_days', insightLimit: 6, limit: Math.max(150, Math.min(700, Number(args?.transactionLimit) || 500)) }, userId, token).catch((e: any) => ({ success: false, insights: [], current: {}, partial: true, error: e?.message || String(e) })),
+    generateWeeklyFinancialRecommendations({ focus: 'weekly', habitPeriod: 'last_14_days', transactionLimit: Math.max(150, Math.min(700, Number(args?.transactionLimit) || 500)) }, userId, token).catch((e: any) => ({ success: false, actions: [], summary: {}, partial: true, error: e?.message || String(e) })),
+    forecastMonthEndFinancialPosition({ horizon: 'salary_cycle', transactionLimit: Math.max(150, Math.min(900, Number(args?.transactionLimit) || 700)) }, userId, token).catch((e: any) => ({ success: false, status: 'unknown', forecast: {}, correctionPlan: { actions: [] }, partial: true, error: e?.message || String(e) })),
+    reviewRecurringCommitments({ lookAheadDays: 2, limit: 150 }, userId, token).catch((e: any) => ({ success: false, dueSoon: [], overdue: [], partial: true, error: e?.message || String(e) })),
+    getAdvisorAlerts({ limit: 20 }, userId, token).catch((e: any) => ({ success: false, alerts: [], partial: true, error: e?.message || String(e) })),
+  ]);
+
+  const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
+  const safeSpending = (safe as any).safeSpending || {};
+  const safeBreakdown = (safe as any).breakdown || {};
+  const safeToSpendToday = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendToday));
+  const safeToSpendThisWeek = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendThisWeek));
+  const requiredRecovery = roundMoney(Math.max(
+    parsePositiveFinancialAmount(safeSpending.deficitToProtected),
+    parsePositiveFinancialAmount(safeSpending.cashFlowGap),
+    parsePositiveFinancialAmount((monthEndForecast as any).forecast?.requiredRecovery),
+    parsePositiveFinancialAmount((weeklyPlan as any).summary?.requiredRecovery)
+  ));
+  const recurringDueSoon = Array.isArray((recurringReview as any).dueSoon) ? (recurringReview as any).dueSoon : [];
+  const recurringOverdue = Array.isArray((recurringReview as any).overdue) ? (recurringReview as any).overdue : [];
+  const habitWarnings = Array.isArray((habits as any).insights) ? (habits as any).insights.filter((i: any) => i.severity === 'warning') : [];
+  const weeklyActions = Array.isArray((weeklyPlan as any).actions) ? (weeklyPlan as any).actions : [];
+  const monthEndActions = Array.isArray((monthEndForecast as any).correctionPlan?.actions) ? (monthEndForecast as any).correctionPlan.actions : [];
+  const openAlerts = Array.isArray((alertsResult as any).alerts) ? (alertsResult as any).alerts.filter((a: any) => normalizeAdvisorAlertStatus(a.advisorStatus) === 'open') : [];
+  const criticalAlerts = openAlerts.filter((a: any) => String(a.severity || '').toLowerCase() === 'critical');
+  const tasks: any[] = [];
+
+  if (requiredRecovery > 0) {
+    addDailyPulseTask(tasks, {
+      id: 'daily_recover_gap',
+      type: 'recover_gap',
+      priority: 'critical',
+      severity: 'critical',
+      title: 'لا تصرف كماليات قبل تعويض الفجوة',
+      message: `تحتاج تعويض ${requiredRecovery} ₪ تقريباً لحماية الالتزامات والاحتياطي قبل نهاية الفترة.`,
+      suggestedAmount: requiredRecovery,
+      source: 'safe_spending_and_forecast',
+      evidence: { safeDecision: (safe as any).decision, forecastStatus: (monthEndForecast as any).status },
+    });
+  }
+  if (safeToSpendToday >= 0) {
+    addDailyPulseTask(tasks, {
+      id: 'daily_safe_spending_cap',
+      type: 'daily_cap',
+      priority: safeToSpendToday <= 20 ? 'high' : 'medium',
+      severity: safeToSpendToday <= 20 ? 'warning' : 'info',
+      title: 'التزم بسقف اليوم',
+      message: `سقفك الآمن اليوم ${safeToSpendToday} ₪${safeToSpendThisWeek ? `، والأسبوع ${safeToSpendThisWeek} ₪` : ''}.`,
+      suggestedAmount: safeToSpendToday,
+      source: 'safe_spending_limit',
+      evidence: { safeSpending, safeBreakdown },
+    });
+  }
+  for (const commitment of [...recurringOverdue, ...recurringDueSoon].slice(0, 4)) {
+    const dueKey = auditDateKey(commitment.dueDate);
+    const isOverdue = dueKey && dueKey < todayKey;
+    addDailyPulseTask(tasks, {
+      id: `daily_commitment_${commitment.id || stableDocId(`${commitment.title}:${dueKey}`)}`,
+      type: 'commitment_reminder',
+      priority: isOverdue ? 'critical' : 'high',
+      severity: isOverdue ? 'critical' : 'warning',
+      title: isOverdue ? `التزام متأخر: ${commitment.title || 'التزام'}` : `استحقاق قريب: ${commitment.title || 'التزام'}`,
+      message: `قيمته ${commitment.amount || 0} ₪ وموعده ${dueKey || 'قريب'}.`,
+      suggestedAmount: parsePositiveFinancialAmount(commitment.amount),
+      source: 'recurring_commitments',
+      relatedIds: [commitment.id].filter(Boolean),
+      evidence: { commitment },
+    });
+  }
+  for (const action of [...monthEndActions, ...weeklyActions].filter((a: any) => ['critical', 'high'].includes(String(a.priority || '').toLowerCase())).slice(0, 5)) {
+    addDailyPulseTask(tasks, {
+      id: `daily_action_${action.id || stableDocId(action.title || action.message || 'action')}`,
+      type: action.type || 'advisor_action',
+      priority: action.priority || 'high',
+      severity: action.severity || (action.priority === 'critical' ? 'critical' : 'warning'),
+      title: action.title || 'نفّذ توصية الخبير',
+      message: action.message || '',
+      suggestedAmount: action.suggestedAmount,
+      source: action.source || 'weekly_or_month_end_plan',
+      relatedIds: action.relatedIds || [],
+      evidence: action.evidence || action,
+    });
+  }
+  for (const insight of habitWarnings.slice(0, 3)) {
+    addDailyPulseTask(tasks, {
+      id: `daily_habit_${insight.key || stableDocId(insight.title || insight.message || 'habit')}`,
+      type: 'habit_guardrail',
+      priority: 'medium',
+      severity: 'warning',
+      title: insight.type === 'small_purchase_accumulation' ? 'امنع المصاريف الصغيرة اليوم' : insight.title,
+      message: insight.message,
+      suggestedAmount: parsePositiveFinancialAmount(insight.evidence?.currentTotal || insight.evidence?.smallPurchases?.total) * 0.2,
+      source: 'financial_habits',
+      relatedIds: insight.evidence?.sampleIds || insight.evidence?.smallPurchases?.sampleIds || [],
+      evidence: insight,
+    });
+  }
+  if (criticalAlerts.length) {
+    addDailyPulseTask(tasks, {
+      id: 'daily_review_critical_alerts',
+      type: 'review_alerts',
+      priority: 'critical',
+      severity: 'critical',
+      title: 'راجع التنبيهات الحرجة قبل أي صرف',
+      message: `يوجد ${criticalAlerts.length} تنبيه حرج مفتوح يحتاج قراراً اليوم.`,
+      source: 'advisor_alerts',
+      relatedIds: criticalAlerts.map((a: any) => a.id).filter(Boolean),
+      evidence: { alerts: criticalAlerts.slice(0, 5) },
+    });
+  }
+
+  const sortedTasks = tasks.sort((a: any, b: any) => dailyPulsePriorityRank(b.priority) - dailyPulsePriorityRank(a.priority) || parsePositiveFinancialAmount(b.suggestedAmount) - parsePositiveFinancialAmount(a.suggestedAmount)).slice(0, 10);
+  const warningTaskCount = sortedTasks.filter((t: any) => ['critical', 'warning'].includes(t.severity)).length;
+  const status = normalizeDailyPulseStatus({
+    safeDecision: (safe as any).decision,
+    forecastStatus: (monthEndForecast as any).status,
+    criticalAlertCount: criticalAlerts.length,
+    warningTaskCount,
+    safeToSpendToday,
+  });
+  const score = Math.max(0, Math.min(100, 100 - criticalAlerts.length * 20 - sortedTasks.filter((t: any) => t.severity === 'critical').length * 18 - sortedTasks.filter((t: any) => t.severity === 'warning').length * 8 - (requiredRecovery > 0 ? 15 : 0)));
+  const doNotSpend = buildDailyDoNotSpendList(habitWarnings, weeklyActions, profile);
+  const biggestRisk = sortedTasks.find((t: any) => t.severity === 'critical') || sortedTasks.find((t: any) => t.severity === 'warning') || sortedTasks[0] || null;
+  const topReminder = recurringOverdue[0]
+    ? `لديك التزام متأخر: ${recurringOverdue[0].title || 'التزام'} بقيمة ${recurringOverdue[0].amount || 0} ₪.`
+    : recurringDueSoon[0]
+      ? `استحقاق قريب: ${recurringDueSoon[0].title || 'التزام'} بقيمة ${recurringDueSoon[0].amount || 0} ₪.`
+      : (profileResult as any).completeness?.nextPrompt || 'راجع سقف اليوم قبل أي شراء جديد.';
+  const result: any = {
+    success: true,
+    date: todayKey,
+    mode: pulseMode,
+    status,
+    score,
+    headline: buildDailyPulseHeadline(status, { safeToSpendToday }),
+    summary: {
+      safeToSpendToday,
+      safeToSpendThisWeek,
+      requiredRecovery,
+      monthEndStatus: (monthEndForecast as any).status,
+      monthEndFreeCash: (monthEndForecast as any).forecast?.projectedFreeCashAfterReserve,
+      weeklyStatus: (weeklyPlan as any).status,
+      habitStatus: (habits as any).status,
+      criticalAlertCount: criticalAlerts.length,
+      dueSoonCount: recurringDueSoon.length,
+      overdueCount: recurringOverdue.length,
+    },
+    biggestRisk,
+    topReminder,
+    doNotSpend,
+    tasks: sortedTasks,
+    recommendations: sortedTasks.slice(0, 5).map((t: any) => t.message || t.title).filter(Boolean),
+    profileCompleteness: (profileResult as any).completeness,
+    sources: {
+      safeSpending: { decision: (safe as any).decision, partial: Boolean((safe as any).partial) },
+      habits: { status: (habits as any).status, score: (habits as any).score, partial: Boolean((habits as any).partial) },
+      weeklyPlan: { status: (weeklyPlan as any).status, actionCount: weeklyActions.length, partial: Boolean((weeklyPlan as any).partial) },
+      monthEndForecast: { status: (monthEndForecast as any).status, confidence: (monthEndForecast as any).confidence, partial: Boolean((monthEndForecast as any).partial) },
+      recurring: { dueSoon: recurringDueSoon.length, overdue: recurringOverdue.length, partial: Boolean((recurringReview as any).partial) },
+      alerts: { open: openAlerts.length, critical: criticalAlerts.length, partial: Boolean((alertsResult as any).partial) },
+    },
+    partial: Boolean((safe as any).partial || (habits as any).partial || (weeklyPlan as any).partial || (monthEndForecast as any).partial || (recurringReview as any).partial || (alertsResult as any).partial),
+    readEfficiency: {
+      habitDocsRead: (habits as any).readEfficiency?.transactionDocsRead,
+      weeklyPlanHabitDocsRead: (weeklyPlan as any).readEfficiency?.habitDocsRead,
+      forecastHabitDocsRead: (monthEndForecast as any).readEfficiency?.habitDocsRead,
+      recurringCommitmentDocsRead: (recurringReview as any).readEfficiency?.commitmentDocsRead,
+    },
+  };
+
+  if (parseBooleanLike(args?.save)) {
+    const pulseId = stableDocId(`daily-pulse:${userId}:${todayKey}:${pulseMode}`);
+    await adminDb.collection('users').doc(userId).collection('advisorDailyPulses').doc(pulseId).set({ userId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...result }, { merge: true });
+    result.savedPulseId = pulseId;
+  }
+
+  if (parseBooleanLike(args?.persistAlerts) && ['daily_block', 'daily_caution'].includes(status)) {
+    await addNotification(userId, `☀️ نبض اليوم: ${result.headline}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-daily-pulse:${stableDocId(`${userId}:${todayKey}:${pulseMode}:${status}`)}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity: status === 'daily_block' ? 'critical' : 'warning',
+      priority: status === 'daily_block' ? 'high' : 'medium',
+      category: 'daily_financial_pulse',
+      source: 'generateDailyFinancialPulse',
+      metadata: { date: todayKey, status, summary: result.summary, biggestRisk },
+      actions: [
+        { id: 'follow_daily_tasks', label: 'اتبع أوامر اليوم', type: 'behavior' },
+        { id: 'review_daily_risk', label: 'راجع الخطر الأكبر', type: 'review' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return result;
+}
+
+export async function getDailyFinancialPulses(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(50, Number(args?.limit) || 10));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorDailyPulses')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const pulses = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, pulses, count: pulses.length, limit, partial: Boolean((snap as any).partial || pulses.length >= limit), readEfficiency: { advisorDailyPulseLimit: limit, docsRead: snap.docs.length } };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
