@@ -2975,6 +2975,20 @@ export default function App() {
                   <p className="text-lg font-black text-white">{Number(advisorPulse.pulse.safeToSpendUntilSalaryCycleEnd || 0).toLocaleString()} ₪</p>
                 </div>
               </div>
+              {advisorPulse?.breakdown && (
+                <div className="bg-black/20 border border-white/10 rounded-2xl p-3 mb-3">
+                  <p className="text-[11px] font-bold text-emerald-100 mb-2">تفصيل السقف الآمن</p>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 mb-2">
+                    <div className="flex justify-between gap-2"><span>السيولة الحالية</span><b className="text-white">{Number(advisorPulse.breakdown.liquidTotal || 0).toLocaleString()} ₪</b></div>
+                    <div className="flex justify-between gap-2"><span>المحجوز فعليًا</span><b className="text-white">{Number(advisorPulse.breakdown.protectedTotal || 0).toLocaleString()} ₪</b></div>
+                    <div className="flex justify-between gap-2"><span>التزامات غير مدفوعة</span><b className="text-white">{Number(advisorPulse.breakdown.dueCommitments || 0).toLocaleString()} ₪</b></div>
+                    <div className="flex justify-between gap-2"><span>الحد الحرج</span><b className="text-white">{Number(advisorPulse.breakdown.reserveTarget || 0).toLocaleString()} ₪</b></div>
+                    <div className="flex justify-between gap-2"><span>أهداف نشطة</span><b className="text-white">{Number(advisorPulse.breakdown.savingsRequiredThisPeriod || 0).toLocaleString()} ₪</b></div>
+                    <div className="flex justify-between gap-2"><span>أيام متبقية</span><b className="text-white">{Number(advisorPulse.safeSpending?.spendingPaceDays || advisorPulse.breakdown.spendingPaceDays || 0).toLocaleString()}</b></div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-5">السقف = السيولة - الالتزامات غير المدفوعة - الحد الحرج الذي أدخلته - أهداف الادخار النشطة. متوسط الصرف للتوقع والتحذير فقط وليس مبلغًا محجوزًا.</p>
+                </div>
+              )}
               {advisorPulse.pulse.warnings?.[0] && (
                 <div className="bg-black/20 border border-white/10 rounded-2xl p-3 flex gap-2 items-start">
                   <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
