@@ -8207,6 +8207,32 @@ export const functionDeclarations = [
     }, required: ["amount"] }
   },
   {
+    name: "simulate_financial_scenario",
+    description: "يحاكي سيناريو مالي افتراضي بدون تسجيل أي عملية: لو صرفت/دخلت/سددت/ادخرت مبلغاً، ماذا يحدث للرصيد المتوقع، الحد الآمن، الأهداف، وخطة التعويض حتى نهاية دورة الراتب أو أفق محدد. استخدمه لأسئلة: لو صرفت كذا؟ لو اشتريت؟ لو وفرت؟ شو يصير آخر الشهر؟",
+    parameters: { type: "object", properties: {
+      amount: { type: "number", description: "قيمة السيناريو" },
+      type: { type: "string", description: "expense أو income أو debt_payment أو savings_contribution أو transfer" },
+      category: { type: "string", description: "البند أو التصنيف" },
+      item: { type: "string", description: "اسم السلعة أو الغرض" },
+      product: { type: "string", description: "اسم المنتج إذا كان شراء" },
+      necessity: { type: "string", description: "ضروري أو كمالي" },
+      frequency: { type: "string", description: "once أو daily أو weekly أو monthly" },
+      occurrences: { type: "number", description: "عدد مرات تكرار السيناريو إن كان معروفاً" },
+      horizon: { type: "string", description: "salary_cycle أو today أو week أو next_30_days" },
+      horizonDays: { type: "number", description: "أفق مخصص بالأيام" },
+      save: { type: "boolean", description: "حفظ السيناريو في advisorScenarios" },
+      persistAlert: { type: "boolean", description: "تحويل السيناريو الخطر إلى تنبيه دائم" },
+      riskConfirmed: { type: "boolean", description: "تأكيد المستخدم للمخاطرة إن قرر المتابعة" }
+    }, required: ["amount"] }
+  },
+  {
+    name: "get_financial_scenarios",
+    description: "يعرض آخر السيناريوهات المالية المحفوظة للمستخدم من advisorScenarios.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد السيناريوهات، بحد أقصى 50" }
+    } }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
