@@ -294,6 +294,7 @@ test('TREASURER-10: goal impact engine protects financial goals before major spe
   assert.ok(tools.includes('assess_financial_goal_impact: assessFinancialGoalImpact'), 'goal impact tool must be registered in handlers');
   assert.ok(tools.includes('name: "assess_financial_goal_impact"'), 'goal impact tool must be exposed to Gemini');
   assert.ok(tools.includes('estimateGoalDelayDays'), 'goal impact must estimate delay days');
+  assert.ok(tools.includes('shouldEstimateGeneralGoalDelay'), 'goal impact must avoid overstating unmeasured general goal delays');
   assert.ok(tools.includes('GOAL_AT_RISK'), 'goal impact must produce a blocking goal-risk decision');
   assert.ok(tools.includes('FINANCIAL_GOAL_IMPACT_RISK'), 'add_transaction must stop goal-damaging expenses before commit');
   assert.ok(tools.includes('advisor-goal-impact-block'), 'blocked goal-impact expenses must become advisor alerts');
