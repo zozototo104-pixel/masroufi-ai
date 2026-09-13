@@ -1293,6 +1293,40 @@ export default function App() {
     }
   };
 
+  const handleAnalyzeFinancialHabits = async () => {
+    if (!idToken || isFinancialHabitsAnalyzing) return;
+    setIsFinancialHabitsAnalyzing(true);
+    try {
+      const res = await fetch('/api/advisor/habits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ period: 'last_30_days', save: true, persistAlerts: true, insightLimit: 8 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to analyze financial habits');
+      const reportsRes = await fetch('/api/advisor/habits?limit=8', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const reportsPayload = await reportsRes.json().catch(() => ({}));
+      const nextReports = reportsRes.ok && reportsPayload?.success !== false && Array.isArray(reportsPayload.reports)
+        ? reportsPayload.reports
+        : [data, ...financialHabitReports.filter((r: any) => r.id !== data.savedReportId && r.savedReportId !== data.savedReportId)].slice(0, 8);
+      setFinancialHabitReports(nextReports);
+      await idbSet('lkgs_financial_habit_reports', nextReports);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+      setNotifications(prev => [...prev, { id: `habits-analyzed-${Date.now()}`, type: data.status === 'habit_risk' ? 'warning' : 'success', message: data.message || 'تم تحليل عادات الصرف.' }]);
+    } catch (err) {
+      console.warn('Financial habits analysis failed:', err);
+      setNotifications(prev => [...prev, { id: `habits-analyze-failed-${Date.now()}`, type: 'warning', message: 'تعذر تحليل عادات الصرف الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsFinancialHabitsAnalyzing(false);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
