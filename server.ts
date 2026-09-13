@@ -2084,6 +2084,28 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/advisor/scenario", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { simulateFinancialScenario } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await simulateFinancialScenario(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor scenario simulation error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/advisor/scenarios", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getFinancialScenarios } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getFinancialScenarios(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor scenarios error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/advisor/market-watchlist", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketWatchlist } = await import('./src/server/tools');
