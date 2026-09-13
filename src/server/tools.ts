@@ -240,7 +240,19 @@ async function addNotification(
   message: string,
   type: string = 'success',
   adminDb?: any,
-  options: { idempotencyKey?: string; transactionId?: string; operationId?: string; metadata?: any } = {}
+  options: {
+    idempotencyKey?: string;
+    transactionId?: string;
+    operationId?: string;
+    metadata?: any;
+    advisorAlert?: boolean;
+    advisorStatus?: string;
+    severity?: string;
+    priority?: string;
+    category?: string;
+    source?: string;
+    actions?: any[];
+  } = {}
 ) {
   if (!adminDb) return;
   try {
