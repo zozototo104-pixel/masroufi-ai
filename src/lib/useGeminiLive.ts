@@ -239,6 +239,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
       pendingMicFramesRef.current = [];
       clientAudioAckSentRef.current = false;
       sentAudioFramesRef.current = 0;
+      voicedAudioFramesRef.current = 0;
+      speechDetectedRef.current = false;
+      firstSpeechAtRef.current = null;
       receivedAudioFramesRef.current = 0;
       lastReceivedAudioAtRef.current = null;
       playbackUnderrunsRef.current = 0;
