@@ -1993,7 +1993,7 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   const adjustableSum = adjustable.reduce((sum: number, p: any) => sum + p.proposedLimit, 0);
   const adjustableEnvelope = Math.max(0, targetEnvelope - protectedSum);
   const envelopeScale = adjustableSum > 0 && adjustableEnvelope > 0 && protectedSum + adjustableSum > targetEnvelope ? Math.max(0.35, Math.min(1, adjustableEnvelope / adjustableSum)) : 1;
-  const proposals = rawProposals.map((p: any) => {
+  const preliminaryProposals = rawProposals.map((p: any) => {
     const scaledLimit = protectedKinds.has(p.kind) ? p.proposedLimit : roundBudgetLimit(p.proposedLimit * envelopeScale);
     const proposedLimit = Math.max(p.kind === 'restricted' || p.kind === 'discretionary' ? 30 : 50, scaledLimit);
     const change = roundMoney(proposedLimit - p.currentLimit);
@@ -2011,11 +2011,25 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     const rank: any = { protected: 4, essential: 3, restricted: 2, discretionary: 1, flexible: 0 };
     return rank[b.kind] - rank[a.kind] || Math.abs(b.change) - Math.abs(a.change);
   });
-
+  const incomeFit = fitAdaptiveBudgetProposalsToIncomeEnvelope(preliminaryProposals, targetEnvelope, referenceMonthlyIncome);
+  const proposals = incomeFit.proposals;
   const totalProposed = roundMoney(proposals.reduce((sum: number, p: any) => sum + p.proposedLimit, 0));
   const totalChange = roundMoney(totalProposed - currentTotalBudget);
   const decreasedCategories = proposals.filter((p: any) => p.action === 'decrease');
   const increasedCategories = proposals.filter((p: any) => p.action === 'increase');
+  const incomeGuard = {
+    salaryFromProfile,
+    incomeFromCurrentSalaryCycle,
+    referenceMonthlyIncome,
+    missingIncome: missingIncomeProfile,
+    usingDefaultBudgetTemplate,
+    protectedClaims,
+    salaryEnvelope,
+    capApplied: incomeFit.capApplied,
+    preCapTotal: incomeFit.preCapTotal,
+    fittedTotal: incomeFit.fittedTotal,
+    unableToFitIncome: incomeFit.unableToFitIncome || (salary > 0 && protectedClaims > salary),
+  };
   const result: any = {
     success: true,
     mode,
