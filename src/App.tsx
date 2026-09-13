@@ -1533,6 +1533,40 @@ export default function App() {
     }
   };
 
+  const handleGenerateDailyFinancialPulse = async () => {
+    if (!idToken || isDailyPulseGenerating) return;
+    setIsDailyPulseGenerating(true);
+    try {
+      const res = await fetch('/api/advisor/daily-pulse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ mode: 'morning', save: true, persistAlerts: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to generate daily financial pulse');
+      const pulsesRes = await fetch('/api/advisor/daily-pulse?limit=8', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const pulsesPayload = await pulsesRes.json().catch(() => ({}));
+      const nextPulses = pulsesRes.ok && pulsesPayload?.success !== false && Array.isArray(pulsesPayload.pulses)
+        ? pulsesPayload.pulses
+        : [data, ...dailyFinancialPulses.filter((p: any) => p.id !== data.savedPulseId && p.savedPulseId !== data.savedPulseId)].slice(0, 8);
+      setDailyFinancialPulses(nextPulses);
+      await idbSet('lkgs_daily_financial_pulses', nextPulses);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+      setNotifications(prev => [...prev, { id: `daily-pulse-generated-${Date.now()}`, type: data.status === 'daily_block' || data.status === 'daily_caution' ? 'warning' : 'success', message: data.headline || 'تم توليد نبض اليوم.' }]);
+    } catch (err) {
+      console.warn('Daily financial pulse failed:', err);
+      setNotifications(prev => [...prev, { id: `daily-pulse-failed-${Date.now()}`, type: 'warning', message: 'تعذر توليد نبض اليوم الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsDailyPulseGenerating(false);
+    }
+  };
+
   const handleApplyAdaptiveBudgetPlan = async (plan: any) => {
     if (!idToken || !plan) return;
     try {
