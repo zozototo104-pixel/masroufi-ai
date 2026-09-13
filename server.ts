@@ -1214,10 +1214,11 @@ function mergePendingFinancialClarificationIntoToolCall(
   if (!patch) return { name: callName, args: toolArgs, merged: false };
   const nextName = patch.convertToTool || pending.name;
   const { convertToTool, ...actualPatch } = patch;
+  const pendingArgs = sanitizePendingFinancialArgs(pending.args || {});
   const mergedArgs = {
-    ...pending.args,
+    ...pendingArgs,
     ...actualPatch,
-    userText: pending.args.userText || pending.args.currentUserText || '',
+    userText: pendingArgs.userText || pendingArgs.currentUserText || '',
     currentUserText: syntheticAnswer,
     clarificationReplyText: syntheticAnswer,
     clarifiedFromReason: pending.reason,
