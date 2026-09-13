@@ -145,7 +145,27 @@ export async function runIdempotent(
     }
     return { kind: 'cache_hit', cachedResult: claim.result };
   }
-  if (claim.action === 'wait') return { kind: 'cache_hit', cachedResult: await waitForCompletedResult(ref) };
+  if (claim.action === 'wait') {
+    const waitedResult = await waitForCompletedResult(ref);
+    if (allowNonDurableCacheBust
+      && waitedResult?.reason !== 'IDEMPOTENT_OPERATION_IN_FLIGHT'
+      && resultIsSafeToRetryWithoutCaching(waitedResult)) {
+      console.warn('[idempotency] clearing waited non-durable validation result and retrying completed clarification', {
+        operationIdPreview: operationId.slice(0, 80),
+        reason: waitedResult?.reason,
+      });
+      try {
+        await ref.delete();
+        return await runIdempotent(userId, operationId, fn, false);
+      } catch (deleteErr: any) {
+        console.error('[idempotency] failed to clear waited non-durable validation result', {
+          operationIdPreview: operationId.slice(0, 80),
+          deleteError: deleteErr?.message,
+        });
+      }
+    }
+    return { kind: 'cache_hit', cachedResult: waitedResult };
+  }
 
   try {
     const result = await fn();
