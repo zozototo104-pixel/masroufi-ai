@@ -7522,7 +7522,17 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
   if (args.category) {
     const categoryExpenses = expenses.filter(t => t.category === args.category);
     const spent = categoryExpenses.reduce((sum, t) => sum + parsePositiveFinancialAmount(t.amount), 0);
-    const limit = userBudgets[args.category] || DEFAULT_BUDGETS[args.category] || 1000;
+    const limit = Number(userBudgets[args.category] || 0);
+    if (!(limit > 0)) {
+      return {
+        category: args.category,
+        spent,
+        limit: 0,
+        remaining: 0,
+        percentage: null,
+        warning: `لا يوجد حد ميزانية محفوظ لبند ${args.category}. القالب الافتراضي ليس ميزانية فعلية؛ اضبط حدًا للبند أولًا.`
+      };
+    }
     const percentage = Math.round((spent / limit) * 100);
     
     let warning = "الوضع ممتاز وفي نطاق الميزانية";
