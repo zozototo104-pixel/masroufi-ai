@@ -561,6 +561,10 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'safe spending must not reserve commitments that appear already paid by matching current-cycle expenses');
   assert.ok(tools.includes('transactionAnalysisDate') && tools.includes('tx?.localDay') && tools.includes('tx?.dateKey'),
     'habit and recurring engines must understand local transaction date fields, not only date');
+  assert.ok(tools.includes('insufficient_data') && tools.includes('لا توجد مصروفات مقروءة في هذه الفترة'),
+    'habit analysis must not claim stability when no current-period expenses are readable');
+  assert.ok(app.includes("status === 'insufficient_data' ? 'بيانات غير كافية'"),
+    'habit dashboard must display insufficient-data status instead of stable when spending cannot be read');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS'),
     'habit analysis must fall back when date-sorted queries miss localDay-only transactions');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_RECURRING_DETECTION'),
