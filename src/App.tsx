@@ -632,6 +632,7 @@ export default function App() {
       if (cachedAdvisorPulse) setAdvisorPulse(cachedAdvisorPulse);
       if (Array.isArray(cachedAdvisorAlerts)) setAdvisorAlerts(cachedAdvisorAlerts);
       if (cachedAdvisorAudit) setAdvisorAudit(cachedAdvisorAudit);
+      if (Array.isArray(cachedMarketWatchlist)) setMarketWatchlist(cachedMarketWatchlist);
       setNotifications(prev => {
         if (prev.some((n: any) => n.id === 'firestore-quota-exhausted')) return prev;
         return [...prev, { id: 'firestore-quota-exhausted', message: 'انتهت حصة Firestore اليوم. أوقفت التحديثات السحابية مؤقتًا واستخدمت آخر نسخة محفوظة لتجنب استهلاك إضافي.', type: 'warning' }];
