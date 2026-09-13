@@ -1192,7 +1192,7 @@ function summarizeHabitTransactions(transactions: any[], start: Date, end: Date)
     smallPurchases: { total: 0, count: 0, sampleIds: [] as string[] },
   };
   for (const tx of transactions) {
-    const date = auditAsDate(tx.date || tx.createdAt);
+    const date = transactionAnalysisDate(tx);
     if (!date || date < start || date >= end) continue;
     const amount = parsePositiveFinancialAmount(tx.amount);
     if (amount <= 0) continue;
