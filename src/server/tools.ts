@@ -9912,6 +9912,24 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "forecast_month_end_financial_position",
+    description: "يتنبأ بوضع نهاية الشهر أو نهاية دورة الراتب: فائض، توازن، ضغط، أو عجز. يعتمد على السيولة، الالتزامات، الأهداف، نمط الصرف، الحد الآمن، وخطط الميزانية. لا يسجل عملية مالية.",
+    parameters: { type: "object", properties: {
+      horizon: { type: "string", description: "salary_cycle أو calendar_month" },
+      period: { type: "string", description: "مرادف للأفق المطلوب" },
+      transactionLimit: { type: "number", description: "عدد العمليات المقروءة لتحليل النمط" },
+      save: { type: "boolean", description: "حفظ التوقع في advisorMonthEndForecasts" },
+      persistAlerts: { type: "boolean", description: "تحويل توقع الضغط أو العجز إلى تنبيه دائم" }
+    } }
+  },
+  {
+    name: "get_month_end_forecasts",
+    description: "يعرض آخر توقعات نهاية الشهر أو دورة الراتب المحفوظة من advisorMonthEndForecasts.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد التوقعات، بحد أقصى 50" }
+    } }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
