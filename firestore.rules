@@ -144,6 +144,12 @@ service cloud.firestore {
         allow read: if ownsUserPath(userId);
         allow write: if ownsUserPath(userId);
       }
+
+      // Saved adaptive budget plans.
+      match /advisorBudgetPlans/{planId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
     }
 
     // debts collection (legacy recurring items path — kept for backward compatibility,
