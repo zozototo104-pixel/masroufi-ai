@@ -847,6 +847,7 @@ export default function App() {
         setSavingsGoals(finalSavings);
 
         await fetchVaultData(headers);
+        await fetchAdvisorPulseData(headers);
 
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
