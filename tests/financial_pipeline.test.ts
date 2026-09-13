@@ -399,3 +399,35 @@ test('TREASURER-13: financial habit engine detects spending patterns and surface
   assert.ok(app.includes("idbSet('lkgs_financial_habit_reports'"), 'dashboard must cache last-known-good habit reports');
   assert.ok(rules.includes('match /advisorHabitReports/{reportId}'), 'Firestore rules must allow user-scoped habit reports');
 });
+
+test('TREASURER-14: weekly recommendation engine turns financial signals into an actionable plan', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  const rules = await src('firestore.rules');
+  assert.ok(tools.includes('export async function generateWeeklyFinancialRecommendations'), 'weekly recommendation generator must exist');
+  assert.ok(tools.includes('export async function getWeeklyFinancialRecommendations'), 'saved weekly plan reader must exist');
+  assert.ok(tools.includes('buildWeeklyRecommendationMessage'), 'weekly plan must include a user-facing message builder');
+  assert.ok(tools.includes('extractWeeklyActionBuckets'), 'weekly plan must bucket actions by stop/reduce/pay/save');
+  assert.ok(tools.includes("type: 'stop'"), 'weekly plan must support stop recommendations');
+  assert.ok(tools.includes("type: 'reduce'"), 'weekly plan must support reduce recommendations');
+  assert.ok(tools.includes("type: 'pay_debt'"), 'weekly plan must support debt payment recommendations');
+  assert.ok(tools.includes("type: 'save_goal'"), 'weekly plan must support goal transfer recommendations');
+  assert.ok(tools.includes("type: 'pay_commitment'"), 'weekly plan must support commitment payment recommendations');
+  assert.ok(tools.includes('advisorWeeklyPlans'), 'saved weekly plans must be persisted and included in wipe');
+  assert.ok(tools.includes('advisor-weekly-plan'), 'risky weekly plans must become advisor alerts when requested');
+  assert.ok(tools.includes('generate_weekly_financial_recommendations: generateWeeklyFinancialRecommendations'), 'weekly generator must be registered in handlers');
+  assert.ok(tools.includes('get_weekly_financial_recommendations: getWeeklyFinancialRecommendations'), 'weekly plan reader must be registered in handlers');
+  assert.ok(tools.includes('name: "generate_weekly_financial_recommendations"'), 'weekly generator must be exposed to Gemini');
+  assert.ok(tools.includes('name: "get_weekly_financial_recommendations"'), 'weekly reader must be exposed to Gemini');
+  assert.ok(server.includes('app.post("/api/advisor/weekly-plan", authMiddleware'), 'weekly plan generation API must be available behind auth');
+  assert.ok(server.includes('app.get("/api/advisor/weekly-plan", authMiddleware'), 'weekly plan read API must be available behind auth');
+  assert.ok((server.match(/0\.3\.8- \*\*خطة الأسبوع الذكية\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to generate weekly plans');
+  assert.ok(app.includes('const [weeklyFinancialPlans, setWeeklyFinancialPlans]'), 'dashboard must keep weekly plan state');
+  assert.ok(app.includes("fetch('/api/advisor/weekly-plan?limit=8'"), 'dashboard must fetch saved weekly plans');
+  assert.ok(app.includes("fetch('/api/advisor/weekly-plan'"), 'dashboard must generate weekly plans');
+  assert.ok(app.includes('handleGenerateWeeklyFinancialPlan'), 'dashboard must expose a manual weekly plan action');
+  assert.ok(app.includes('خطة الأسبوع الذكية'), 'dashboard must render weekly plan card');
+  assert.ok(app.includes("idbSet('lkgs_weekly_financial_plans'"), 'dashboard must cache last-known-good weekly plans');
+  assert.ok(rules.includes('match /advisorWeeklyPlans/{planId}'), 'Firestore rules must allow user-scoped weekly plans');
+});
