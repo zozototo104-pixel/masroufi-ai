@@ -1123,6 +1123,7 @@ export default function App() {
             await fetchRecurringCommitmentCandidatesData(headers);
             await fetchFinancialHabitReportsData(headers);
             await fetchWeeklyFinancialPlansData(headers);
+            await fetchAdaptiveBudgetPlansData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
