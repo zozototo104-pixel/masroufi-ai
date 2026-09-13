@@ -2193,6 +2193,47 @@ export default function App() {
             <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl -translate-x-10 -translate-y-10"></div>
           </div>
 
+          {advisorPulse?.pulse && (
+            <div className={`border rounded-3xl p-5 shadow-xl ${
+              ['critical', 'danger'].includes(String(advisorPulse.pulse.decision || ''))
+                ? 'bg-rose-950/30 border-rose-500/40'
+                : advisorPulse.pulse.decision === 'warning'
+                  ? 'bg-amber-950/20 border-amber-500/30'
+                  : 'bg-emerald-950/20 border-emerald-500/30'
+            }`}>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-emerald-300" />
+                  نبض أمين الصندوق
+                </h3>
+                <span className="text-[10px] text-slate-400 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                  {advisorPulse?.partial ? 'قراءة جزئية' : 'محدّث'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 leading-6 mb-4">{advisorPulse.pulse.headline}</p>
+              <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-2.5">
+                  <p className="text-[10px] text-slate-400 mb-1">آمن اليوم</p>
+                  <p className="text-lg font-black text-white">{Number(advisorPulse.pulse.safeToSpendToday || 0).toLocaleString()} ₪</p>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-2.5">
+                  <p className="text-[10px] text-slate-400 mb-1">هذا الأسبوع</p>
+                  <p className="text-lg font-black text-white">{Number(advisorPulse.pulse.safeToSpendThisWeek || 0).toLocaleString()} ₪</p>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-2.5">
+                  <p className="text-[10px] text-slate-400 mb-1">حتى نهاية الدورة</p>
+                  <p className="text-lg font-black text-white">{Number(advisorPulse.pulse.safeToSpendUntilSalaryCycleEnd || 0).toLocaleString()} ₪</p>
+                </div>
+              </div>
+              {advisorPulse.pulse.warnings?.[0] && (
+                <div className="bg-black/20 border border-white/10 rounded-2xl p-3 flex gap-2 items-start">
+                  <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-slate-300 leading-5">{advisorPulse.pulse.warnings[0]}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
