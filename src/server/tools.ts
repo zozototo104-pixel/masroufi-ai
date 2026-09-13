@@ -5705,6 +5705,19 @@ export async function runFinancialAudit(args: any, userId: string, token: string
     });
   }
 
+  const monthEndForecast = await forecastMonthEndFinancialPosition({ horizon: 'salary_cycle', transactionLimit: Math.min(limit, 800) }, userId, token).catch((e: any) => ({ success: false, status: 'unknown', error: e?.message || String(e) }));
+  if (['month_end_deficit', 'month_end_pressure'].includes(String((monthEndForecast as any).status || ''))) {
+    addAuditFinding(findings, {
+      severity: (monthEndForecast as any).status === 'month_end_deficit' ? 'critical' : 'warning',
+      category: 'month_end_forecast',
+      title: 'توقع نهاية الشهر يحتاج انتباه',
+      message: (monthEndForecast as any).message || 'توقع نهاية الشهر يشير إلى ضغط أو عجز محتمل.',
+      evidence: { forecast: (monthEndForecast as any).forecast, correctionPlan: (monthEndForecast as any).correctionPlan, confidence: (monthEndForecast as any).confidence },
+      relatedIds: [],
+      recommendedActions: ((monthEndForecast as any).correctionPlan?.actions || []).slice(0, 5).map((a: any) => a.message || a.title).filter(Boolean),
+    });
+  }
+
   const openCriticalAlerts = notifications.filter((n: any) => Boolean(n.advisorAlert) && normalizeAdvisorAlertStatus(n.advisorStatus) === 'open' && String(n.severity || '').toLowerCase() === 'critical');
   if (openCriticalAlerts.length) {
     addAuditFinding(findings, {
