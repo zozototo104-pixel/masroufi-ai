@@ -951,6 +951,9 @@ function sanitizePendingFinancialArgs(args: any): any {
     currentUserText,
     ...safeArgs
   } = args || {};
+  if (!safeArgs.userText && currentUserText) {
+    return { ...safeArgs, userText: currentUserText };
+  }
   return { ...safeArgs };
 }
 
