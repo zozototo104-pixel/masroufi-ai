@@ -3398,15 +3398,15 @@ export async function getUserCustomBudgetDocs(userId: string, adminDb: any): Pro
 }
 
 export async function getUserBudgets(userId: string, adminDb: any): Promise<Record<string, number>> {
-  // V6 (HF-6): NEVER silently swallow errors and return DEFAULT_BUDGETS.
-  // On Firestore error / quota / network, propagate the error so callers can
-  // mark the response as `partial` and refuse to issue budget warnings on stale data.
+  // Return only budgets the user explicitly saved. DEFAULT_BUDGETS is a setup
+  // template, not real income and not an active monthly budget. Treating the
+  // template as active made users with 3k-5k income see a fake 7300 ₪ budget.
   const customDocs = await getUserCustomBudgetDocs(userId, adminDb);
-  const mergedBudgets: Record<string, number> = { ...DEFAULT_BUDGETS };
+  const userBudgets: Record<string, number> = {};
   customDocs.forEach((b) => {
-    if (b.limit) mergedBudgets[b.category || b.id] = Number(b.limit);
+    if (b.limit) userBudgets[b.category || b.id] = Number(b.limit);
   });
-  return mergedBudgets;
+  return userBudgets;
 }
 
 type ExpensePaymentSplit = { account: 'cash' | 'palPay' | 'debt'; amount: number; note?: string };
