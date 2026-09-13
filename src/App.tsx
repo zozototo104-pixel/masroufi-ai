@@ -1473,6 +1473,40 @@ export default function App() {
     }
   };
 
+  const handleForecastMonthEnd = async () => {
+    if (!idToken || isMonthEndForecasting) return;
+    setIsMonthEndForecasting(true);
+    try {
+      const res = await fetch('/api/advisor/month-end-forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ horizon: 'salary_cycle', save: true, persistAlerts: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to forecast month-end financial position');
+      const forecastsRes = await fetch('/api/advisor/month-end-forecast?limit=8', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const forecastsPayload = await forecastsRes.json().catch(() => ({}));
+      const nextForecasts = forecastsRes.ok && forecastsPayload?.success !== false && Array.isArray(forecastsPayload.forecasts)
+        ? forecastsPayload.forecasts
+        : [data, ...monthEndForecasts.filter((f: any) => f.id !== data.savedForecastId && f.savedForecastId !== data.savedForecastId)].slice(0, 8);
+      setMonthEndForecasts(nextForecasts);
+      await idbSet('lkgs_month_end_forecasts', nextForecasts);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+      setNotifications(prev => [...prev, { id: `month-end-forecast-${Date.now()}`, type: data.status === 'month_end_deficit' || data.status === 'month_end_pressure' ? 'warning' : 'success', message: data.message || 'تم توليد توقع نهاية الشهر.' }]);
+    } catch (err) {
+      console.warn('Month-end forecast failed:', err);
+      setNotifications(prev => [...prev, { id: `month-end-forecast-failed-${Date.now()}`, type: 'warning', message: 'تعذر توليد توقع نهاية الشهر الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsMonthEndForecasting(false);
+    }
+  };
+
   const handleApplyAdaptiveBudgetPlan = async (plan: any) => {
     if (!idToken || !plan) return;
     try {
