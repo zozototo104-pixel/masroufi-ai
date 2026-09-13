@@ -743,6 +743,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const explicitPalPayInUserText = /(?:^|[^ء-يa-z0-9])(?:palpay|pal pay|بال باي|البال باي|محفظه|محفظة)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
   const explicitCashInUserText = /(?:^|[^ء-يa-z0-9])(?:كاش|نقد|نقدا|نقدي)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
   const explicitUserPaymentAccount = explicitDebtInUserText ? 'debt' : explicitPalPayInUserText ? 'palPay' : explicitCashInUserText ? 'cash' : '';
+  const structuredUserPaymentAccount = normalizeAccount(args.paymentMethod || args.account || '');
+  const userConfirmedPaymentByClarification = ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
+    && Boolean(args.paymentMethodClarifiedByUser || args.accountClarifiedByUser || args.creditPurchaseClarifiedByUser);
   const mentionsDebt = hasOriginalUserUtterance
     ? explicitDebtInUserText
     : /دين|بالدين|اجل|آجل|على الحساب|credit_purchase|paymentmethod debt|account debt/.test(textToCheck);
