@@ -873,6 +873,246 @@ export async function getMarketDirectory(args: any, userId: string, token: strin
   return { success: true, offers, count: offers.length, limit, partial: Boolean((snap as any).partial || offers.length >= limit) };
 }
 
+function normalizeMarketWatchStatus(value: any) {
+  const raw = String(value || 'watching').toLowerCase();
+  return ['watching', 'paused', 'purchased', 'cancelled', 'archived'].includes(raw) ? raw : 'watching';
+}
+
+function normalizeMarketWatchPriority(value: any) {
+  const raw = String(value || 'medium').toLowerCase();
+  if (['high', 'urgent', 'عالي', 'مهم'].includes(raw)) return 'high';
+  if (['low', 'منخفض'].includes(raw)) return 'low';
+  return 'medium';
+}
+
+function marketWatchReferenceRange(market: any) {
+  const comparison = market?.marketComparison || {};
+  return comparison.gazaRange || comparison.palestineRange || comparison.allRange || comparison.globalRange || market?.priceRange || null;
+}
+
+function buildMarketWatchEvaluation(input: { item: any; market?: any; safe?: any; offeredPrice?: number; targetPrice?: number }) {
+  const item = input.item || {};
+  const offeredPrice = parsePositiveFinancialAmount(input.offeredPrice ?? item.offeredPrice ?? item.price);
+  const targetPrice = parsePositiveFinancialAmount(input.targetPrice ?? item.targetPrice ?? item.maxBudget);
+  const reference = marketWatchReferenceRange(input.market);
+  const referenceMedian = parsePositiveFinancialAmount(reference?.median);
+  const safeUntilHorizon = parsePositiveFinancialAmount(input.safe?.safeSpending?.safeToSpendUntilHorizon);
+  const safeToday = parsePositiveFinancialAmount(input.safe?.safeSpending?.safeToSpendToday);
+  const safeDecision = String(input.safe?.decision || '').toLowerCase();
+  const marketWarnings = Array.isArray(input.market?.marketComparison?.warnings) ? input.market.marketComparison.warnings : [];
+  const reasons: string[] = [];
+  let decision = 'WATCH';
+  let severity = 'info';
+
+  if (['critical', 'danger'].includes(safeDecision)) {
+    decision = 'WAIT_FINANCIAL_RISK';
+    severity = 'critical';
+    reasons.push('الوضع المالي الحالي لا يسمح بقرار شراء آمن قبل حماية الالتزامات والاحتياطي.');
+  }
+  if (offeredPrice > 0 && safeUntilHorizon > 0 && offeredPrice > safeUntilHorizon) {
+    decision = 'WAIT_NOT_AFFORDABLE';
+    severity = 'critical';
+    reasons.push(`السعر المعروض ${offeredPrice} ₪ أعلى من الحد الآمن المتاح حتى نهاية الأفق (${safeUntilHorizon} ₪).`);
+  }
+  if (targetPrice > 0 && offeredPrice > 0 && offeredPrice > targetPrice) {
+    decision = decision.startsWith('WAIT') ? decision : 'NEGOTIATE';
+    severity = severity === 'critical' ? severity : 'warning';
+    reasons.push(`السعر المعروض أعلى من السعر المستهدف ${targetPrice} ₪.`);
+  }
+  if (referenceMedian > 0 && offeredPrice > 0) {
+    const pct = Math.round((offeredPrice - referenceMedian) / referenceMedian * 100);
+    if (pct > 20) {
+      decision = decision.startsWith('WAIT') ? decision : 'WAIT_OVERPRICED';
+      severity = severity === 'critical' ? severity : 'warning';
+      reasons.push(`السعر أعلى من وسيط السوق بحوالي ${pct}%.`);
+    } else if (pct < -15) {
+      decision = decision.startsWith('WAIT') ? decision : 'VERIFY_TOO_CHEAP';
+      severity = severity === 'critical' ? severity : 'warning';
+      reasons.push(`السعر أقل من السوق بحوالي ${Math.abs(pct)}%؛ تحقق من الحالة والضمان.`);
+    }
+  }
+  if (marketWarnings.length) reasons.push(...marketWarnings.slice(0, 3));
+  if (decision === 'WATCH' && offeredPrice > 0 && !reasons.length && (!targetPrice || offeredPrice <= targetPrice) && (!safeUntilHorizon || offeredPrice <= safeUntilHorizon)) {
+    decision = safeDecision === 'warning' ? 'BUY_WITH_CAUTION' : 'BUY_OK';
+    severity = safeDecision === 'warning' ? 'warning' : 'info';
+    reasons.push('السعر لا يكسر السعر المستهدف أو الحد الآمن الحالي حسب البيانات المتاحة.');
+  }
+  if (decision === 'WATCH' && referenceMedian > 0 && targetPrice > 0 && referenceMedian <= targetPrice && (!safeUntilHorizon || targetPrice <= safeUntilHorizon)) {
+    decision = safeDecision === 'warning' ? 'BUY_WITH_CAUTION' : 'BUY_OK';
+    severity = safeDecision === 'warning' ? 'warning' : 'info';
+    reasons.push('وسيط السوق قريب من السعر المستهدف والحد الآمن يسمح مبدئياً.');
+  }
+  if (!reasons.length) reasons.push('لا توجد بيانات كافية لإصدار قرار شراء نهائي؛ استمر بالمراقبة أو أضف سعراً معروضاً.');
+
+  return {
+    decision,
+    severity,
+    reasons,
+    referencePrice: reference ? { min: reference.min, max: reference.max, median: reference.median, currency: reference.currency || 'ILS' } : null,
+    offeredPrice: offeredPrice || null,
+    targetPrice: targetPrice || null,
+    safeToSpendToday: safeToday || 0,
+    safeToSpendUntilHorizon: safeUntilHorizon || 0,
+  };
+}
+
+function compactMarketSnapshot(market: any) {
+  if (!market?.success) return null;
+  const reference = marketWatchReferenceRange(market);
+  return {
+    item: market.item,
+    model: market.model,
+    priceRange: market.priceRange || null,
+    marketComparison: market.marketComparison || null,
+    referencePrice: reference ? { min: reference.min, max: reference.max, median: reference.median, currency: reference.currency || 'ILS' } : null,
+    sourceCount: Array.isArray(market.sources) ? market.sources.length : 0,
+    resultCount: Array.isArray(market.results) ? market.results.length : 0,
+    directoryMatches: market.directoryMatches || 0,
+    marketUnavailable: Boolean(market.marketUnavailable),
+    partial: Boolean(market.partial),
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+export async function createMarketWatchItem(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const product = String(args.product || args.item || '').trim();
+  if (!product) return { success: false, needsClarification: true, reason: 'MISSING_WATCH_PRODUCT', message: 'ما السلعة التي تريد مراقبتها؟' };
+  const now = new Date().toISOString();
+  const targetPrice = parsePositiveFinancialAmount(args.targetPrice || args.maxPrice || args.maxBudget);
+  const offeredPrice = parsePositiveFinancialAmount(args.offeredPrice || args.price);
+  const watchDoc: any = {
+    userId,
+    product,
+    brand: args.brand || '',
+    model: args.model || '',
+    variant: args.variant || '',
+    condition: args.condition || 'unknown',
+    category: args.category || 'مشتريات مراقبة',
+    paymentMethod: normalizeAccount(args.paymentMethod || args.account || 'cash'),
+    targetPrice: targetPrice || null,
+    maxBudget: parsePositiveFinancialAmount(args.maxBudget) || targetPrice || null,
+    offeredPrice: offeredPrice || null,
+    seller: args.seller || args.store || args.shop || '',
+    location: args.location || '',
+    priority: normalizeMarketWatchPriority(args.priority),
+    desiredBy: args.desiredBy || args.dueDate || '',
+    notes: args.notes || '',
+    status: normalizeMarketWatchStatus(args.status || 'watching'),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const shouldCheckMarket = args.runMarketCheck !== false && shouldSearchMarket(product, offeredPrice || targetPrice || undefined) && !isSmallDailyPurchase(product);
+  const market = shouldCheckMarket ? await searchLocalMarket({ item: product, model: watchDoc.model, condition: watchDoc.condition, offeredPrice: offeredPrice || undefined }, userId, token).catch((e: any) => ({ success: false, marketUnavailable: true, message: e?.message || String(e) })) : null;
+  const safe = await getSafeSpendingLimit({ period: 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, message: e?.message || String(e) }));
+  const evaluation = buildMarketWatchEvaluation({ item: watchDoc, market, safe, offeredPrice, targetPrice });
+  watchDoc.lastMarketSnapshot = compactMarketSnapshot(market);
+  watchDoc.lastFinancialSnapshot = safe?.success !== false ? { decision: safe.decision, safeSpending: safe.safeSpending, message: safe.message, checkedAt: now } : null;
+  watchDoc.lastEvaluation = evaluation;
+  watchDoc.lastCheckedAt = now;
+
+  const idSeed = `${userId}:${product}:${watchDoc.model}:${watchDoc.variant}:${watchDoc.condition}:${watchDoc.seller || ''}`;
+  const ref = adminDb.collection('users').doc(userId).collection('marketWatchlist').doc(stableDocId(idSeed));
+  const existing = await ref.get().catch(() => null);
+  await ref.set({ ...(existing?.exists ? { createdAt: existing.data()?.createdAt || now } : {}), ...watchDoc }, { merge: true });
+
+  if (['critical', 'warning'].includes(evaluation.severity)) {
+    await addNotification(userId, `🛒 مراقب السوق: ${product} — ${evaluation.reasons[0]}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-market-watch:${ref.id}:${evaluation.decision}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity: evaluation.severity,
+      priority: evaluation.severity === 'critical' ? 'high' : 'medium',
+      category: 'market_watchlist',
+      source: 'createMarketWatchItem',
+      metadata: { watchItemId: ref.id, product, evaluation },
+      actions: [
+        { id: 'review_market', label: 'راجع السوق', type: 'review' },
+        { id: 'negotiate', label: 'فاوض السعر', type: 'behavior' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return { success: true, id: ref.id, item: { id: ref.id, ...watchDoc }, marketChecked: Boolean(market), evaluation, message: `أضفت ${product} إلى قائمة مراقبة السوق وربطتها بوضعك المالي.` };
+}
+
+export async function getMarketWatchlist(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(100, Number(args?.limit) || 50));
+  const includeClosed = parseBooleanLike(args?.includeClosed);
+  const status = args?.status ? normalizeMarketWatchStatus(args.status) : '';
+  const snap = await adminDb.collection('users').doc(userId).collection('marketWatchlist')
+    .orderBy('updatedAt', 'desc')
+    .limit(limit)
+    .get();
+  let items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  if (status) items = items.filter((item: any) => normalizeMarketWatchStatus(item.status) === status);
+  if (!includeClosed) items = items.filter((item: any) => !['purchased', 'cancelled', 'archived'].includes(normalizeMarketWatchStatus(item.status)));
+  const counts = items.reduce((acc: any, item: any) => {
+    const decision = String(item.lastEvaluation?.decision || 'WATCH');
+    const severity = String(item.lastEvaluation?.severity || 'info');
+    acc.total += 1;
+    acc.byDecision[decision] = (acc.byDecision[decision] || 0) + 1;
+    acc.bySeverity[severity] = (acc.bySeverity[severity] || 0) + 1;
+    return acc;
+  }, { total: 0, byDecision: {}, bySeverity: {} });
+  return { success: true, items, counts, limit, partial: Boolean((snap as any).partial || snap.docs.length >= limit), readEfficiency: { marketWatchLimit: limit, docsRead: snap.docs.length, returned: items.length } };
+}
+
+export async function updateMarketWatchItem(args: any, userId: string, token: string) {
+  const id = String(args?.id || '').trim();
+  if (!id) return { success: false, needsClarification: true, reason: 'MISSING_WATCH_ID', message: 'أي عنصر من قائمة مراقبة السوق تريد تحديثه؟' };
+  const adminDb = getDb(token);
+  const ref = adminDb.collection('users').doc(userId).collection('marketWatchlist').doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return { success: false, reason: 'MARKET_WATCH_ITEM_NOT_FOUND', message: 'لم أجد عنصر المراقبة المطلوب.' };
+  const current = snap.data() || {};
+  const patch: any = { updatedAt: new Date().toISOString() };
+  for (const key of ['product', 'brand', 'model', 'variant', 'condition', 'seller', 'location', 'notes', 'desiredBy', 'category']) {
+    if (args[key] !== undefined) patch[key] = args[key];
+  }
+  if (args.status !== undefined) patch.status = normalizeMarketWatchStatus(args.status);
+  if (args.priority !== undefined) patch.priority = normalizeMarketWatchPriority(args.priority);
+  if (args.targetPrice !== undefined || args.maxPrice !== undefined) patch.targetPrice = parsePositiveFinancialAmount(args.targetPrice || args.maxPrice) || null;
+  if (args.maxBudget !== undefined) patch.maxBudget = parsePositiveFinancialAmount(args.maxBudget) || null;
+  if (args.offeredPrice !== undefined || args.price !== undefined) patch.offeredPrice = parsePositiveFinancialAmount(args.offeredPrice || args.price) || null;
+  if (args.paymentMethod !== undefined || args.account !== undefined) patch.paymentMethod = normalizeAccount(args.paymentMethod || args.account || current.paymentMethod || 'cash');
+
+  let market: any = null;
+  let safe: any = null;
+  if (args.runMarketCheck !== false) {
+    const next = { ...current, ...patch };
+    const offeredPrice = parsePositiveFinancialAmount(next.offeredPrice);
+    const targetPrice = parsePositiveFinancialAmount(next.targetPrice || next.maxBudget);
+    if (shouldSearchMarket(String(next.product || ''), offeredPrice || targetPrice || undefined) && !isSmallDailyPurchase(String(next.product || ''))) {
+      market = await searchLocalMarket({ item: next.product, model: next.model, condition: next.condition, offeredPrice: offeredPrice || undefined }, userId, token).catch((e: any) => ({ success: false, marketUnavailable: true, message: e?.message || String(e) }));
+      patch.lastMarketSnapshot = compactMarketSnapshot(market);
+    }
+    safe = await getSafeSpendingLimit({ period: 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, message: e?.message || String(e) }));
+    patch.lastFinancialSnapshot = safe?.success !== false ? { decision: safe.decision, safeSpending: safe.safeSpending, message: safe.message, checkedAt: patch.updatedAt } : null;
+    patch.lastEvaluation = buildMarketWatchEvaluation({ item: next, market, safe, offeredPrice, targetPrice });
+    patch.lastCheckedAt = patch.updatedAt;
+  }
+
+  await ref.set(patch, { merge: true });
+  const updatedSnap = await ref.get();
+  return { success: true, id, item: { id, ...updatedSnap.data() }, marketChecked: Boolean(market), evaluation: patch.lastEvaluation || current.lastEvaluation };
+}
+
+export async function reviewMarketWatchlist(args: any, userId: string, token: string) {
+  const list = await getMarketWatchlist({ limit: args?.limit || 20 }, userId, token);
+  const items = Array.isArray(list.items) ? list.items : [];
+  const reviewed: any[] = [];
+  for (const item of items.slice(0, Math.max(1, Math.min(10, Number(args?.reviewLimit) || 5)))) {
+    const updated = await updateMarketWatchItem({ id: item.id, runMarketCheck: true }, userId, token).catch((e: any) => ({ success: false, id: item.id, error: e?.message || String(e) }));
+    reviewed.push(updated);
+  }
+  const actionable = reviewed.filter((r: any) => ['BUY_OK', 'BUY_WITH_CAUTION', 'NEGOTIATE', 'WAIT_OVERPRICED', 'VERIFY_TOO_CHEAP'].includes(String(r.evaluation?.decision || r.item?.lastEvaluation?.decision || '')));
+  return { success: true, reviewed, actionable, count: reviewed.length, message: actionable.length ? `راجعت القائمة ووجدت ${actionable.length} عنصر يحتاج قرار شراء/تفاوض.` : 'راجعت قائمة المشتريات ولم أجد قرار شراء واضح الآن.' };
+}
+
 // V6.1: real local-market lookup with source-backed result model, freshness,
 // Gaza priority, cache, and explicit MARKET_DATA_UNAVAILABLE on failure.
 // Never invents prices. Returns structured MarketResult[] with sources + timestamps.
