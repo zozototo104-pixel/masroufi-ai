@@ -1547,6 +1547,28 @@ export async function addTransaction(args: any, userId: string, token: string) {
         const monthlyIncome90d = income90d / 3;
         const debtToIncomeRatio = monthlyIncome90d > 0 ? projectedDebt / monthlyIncome90d : Infinity;
         if (!args.riskConfirmed && (debtToIncomeRatio > 1.0 || amount > 5000)) {
+          await addNotification(
+            userId,
+            `🚨 خطر دين: الشراء بالدين بقيمة ${amount} ₪ سيرفع إجمالي الدين إلى ${projectedDebt} ₪ قبل الحفظ.`,
+            'warning',
+            adminDb,
+            {
+              idempotencyKey: `advisor-debt-risk:${args.operationId || `${dateResult.date}:${amount}:${merchant || category}`}`,
+              advisorAlert: true,
+              advisorStatus: 'open',
+              severity: 'critical',
+              priority: 'high',
+              category: 'debt_risk',
+              source: 'addTransaction.debtPreflight',
+              operationId: String(args.operationId || ''),
+              metadata: { currentDebt: balances.debt, purchaseAmount: amount, projectedDebt, debtToIncomeRatio: Number.isFinite(debtToIncomeRatio) ? Math.round(debtToIncomeRatio * 100) / 100 : null },
+              actions: [
+                { id: 'confirm_risk', label: 'أكد المخاطرة', type: 'confirm' },
+                { id: 'pay_down_debt', label: 'خفّض الدين أولاً', type: 'behavior' },
+                { id: 'dismiss', label: 'تجاهل', type: 'dismiss' },
+              ],
+            }
+          );
           return {
             success:false,
             needsConfirmation:true,
