@@ -5833,6 +5833,106 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
   };
 }
 
+function normalizeRecurringCommitmentFrequency(value: any) {
+  const raw = normalizeArabicText(String(value || 'monthly')).toLowerCase();
+  if (['weekly', 'اسبوعي', 'أسبوعي', 'كل اسبوع', 'كل أسبوع'].includes(raw)) return 'weekly';
+  if (['biweekly', 'كل اسبوعين', 'كل أسبوعين', 'نصف شهري'].includes(raw)) return 'biweekly';
+  if (['quarterly', 'ربع سنوي', 'كل 3 شهور', 'كل ثلاثة شهور'].includes(raw)) return 'quarterly';
+  if (['yearly', 'annual', 'سنوي', 'سنوياً', 'كل سنة'].includes(raw)) return 'yearly';
+  return 'monthly';
+}
+
+function recurringIntervalDays(frequency: string) {
+  return frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : frequency === 'quarterly' ? 91 : frequency === 'yearly' ? 365 : 30;
+}
+
+function addRecurringDays(date: Date, days: number) {
+  const next = new Date(date.getTime());
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function estimateNextRecurringDueDate(lastDate: any, frequency: string, now: Date = new Date()) {
+  const interval = recurringIntervalDays(frequency);
+  let next = addRecurringDays(auditAsDate(lastDate) || now, interval);
+  let guard = 0;
+  while (next.getTime() < now.getTime() && guard < 24) {
+    next = addRecurringDays(next, interval);
+    guard++;
+  }
+  return next.toISOString().slice(0, 10);
+}
+
+function medianNumber(values: number[]) {
+  const sorted = values.filter(v => Number.isFinite(v)).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function inferRecurringFrequencyFromIntervals(intervals: number[]) {
+  const median = medianNumber(intervals);
+  if (median >= 5 && median <= 9) return 'weekly';
+  if (median >= 12 && median <= 18) return 'biweekly';
+  if (median >= 24 && median <= 38) return 'monthly';
+  if (median >= 75 && median <= 105) return 'quarterly';
+  if (median >= 330 && median <= 400) return 'yearly';
+  return 'irregular';
+}
+
+function recurringCandidateKey(tx: any) {
+  const merchant = normalizeArabicText(String(tx.merchant || tx.beneficiary || '')).toLowerCase();
+  const category = normalizeArabicText(String(tx.category || '')).toLowerCase();
+  const subcategory = normalizeArabicText(String(tx.subcategory || '')).toLowerCase();
+  const notes = normalizeArabicText(String(tx.purchaseItem || tx.notes || '')).toLowerCase().replace(/\d+/g, '').slice(0, 40);
+  const anchor = merchant || notes || subcategory || category;
+  if (!anchor) return '';
+  return `${category || 'uncategorized'}|${subcategory || 'general'}|${anchor}`;
+}
+
+function recurringKeywordBoost(tx: any) {
+  const text = normalizeArabicText(`${tx.category || ''} ${tx.subcategory || ''} ${tx.merchant || ''} ${tx.beneficiary || ''} ${tx.purchaseItem || ''} ${tx.notes || ''}`).toLowerCase();
+  return /اشتراك|subscription|netflix|spotify|انترنت|internet|كهرباء|ماء|ايجار|إيجار|rent|قسط|gym|نادي|مدرسة|جامعة|تامين|تأمين|هاتف|جوال|فاتورة/.test(text) ? 0.15 : 0;
+}
+
+function buildRecurringCandidate(group: any[], key: string, now: Date) {
+  const sorted = [...group].sort((a: any, b: any) => (auditAsDate(a.date || a.createdAt)?.getTime() || 0) - (auditAsDate(b.date || b.createdAt)?.getTime() || 0));
+  const dated = sorted.map((tx: any) => ({ tx, date: auditAsDate(tx.date || tx.createdAt) })).filter((x: any) => x.date);
+  if (dated.length < 2) return null;
+  const intervals = dated.slice(1).map((x: any, idx: number) => Math.round((x.date.getTime() - dated[idx].date.getTime()) / 86400000)).filter((days: number) => days > 0);
+  const frequency = inferRecurringFrequencyFromIntervals(intervals);
+  if (frequency === 'irregular') return null;
+  const amounts = sorted.map((tx: any) => parsePositiveFinancialAmount(tx.amount)).filter((n: number) => n > 0);
+  const medianAmount = roundMoney(medianNumber(amounts));
+  const amountDeviation = medianAmount > 0 ? Math.max(...amounts.map((n: number) => Math.abs(n - medianAmount) / medianAmount)) : 1;
+  if (amountDeviation > 0.25) return null;
+  const intervalMedian = medianNumber(intervals);
+  const intervalDeviation = intervalMedian > 0 ? Math.max(...intervals.map((n: number) => Math.abs(n - intervalMedian) / intervalMedian)) : 1;
+  const keywordBoost = Math.max(...sorted.map(recurringKeywordBoost));
+  const confidence = Math.max(0, Math.min(1, 0.35 + Math.min(0.25, dated.length * 0.06) + (amountDeviation <= 0.08 ? 0.15 : 0.05) + (intervalDeviation <= 0.25 ? 0.15 : 0.05) + keywordBoost));
+  if (confidence < 0.55) return null;
+  const lastTx = sorted[sorted.length - 1];
+  const title = lastTx.merchant || lastTx.beneficiary || lastTx.purchaseItem || lastTx.subcategory || lastTx.category || 'التزام متكرر';
+  return {
+    id: stableDocId(`recurring:${key}:${medianAmount}:${frequency}`),
+    detectionKey: stableDocId(`recurring:${key}:${medianAmount}:${frequency}`),
+    title,
+    amount: medianAmount,
+    frequency,
+    confidence: Math.round(confidence * 100) / 100,
+    category: lastTx.category || 'أقساط والتزامات',
+    subcategory: lastTx.subcategory || '',
+    account: lastTx.account || '',
+    nextDueDate: estimateNextRecurringDueDate(lastTx.date || lastTx.createdAt, frequency, now),
+    occurrenceCount: sorted.length,
+    intervals,
+    amountDeviation: Math.round(amountDeviation * 100) / 100,
+    intervalDeviation: Math.round(intervalDeviation * 100) / 100,
+    sourceTransactionIds: sorted.map((tx: any) => tx.id).filter(Boolean).slice(0, 20),
+    sample: sorted.slice(-5).map((tx: any) => ({ id: tx.id, amount: tx.amount, date: tx.date || tx.createdAt, merchant: tx.merchant, category: tx.category })),
+  };
+}
+
 export async function getCommitments(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const limit = Math.max(1, Math.min(300, Number(args?.limit) || 100));
