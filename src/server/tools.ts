@@ -521,7 +521,7 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
     recommendations,
     confidence: ctx.confidence,
     partial: Boolean(ctx.partial || (goalSnap as any).partial),
-    readEfficiency: { ...(ctx.readEfficiency || {}), treasurerProfileDocsRead: 1, savingsGoalLimit: 100, savingsGoalDocsRead: rawGoals.length },
+    readEfficiency: { ...(ctx.readEfficiency || {}), treasurerProfileDocsRead: 1, savingsGoalLimit: 100, savingsGoalDocsRead: rawGoals.length, savingsContributionDocsRead },
   };
 }
 
