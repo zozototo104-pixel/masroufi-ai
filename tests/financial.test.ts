@@ -246,6 +246,15 @@ test('FIN-15: duplicate after restart executes once — persistent idempotency',
   assert.equal(IDEMPOTENCY_COLLECTION, 'idempotency_keys', 'uses persistent Firestore collection');
 });
 
+test('FIN-15B: idempotency must not cache missing-field clarification results as completed writes', async () => {
+  const src = await import('node:fs/promises').then(fs => fs.readFile(
+    join(process.cwd(), 'src/server/idempotency.ts'), 'utf8'
+  ));
+  assert.ok(src.includes('resultIsSafeToRetryWithoutCaching'), 'idempotency must identify non-durable validation/clarification results');
+  assert.ok(src.includes('await ref.delete()') && src.includes('Missing-field/validation answers are part of an ongoing conversation'), 'idempotency must clear pending locks for missing-field results instead of caching them as completed writes');
+  assert.ok(src.includes('clearing stale non-durable cached validation result'), 'idempotency must clear old cached validation failures that otherwise block completed clarification saves');
+});
+
 test('FIN-16: PalPay malformed amounts collapse to invalid zero through the shared parser', () => {
   assert.equal(parseAbsoluteFinancialAmount(NaN), 0);
   assert.equal(parseAbsoluteFinancialAmount(Infinity), 0);
