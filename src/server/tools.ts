@@ -631,7 +631,7 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const activeCommitments = (ctx.commitments || []).filter((c: any) => {
     const status = String(c.status || 'pending').toLowerCase();
     if (status === 'paid' || status === 'cancelled') return false;
-    if (!c.dueDate) return true;
+    if (!c.dueDate) return false;
     const dueDate = auditAsDate(c.dueDate);
     return dueDate ? dueDate.toISOString() <= protectionEndIso : String(c.dueDate || '') <= protectionEndIso;
   });
