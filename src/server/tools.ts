@@ -10233,6 +10233,23 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "generate_daily_financial_pulse",
+    description: "ينشئ نبضاً مالياً يومياً مختصراً: سقف اليوم الآمن، الخطر الأكبر، أهم تذكير، قائمة ما لا يجب صرفه اليوم، وأوامر اليوم العملية. لا يسجل عملية مالية.",
+    parameters: { type: "object", properties: {
+      mode: { type: "string", description: "morning أو evening أو quick" },
+      transactionLimit: { type: "number", description: "عدد العمليات المقروءة لتحليل اليوم والعادات" },
+      save: { type: "boolean", description: "حفظ النبض في advisorDailyPulses" },
+      persistAlerts: { type: "boolean", description: "تحويل النبض التحذيري إلى تنبيه دائم" }
+    } }
+  },
+  {
+    name: "get_daily_financial_pulses",
+    description: "يعرض آخر نبضات اليوم المالية المحفوظة من advisorDailyPulses.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد النبضات، بحد أقصى 50" }
+    } }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
