@@ -2029,6 +2029,28 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.get("/api/advisor/alerts", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getAdvisorAlerts } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getAdvisorAlerts(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor alerts error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/advisor/alerts/:id", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { updateAdvisorAlert } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await updateAdvisorAlert({ ...(req.body || {}), id: req.params.id }, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor alert update error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/treasurer/profile", authMiddleware, async (req: any, res: any) => {
     try {
       const { getTreasurerProfile } = await import('./src/server/tools');
