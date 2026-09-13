@@ -2362,6 +2362,7 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
     dailyCorrectionCap,
   };
   const warnings: string[] = [];
+  if (dailyAverage <= 0) warnings.push('لا يوجد متوسط صرف يومي كافٍ، لذلك لا أعتبر المبلغ المتبقي كله فائضاً مؤكداً. حدّث/راجع تواريخ العمليات ثم أعد التوقع.');
   if (requiredRecovery > 0) warnings.push(`يوجد تعويض مطلوب ${requiredRecovery} ₪ حتى لا تنتهي الفترة بعجز أو ضغط.`);
   if (dailyAverage > dailyCorrectionCap && dailyCorrectionCap > 0) warnings.push(`متوسط صرفك الحالي ${dailyAverage} ₪ أعلى من السقف التصحيحي ${dailyCorrectionCap} ₪.`);
   if (overdueCommitments.length) warnings.push(`يوجد ${overdueCommitments.length} التزام متكرر متأخر يضغط التوقع.`);
