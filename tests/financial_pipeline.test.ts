@@ -259,3 +259,28 @@ test('TREASURER-08: market watchlist links local market intelligence with safe s
   assert.ok(app.includes('مراقب السوق والمشتريات'), 'dashboard must render market watchlist card');
   assert.ok(app.includes("idbSet('lkgs_market_watchlist'"), 'dashboard must cache last-known-good market watchlist');
 });
+
+test('TREASURER-09: expanded treasurer profile drives advisor safety decisions and dashboard readiness', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  assert.ok(tools.includes('TREASURER_PROFILE_DEFAULTS'), 'expanded treasurer profile defaults must exist');
+  assert.ok(tools.includes('buildTreasurerProfileCompleteness'), 'profile completeness scoring must exist');
+  assert.ok(tools.includes('normalizeTreasurerProfile'), 'profile writes/reads must normalize user settings');
+  assert.ok(tools.includes('profileCompleteness = buildTreasurerProfileCompleteness(profile)'), 'safe spending must include profile completeness');
+  assert.ok(tools.includes('parsePositiveFinancialAmount(profile.criticalLiquidityFloor)'), 'safe spending must protect critical liquidity floor');
+  assert.ok(tools.includes('profileDailyLimit'), 'safe spending must respect daily spending limit');
+  assert.ok(tools.includes('effectiveDebtLimit'), 'safe spending must evaluate configured debt limits');
+  assert.ok(tools.includes('preflightTreasurerProfile = normalizeTreasurerProfile'), 'expense preflight must load the normalized treasurer profile');
+  assert.ok(tools.includes('breaksProfileDebtLimit'), 'debt purchase preflight must respect profile debt limits');
+  assert.ok(tools.includes('warningRatio = Math.max'), 'budget alerts must use configurable profile thresholds');
+  assert.ok(tools.includes('salaryCycleStartDay'), 'Gemini update_treasurer_profile schema must expose salary cycle settings');
+  assert.ok(tools.includes('restrictedCategories'), 'Gemini update_treasurer_profile schema must expose restricted categories');
+  assert.ok(server.includes('app.get("/api/treasurer/profile", authMiddleware'), 'treasurer profile read API must be available behind auth');
+  assert.ok(server.includes('app.post("/api/treasurer/profile", authMiddleware'), 'treasurer profile update API must be available behind auth');
+  assert.ok((server.match(/0\.3\.4- \*\*ملف أمين الصندوق الشخصي\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to maintain the profile');
+  assert.ok(app.includes('const [treasurerProfile, setTreasurerProfile]'), 'dashboard must keep treasurer profile state');
+  assert.ok(app.includes("fetch('/api/treasurer/profile'"), 'dashboard must fetch the treasurer profile');
+  assert.ok(app.includes("idbSet('lkgs_treasurer_profile'"), 'dashboard must cache last-known-good treasurer profile');
+  assert.ok(app.includes('ملف أمين الصندوق'), 'dashboard must render treasurer profile readiness card');
+});
