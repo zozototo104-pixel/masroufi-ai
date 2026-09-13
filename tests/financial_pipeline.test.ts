@@ -237,6 +237,7 @@ test('TREASURER-08: market watchlist links local market intelligence with safe s
   const tools = await src('src/server/tools.ts');
   const server = await src('server.ts');
   const app = await src('src/App.tsx');
+  const rules = await src('firestore.rules');
   assert.ok(tools.includes('export async function createMarketWatchItem'), 'market watchlist must create monitored purchases');
   assert.ok(tools.includes('export async function getMarketWatchlist'), 'market watchlist must expose a read tool');
   assert.ok(tools.includes('export async function updateMarketWatchItem'), 'market watchlist must update and re-evaluate items');
