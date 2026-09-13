@@ -2653,6 +2653,48 @@ export default function App() {
             </div>
           )}
 
+          <div className="bg-slate-900 border border-blue-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Brain className="w-4 h-4 text-blue-300" />
+                محرك السيناريوهات المالية
+              </h3>
+              <button onClick={handleQuickScenarioSimulation} disabled={isScenarioSimulating} className="px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-200 text-[10px] font-bold disabled:opacity-50">
+                {isScenarioSimulating ? 'يحاكي...' : 'اختبار 100₪'}
+              </button>
+            </div>
+            {financialScenarios.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">آخر سيناريو</p>
+                    <p className="text-sm font-bold text-white">{financialScenarios[0]?.scenario?.label || financialScenarios[0]?.scenario?.category || 'سيناريو مالي'}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                    {financialScenarios[0]?.decision === 'SCENARIO_CRITICAL' ? 'خطر' : financialScenarios[0]?.decision === 'SCENARIO_WARNING' ? 'بحذر' : financialScenarios[0]?.decision === 'SCENARIO_IMPROVES' ? 'يحسن الوضع' : 'آمن'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-6 mb-3">{financialScenarios[0]?.message}</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">بعد السيناريو</p>
+                    <p className="text-sm font-black text-white">{Number(financialScenarios[0]?.afterScenario?.safeToSpendUntilHorizon || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">تعويض مطلوب</p>
+                    <p className="text-sm font-black text-white">{Number(financialScenarios[0]?.recoveryPlan?.gap || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">عدد السيناريوهات</p>
+                    <p className="text-sm font-black text-white">{financialScenarios.length}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">شغّل اختبار 100₪ لمعرفة حساسية وضعك المالي قبل أي مصروف إضافي.</p>
+            )}
+          </div>
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
