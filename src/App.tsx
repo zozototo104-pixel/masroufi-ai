@@ -916,6 +916,7 @@ export default function App() {
       setReportsList([]);
       setCommitments([]);
       setSavingsGoals([]);
+      setAdvisorPulse(null);
       setUserMemory({});
       setBudgetsData({ budgets: [], totalBudget: 0, totalSpent: 0 });
       setVaultData({ success: true, vaultBalance: 0, vaultBalanceByCurrency: {}, cycles: [], manualAdjustments: [] });
