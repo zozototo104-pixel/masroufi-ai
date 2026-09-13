@@ -1150,6 +1150,29 @@ export default function App() {
     }
   };
 
+  const handleQuickScenarioSimulation = async () => {
+    if (!idToken || isScenarioSimulating) return;
+    setIsScenarioSimulating(true);
+    try {
+      const res = await fetch('/api/advisor/scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ amount: 100, type: 'expense', category: 'اختبار حساسية', necessity: 'كمالي', horizon: 'salary_cycle', save: true, persistAlert: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to simulate financial scenario');
+      const nextScenarios = [data, ...financialScenarios.filter((s: any) => s.id !== data.savedScenarioId && s.savedScenarioId !== data.savedScenarioId)].slice(0, 8);
+      setFinancialScenarios(nextScenarios);
+      await idbSet('lkgs_financial_scenarios', nextScenarios);
+      setNotifications(prev => [...prev, { id: `scenario-simulated-${Date.now()}`, type: data.severity === 'critical' ? 'warning' : 'success', message: data.message || 'تمت محاكاة السيناريو المالي.' }]);
+    } catch (err) {
+      console.warn('Financial scenario simulation failed:', err);
+      setNotifications(prev => [...prev, { id: `scenario-failed-${Date.now()}`, type: 'warning', message: 'تعذرت محاكاة السيناريو الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsScenarioSimulating(false);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
