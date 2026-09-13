@@ -150,6 +150,12 @@ service cloud.firestore {
         allow read: if ownsUserPath(userId);
         allow write: if ownsUserPath(userId);
       }
+
+      // Saved month-end financial forecasts.
+      match /advisorMonthEndForecasts/{forecastId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
     }
 
     // debts collection (legacy recurring items path — kept for backward compatibility,
