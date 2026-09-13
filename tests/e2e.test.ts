@@ -357,6 +357,25 @@ test('LIVE-AUDIO: backend must forward every Gemini Live audio part, not only th
     'Live disconnect logs must summarize whether audio was received/forwarded before closing');
 });
 
+test('LIVE-AUDIO: client must not show no-audio errors before real microphone speech', async () => {
+  const appLive = await readFile(join(process.cwd(), 'src/lib/useGeminiLive.ts'), 'utf8');
+  const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
+  assert.ok(appLive.includes('function estimateMicRms'),
+    'client must estimate microphone RMS so silence is not treated as a spoken request');
+  assert.ok(appLive.includes('speechDetectedRef') && appLive.includes('voicedAudioFramesRef'),
+    'client must track voiced microphone frames separately from raw audio frames');
+  assert.ok(appLive.includes('const userActuallySpoke = speechDetectedRef.current && voicedAudioFramesRef.current >= 3'),
+    'liveClosed without returned audio should become a visible error only after likely user speech');
+  assert.ok(appLive.includes('Gemini Live closed before returned audio, but no voiced microphone input was detected'),
+    'silent/pre-ready Live closes should be logged for diagnostics instead of alarming the user');
+  assert.ok(appLive.includes('voiced microphone frames were sent but no Gemini audio has returned yet'),
+    'no-response watchdog should be tied to voiced audio, not only raw silent frames');
+  assert.equal(server.includes('sendClientContent'), false,
+    'Gemini Live follow-up text during an active session must not use sendClientContent');
+  assert.ok(server.includes('sendRealtimeInput({') && server.includes('text: `اقرأ للمستخدم الآن بصوت واضح'),
+    'Gemini Live follow-up speech prompts must be sent through realtime text input');
+});
+
 test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and must not invent debt from creditor fields', async () => {
   const server = await readFile(join(process.cwd(), 'server.ts'), 'utf8');
   const tools = await readFile(join(process.cwd(), 'src/server/tools.ts'), 'utf8');
