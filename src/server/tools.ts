@@ -3545,7 +3545,9 @@ export async function runFinancialAudit(args: any, userId: string, token: string
   const limit = Math.max(50, Math.min(1000, Number(args?.limit) || 500));
   const notificationLimit = Math.max(50, Math.min(500, Number(args?.notificationLimit) || 200));
   const scope = String(args?.scope || args?.period || 'salary_cycle').toLowerCase();
-  if ((args?.full === true || scope === 'all') && !args?.allowFullLedgerAudit) {
+  const wantsFullAudit = parseBooleanLike(args?.full) || scope === 'all';
+  const allowFullLedgerAudit = parseBooleanLike(args?.allowFullLedgerAudit);
+  if (wantsFullAudit && !allowFullLedgerAudit) {
     return { success: false, needsConfirmation: true, reason: 'FULL_FINANCIAL_AUDIT_REQUIRES_CONFIRMATION', message: 'المدقق المالي الشامل لكل التاريخ يحتاج قراءة واسعة. حدد دورة/فترة أو أكد allowFullLedgerAudit صراحة.' };
   }
 
