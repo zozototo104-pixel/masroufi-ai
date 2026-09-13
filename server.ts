@@ -3077,13 +3077,21 @@ const LIVE_TOOL_DESCRIPTION_OVERRIDES: Record<string, string> = {
   memory_save: 'يحفظ معلومة مهمة في ذاكرة المستخدم.',
 };
 
-function compactLiveSchema(value: any): any {
+function compactLiveSchema(value: any, insidePropertiesMap = false): any {
   if (!value || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map(compactLiveSchema);
+  if (Array.isArray(value)) return value.map((item) => compactLiveSchema(item));
   const out: any = {};
   for (const [key, nested] of Object.entries(value)) {
-    if (['description', 'title', 'examples', 'default'].includes(key)) continue;
-    out[key] = compactLiveSchema(nested);
+    // Strip schema metadata, but never strip real user parameter names from a
+    // properties map. A tool can legitimately have a parameter called
+    // "description"; removing it while keeping it in required makes Gemini Live
+    // reject setup with: parameters.required[n]: property is not defined.
+    if (!insidePropertiesMap && ['description', 'title', 'examples', 'default'].includes(key)) continue;
+    out[key] = compactLiveSchema(nested, key === 'properties');
+  }
+  if (!insidePropertiesMap && Array.isArray(out.required) && out.properties && typeof out.properties === 'object') {
+    out.required = out.required.filter((name: any) => typeof name === 'string' && Object.prototype.hasOwnProperty.call(out.properties, name));
+    if (out.required.length === 0) delete out.required;
   }
   return out;
 }
