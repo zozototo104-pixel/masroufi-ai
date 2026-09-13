@@ -3203,7 +3203,8 @@ export default function App() {
                     {financialScenarios[0]?.decision === 'SCENARIO_CRITICAL' ? 'خطر' : financialScenarios[0]?.decision === 'SCENARIO_WARNING' ? 'بحذر' : financialScenarios[0]?.decision === 'SCENARIO_IMPROVES' ? 'يحسن الوضع' : 'آمن'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-200 leading-6 mb-3">{financialScenarios[0]?.message}</p>
+                <p className="text-xs text-slate-200 leading-6 mb-2">{financialScenarios[0]?.message}</p>
+                <p className="text-[10px] text-slate-400 leading-5 mb-3">المحاكاة لا تسجل عملية؛ تفترض “ماذا لو صرفت/دخلت هذا المبلغ؟” ثم تقارن الهامش قبل وبعد مع الصرف المعتاد والالتزامات.</p>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
                     <p className="text-[10px] text-slate-400 mb-1">بعد السيناريو</p>
