@@ -2068,8 +2068,9 @@ export async function applyAdaptiveBudgetPlan(args: any, userId: string, token: 
     }, { merge: true });
   }
   await batch.commit();
-  await addNotification(userId, `تم تطبيق خطة الميزانية المتكيّفة على ${proposals.length} بند.`, 'success', adminDb);
-  return { success: true, appliedCount: proposals.length, planId: planId || null, appliedBudgets: proposals.map((p: any) => ({ category: p.category, limit: roundBudgetLimit(parsePositiveFinancialAmount(p.proposedLimit)) })) };
+  const message = `تم تطبيق خطة الميزانية المتكيّفة على ${proposals.length} بند.`;
+  await addNotification(userId, message, 'success', adminDb);
+  return { success: true, appliedCount: proposals.length, planId: planId || null, message, appliedBudgets: proposals.map((p: any) => ({ category: p.category, limit: roundBudgetLimit(parsePositiveFinancialAmount(p.proposedLimit)) })) };
 }
 
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
