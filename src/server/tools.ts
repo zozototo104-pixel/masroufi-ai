@@ -1076,8 +1076,15 @@ export async function addTransaction(args: any, userId: string, token: string) {
     return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'جزء من المصروف مسجل دين. لمن أو عند أي محل سُجّل هذا الدين؟' };
   }
 
+  const splitPaymentLooksAlreadyComponentized = structuredPaymentProvided
+    && expensePaymentSplits.length >= 2
+    && splitPaymentTotalAmount > 0
+    && amount > 0
+    && Math.abs(amount - splitPaymentTotalAmount) > 0.01;
+
   if (type === 'expense'
     && expensePaymentSplits.length >= 2
+    && !splitPaymentLooksAlreadyComponentized
     && !mentionsDebtRepayment
     && !mentionsCashBorrowing
     && args.disableExpenseSplitParsing !== true) {
