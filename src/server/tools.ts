@@ -443,10 +443,14 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
       contributions = contributionSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
       savingsContributionDocsRead += contributions.length;
     } catch {}
-    savingsGoalPlans.push(buildSavingsGoalPlan({ goal, contributions, now: safeNow, period: savingsPeriod }));
+    const plan = buildSavingsGoalPlan({ goal, contributions, now: safeNow, period: savingsPeriod });
+    const hasSavingsDeadline = /^\d{4}-\d{2}-\d{2}$/.test(String(goal.dueDate || ''));
+    const storedMonthlyRequired = parsePositiveFinancialAmount(goal.monthlyRequired);
+    const safeSpendingMonthlyRequired = roundMoney(hasSavingsDeadline ? Number(plan.monthlyRequired || 0) : storedMonthlyRequired);
+    savingsGoalPlans.push({ ...plan, safeSpendingMonthlyRequired });
   }
   const savingsRequiredThisPeriod = roundMoney(savingsGoalPlans.reduce((sum: number, goal: any) => {
-    return sum + Math.max(0, Number(goal.monthlyRequired || 0) - Number(goal.monthlySavedAmount || 0));
+    return sum + Math.max(0, Number(goal.safeSpendingMonthlyRequired || 0) - Number(goal.monthlySavedAmount || 0));
   }, 0));
 
   const activeCommitments = (ctx.commitments || []).filter((c: any) => {
