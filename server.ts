@@ -3131,9 +3131,8 @@ function setupLiveApi(wss: WebSocketServer) {
             requestId,
             chars: text.length,
           });
-          await session.sendClientContent({
-            turns: [{ role: 'user', parts: [{ text: `اقرأ للمستخدم الآن بصوت واضح ومختصر دون استخدام أدوات جديدة: ${text}` }] }],
-            turnComplete: true,
+          session.sendRealtimeInput({
+            text: `اقرأ للمستخدم الآن بصوت واضح ومختصر دون استخدام أدوات جديدة: ${text}`,
           });
           postToolAudioFallbackTimer = setTimeout(() => {
             postToolAudioFallbackTimer = null;
