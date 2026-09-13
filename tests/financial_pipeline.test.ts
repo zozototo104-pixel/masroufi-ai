@@ -366,3 +366,36 @@ test('TREASURER-12: recurring commitment manager detects subscriptions and conve
   assert.ok(app.includes("idbSet('lkgs_recurring_commitment_candidates'"), 'dashboard must cache last-known-good recurring candidates');
   assert.ok(app.includes('CalendarDays'), 'dashboard must import the recurring commitment icon it renders');
 });
+
+test('TREASURER-13: financial habit engine detects spending patterns and surfaces them to the advisor', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  const rules = await src('firestore.rules');
+  assert.ok(tools.includes('export async function analyzeFinancialHabits'), 'financial habit analyzer must exist');
+  assert.ok(tools.includes('export async function getFinancialHabitReports'), 'saved habit report reader must exist');
+  assert.ok(tools.includes('summarizeHabitTransactions'), 'habit analyzer must summarize transaction buckets');
+  assert.ok(tools.includes('buildFinancialHabitInsights'), 'habit analyzer must build pattern insights');
+  assert.ok(tools.includes('category_spike'), 'habit analyzer must detect category spikes');
+  assert.ok(tools.includes('merchant_spike'), 'habit analyzer must detect merchant spikes');
+  assert.ok(tools.includes('small_purchase_accumulation'), 'habit analyzer must detect accumulated small purchases');
+  assert.ok(tools.includes('day_risk'), 'habit analyzer must detect high-spend days');
+  assert.ok(tools.includes('debt_usage_drift'), 'habit analyzer must detect debt usage drift');
+  assert.ok(tools.includes('advisor-habit-pattern'), 'habit warnings must become advisor alerts when requested');
+  assert.ok(tools.includes('advisorHabitReports'), 'saved habit reports must be persisted and included in wipe');
+  assert.ok(tools.includes("category: 'habit_patterns'"), 'comprehensive audit must flag risky habit patterns');
+  assert.ok(tools.includes('analyze_financial_habits: analyzeFinancialHabits'), 'habit analyzer must be registered in handlers');
+  assert.ok(tools.includes('get_financial_habit_reports: getFinancialHabitReports'), 'habit report reader must be registered in handlers');
+  assert.ok(tools.includes('name: "analyze_financial_habits"'), 'habit analyzer must be exposed to Gemini');
+  assert.ok(tools.includes('name: "get_financial_habit_reports"'), 'habit report reader must be exposed to Gemini');
+  assert.ok(server.includes('app.post("/api/advisor/habits", authMiddleware'), 'habit analysis API must be available behind auth');
+  assert.ok(server.includes('app.get("/api/advisor/habits", authMiddleware'), 'habit report API must be available behind auth');
+  assert.ok((server.match(/0\.3\.7- \*\*محرك العادات والأنماط المالية\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to analyze habits');
+  assert.ok(app.includes('const [financialHabitReports, setFinancialHabitReports]'), 'dashboard must keep financial habit report state');
+  assert.ok(app.includes("fetch('/api/advisor/habits?limit=8'"), 'dashboard must fetch saved habit reports');
+  assert.ok(app.includes("fetch('/api/advisor/habits'"), 'dashboard must run habit analysis');
+  assert.ok(app.includes('handleAnalyzeFinancialHabits'), 'dashboard must expose a manual habit analysis action');
+  assert.ok(app.includes('محرك العادات والأنماط'), 'dashboard must render financial habits card');
+  assert.ok(app.includes("idbSet('lkgs_financial_habit_reports'"), 'dashboard must cache last-known-good habit reports');
+  assert.ok(rules.includes('match /advisorHabitReports/{reportId}'), 'Firestore rules must allow user-scoped habit reports');
+});
