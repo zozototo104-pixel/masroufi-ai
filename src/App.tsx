@@ -3426,9 +3426,12 @@ export default function App() {
                   </div>
                 )}
                 {!adaptiveBudgetPlans[0]?.applied && (
-                  <button onClick={() => handleApplyAdaptiveBudgetPlan(adaptiveBudgetPlans[0])} className="w-full px-3 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-200 text-[11px] font-bold">
-                    طبّق الخطة على الميزانيات
-                  </button>
+                  <div>
+                    <p className="text-[10px] text-slate-400 leading-5 mb-2">التطبيق يغيّر حدود البنود فقط، ولا يسجل مصروفاً ولا يحذف عمليات.</p>
+                    <button onClick={() => handleApplyAdaptiveBudgetPlan(adaptiveBudgetPlans[0])} className="w-full px-3 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-200 text-[11px] font-bold">
+                      غيّر حدود الميزانية حسب الخطة
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
