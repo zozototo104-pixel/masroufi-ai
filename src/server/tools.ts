@@ -9442,6 +9442,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   generate_adaptive_budget_plan: generateAdaptiveBudgetPlan,
   get_adaptive_budget_plans: getAdaptiveBudgetPlans,
   apply_adaptive_budget_plan: applyAdaptiveBudgetPlan,
+  forecast_month_end_financial_position: forecastMonthEndFinancialPosition,
+  get_month_end_forecasts: getMonthEndForecasts,
   get_advisor_alerts: getAdvisorAlerts,
   update_advisor_alert: updateAdvisorAlert,
   assess_purchase: assessPurchase,
