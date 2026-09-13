@@ -456,8 +456,13 @@ export function evaluateTreasurerRisk(params: {
   riskConfirmed?: boolean;
 }) {
   const warnings: string[] = [];
+  const confirmationReasons: string[] = [];
   const amount = Number(params.amount) || 0;
-  if (params.type !== 'expense') return { needsConfirmation: false, severity: 'none', warnings };
+  if (params.type !== 'expense') return { needsConfirmation: false, severity: 'none', warnings, confirmationReasons };
+  const addWarning = (message: string, requiresConfirmation: boolean = false) => {
+    warnings.push(message);
+    if (requiresConfirmation) confirmationReasons.push(message);
+  };
   const available = params.account === 'palPay' ? Number(params.balances?.palPay || 0) : params.account === 'cash' ? Number(params.balances?.cash || 0) : Number(params.balances?.total || 0);
   const after = params.account === 'debt' ? available : available - amount;
   const projected = Number(params.projected30DayBalance || 0) - (params.account === 'debt' ? 0 : amount);
@@ -465,16 +470,19 @@ export function evaluateTreasurerRisk(params: {
   const coverageDays = daily > 0 && params.account !== 'debt' ? Math.floor(Math.max(0, after) / daily) : null;
   const categoryProjected = Number(params.categorySpent || 0) + amount;
   const pct = Number(params.budgetLimit || 0) > 0 ? Math.round(categoryProjected / Number(params.budgetLimit) * 100) : null;
-  if (params.account !== 'debt' && amount > available + 0.0001) warnings.push(`المبلغ أكبر من الرصيد المتاح في الحساب (${available} ₪).`);
-  if (pct !== null && pct >= 100) warnings.push(`هذا يرفع بند ${params.category} إلى ${pct}% من سقفه الشهري.`);
-  else if (pct !== null && pct >= 80) warnings.push(`هذا يقرّب بند ${params.category} من السقف (${pct}%).`);
-  if (String(params.necessity || '') === 'كمالي' && amount >= 300) warnings.push(`مصروف كمالي كبير (${amount} ₪)، لازم موافقة صريحة قبل التسجيل.`);
-  if (amount >= 1000) warnings.push(`عملية كبيرة بقيمة ${amount} ₪؛ أمين الصندوق يطلب تأكيداً واعياً.`);
-  if (coverageDays !== null && coverageDays < 14) warnings.push(`بعد العملية يغطي الرصيد تقريباً ${coverageDays} يوم فقط حسب متوسط صرفك.`);
-  if (projected < 0) warnings.push(`توقع 30 يوماً بعد العملية يصبح سالباً (${Math.abs(Math.round(projected))} ₪ عجز تقريبي).`);
-  if (Number(params.savingsReserveTarget || 0) > 0 && after < Number(params.savingsReserveTarget)) warnings.push(`العملية تهبط بالسيولة تحت احتياطي الادخار/الأمان المحدد (${params.savingsReserveTarget} ₪).`);
-  const severity = warnings.some(w => /عجز|أكبر من الرصيد|سالب/.test(w)) ? 'critical' : warnings.length ? 'warning' : 'none';
-  return { needsConfirmation: warnings.length > 0 && !params.riskConfirmed, severity, warnings, availableBefore: available, availableAfter: after, budgetPercentageAfter: pct, coverageDays, projected30DayBalanceAfter: round(projected) };
+  if (params.account !== 'debt' && amount > available + 0.0001) addWarning(`المبلغ أكبر من الرصيد المتاح في الحساب (${available} ₪).`, true);
+  if (pct !== null && pct >= 100) addWarning(`هذا يرفع بند ${params.category} إلى ${pct}% من سقفه الشهري.`, true);
+  else if (pct !== null && pct >= 80) addWarning(`هذا يقرّب بند ${params.category} من السقف (${pct}%).`, false);
+  if (String(params.necessity || '') === 'كمالي' && amount >= 300) addWarning(`مصروف كمالي كبير (${amount} ₪)، لازم موافقة صريحة قبل التسجيل.`, true);
+  if (amount >= 1000) addWarning(`عملية كبيرة بقيمة ${amount} ₪؛ أمين الصندوق يطلب تأكيداً واعياً.`, true);
+  if (coverageDays !== null && coverageDays < 14) addWarning(
+    `بعد العملية يغطي الرصيد تقريباً ${coverageDays} يوم فقط حسب متوسط صرفك.`,
+    String(params.necessity || '') === 'كمالي' || amount >= 300
+  );
+  if (projected < 0) addWarning(`توقع 30 يوماً بعد العملية يصبح سالباً (${Math.abs(Math.round(projected))} ₪ عجز تقريبي).`, true);
+  if (Number(params.savingsReserveTarget || 0) > 0 && after < Number(params.savingsReserveTarget)) addWarning(`العملية تهبط بالسيولة تحت احتياطي الادخار/الأمان المحدد (${params.savingsReserveTarget} ₪).`, true);
+  const severity = confirmationReasons.some(w => /عجز|أكبر من الرصيد|سالب|احتياطي/.test(w)) ? 'critical' : confirmationReasons.length ? 'confirmation' : warnings.length ? 'warning' : 'none';
+  return { needsConfirmation: confirmationReasons.length > 0 && !params.riskConfirmed, severity, warnings, confirmationReasons, availableBefore: available, availableAfter: after, budgetPercentageAfter: pct, coverageDays, projected30DayBalanceAfter: round(projected) };
 }
 
 export function normalizeIncomeAllocations(args: TreasurerReportArgs): Array<{ account: 'cash' | 'palPay'; amount: number; note?: string }> {
