@@ -817,6 +817,14 @@ function normalizeArabicDigits(value: string): string {
     .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 }
 
+function isSyntheticTransactionReference(value: unknown): boolean {
+  const raw = normalizeArabicDigits(String(value || '').trim());
+  const normalized = normalizeArabicForIntent(raw);
+  if (!normalized) return true;
+  if (/^\d{1,4}$/.test(normalized)) return true;
+  return /^(هذا|هدا|هاد|هذه|هاي|هي|هو|الاخير|الاخيره|الاخيرة|اخر|آخر|this|that|it)$/.test(normalized);
+}
+
 function parseArabicAmountWords(phrase: string): number | null {
   const words = normalizeArabicForIntent(phrase)
     .replace(/[،,.]/g, ' ')
