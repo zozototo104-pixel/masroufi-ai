@@ -3655,11 +3655,28 @@ ${activeSalaryCycleText}
         activeSalaryCycleText,
         personalityDesc,
       });
-      const liveFunctionDeclarations = buildGeminiLiveFunctionDeclarations();
+      const liveToolsMode = getGeminiLiveToolsMode();
+      const liveFunctionDeclarations = buildGeminiLiveFunctionDeclarations(liveToolsMode);
+      const liveConfig: any = {
+        responseModalities: [Modality.AUDIO],
+        // Required for the server-side financial clarification guard. Gemini
+        // can understand the user's audio without exposing a transcript to our
+        // server, but then replies like "بال باي" never reach the deterministic
+        // completion path and the model keeps asking cash/PalPay again.
+        inputAudioTranscription: {},
+        systemInstruction: liveSystemInstruction,
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+        },
+      };
+      if (liveFunctionDeclarations.length > 0) {
+        liveConfig.tools = [{ functionDeclarations: liveFunctionDeclarations as any }];
+      }
       console.log('[live] opening Gemini Live session', {
         requestId,
         model: 'gemini-3.1-flash-live-preview',
         voice,
+        liveToolsMode,
         toolCount: liveFunctionDeclarations.length,
         fullSystemInstructionChars: systemInstruction.length,
         liveSystemInstructionChars: liveSystemInstruction.length,
@@ -3667,19 +3684,7 @@ ${activeSalaryCycleText}
 
       sessionPromise = ai.live.connect({
         model: "gemini-3.1-flash-live-preview",
-        config: {
-          responseModalities: [Modality.AUDIO],
-          // Required for the server-side financial clarification guard. Gemini
-          // can understand the user's audio without exposing a transcript to our
-          // server, but then replies like "بال باي" never reach the deterministic
-          // completion path and the model keeps asking cash/PalPay again.
-          inputAudioTranscription: {},
-          systemInstruction: liveSystemInstruction,
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-          },
-          tools: [{ functionDeclarations: liveFunctionDeclarations as any }]
-        },
+        config: liveConfig,
         callbacks: {
           onmessage: async (message: LiveServerMessage) => {
             if (!isActive) return;
