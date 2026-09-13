@@ -382,6 +382,10 @@ test('LIVE-AUDIO: client must not show no-audio errors before real microphone sp
     'Gemini Live must use a compact audio-specific system instruction, not the full text prompt');
   assert.ok(server.includes('liveSystemInstructionChars') && server.includes('toolCount: liveFunctionDeclarations.length'),
     'Gemini Live startup logs must expose setup size diagnostics for immediate-close debugging');
+  assert.ok(server.includes('GEMINI_LIVE_TOOLS_MODE') && server.includes("if (mode === 'off') return []"),
+    'Gemini Live tools must be disableable from env when the provider closes setup-heavy sessions');
+  assert.ok(server.includes('const liveConfig: any') && server.includes('if (liveFunctionDeclarations.length > 0)') && server.includes('liveConfig.tools'),
+    'Gemini Live must omit the tools field completely when tool mode is off');
 });
 
 test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and must not invent debt from creditor fields', async () => {
