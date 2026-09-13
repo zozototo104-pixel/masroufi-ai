@@ -1105,12 +1105,16 @@ function buildPendingClarificationPatch(userText: string, pending: PendingFinanc
     if (fields.has('borrowDestination')) {
       if (account !== 'debt') {
         patch.toAccount = account;
+        patch.borrowDestinationClarifiedByUser = true;
+        patch.destinationClarifiedByUser = true;
         changed = true;
       }
     } else if (fields.has('debtPaymentAccount')) {
       if (account !== 'debt') {
         patch.paymentMethod = account;
         patch.fromAccount = account;
+        patch.debtPaymentAccountClarifiedByUser = true;
+        patch.paymentMethodClarifiedByUser = true;
         changed = true;
       }
     } else if (fields.has('incomeDestination')) {
@@ -1119,12 +1123,18 @@ function buildPendingClarificationPatch(userText: string, pending: PendingFinanc
         patch.paymentMethod = account;
         patch.incomeDestinationConfirmed = true;
         patch.destinationConfirmed = true;
+        patch.paymentMethodClarifiedByUser = true;
         changed = true;
       }
     } else if (fields.has('paymentMethod') || pending.name === 'add_transaction') {
       patch.paymentMethod = account;
       patch.account = account;
-      if (account === 'debt') patch.transactionType = 'CREDIT_PURCHASE';
+      patch.paymentMethodClarifiedByUser = true;
+      patch.accountClarifiedByUser = true;
+      if (account === 'debt') {
+        patch.transactionType = 'CREDIT_PURCHASE';
+        patch.creditPurchaseClarifiedByUser = true;
+      }
       changed = true;
     }
   }
