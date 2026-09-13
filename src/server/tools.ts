@@ -7554,7 +7554,15 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
   
   const totalSpent = expenses.reduce((sum, t) => sum + parsePositiveFinancialAmount(t.amount), 0);
   const totalLimit = Object.values(userBudgets).reduce((a, b) => a + b, 0);
-  const totalPercentage = Math.round((totalSpent / (totalLimit || 1)) * 100);
+  if (!(totalLimit > 0)) {
+    return {
+      totalSpent,
+      totalLimit: 0,
+      totalPercentage: null,
+      warning: 'لا توجد حدود ميزانية محفوظة حتى الآن. القالب الافتراضي ليس ميزانية فعلية؛ أنشئ أو طبّق ميزانية أولًا.'
+    };
+  }
+  const totalPercentage = Math.round((totalSpent / totalLimit) * 100);
   
   let totalWarning = "الميزانية الشهرية العامة في وضع آمن ومستقر";
   if (totalSpent >= totalLimit) {
