@@ -1465,7 +1465,19 @@ export async function assessPurchase(args: any, userId: string, token: string) {
   if (projectedAfter < 0) warnings.push(`بعد هذا الشراء يُتوقع عجز خلال 30 يوماً بحوالي ${Math.abs(projectedAfter)} ₪ وفق نمط الصرف والالتزامات الحالية.`);
   if (projectedBudgetPct !== null && projectedBudgetPct >= 100) warnings.push(`الشراء سيرفع بند ${args.category} إلى نحو ${projectedBudgetPct}% من سقفه الشهري.`);
   if (String(args?.necessity||'') === 'كمالي' && daysCoverage !== null && daysCoverage < 14) warnings.push(`بعد الشراء يغطي الرصيد المتبقي قرابة ${daysCoverage} يوماً فقط وفق متوسط صرفك الحالي.`);
-  return { success:true, decision:warnings.length?'CAUTION':'OK', warnings, price, paymentMethod:account, availableBefore:available, availableAfter:after, projected30DayBalanceAfterPurchase:projectedAfter, dailyExpenseAverage:ctx.dailyExpenseAverage, daysCoverage, categoryBudget, projectedBudgetPercentage:projectedBudgetPct, confidence:ctx.confidence };
+  const goalImpact: any = await assessFinancialGoalImpact({
+    amount: price,
+    category: args?.category || args?.item || 'مشتريات',
+    item: args?.item || args?.product || '',
+    product: args?.product || args?.item || '',
+    necessity: args?.necessity || '',
+    period: 'salary_cycle',
+    goalLimit: 3,
+  }, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e) }));
+  if (goalImpact?.severity === 'critical') warnings.push(`تأثير الأهداف: ${goalImpact.message}`);
+  else if (goalImpact?.severity === 'warning') warnings.push(`تنبيه أهداف: ${goalImpact.message}`);
+  const decision = goalImpact?.decision === 'GOAL_AT_RISK' ? 'GOAL_RISK' : warnings.length ? 'CAUTION' : 'OK';
+  return { success:true, decision, warnings, price, paymentMethod:account, availableBefore:available, availableAfter:after, projected30DayBalanceAfterPurchase:projectedAfter, dailyExpenseAverage:ctx.dailyExpenseAverage, daysCoverage, categoryBudget, projectedBudgetPercentage:projectedBudgetPct, goalImpact, confidence:ctx.confidence };
 }
 
 export const DEFAULT_BUDGETS: Record<string, number> = {
