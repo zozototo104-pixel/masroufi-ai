@@ -347,12 +347,13 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ audio: base64 }));
               sentAudioFramesRef.current += 1;
-              if (sentAudioFramesRef.current === 8 && receivedAudioFramesRef.current === 0 && responseWatchdogRef.current === null) {
+              if (speechDetectedRef.current && voicedAudioFramesRef.current >= 3 && receivedAudioFramesRef.current === 0 && responseWatchdogRef.current === null) {
                 responseWatchdogRef.current = window.setTimeout(() => {
                   responseWatchdogRef.current = null;
-                  if (wsRef.current === ws && ws.readyState === WebSocket.OPEN && receivedAudioFramesRef.current === 0) {
-                    console.warn('[live] microphone frames were sent but no Gemini audio has returned yet', {
+                  if (wsRef.current === ws && ws.readyState === WebSocket.OPEN && receivedAudioFramesRef.current === 0 && speechDetectedRef.current) {
+                    console.warn('[live] voiced microphone frames were sent but no Gemini audio has returned yet', {
                       sentAudioFrames: sentAudioFramesRef.current,
+                      voicedAudioFrames: voicedAudioFramesRef.current,
                       receivedAudioFrames: receivedAudioFramesRef.current,
                       liveReady: liveReadyRef.current,
                     });
