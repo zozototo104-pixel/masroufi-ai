@@ -1040,86 +1040,136 @@ function isShortClarificationAnswer(text: string): boolean {
   return true;
 }
 
+function cleanFinancialClarificationText(answer: string): string {
+  const merchant = extractMerchantFromFinancialText(answer);
+  return normalizeArabicText(answer)
+    .replace(normalizeArabicText(merchant), ' ')
+    .replace(/(?:^|\s)\d+(?:[\.,]\d+)?\s*(?:ش|شيكل|₪|دولار|دينار|دنانير|ils|nis)?(?=\s|$)/gi, ' ')
+    .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|مصروف|مصاريف|دفعت|دفع|سجل|سجلي|سجليه|تسجيل|قيد|مبلغ|قيمه|قيمة|شيكل|ش|₪|كاش|نقد|نقدي|محفظه|محفظة|بال باي|بالباي|palpay|pal pay|دين|بالدين|من|عند|على|بـ|لأجل|لاجل|عشان|علشان/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function applyExpenseInferenceToPatch(patch: any, pendingArgs: any, answer: string) {
+  const inferenceText = [pendingArgs.userText, pendingArgs.notes, pendingArgs.purchaseItem, pendingArgs.item, pendingArgs.description, answer].filter(Boolean).join(' ');
+  const inferred = inferFallbackExpenseCategory(inferenceText);
+  if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['category']) && inferred.category) patch.category = inferred.category;
+  if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['subcategory']) && inferred.subcategory) patch.subcategory = inferred.subcategory;
+  if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['purchaseItem', 'item', 'description']) && inferred.purchaseItem) {
+    patch.purchaseItem = inferred.purchaseItem;
+    patch.item = inferred.purchaseItem;
+    patch.description = inferred.purchaseItem;
+  }
+  if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['beneficiary', 'forWhom', 'forWho']) && inferred.beneficiary) {
+    patch.beneficiary = inferred.beneficiary;
+    patch.forWhom = inferred.beneficiary;
+  }
+}
+
 function buildPendingClarificationPatch(userText: string, pending: PendingFinancialClarification): any | null {
   if (!isShortClarificationAnswer(userText)) return null;
   const answer = String(userText || '').trim();
   const normalized = normalizeArabicForIntent(answer);
+  if (!answer || isBareConfirmationAnswer(normalized)) return null;
   const account = accountFromFinancialText(answer);
+  const amount = extractAmountFromFinancialText(answer);
   const fields = new Set(pending.missingFields || []);
+  const pendingArgs = sanitizePendingFinancialArgs(pending.args || {});
   const patch: any = { currentUserText: answer };
+  let changed = false;
 
-  if (fields.has('paymentMethod')) {
-    if (!account) return null;
-    patch.paymentMethod = account;
-    patch.account = account;
-    if (account === 'debt') patch.transactionType = 'CREDIT_PURCHASE';
-    return patch;
+  if (amount && (fields.has('amount') || !hasPendingFinancialValue(pendingArgs, ['amount']))) {
+    patch.amount = amount;
+    changed = true;
   }
-  if (fields.has('borrowDestination')) {
-    if (!account || account === 'debt') return null;
-    patch.toAccount = account;
-    return patch;
+
+  if (account) {
+    if (fields.has('borrowDestination')) {
+      if (account !== 'debt') {
+        patch.toAccount = account;
+        changed = true;
+      }
+    } else if (fields.has('debtPaymentAccount')) {
+      if (account !== 'debt') {
+        patch.paymentMethod = account;
+        patch.fromAccount = account;
+        changed = true;
+      }
+    } else if (fields.has('incomeDestination')) {
+      if (account !== 'debt') {
+        patch.account = account;
+        patch.paymentMethod = account;
+        patch.incomeDestinationConfirmed = true;
+        patch.destinationConfirmed = true;
+        changed = true;
+      }
+    } else if (fields.has('paymentMethod') || pending.name === 'add_transaction') {
+      patch.paymentMethod = account;
+      patch.account = account;
+      if (account === 'debt') patch.transactionType = 'CREDIT_PURCHASE';
+      changed = true;
+    }
   }
-  if (fields.has('debtPaymentAccount')) {
-    if (!account || account === 'debt') return null;
-    patch.paymentMethod = account;
-    patch.fromAccount = account;
-    return patch;
-  }
-  if (fields.has('incomeDestination')) {
-    if (!account || account === 'debt') return null;
-    patch.account = account;
-    patch.paymentMethod = account;
-    patch.incomeDestinationConfirmed = true;
-    patch.destinationConfirmed = true;
-    return patch;
-  }
-  if (fields.has('creditor')) {
-    if (!answer || account || /^(نعم|اه|اها|تمام|اوكي|ok)$/i.test(normalized)) return null;
-    patch.creditor = answer;
-    patch.person = answer;
-    patch.merchant = answer;
-    return patch;
-  }
-  if (fields.has('purchaseItem')) {
-    if (!answer || account) return null;
-    patch.purchaseItem = answer;
-    patch.item = answer;
-    patch.description = answer;
-    return patch;
-  }
-  if (fields.has('beneficiary')) {
-    if (!answer || account) return null;
-    patch.beneficiary = answer;
-    patch.forWhom = answer;
-    return patch;
-  }
-  if (fields.has('incomeSource')) {
-    if (!answer || account) return null;
-    patch.source = answer;
-    patch.merchant = answer;
-    return patch;
-  }
+
   if (fields.has('incomeNature')) {
     if (/راتب/.test(normalized)) {
       patch.category = 'دخل';
       patch.subcategory = 'راتب';
       patch.incomeNatureConfirmed = true;
       patch.natureConfirmed = true;
-      return patch;
-    }
-    if (/مساعد|منحه|منحة|هديه|هدية|دعم|لا ترد|مش سلف|مش قرض/.test(normalized)) {
+      changed = true;
+    } else if (/مساعد|منحه|منحة|هديه|هدية|دعم|لا ترد|مش سلف|مش قرض/.test(normalized)) {
       patch.category = 'دخل';
       patch.subcategory = 'مساعدة/منحة';
       patch.incomeNatureConfirmed = true;
       patch.natureConfirmed = true;
-      return patch;
-    }
-    if (/سلف|دين|قرض|استدن|اقترض/.test(normalized)) {
-      return { convertToTool: 'transfer_money', fromAccount: 'debt', creditor: pending.args.creditor || pending.args.merchant || undefined };
+      changed = true;
+    } else if (/سلف|دين|قرض|استدن|اقترض/.test(normalized)) {
+      return { convertToTool: 'transfer_money', fromAccount: 'debt', creditor: pendingArgs.creditor || pendingArgs.merchant || undefined };
     }
   }
-  return null;
+
+  const cleanedFreeText = cleanFinancialClarificationText(answer);
+  const answerIsOnlyAmountOrAccount = Boolean(account || (amount && cleanedFreeText.length === 0));
+  if (!answerIsOnlyAmountOrAccount && cleanedFreeText) {
+    if (fields.has('creditor') || (pending.name === 'transfer_money' && !hasPendingFinancialValue(pendingArgs, ['creditor', 'person', 'merchant']))) {
+      patch.creditor = cleanedFreeText;
+      patch.person = cleanedFreeText;
+      patch.merchant = cleanedFreeText;
+      changed = true;
+    }
+    if (fields.has('incomeSource')) {
+      patch.source = cleanedFreeText;
+      patch.merchant = cleanedFreeText;
+      changed = true;
+    }
+    if (fields.has('purchaseItem') || (pending.name === 'add_transaction' && !hasPendingFinancialValue(pendingArgs, ['purchaseItem', 'item', 'description']) && !fields.has('beneficiary'))) {
+      patch.purchaseItem = cleanedFreeText;
+      patch.item = cleanedFreeText;
+      patch.description = cleanedFreeText;
+      changed = true;
+    }
+    if (fields.has('beneficiary')) {
+      patch.beneficiary = cleanedFreeText;
+      patch.forWhom = cleanedFreeText;
+      changed = true;
+    }
+    if (fields.has('necessity')) {
+      patch.necessity = cleanedFreeText;
+      changed = true;
+    }
+  }
+
+  const merchantFromAnswer = extractMerchantFromFinancialText(answer);
+  if (merchantFromAnswer && !hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['merchant', 'creditor', 'seller', 'store', 'vendor', 'person'])) {
+    patch.merchant = merchantFromAnswer;
+    if (fields.has('creditor') || patch.account === 'debt' || pendingArgs.account === 'debt' || pendingArgs.paymentMethod === 'debt') patch.creditor = merchantFromAnswer;
+    changed = true;
+  }
+
+  if (pending.name === 'add_transaction') applyExpenseInferenceToPatch(patch, pendingArgs, answer);
+  changed = changed || Object.keys(patch).some(k => k !== 'currentUserText');
+  return changed ? patch : null;
 }
 
 function buildPendingFinancialClarificationCall(userId: string | null | undefined, userText: string, clientMessageId: string): FunctionCall | null {
