@@ -119,6 +119,7 @@ const CATEGORY_RULES: Array<{ category: string; subcategory: string; keywords: s
   { category: 'طعام ومشتريات منزل', subcategory: 'تموين', keywords: ['تموين', 'سوبرماركت', 'رز', 'سكر', 'زيت', 'طحين', 'معلبات', 'بقالة'] },
   { category: 'طعام ومشتريات منزل', subcategory: 'لحوم ودواجن', keywords: ['لحمة', 'لحم', 'دجاج', 'فراخ', 'سمك'] },
   { category: 'طعام ومشتريات منزل', subcategory: 'مخبوزات', keywords: ['خبز', 'مخبز', 'كعك', 'معجنات'] },
+  { category: 'طعام ومشتريات منزل', subcategory: 'حلويات', keywords: ['حلويات', 'حلوى', 'شوكولاتة', 'شوكولاته', 'عجوة', 'تمر', 'معمول'] },
   { category: 'طعام ومشتريات منزل', subcategory: 'منظفات', keywords: ['منظفات', 'كلور', 'صابون', 'مسحوق', 'سائل جلي'] },
   { category: 'زيارات وضيافة', subcategory: 'هدايا', keywords: ['هدية', 'هدايا', 'زيارة', 'عزومة', 'مباركة'] },
   { category: 'زيارات وضيافة', subcategory: 'ضيافة', keywords: ['ضيافة', 'حلويات زيارة', 'قهوة للضيوف', 'شوكولاتة'] },
