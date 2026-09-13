@@ -342,6 +342,7 @@ test('TREASURER-12: recurring commitment manager detects subscriptions and conve
   assert.ok(tools.includes('export async function reviewRecurringCommitments'), 'recurring due-date review tool must exist');
   assert.ok(tools.includes('export async function createRecurringCommitmentFromCandidate'), 'recurring commitment conversion tool must exist');
   assert.ok(tools.includes('recurringDetectionKey'), 'converted commitments must carry recurrence detection metadata');
+  assert.ok(tools.includes('const due = auditAsDate(c.dueDate)'), 'commitment enrichment must handle Firestore timestamp due dates');
   assert.ok(tools.includes('duplicate: true'), 'direct recurring conversion must avoid duplicate commitments');
   assert.ok(tools.includes('advisor-recurring-detected'), 'high-confidence recurring candidates must become advisor alerts when requested');
   assert.ok(tools.includes('advisor-recurring-due'), 'due or overdue recurring commitments must become advisor alerts when reviewed');
