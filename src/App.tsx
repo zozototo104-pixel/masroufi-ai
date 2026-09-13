@@ -865,6 +865,25 @@ export default function App() {
       }
     };
 
+    const fetchMonthEndForecastsData = async (headers: Record<string, string>) => {
+      try {
+        const forecastRes = await fetch('/api/advisor/month-end-forecast?limit=8', { headers });
+        const forecastPayload = await forecastRes.json().catch(() => ({}));
+        if (forecastRes.ok && forecastPayload?.success !== false) {
+          const nextForecasts = Array.isArray(forecastPayload.forecasts) ? forecastPayload.forecasts : [];
+          setMonthEndForecasts(nextForecasts);
+          await idbSet('lkgs_month_end_forecasts', nextForecasts);
+        } else {
+          const cachedForecasts = await idbGet<any[]>('lkgs_month_end_forecasts');
+          if (Array.isArray(cachedForecasts)) setMonthEndForecasts(cachedForecasts);
+        }
+      } catch (forecastErr) {
+        console.warn('Month-end forecasts refresh failed:', forecastErr);
+        const cachedForecasts = await idbGet<any[]>('lkgs_month_end_forecasts');
+        if (Array.isArray(cachedForecasts)) setMonthEndForecasts(cachedForecasts);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
