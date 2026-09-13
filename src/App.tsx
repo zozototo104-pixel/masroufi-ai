@@ -3018,8 +3018,8 @@ export default function App() {
                       <span className="text-[10px] text-slate-400 whitespace-nowrap">{alert.severity === 'critical' ? 'حرج' : 'تنبيه'}</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => handleAdvisorAlertAction(alert.id, 'resolve')} className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-[10px] font-bold">
-                        تم التعامل
+                      <button title="يغلق التنبيه فقط ولا يعدّل العمليات المالية تلقائياً" onClick={() => handleAdvisorAlertAction(alert.id, 'resolve')} className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-[10px] font-bold">
+                        إغلاق التنبيه
                       </button>
                       <button onClick={() => handleAdvisorAlertAction(alert.id, 'snooze')} className="px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-200 text-[10px] font-bold">
                         ذكرني لاحقاً
