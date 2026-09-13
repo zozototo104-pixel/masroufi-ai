@@ -1148,6 +1148,7 @@ export default function App() {
             await fetchFinancialHabitReportsData(headers);
             await fetchWeeklyFinancialPlansData(headers);
             await fetchAdaptiveBudgetPlansData(headers);
+            await fetchMonthEndForecastsData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
