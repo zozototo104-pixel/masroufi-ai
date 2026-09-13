@@ -7548,8 +7548,8 @@ function recurringKeywordBoost(tx: any) {
 }
 
 function buildRecurringCandidate(group: any[], key: string, now: Date) {
-  const sorted = [...group].sort((a: any, b: any) => (auditAsDate(a.date || a.createdAt)?.getTime() || 0) - (auditAsDate(b.date || b.createdAt)?.getTime() || 0));
-  const dated = sorted.map((tx: any) => ({ tx, date: auditAsDate(tx.date || tx.createdAt) })).filter((x: any) => x.date);
+  const sorted = [...group].sort((a: any, b: any) => (transactionAnalysisDate(a)?.getTime() || 0) - (transactionAnalysisDate(b)?.getTime() || 0));
+  const dated = sorted.map((tx: any) => ({ tx, date: transactionAnalysisDate(tx) })).filter((x: any) => x.date);
   if (dated.length < 2) return null;
   const intervals = dated.slice(1).map((x: any, idx: number) => Math.round((x.date.getTime() - dated[idx].date.getTime()) / 86400000)).filter((days: number) => days > 0);
   const frequency = inferRecurringFrequencyFromIntervals(intervals);
