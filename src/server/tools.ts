@@ -280,6 +280,16 @@ async function addNotification(
       operationId: options.operationId || null,
       idempotencyKey: options.idempotencyKey || null,
       metadata: options.metadata || null,
+      advisorAlert: Boolean(options.advisorAlert),
+      advisorStatus: options.advisorStatus || (options.advisorAlert ? 'open' : null),
+      severity: options.severity || null,
+      priority: options.priority || null,
+      category: options.category || null,
+      source: options.source || null,
+      actions: Array.isArray(options.actions) ? options.actions.slice(0, 6) : [],
+      resolvedAt: null,
+      dismissedAt: null,
+      snoozedUntil: null,
       duplicateCount: 0,
     });
   } catch (e) {
