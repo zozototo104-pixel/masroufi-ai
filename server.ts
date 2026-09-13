@@ -2425,9 +2425,11 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       if (pendingClarificationCall && toolHandlers[pendingClarificationCall.name]) {
         const authToken = req.headers.authorization.split('Bearer ')[1];
         const stableOperationId = buildStableOperationIdForToolCall(pendingClarificationCall, String(clientMessageId || ''));
+        const pendingClarificationOriginalText = String((pendingClarificationCall.args as any)?.userText || '').trim();
+        const clarificationUserText = pendingClarificationOriginalText || recentUserConversationText;
         const toolArgs = stableOperationId
-          ? { ...(pendingClarificationCall.args || {}), operationId: stableOperationId, clientMessageId, userText: recentUserConversationText, currentUserText: message }
-          : { ...(pendingClarificationCall.args || {}), clientMessageId, userText: recentUserConversationText, currentUserText: message };
+          ? { ...(pendingClarificationCall.args || {}), operationId: stableOperationId, clientMessageId, userText: clarificationUserText, currentUserText: message }
+          : { ...(pendingClarificationCall.args || {}), clientMessageId, userText: clarificationUserText, currentUserText: message };
         const responseData = await toolHandlers[pendingClarificationCall.name](toolArgs, req.user.uid, authToken);
         const directResponses = [{ id: 'pending_financial_clarification', name: pendingClarificationCall.name, args: toolArgs, requestArgs: toolArgs, response: responseData }];
         updatePendingFinancialClarificationFromResponses(req.user.uid, directResponses, String(clientMessageId || ''), 'chat');
