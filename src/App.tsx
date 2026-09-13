@@ -684,6 +684,24 @@ export default function App() {
       }
     };
 
+    const fetchAdvisorAuditData = async (headers: Record<string, string>) => {
+      try {
+        const auditRes = await fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6', { headers });
+        const auditPayload = await auditRes.json().catch(() => ({}));
+        if (auditRes.ok && auditPayload?.success !== false) {
+          setAdvisorAudit(auditPayload);
+          await idbSet('lkgs_advisor_audit', auditPayload);
+        } else {
+          const cachedAudit = await idbGet<any>('lkgs_advisor_audit');
+          if (cachedAudit) setAdvisorAudit(cachedAudit);
+        }
+      } catch (auditErr) {
+        console.warn('Advisor audit refresh failed:', auditErr);
+        const cachedAudit = await idbGet<any>('lkgs_advisor_audit');
+        if (cachedAudit) setAdvisorAudit(cachedAudit);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
