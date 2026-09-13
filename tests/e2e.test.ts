@@ -386,6 +386,10 @@ test('LIVE-AUDIO: client must not show no-audio errors before real microphone sp
     'Gemini Live tools must be disableable from env when the provider closes setup-heavy sessions');
   assert.ok(server.includes('const liveConfig: any') && server.includes('if (liveFunctionDeclarations.length > 0)') && server.includes('liveConfig.tools'),
     'Gemini Live must omit the tools field completely when tool mode is off');
+  assert.ok(server.includes('function compactLiveSchema(value: any, insidePropertiesMap = false)') && server.includes('never strip real user parameter names from a'),
+    'Gemini Live schema compaction must preserve real parameter names such as description');
+  assert.ok(server.includes('Object.prototype.hasOwnProperty.call(out.properties, name)') && server.includes('delete out.required'),
+    'Gemini Live schema compaction must remove invalid required fields before setup reaches the provider');
 });
 
 test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and must not invent debt from creditor fields', async () => {
