@@ -390,6 +390,10 @@ test('LIVE-AUDIO: client must not show no-audio errors before real microphone sp
     'Gemini Live schema compaction must preserve real parameter names such as description');
   assert.ok(server.includes('Object.prototype.hasOwnProperty.call(out.properties, name)') && server.includes('delete out.required'),
     'Gemini Live schema compaction must remove invalid required fields before setup reaches the provider');
+  assert.ok(server.includes("String(out.type || '').toLowerCase() === 'array'") && server.includes("out.items = { type: 'object', properties: {} }"),
+    'Gemini Live schema compaction must add missing array items before setup reaches the provider');
+  assert.ok(server.includes("String(out.type || '').toLowerCase() === 'object'") && server.includes('out.properties = {}'),
+    'Gemini Live schema compaction must add missing object properties for strict Live validation');
 });
 
 test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and must not invent debt from creditor fields', async () => {
