@@ -143,3 +143,18 @@ test('FIN-LIVE-01: duplicate in-flight Live write prefers a confirmed committed 
   assert.ok(server.includes("committedResult?.cloudStorageConfirmed === true || committedResult?.durability === 'committed' || committedResult?.transactionId"), 'only a confirmed/committed prior write may replace the retry warning');
   assert.ok(server.includes('recoveredFromDuplicateInFlight: true'), 'the recovered response must be explicitly marked as deduplicated recovery');
 });
+
+test('TREASURER-01: risky expenses are stopped before ledger commit until user confirmation', async () => {
+  const tools = await src('src/server/tools.ts');
+  const treasurer = await src('src/server/treasurerEngine.ts');
+  assert.ok(treasurer.includes('confirmationReasons'), 'risk engine must separate blocking confirmation reasons from soft warnings');
+  assert.ok(tools.includes('TREASURER_CRITICAL_RISK'), 'add_transaction must expose a critical treasurer risk reason');
+  assert.ok(tools.includes('أمين الصندوق يوقف العملية مؤقتاً قبل الحفظ'), 'risky expense must be stopped before the transaction object is committed');
+  assert.ok(tools.includes('riskAssessment: risk'), 'the blocking response must include the numeric risk assessment for deterministic replies/UI');
+});
+
+test('TREASURER-02: debt purchases go through the same preflight risk gate', async () => {
+  const tools = await src('src/server/tools.ts');
+  assert.ok(tools.includes("if (type === 'expense' && !args.deferBalanceCheckToAtomicBatch)"), 'expense preflight must not exclude credit/debt purchases');
+  assert.equal(tools.includes("if (type === 'expense' && !isCreditPurchase && !args.deferBalanceCheckToAtomicBatch)"), false, 'debt purchases must not bypass the treasurer preflight');
+});
