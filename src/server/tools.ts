@@ -2237,7 +2237,7 @@ function normalizeMonthEndForecastStatus(projectedFreeCash: number, projectedNet
 function buildMonthEndForecastMessage(status: string, forecast: any) {
   if (status === 'month_end_deficit') return `التوقع الحالي يشير إلى عجز/فجوة بنهاية الفترة بقيمة تقريبية ${forecast.requiredRecovery || forecast.projectedGap || 0} ₪ إذا استمر نفس النمط.`;
   if (status === 'month_end_pressure') return `التوقع يشير إلى ضغط بنهاية الفترة: الهامش الحر المتوقع ${forecast.projectedFreeCashAfterReserve || 0} ₪ فقط، والسقف اليومي المقترح ${forecast.dailyCorrectionCap || 0} ₪.`;
-  if (status === 'month_end_surplus') return `التوقع جيد: قد تنهي الفترة بفائض حر يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪ بعد الالتزامات والاحتياطي والأهداف.`;
+  if (status === 'month_end_surplus') return `التوقع جيد: قد تنهي الفترة بفائض حر يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪ بعد الالتزامات والاحتياطي والأهداف والصرف المتوقع.`;
   return `التوقع متوازن: نهاية الفترة قريبة من الصفر الآمن مع هامش يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪.`;
 }
 
