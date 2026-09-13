@@ -557,6 +557,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'safe spending must not reserve average spending as a hidden buffer; average spending is forecast-only');
   assert.ok(tools.includes('if (!c.dueDate) return false'),
     'safe spending must not reserve undated commitments as upcoming unpaid obligations');
+  assert.ok(tools.includes('findImplicitCommitmentPayment') && tools.includes('implicitlyPaidCommitments'),
+    'safe spending must not reserve commitments that appear already paid by matching current-cycle expenses');
   assert.ok(tools.includes('transactionAnalysisDate') && tools.includes('tx?.localDay') && tools.includes('tx?.dateKey'),
     'habit and recurring engines must understand local transaction date fields, not only date');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS'),
