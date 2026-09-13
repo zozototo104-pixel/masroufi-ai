@@ -165,6 +165,8 @@ export default function App() {
   const [isAdaptiveBudgetGenerating, setIsAdaptiveBudgetGenerating] = useState(false);
   const [monthEndForecasts, setMonthEndForecasts] = useState<any[]>([]);
   const [isMonthEndForecasting, setIsMonthEndForecasting] = useState(false);
+  const [dailyFinancialPulses, setDailyFinancialPulses] = useState<any[]>([]);
+  const [isDailyPulseGenerating, setIsDailyPulseGenerating] = useState(false);
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
