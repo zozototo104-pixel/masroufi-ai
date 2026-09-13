@@ -1041,6 +1041,7 @@ export default function App() {
         await fetchFinancialScenariosData(headers);
         await fetchRecurringCommitmentCandidatesData(headers);
         await fetchFinancialHabitReportsData(headers);
+        await fetchWeeklyFinancialPlansData(headers);
 
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
