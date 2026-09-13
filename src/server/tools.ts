@@ -6485,6 +6485,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_balance: getBalance,
   get_financial_decision_context: getFinancialDecisionContext,
   get_safe_spending_limit: getSafeSpendingLimit,
+  get_advisor_alerts: getAdvisorAlerts,
+  update_advisor_alert: updateAdvisorAlert,
   assess_purchase: assessPurchase,
   search_local_market: searchLocalMarket,
   get_market_directory: getMarketDirectory,
