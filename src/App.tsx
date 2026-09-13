@@ -163,6 +163,8 @@ export default function App() {
   const [isWeeklyPlanGenerating, setIsWeeklyPlanGenerating] = useState(false);
   const [adaptiveBudgetPlans, setAdaptiveBudgetPlans] = useState<any[]>([]);
   const [isAdaptiveBudgetGenerating, setIsAdaptiveBudgetGenerating] = useState(false);
+  const [monthEndForecasts, setMonthEndForecasts] = useState<any[]>([]);
+  const [isMonthEndForecasting, setIsMonthEndForecasting] = useState(false);
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
