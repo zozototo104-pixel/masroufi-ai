@@ -640,6 +640,18 @@ export default function App() {
       }
     };
 
+    const fetchAdvisorPulseData = async (headers: Record<string, string>) => {
+      const pulseRes = await fetch('/api/advisor/pulse', { headers });
+      const pulsePayload = await pulseRes.json().catch(() => ({}));
+      if (pulseRes.ok && pulsePayload?.success !== false) {
+        setAdvisorPulse(pulsePayload);
+        await idbSet('lkgs_advisor_pulse', pulsePayload);
+      } else {
+        const cachedPulse = await idbGet<any>('lkgs_advisor_pulse');
+        if (cachedPulse) setAdvisorPulse(cachedPulse);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
