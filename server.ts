@@ -3107,11 +3107,13 @@ function compactLiveSchema(value: any): any {
 }
 
 function buildGeminiLiveFunctionDeclarations() {
-  return functionDeclarations.map((decl: any) => ({
-    name: decl.name,
-    description: LIVE_TOOL_DESCRIPTION_OVERRIDES[decl.name] || String(decl.description || '').slice(0, 180),
-    parameters: compactLiveSchema(decl.parameters || { type: 'object', properties: {} }),
-  }));
+  return functionDeclarations
+    .filter((decl: any) => GEMINI_LIVE_TOOL_NAMES.has(decl.name))
+    .map((decl: any) => ({
+      name: decl.name,
+      description: LIVE_TOOL_DESCRIPTION_OVERRIDES[decl.name] || String(decl.description || '').slice(0, 180),
+      parameters: compactLiveSchema(decl.parameters || { type: 'object', properties: {} }),
+    }));
 }
 
 function buildCompactGeminiLiveSystemInstruction(args: { aiName: string; userName: string; persona: string; relationshipContext: string; activeSalaryCycleText: string; personalityDesc: string }) {
