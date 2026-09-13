@@ -176,3 +176,12 @@ test('TREASURER-04: advisor pulse endpoint exposes the safe spending summary', a
   assert.ok(server.includes('safeToSpendUntilSalaryCycleEnd'), 'advisor pulse must expose horizon safe spend');
   assert.ok(server.includes('0.3.1- **حد الصرف الآمن**'), 'text and voice prompts must instruct Gemini to use the safe spending tool');
 });
+
+test('TREASURER-05: dashboard renders and refreshes advisor pulse', async () => {
+  const app = await src('src/App.tsx');
+  assert.ok(app.includes('const [advisorPulse, setAdvisorPulse]'), 'dashboard must keep advisor pulse state');
+  assert.ok(app.includes("fetch('/api/advisor/pulse'"), 'dashboard must fetch advisor pulse from the server');
+  assert.ok(app.includes("idbSet('lkgs_advisor_pulse'"), 'dashboard must cache last-known-good advisor pulse');
+  assert.ok(app.includes('نبض أمين الصندوق'), 'dashboard must render the treasurer pulse card');
+  assert.ok(app.includes('safeToSpendUntilSalaryCycleEnd'), 'dashboard card must display horizon safe spending');
+});
