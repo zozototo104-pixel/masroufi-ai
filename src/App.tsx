@@ -147,6 +147,7 @@ export default function App() {
   const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
   const [vaultData, setVaultData] = useState<any>({ vaultBalance: 0, currentCycle: null, cycles: [] });
   const [advisorPulse, setAdvisorPulse] = useState<any>(null);
+  const [advisorAlerts, setAdvisorAlerts] = useState<any[]>([]);
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
