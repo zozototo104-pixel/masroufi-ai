@@ -3053,11 +3053,17 @@ function setupLiveApi(wss: WebSocketServer) {
       const account = accountFromFinancialText(text);
       const hasPending = Boolean(getPendingFinancialClarification(userId));
       const hasDraft = Boolean(liveExpenseIntakeDraft && Date.now() - liveExpenseIntakeDraft.updatedAt <= 90_000);
+      const draftStoredAccount = hasDraft
+        ? normalizeAccount(liveExpenseIntakeDraft?.args?.paymentMethod || liveExpenseIntakeDraft?.args?.account || '')
+        : '';
+      const hasDraftPaymentMethod = ['cash', 'palPay', 'debt'].includes(draftStoredAccount);
       const hasAmount = Boolean(extractAmountFromFinancialText(text));
       const fullDirect = hasAmount && Boolean(account) && looksLikeFinancialWriteIntent(text);
       const readQuestion = /(شو|ايش|كم|اخر|آخر|اعطيني|اعطني|ورجيني|اعرض|عرض|تقرير)/.test(normalized);
-      const pendingClarificationAnswer = hasPending && isShortClarificationAnswer(text) && !readQuestion;
-      const shortCommitAnswer = ((Boolean(account) && (hasPending || hasDraft)) || pendingClarificationAnswer) && !readQuestion;
+      const shortClarificationAnswer = isShortClarificationAnswer(text) && !readQuestion;
+      const pendingClarificationAnswer = hasPending && shortClarificationAnswer;
+      const draftClarificationAnswer = hasDraft && shortClarificationAnswer && (Boolean(account) || hasDraftPaymentMethod || isBareConfirmationAnswer(normalized));
+      const shortCommitAnswer = pendingClarificationAnswer || draftClarificationAnswer;
       if (!fullDirect && !shortCommitAnswer) return;
       const clientMessageId = `live_server_${requestId}_${Date.now()}_${stableShortFingerprint(text)}`;
       console.warn('[live-server-financial] scheduled deterministic completion candidate', {
