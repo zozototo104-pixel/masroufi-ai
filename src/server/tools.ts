@@ -1902,9 +1902,10 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   const now = args?.now ? new Date(String(args.now)) : new Date();
   const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
   const mode = normalizeAdaptiveBudgetMode(args?.mode || args?.focus);
-  const [profileResult, budgetOverview, safe, habits, goalsResult, commitmentsResult, weeklyPlan] = await Promise.all([
+  const [profileResult, budgetOverview, currentSalaryCycleResult, safe, habits, goalsResult, commitmentsResult, weeklyPlan] = await Promise.all([
     getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) })),
     getBudgetsOverview({}, userId, token).catch((e: any) => ({ success: false, budgets: [], totalBudget: 0, totalSpent: 0, partial: true, error: e?.message || String(e) })),
+    queryTransactions({ period: 'current_salary_cycle', includeTransactions: false, limit: 500 }, userId, token).catch((e: any) => ({ success: false, salaryCycle: {}, partial: true, error: e?.message || String(e) })),
     getSafeSpendingLimit({ period: 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, decision: 'unknown', safeSpending: {}, breakdown: {}, partial: true, error: e?.message || String(e) })),
     analyzeFinancialHabits({ period: args?.habitPeriod || 'last_30_days', insightLimit: 10, limit: Math.max(200, Math.min(1000, Number(args?.transactionLimit) || 700)) }, userId, token).catch((e: any) => ({ success: false, insights: [], current: {}, partial: true, error: e?.message || String(e) })),
     getSavingsGoals({ now: safeNow.toISOString() }, userId, token).catch((e: any) => ({ success: false, goals: [], partial: true, error: e?.message || String(e) })),
