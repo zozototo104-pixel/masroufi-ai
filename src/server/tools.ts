@@ -1820,13 +1820,69 @@ function buildAdaptiveBudgetReason(input: any) {
   return parts.join(' ') || 'اقتراح مبني على الصرف الحالي والحد الآمن والأهداف.';
 }
 
-function adaptiveBudgetStatus(proposals: any[], totalCurrent: number, totalProposed: number, envelope: number) {
+function adaptiveBudgetStatus(proposals: any[], totalCurrent: number, totalProposed: number, envelope: number, incomeGuard?: any) {
   const reduced = proposals.filter((p: any) => p.change < 0).length;
   const increased = proposals.filter((p: any) => p.change > 0).length;
+  if (incomeGuard?.missingIncome && incomeGuard?.usingDefaultBudgetTemplate) return 'needs_income_profile';
+  if (incomeGuard?.unableToFitIncome) return 'income_conflict';
   if (totalProposed > envelope) return 'needs_manual_review';
   if (reduced > increased) return 'tightened';
   if (increased > reduced) return 'rebalanced_growth';
   return 'balanced';
+}
+
+function fitAdaptiveBudgetProposalsToIncomeEnvelope(proposals: any[], targetEnvelope: number, referenceMonthlyIncome: number) {
+  const preCapTotal = roundMoney(proposals.reduce((sum: number, p: any) => sum + parsePositiveFinancialAmount(p.proposedLimit), 0));
+  const envelope = roundMoney(parsePositiveFinancialAmount(targetEnvelope));
+  if (referenceMonthlyIncome <= 0 || envelope <= 0 || preCapTotal <= envelope) {
+    return { proposals, capApplied: false, preCapTotal, fittedTotal: preCapTotal, unableToFitIncome: false };
+  }
+
+  const scale = Math.max(0, Math.min(1, envelope / Math.max(1, preCapTotal)));
+  let fitted = proposals.map((p: any) => {
+    const proposedLimit = roundBudgetLimit(parsePositiveFinancialAmount(p.proposedLimit) * scale);
+    const change = roundMoney(proposedLimit - parsePositiveFinancialAmount(p.currentLimit));
+    const changePct = parsePositiveFinancialAmount(p.currentLimit) > 0 ? Math.round((change / parsePositiveFinancialAmount(p.currentLimit)) * 100) : 100;
+    return {
+      ...p,
+      proposedLimit,
+      change,
+      changePct,
+      incomeEnvelopeScale: scale,
+      action: change < -5 ? 'decrease' : change > 5 ? 'increase' : 'keep',
+      reason: `${p.reason || ''} تم ضبط هذا البند ضمن سقف الدخل المتاح حتى لا تتحول الميزانية إلى رقم أعلى من دخلك.`.trim(),
+    };
+  });
+
+  let fittedTotal = roundMoney(fitted.reduce((sum: number, p: any) => sum + parsePositiveFinancialAmount(p.proposedLimit), 0));
+  if (fittedTotal > envelope) {
+    const reduceOrder = fitted
+      .map((p: any, index: number) => ({ index, p }))
+      .sort((a: any, b: any) => {
+        const rank: any = { flexible: 0, discretionary: 1, restricted: 2, essential: 3, protected: 4 };
+        return (rank[a.p.kind] ?? 0) - (rank[b.p.kind] ?? 0) || parsePositiveFinancialAmount(b.p.proposedLimit) - parsePositiveFinancialAmount(a.p.proposedLimit);
+      });
+    let over = roundMoney(fittedTotal - envelope);
+    for (const item of reduceOrder) {
+      if (over <= 0) break;
+      const current = parsePositiveFinancialAmount(fitted[item.index].proposedLimit);
+      const reduction = Math.min(current, over);
+      const nextLimit = roundMoney(Math.max(0, current - reduction));
+      const currentLimit = parsePositiveFinancialAmount(fitted[item.index].currentLimit);
+      const change = roundMoney(nextLimit - currentLimit);
+      fitted[item.index] = {
+        ...fitted[item.index],
+        proposedLimit: nextLimit,
+        change,
+        changePct: currentLimit > 0 ? Math.round((change / currentLimit) * 100) : 100,
+        action: change < -5 ? 'decrease' : change > 5 ? 'increase' : 'keep',
+      };
+      over = roundMoney(over - reduction);
+    }
+    fittedTotal = roundMoney(fitted.reduce((sum: number, p: any) => sum + parsePositiveFinancialAmount(p.proposedLimit), 0));
+  }
+
+  return { proposals: fitted, capApplied: true, preCapTotal, fittedTotal, unableToFitIncome: fittedTotal > envelope };
 }
 
 export async function generateAdaptiveBudgetPlan(args: any, userId: string, token: string) {
