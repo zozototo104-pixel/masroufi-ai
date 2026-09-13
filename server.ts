@@ -1053,6 +1053,18 @@ function cleanFinancialClarificationText(answer: string): string {
     .trim();
 }
 
+function isAmountOnlyClarificationAnswer(answer: string, amount: number | null, cleanedFreeText: string): boolean {
+  if (!amount) return false;
+  if (cleanedFreeText.length === 0) return true;
+  const normalized = normalizeArabicForIntent(answer)
+    .replace(/(?:^|\s)\d+(?:[\.,]\d+)?(?=\s|$)/g, ' ')
+    .replace(/شواكل|شيكل|₪|دولار|دينار|دنانير|ils|nis/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const parsedWords = parseArabicAmountWords(normalized);
+  return Boolean(parsedWords && Math.abs(parsedWords - amount) < 0.01);
+}
+
 function applyExpenseInferenceToPatch(patch: any, pendingArgs: any, answer: string) {
   const inferenceText = [pendingArgs.userText, pendingArgs.notes, pendingArgs.purchaseItem, pendingArgs.item, pendingArgs.description, answer].filter(Boolean).join(' ');
   const inferred = inferFallbackExpenseCategory(inferenceText);
