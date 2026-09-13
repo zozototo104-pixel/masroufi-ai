@@ -2106,6 +2106,28 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/advisor/habits", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { analyzeFinancialHabits } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await analyzeFinancialHabits(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor habit analysis error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/advisor/habits", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getFinancialHabitReports } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getFinancialHabitReports(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor habit reports error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/advisor/market-watchlist", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketWatchlist } = await import('./src/server/tools');
