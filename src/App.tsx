@@ -941,6 +941,7 @@ export default function App() {
         setSavingsGoals(finalSavings);
 
         await fetchVaultData(headers);
+        await fetchTreasurerProfileData(headers);
         await fetchAdvisorPulseData(headers);
         await fetchAdvisorAlertsData(headers);
         await fetchAdvisorAuditData(headers);
