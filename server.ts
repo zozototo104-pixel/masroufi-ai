@@ -978,6 +978,10 @@ function financialClarificationFieldsFromResult(result: any): string[] {
     case 'MISSING_INCOME_SOURCE': return ['incomeSource'];
     case 'POSSIBLE_LOAN_NOT_INCOME': return ['incomeNature'];
     case 'INCOME_SPLIT_MISMATCH': return ['incomeSplit'];
+    case 'INVALID_AMOUNT': return ['amount'];
+    case 'MISSING_CATEGORY': return ['category'];
+    case 'MISSING_SUBCATEGORY': return ['subcategory'];
+    case 'MISSING_NECESSITY_CONTEXT': return ['necessity'];
     default: return [];
   }
 }
