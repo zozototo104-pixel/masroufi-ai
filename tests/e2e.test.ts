@@ -376,6 +376,12 @@ test('LIVE-AUDIO: client must not show no-audio errors before real microphone sp
     'Gemini Live follow-up text during an active session must not use sendClientContent');
   assert.ok(server.includes('sendRealtimeInput({') && server.includes('text: `اقرأ للمستخدم الآن بصوت واضح'),
     'Gemini Live follow-up speech prompts must be sent through realtime text input');
+  assert.ok(server.includes('GEMINI_LIVE_TOOL_NAMES') && server.includes('.filter((decl: any) => GEMINI_LIVE_TOOL_NAMES.has(decl.name))'),
+    'Gemini Live must send a compact voice-safe tool subset instead of the full text-chat tool surface');
+  assert.ok(server.includes('buildCompactGeminiLiveSystemInstruction') && server.includes('systemInstruction: liveSystemInstruction'),
+    'Gemini Live must use a compact audio-specific system instruction, not the full text prompt');
+  assert.ok(server.includes('liveSystemInstructionChars') && server.includes('toolCount: liveFunctionDeclarations.length'),
+    'Gemini Live startup logs must expose setup size diagnostics for immediate-close debugging');
 });
 
 test('PAYMENT-INTENT: Live transaction tools must use the spoken utterance and must not invent debt from creditor fields', async () => {
