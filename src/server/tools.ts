@@ -1839,6 +1839,14 @@ export async function addTransaction(args: any, userId: string, token: string) {
         });
       }
 
+      let preflightTreasurerProfile = normalizeTreasurerProfile({});
+      try {
+        const profileSnap = await adminDb.collection('users').doc(userId).collection('treasurer').doc('profile').get();
+        preflightTreasurerProfile = normalizeTreasurerProfile(profileSnap.exists ? profileSnap.data() : {});
+      } catch (profileErr) {
+        console.warn('Treasurer profile unavailable for preflight risk gate:', profileErr);
+      }
+
       if (balances && account !== 'debt') {
         const available = account === 'cash' ? Number(balances.cash||0) : account === 'palPay' ? Number(balances.palPay||0) : 0;
         if (amount > available + 0.0001) {
