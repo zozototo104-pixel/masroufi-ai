@@ -1115,6 +1115,306 @@ export async function getFinancialScenarios(args: any, userId: string, token: st
   return { success: true, scenarios, count: scenarios.length, limit, partial: Boolean((snap as any).partial || scenarios.length >= limit), readEfficiency: { advisorScenarioLimit: limit, docsRead: snap.docs.length } };
 }
 
+function resolveHabitAnalysisWindow(args: any, now: Date) {
+  const raw = normalizeArabicText(String(args?.window || args?.period || 'last_30_days')).toLowerCase();
+  let days = Math.max(7, Math.min(180, Number(args?.days || args?.windowDays) || 30));
+  if (/7|week|اسبوع|أسبوع/.test(raw)) days = 7;
+  if (/14|اسبوعين|أسبوعين/.test(raw)) days = 14;
+  if (/90|quarter|ربع/.test(raw)) days = 90;
+  if (/salary|راتب|دورة/.test(raw)) {
+    const cycle = getCurrentSalaryCycle(now);
+    const start = new Date(cycle.startIso);
+    const end = new Date(Math.min(now.getTime(), new Date(cycle.endExclusiveIso).getTime()));
+    const spanDays = Math.max(7, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    const prevEnd = start;
+    const prevStart = new Date(prevEnd.getTime() - spanDays * 86400000);
+    return { key: 'salary_cycle', label: cycle.name || 'دورة الراتب الحالية', start, end, days: spanDays, previousStart: prevStart, previousEnd: prevEnd };
+  }
+  const end = new Date(now.getTime());
+  const start = new Date(end.getTime() - days * 86400000);
+  const previousEnd = start;
+  const previousStart = new Date(previousEnd.getTime() - days * 86400000);
+  return { key: `last_${days}_days`, label: `آخر ${days} يوم`, start, end, days, previousStart, previousEnd };
+}
+
+function habitDayName(date: Date) {
+  return ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][date.getUTCDay()] || 'غير محدد';
+}
+
+function habitBucketKey(value: any, fallback = 'غير محدد') {
+  const text = String(value || '').trim();
+  return text || fallback;
+}
+
+function incrementHabitBucket(map: Record<string, any>, key: string, amount: number, tx: any) {
+  const bucketKey = habitBucketKey(key);
+  const bucket = map[bucketKey] || { key: bucketKey, total: 0, count: 0, sampleIds: [] as string[] };
+  bucket.total = roundMoney(bucket.total + amount);
+  bucket.count += 1;
+  if (tx?.id && bucket.sampleIds.length < 8) bucket.sampleIds.push(tx.id);
+  map[bucketKey] = bucket;
+}
+
+function summarizeHabitTransactions(transactions: any[], start: Date, end: Date) {
+  const summary: any = {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    expenseTotal: 0,
+    incomeTotal: 0,
+    expenseCount: 0,
+    incomeCount: 0,
+    byCategory: {},
+    byMerchant: {},
+    byDay: {},
+    byAccount: {},
+    smallPurchases: { total: 0, count: 0, sampleIds: [] as string[] },
+  };
+  for (const tx of transactions) {
+    const date = auditAsDate(tx.date || tx.createdAt);
+    if (!date || date < start || date >= end) continue;
+    const amount = parsePositiveFinancialAmount(tx.amount);
+    if (amount <= 0) continue;
+    const type = String(tx.type || '').toLowerCase();
+    if (type === 'income') {
+      summary.incomeTotal = roundMoney(summary.incomeTotal + amount);
+      summary.incomeCount += 1;
+      continue;
+    }
+    if (type !== 'expense') continue;
+    summary.expenseTotal = roundMoney(summary.expenseTotal + amount);
+    summary.expenseCount += 1;
+    incrementHabitBucket(summary.byCategory, habitBucketKey(tx.category), amount, tx);
+    incrementHabitBucket(summary.byMerchant, habitBucketKey(tx.merchant || tx.beneficiary || tx.purchaseItem || tx.notes), amount, tx);
+    incrementHabitBucket(summary.byDay, habitDayName(date), amount, tx);
+    incrementHabitBucket(summary.byAccount, habitBucketKey(tx.account), amount, tx);
+    if (amount <= 50) {
+      summary.smallPurchases.total = roundMoney(summary.smallPurchases.total + amount);
+      summary.smallPurchases.count += 1;
+      if (tx.id && summary.smallPurchases.sampleIds.length < 12) summary.smallPurchases.sampleIds.push(tx.id);
+    }
+  }
+  for (const field of ['byCategory', 'byMerchant', 'byDay', 'byAccount']) {
+    summary[field] = Object.values(summary[field]).sort((a: any, b: any) => b.total - a.total || b.count - a.count).slice(0, 20);
+  }
+  return summary;
+}
+
+function habitBucketTotal(summary: any, field: string, key: string) {
+  const arr = Array.isArray(summary?.[field]) ? summary[field] : [];
+  const found = arr.find((item: any) => item.key === key);
+  return found ? parsePositiveFinancialAmount(found.total) : 0;
+}
+
+function addHabitInsight(insights: any[], insight: any) {
+  const exists = insights.some((i: any) => i.key === insight.key);
+  if (!exists) insights.push({ ...insight, createdAt: new Date().toISOString() });
+}
+
+function buildFinancialHabitInsights(current: any, previous: any, profile: any, args: any) {
+  const insights: any[] = [];
+  const minAmount = Math.max(50, parsePositiveFinancialAmount(args?.minInsightAmount) || 100);
+  const spikePct = Math.max(20, Math.min(300, Number(args?.spikePct) || 35));
+  const restricted = normalizeTreasurerStringList(profile.restrictedCategories || []).map((c: string) => normalizeArabicText(c).toLowerCase());
+
+  for (const cat of (current.byCategory || []).slice(0, 8)) {
+    const prev = habitBucketTotal(previous, 'byCategory', cat.key);
+    const increase = roundMoney(cat.total - prev);
+    const pct = prev > 0 ? Math.round((increase / prev) * 100) : (cat.total >= minAmount ? 100 : 0);
+    const isRestricted = restricted.some((r: string) => r && normalizeArabicText(cat.key).toLowerCase().includes(r));
+    if (cat.total >= minAmount && (pct >= spikePct || isRestricted)) {
+      addHabitInsight(insights, {
+        key: `category_spike:${cat.key}`,
+        type: 'category_spike',
+        severity: pct >= 100 || isRestricted ? 'warning' : 'info',
+        title: `ارتفاع بند ${cat.key}`,
+        message: prev > 0 ? `صرفك على ${cat.key} زاد ${pct}% مقارنة بالفترة السابقة.` : `ظهر صرف واضح على ${cat.key} بقيمة ${cat.total} ₪ بدون نمط سابق كافٍ.`,
+        evidence: { currentTotal: cat.total, previousTotal: prev, increase, pct, count: cat.count, sampleIds: cat.sampleIds },
+        recommendations: [`ضع سقفاً مؤقتاً لبند ${cat.key}.`, 'راجع آخر العمليات الصغيرة داخل هذا البند قبل آخر الأسبوع.'],
+      });
+    }
+  }
+
+  for (const merchant of (current.byMerchant || []).filter((m: any) => m.key !== 'غير محدد').slice(0, 8)) {
+    const prev = habitBucketTotal(previous, 'byMerchant', merchant.key);
+    const increase = roundMoney(merchant.total - prev);
+    const pct = prev > 0 ? Math.round((increase / prev) * 100) : (merchant.total >= minAmount ? 100 : 0);
+    if (merchant.total >= minAmount && pct >= spikePct && merchant.count >= 2) {
+      addHabitInsight(insights, {
+        key: `merchant_spike:${merchant.key}`,
+        type: 'merchant_spike',
+        severity: merchant.total >= 250 || pct >= 100 ? 'warning' : 'info',
+        title: `زيادة عند ${merchant.key}`,
+        message: `الصرف المرتبط بـ ${merchant.key} وصل ${merchant.total} ₪ (${merchant.count} مرات)، بزيادة ${pct}% عن الفترة السابقة.`,
+        evidence: { currentTotal: merchant.total, previousTotal: prev, increase, pct, count: merchant.count, sampleIds: merchant.sampleIds },
+        recommendations: ['حدد هل هذا تكرار ضروري أم عادة صرف يمكن تخفيفها.', 'لو كان اشتراكاً، حوّله إلى التزام متكرر.'],
+      });
+    }
+  }
+
+  const smallShare = current.expenseTotal > 0 ? Math.round((current.smallPurchases.total / current.expenseTotal) * 100) : 0;
+  const previousSmallTotal = parsePositiveFinancialAmount(previous.smallPurchases?.total);
+  const smallIncreasePct = previousSmallTotal > 0 ? Math.round(((current.smallPurchases.total - previousSmallTotal) / previousSmallTotal) * 100) : 0;
+  if (current.smallPurchases.count >= 6 && current.smallPurchases.total >= minAmount && (smallShare >= 20 || smallIncreasePct >= spikePct)) {
+    addHabitInsight(insights, {
+      key: 'small_purchase_accumulation',
+      type: 'small_purchase_accumulation',
+      severity: smallShare >= 35 || current.smallPurchases.total >= 300 ? 'warning' : 'info',
+      title: 'المصاريف الصغيرة تتراكم',
+      message: `لديك ${current.smallPurchases.count} مصروف صغير بإجمالي ${current.smallPurchases.total} ₪، وهذا يمثل ${smallShare}% من صرف الفترة.`,
+      evidence: { smallPurchases: current.smallPurchases, previousSmallTotal, smallShare, smallIncreasePct },
+      recommendations: ['اجمع المصاريف الصغيرة في سقف يومي واحد.', 'أوقف المصروفات الصغيرة غير الضرورية يومين لاختبار الفرق.'],
+    });
+  }
+
+  const topDay = (current.byDay || [])[0];
+  if (topDay && current.expenseTotal > 0) {
+    const dayShare = Math.round((topDay.total / current.expenseTotal) * 100);
+    const prevDayTotal = habitBucketTotal(previous, 'byDay', topDay.key);
+    const dayIncreasePct = prevDayTotal > 0 ? Math.round(((topDay.total - prevDayTotal) / prevDayTotal) * 100) : 0;
+    if (topDay.total >= minAmount && (dayShare >= 30 || dayIncreasePct >= 50)) {
+      addHabitInsight(insights, {
+        key: `day_risk:${topDay.key}`,
+        type: 'day_risk',
+        severity: dayShare >= 45 ? 'warning' : 'info',
+        title: `${topDay.key} يوم صرف مرتفع`,
+        message: `${topDay.key} وحده أخذ ${dayShare}% من صرف الفترة (${topDay.total} ₪).`,
+        evidence: { day: topDay.key, total: topDay.total, count: topDay.count, share: dayShare, previousTotal: prevDayTotal, dayIncreasePct },
+        recommendations: [`ضع حد صرف خاص ليوم ${topDay.key}.`, 'راجع هل هذا اليوم مرتبط بمشتريات أسبوعية أو خروج متكرر.'],
+      });
+    }
+  }
+
+  const debtTotal = habitBucketTotal(current, 'byAccount', 'debt');
+  const previousDebtTotal = habitBucketTotal(previous, 'byAccount', 'debt');
+  const debtPct = previousDebtTotal > 0 ? Math.round(((debtTotal - previousDebtTotal) / previousDebtTotal) * 100) : (debtTotal > 0 ? 100 : 0);
+  if (debtTotal >= minAmount && (debtPct >= spikePct || debtTotal >= Math.max(200, minAmount))) {
+    addHabitInsight(insights, {
+      key: 'debt_usage_drift',
+      type: 'debt_usage_drift',
+      severity: debtTotal >= 500 || debtPct >= 100 ? 'warning' : 'info',
+      title: 'زيادة استخدام الدين',
+      message: `الصرف على الدين في الفترة الحالية وصل ${debtTotal} ₪، بزيادة ${debtPct}% عن الفترة السابقة.`,
+      evidence: { currentDebtSpend: debtTotal, previousDebtSpend: previousDebtTotal, debtPct },
+      recommendations: ['أوقف الشراء بالدين مؤقتاً إلا للضرورة.', 'حوّل جزءاً من أي فائض لسداد الدين قبل الكماليات.'],
+    });
+  }
+
+  if (!insights.length && current.expenseCount > 0) {
+    addHabitInsight(insights, {
+      key: 'habits_stable',
+      type: 'stable',
+      severity: 'info',
+      title: 'النمط مستقر نسبياً',
+      message: 'لم يظهر ارتفاع حاد في بند أو تاجر أو يوم محدد ضمن القراءة الحالية.',
+      evidence: { currentExpenseTotal: current.expenseTotal, previousExpenseTotal: previous.expenseTotal, currentExpenseCount: current.expenseCount },
+      recommendations: ['استمر بمتابعة الحد الآمن اليومي.', 'أعد التحليل بعد عدة عمليات جديدة.'],
+    });
+  }
+  return insights.sort((a: any, b: any) => ({ critical: 3, warning: 2, info: 1 } as any)[b.severity] - ({ critical: 3, warning: 2, info: 1 } as any)[a.severity]);
+}
+
+export async function analyzeFinancialHabits(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const window = resolveHabitAnalysisWindow(args || {}, safeNow);
+  const limit = Math.max(100, Math.min(1500, Number(args?.limit) || 800));
+  let transactions: any[] = [];
+  let readSource = 'date_desc_bounded';
+  let partial = false;
+  try {
+    const snap = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .orderBy('date', 'desc')
+      .limit(limit)
+      .get();
+    transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    partial = Boolean((snap as any).partial || transactions.length >= limit);
+  } catch (err: any) {
+    readSource = 'createdAt_desc_bounded_fallback';
+    const snap = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get()
+      .catch(async () => {
+        readSource = 'userId_bounded_fallback';
+        return adminDb.collection('transactions').where('userId', '==', userId).limit(limit).get();
+      });
+    transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    partial = true;
+  }
+  const profileResult: any = await getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) }));
+  const profile = normalizeTreasurerProfile(profileResult.profile || {});
+  const current = summarizeHabitTransactions(transactions, window.start, window.end);
+  const previous = summarizeHabitTransactions(transactions, window.previousStart, window.previousEnd);
+  const insights = buildFinancialHabitInsights(current, previous, profile, args || {}).slice(0, Math.max(1, Math.min(20, Number(args?.insightLimit) || 8)));
+  const warningCount = insights.filter((i: any) => i.severity === 'warning').length;
+  const infoPatternCount = insights.filter((i: any) => i.severity === 'info' && i.type !== 'stable').length;
+  const score = Math.max(0, Math.min(100, 100 - warningCount * 18 - infoPatternCount * 6 - (partial ? 5 : 0)));
+  const status = warningCount >= 3 ? 'habit_risk' : warningCount > 0 || infoPatternCount >= 2 ? 'watch' : 'stable';
+  const delta = roundMoney(current.expenseTotal - previous.expenseTotal);
+  const deltaPct = previous.expenseTotal > 0 ? Math.round((delta / previous.expenseTotal) * 100) : (current.expenseTotal > 0 ? 100 : 0);
+  const result: any = {
+    success: true,
+    score,
+    status,
+    message: status === 'habit_risk'
+      ? 'هناك أكثر من نمط صرف يحتاج ضبطاً هذا الأسبوع/الشهر.'
+      : status === 'watch'
+        ? 'يوجد نمط أو أكثر يستحق المتابعة قبل أن يتحول لمشكلة.'
+        : 'عادات الصرف مستقرة نسبياً ضمن البيانات الحالية.',
+    window: { key: window.key, label: window.label, days: window.days, startIso: window.start.toISOString(), endIso: window.end.toISOString(), previousStartIso: window.previousStart.toISOString(), previousEndIso: window.previousEnd.toISOString() },
+    totals: { currentExpense: current.expenseTotal, previousExpense: previous.expenseTotal, delta, deltaPct, currentIncome: current.incomeTotal, previousIncome: previous.incomeTotal },
+    current,
+    previous,
+    insights,
+    recommendations: insights.slice(0, 3).flatMap((i: any) => i.recommendations || []).slice(0, 5),
+    profileCompleteness: profileResult.completeness,
+    partial,
+    readEfficiency: { transactionDocsRead: transactions.length, transactionLimit: limit, readSource },
+  };
+
+  if (parseBooleanLike(args?.save)) {
+    const reportId = stableDocId(`habit-report:${userId}:${window.key}:${safeNow.toISOString().slice(0, 10)}`);
+    await adminDb.collection('users').doc(userId).collection('advisorHabitReports').doc(reportId).set({ userId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...result }, { merge: true });
+    result.savedReportId = reportId;
+  }
+
+  if (parseBooleanLike(args?.persistAlerts)) {
+    for (const insight of insights.filter((i: any) => i.severity === 'warning').slice(0, 5)) {
+      await addNotification(userId, `📊 نمط مالي: ${insight.message}`, 'warning', adminDb, {
+        idempotencyKey: `advisor-habit-pattern:${window.key}:${insight.key}`,
+        advisorAlert: true,
+        advisorStatus: 'open',
+        severity: 'warning',
+        priority: 'medium',
+        category: 'habit_pattern',
+        source: 'analyzeFinancialHabits',
+        metadata: { window: result.window, insight },
+        actions: [
+          { id: 'set_limit', label: 'ضع سقفاً', type: 'behavior' },
+          { id: 'review_transactions', label: 'راجع العمليات', type: 'review' },
+          { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+        ],
+      });
+    }
+  }
+
+  return result;
+}
+
+export async function getFinancialHabitReports(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(50, Number(args?.limit) || 10));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorHabitReports')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const reports = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, reports, count: reports.length, limit, partial: Boolean((snap as any).partial || reports.length >= limit), readEfficiency: { advisorHabitReportLimit: limit, docsRead: snap.docs.length } };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
