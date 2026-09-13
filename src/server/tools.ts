@@ -830,8 +830,10 @@ export async function assessFinancialGoalImpact(args: any, userId: string, token
   const profileGoals = [...(profile.financialPriorities || []), ...(profile.financialGoals || [])].slice(0, 10).map((goal: any) => {
     const targetAmount = parsePositiveFinancialAmount(goal.targetAmount);
     const priorityScore = normalizeGoalPriorityScore(goal.priority);
-    const delayDays = targetAmount > 0 ? estimateGoalDelayDays(Math.min(amount, targetAmount), Math.max(targetAmount / 6, 1)) : 0;
-    return { title: goal.title || goal.name, priority: goal.priority, priorityScore, targetAmount, dueDate: goal.dueDate || '', estimatedDelayDays: delayDays, notes: goal.notes || '' };
+    const hasDueDate = /^\d{4}-\d{2}-\d{2}$/.test(String(goal.dueDate || ''));
+    const shouldEstimateGeneralGoalDelay = targetAmount > 0 && (hasDueDate || amountAboveSafe > 0 || dailyPressure > 0 || isDiscretionary);
+    const delayDays = shouldEstimateGeneralGoalDelay ? estimateGoalDelayDays(Math.min(amount, targetAmount), Math.max(targetAmount / 6, 1)) : 0;
+    return { title: goal.title || goal.name, priority: goal.priority, priorityScore, targetAmount, dueDate: goal.dueDate || '', estimatedDelayDays: delayDays, measurableImpact: shouldEstimateGeneralGoalDelay, notes: goal.notes || '' };
   }).filter((goal: any) => goal.title);
 
   const topGoal = impactedSavingsGoals[0] || profileGoals.sort((a: any, b: any) => b.priorityScore - a.priorityScore)[0];
