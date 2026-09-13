@@ -621,9 +621,10 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
     : Math.max(1, Math.min(horizon.daysRemaining, spendingPaceDays));
   const ctx: any = await getFinancialDecisionContext({}, userId, token);
 
-  const [profileSnap, goalSnap] = await Promise.all([
+  const [profileSnap, goalSnap, cycleTxResult] = await Promise.all([
     adminDb.collection('users').doc(userId).collection('treasurer').doc('profile').get().catch(() => ({ exists: false, data: () => ({}) })),
     adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [], partial: true })),
+    queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 500 }, userId, token).catch(() => ({ transactions: [], partial: true })),
   ]);
 
   const profile = normalizeTreasurerProfile((profileSnap as any).exists ? ((profileSnap as any).data() || {}) : {});
