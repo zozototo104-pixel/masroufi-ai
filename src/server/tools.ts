@@ -7345,6 +7345,21 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "run_financial_audit",
+    description: "يشغّل المدقق المالي الشامل: يراجع التكرارات، الراتب المكرر، الديون بلا دائن، العمليات ناقصة التصنيف، الالتزامات المتأخرة، الميزانيات المتجاوزة، أهداف الادخار، التنبيهات الحرجة، وحد الصرف الآمن. لا يفحص كل التاريخ إلا إذا أكد المستخدم allowFullLedgerAudit.",
+    parameters: {
+      type: "object",
+      properties: {
+        scope: { type: "string", description: "salary_cycle افتراضي، أو recent، أو all مع allowFullLedgerAudit" },
+        limit: { type: "number", description: "حد قراءة العمليات، الافتراضي 500 والأقصى 1000" },
+        findingLimit: { type: "number", description: "عدد الملاحظات المرجعة، الافتراضي 20" },
+        save: { type: "boolean", description: "حفظ نسخة من التدقيق في advisorAudits" },
+        persistAlerts: { type: "boolean", description: "تحويل الملاحظات الحرجة والتحذيرية إلى تنبيهات دائمة" },
+        allowFullLedgerAudit: { type: "boolean", description: "تأكيد صريح فقط عند تدقيق كل التاريخ" }
+      }
+    }
+  },
+  {
     name: "update_transaction",
     description: "يعدل عملية مالية سابقة باستخدام الـ id الخاص بها.",
     parameters: {
