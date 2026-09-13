@@ -326,6 +326,7 @@ test('TREASURER-11: financial scenario simulator forecasts outcomes without reco
   assert.ok(app.includes("fetch('/api/advisor/scenarios?limit=8'"), 'dashboard must fetch saved financial scenarios');
   assert.ok(app.includes("fetch('/api/advisor/scenario'"), 'dashboard must run quick financial scenarios');
   assert.ok(app.includes('handleQuickScenarioSimulation'), 'dashboard must expose a quick scenario action');
+  assert.ok(app.includes("fetch('/api/advisor/alerts?limit=25'"), 'quick scenario simulation must refresh advisor alerts after persisted risks');
   assert.ok(app.includes('محرك السيناريوهات المالية'), 'dashboard must render financial scenario card');
   assert.ok(app.includes("idbSet('lkgs_financial_scenarios'"), 'dashboard must cache last-known-good financial scenarios');
   assert.ok(rules.includes('match /advisorScenarios/{scenarioId}'), 'Firestore rules must allow user-scoped saved scenarios');
