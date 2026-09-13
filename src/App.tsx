@@ -796,6 +796,25 @@ export default function App() {
       }
     };
 
+    const fetchFinancialHabitReportsData = async (headers: Record<string, string>) => {
+      try {
+        const habitRes = await fetch('/api/advisor/habits?limit=8', { headers });
+        const habitPayload = await habitRes.json().catch(() => ({}));
+        if (habitRes.ok && habitPayload?.success !== false) {
+          const nextReports = Array.isArray(habitPayload.reports) ? habitPayload.reports : [];
+          setFinancialHabitReports(nextReports);
+          await idbSet('lkgs_financial_habit_reports', nextReports);
+        } else {
+          const cachedReports = await idbGet<any[]>('lkgs_financial_habit_reports');
+          if (Array.isArray(cachedReports)) setFinancialHabitReports(cachedReports);
+        }
+      } catch (habitErr) {
+        console.warn('Financial habit reports refresh failed:', habitErr);
+        const cachedReports = await idbGet<any[]>('lkgs_financial_habit_reports');
+        if (Array.isArray(cachedReports)) setFinancialHabitReports(cachedReports);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
