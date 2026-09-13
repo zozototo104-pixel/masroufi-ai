@@ -8244,6 +8244,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_commitments: getCommitments,
   create_commitment: createCommitment,
   detect_recurring_commitments: detectRecurringCommitments,
+  review_recurring_commitments: reviewRecurringCommitments,
   create_recurring_commitment_from_candidate: createRecurringCommitmentFromCandidate,
   update_commitment_status: updateCommitmentStatus,
   delete_commitment: deleteCommitment,
