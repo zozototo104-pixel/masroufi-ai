@@ -2205,6 +2205,28 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/advisor/daily-pulse", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { generateDailyFinancialPulse } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await generateDailyFinancialPulse(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor daily pulse error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/advisor/daily-pulse", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getDailyFinancialPulses } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getDailyFinancialPulses(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor daily pulses error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/advisor/market-watchlist", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketWatchlist } = await import('./src/server/tools');
