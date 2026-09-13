@@ -957,8 +957,8 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type === 'expense' && !paymentWasProvided) return { success: false, needsClarification: true, reason: 'MISSING_PAYMENT_METHOD', missingFields: ['paymentMethod'], message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟' };
   if (type === 'expense') {
     const hasOriginalUserContext = Boolean(originalExpenseText);
-    const userProvidedPurchaseIdentity = cleanedPurchaseItemIdentity.length >= 3;
-    const userProvidedPurposeIdentity = userProvidedBeneficiaryPurpose || Boolean(beneficiary);
+    const userProvidedPurchaseIdentity = cleanedPurchaseItemIdentity.length >= 3 || (clarifiedPurchaseItemProvided && Boolean(explicitPurchaseItem));
+    const userProvidedPurposeIdentity = userProvidedBeneficiaryPurpose || Boolean(beneficiary) || clarifiedBeneficiaryProvided;
     const voiceOrApiProvidedIdentity = !hasOriginalUserContext && Boolean(explicitPurchaseItem || notes);
     const voiceOrApiProvidedPurpose = !hasOriginalUserContext && Boolean(beneficiary);
     if (!userProvidedPurchaseIdentity && !voiceOrApiProvidedIdentity) {
