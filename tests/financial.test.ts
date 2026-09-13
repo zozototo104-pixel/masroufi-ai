@@ -1408,6 +1408,7 @@ test('CLARIFICATION-03: payment/account clarification must complete the original
   assert.ok(serverSrc.includes('shortClarificationAnswer') && serverSrc.includes('pendingClarificationAnswer') && serverSrc.includes('draftClarificationAnswer') && serverSrc.includes('hasDraftPaymentMethod'), 'Live must trigger deterministic completion for any short pending/draft clarification answer such as خبز/للبيت/سجلها, not only cash/PalPay/debt answers');
   assert.ok(toolsSrc.includes('userConfirmedPaymentByClarification') && toolsSrc.includes('structuredUserPaymentAccount'), 'add_transaction must trust server-confirmed payment clarification instead of asking cash/PalPay/debt again on the next missing field');
   assert.ok(toolsSrc.includes('clarifiedPurchaseItemProvided') && toolsSrc.includes('clarifiedBeneficiaryProvided') && toolsSrc.includes('args.clarificationReplyText'), 'add_transaction completeness checks must include clarified item/purpose answers, not only the first incomplete sentence');
+  assert.ok(toolsSrc.includes('parseExpensePaymentSplitsFromText') && toolsSrc.includes('split_expense_payment') && toolsSrc.includes('تم حفظ المصروف مقسماً'), 'mixed payment clarification مثل ١٣ نقدي و٢٤ بال باي must create separate cash/PalPay expense transactions instead of charging the full amount to one account');
   assert.ok(toolsSrc.includes('borrowDestinationClarifiedByUser') && toolsSrc.includes('debtPaymentAccountClarifiedByUser'), 'borrowed-cash and debt-payment flows must also retain clarified cash/PalPay account values across follow-up answers');
 });
 
