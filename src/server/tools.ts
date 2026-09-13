@@ -1415,6 +1415,350 @@ export async function getFinancialHabitReports(args: any, userId: string, token:
   return { success: true, reports, count: reports.length, limit, partial: Boolean((snap as any).partial || reports.length >= limit), readEfficiency: { advisorHabitReportLimit: limit, docsRead: snap.docs.length } };
 }
 
+function normalizeWeeklyRecommendationType(value: any) {
+  const raw = normalizeArabicText(String(value || 'weekly')).toLowerCase();
+  if (/recovery|انقاذ|إنقاذ|تعويض/.test(raw)) return 'recovery';
+  if (/saving|ادخار|توفير|هدف/.test(raw)) return 'savings_growth';
+  if (/debt|دين|ديون/.test(raw)) return 'debt_control';
+  return 'weekly';
+}
+
+function weeklyRecommendationPriorityRank(value: any) {
+  const raw = String(value || 'medium').toLowerCase();
+  if (raw === 'critical') return 4;
+  if (raw === 'high') return 3;
+  if (raw === 'medium') return 2;
+  if (raw === 'low') return 1;
+  return 0;
+}
+
+function addWeeklyRecommendation(actions: any[], action: any) {
+  const id = action.id || stableDocId(`weekly-action:${action.type}:${action.title}:${action.suggestedAmount || 0}`);
+  if (actions.some((item: any) => item.id === id)) return;
+  actions.push({
+    id,
+    type: action.type || 'review',
+    title: action.title || 'توصية أسبوعية',
+    message: action.message || '',
+    suggestedAmount: roundMoney(parsePositiveFinancialAmount(action.suggestedAmount)),
+    priority: action.priority || 'medium',
+    severity: action.severity || 'info',
+    source: action.source || 'weekly_recommendation_engine',
+    relatedIds: Array.isArray(action.relatedIds) ? action.relatedIds.slice(0, 20) : [],
+    evidence: action.evidence || {},
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function extractWeeklyActionBuckets(actions: any[]) {
+  const sorted = [...actions].sort((a: any, b: any) => weeklyRecommendationPriorityRank(b.priority) - weeklyRecommendationPriorityRank(a.priority) || parsePositiveFinancialAmount(b.suggestedAmount) - parsePositiveFinancialAmount(a.suggestedAmount));
+  return {
+    stop: sorted.filter((a: any) => a.type === 'stop').slice(0, 3),
+    reduce: sorted.filter((a: any) => a.type === 'reduce').slice(0, 5),
+    payDebt: sorted.filter((a: any) => a.type === 'pay_debt').slice(0, 3),
+    saveGoals: sorted.filter((a: any) => a.type === 'save_goal').slice(0, 3),
+    commitments: sorted.filter((a: any) => a.type === 'pay_commitment' || a.type === 'schedule_commitment').slice(0, 5),
+    review: sorted.filter((a: any) => !['stop', 'reduce', 'pay_debt', 'save_goal', 'pay_commitment', 'schedule_commitment'].includes(a.type)).slice(0, 5),
+    all: sorted,
+  };
+}
+
+function buildWeeklyRecommendationMessage(status: string, summary: any) {
+  if (status === 'weekly_recovery') return `هذا الأسبوع يحتاج ضبط قوي: أولوية الخطة تعويض ${summary.requiredRecovery || 0} ₪ وحماية الالتزامات والأهداف.`;
+  if (status === 'weekly_watch') return `هذا الأسبوع يحتاج مراقبة: يوجد ${summary.warningActions || 0} توصية تحذيرية لتخفيف الضغط قبل نهاية الأسبوع.`;
+  if (status === 'weekly_growth') return `هذا الأسبوع مناسب لتحسين الوضع: يمكن توجيه مبلغ مدروس للأهداف أو الدين بدون ضغط واضح.`;
+  return 'خطة الأسبوع مستقرة: حافظ على السقف اليومي وراجع الالتزامات القريبة.';
+}
+
+export async function generateWeeklyFinancialRecommendations(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const planType = normalizeWeeklyRecommendationType(args?.type || args?.focus);
+  const weekHorizon = resolveSafeSpendingHorizon({ period: 'week' }, safeNow);
+  const planKey = `${safeNow.toISOString().slice(0, 10)}:${weekHorizon.endIso.slice(0, 10)}:${planType}`;
+
+  const [profileResult, safe, habits, goalsResult, recurringReview, recurringDetection, alertsResult] = await Promise.all([
+    getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) })),
+    getSafeSpendingLimit({ period: 'week' }, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e), safeSpending: {}, breakdown: {} })),
+    analyzeFinancialHabits({ period: args?.habitPeriod || 'last_14_days', insightLimit: 8, limit: Math.max(200, Math.min(1000, Number(args?.transactionLimit) || 600)) }, userId, token).catch((e: any) => ({ success: false, insights: [], error: e?.message || String(e) })),
+    getSavingsGoals({ now: safeNow.toISOString() }, userId, token).catch((e: any) => ({ success: false, goals: [], error: e?.message || String(e) })),
+    reviewRecurringCommitments({ lookAheadDays: 7, limit: 150 }, userId, token).catch((e: any) => ({ success: false, dueSoon: [], overdue: [], error: e?.message || String(e) })),
+    detectRecurringCommitments({ limit: Math.max(100, Math.min(700, Number(args?.transactionLimit) || 500)), candidateLimit: 5, minOccurrences: 2 }, userId, token).catch((e: any) => ({ success: false, candidates: [], error: e?.message || String(e) })),
+    getAdvisorAlerts({ limit: 25 }, userId, token).catch((e: any) => ({ success: false, alerts: [], error: e?.message || String(e) })),
+  ]);
+
+  const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
+  const profileCompleteness = (profileResult as any).completeness || buildTreasurerProfileCompleteness(profile);
+  const actions: any[] = [];
+  const safeDecision = String((safe as any).decision || '').toLowerCase();
+  const safeSpending = (safe as any).safeSpending || {};
+  const safeBreakdown = (safe as any).breakdown || {};
+  const safeThisWeek = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendThisWeek ?? safeSpending.safeToSpendUntilHorizon));
+  const safeToday = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendToday));
+  const requiredRecovery = roundMoney(Math.max(
+    parsePositiveFinancialAmount(safeSpending.deficitToProtected),
+    parsePositiveFinancialAmount(safeSpending.cashFlowGap),
+    parsePositiveFinancialAmount(safeBreakdown.deficitToProtected),
+    parsePositiveFinancialAmount(safeBreakdown.cashFlowGap)
+  ));
+  const dailyCap = roundMoney(safeToday > 0 ? safeToday : Math.max(0, safeThisWeek / 7));
+
+  if (['critical', 'danger'].includes(safeDecision) || requiredRecovery > 0) {
+    addWeeklyRecommendation(actions, {
+      id: 'stop_discretionary_until_recovered',
+      type: 'stop',
+      priority: 'critical',
+      severity: 'critical',
+      title: 'أوقف الكماليات حتى تغطي الفجوة',
+      message: `الهامش الآمن مضغوط. المطلوب تعويض ${requiredRecovery} ₪ قبل أي صرف غير ضروري.`,
+      suggestedAmount: requiredRecovery,
+      source: 'safe_spending_limit',
+      evidence: { safeDecision, requiredRecovery, safeThisWeek, safeToday },
+    });
+  } else if (safeDecision === 'warning' || safeThisWeek < Math.max(100, dailyCap * 3)) {
+    addWeeklyRecommendation(actions, {
+      id: 'tighten_weekly_spending',
+      type: 'reduce',
+      priority: 'high',
+      severity: 'warning',
+      title: 'خفّض الصرف الأسبوعي مؤقتاً',
+      message: `الهامش الأسبوعي محدود (${safeThisWeek} ₪). التزم بسقف يومي قريب من ${dailyCap} ₪.`,
+      suggestedAmount: Math.max(20, roundMoney(safeThisWeek * 0.2)),
+      source: 'safe_spending_limit',
+      evidence: { safeDecision, safeThisWeek, safeToday, dailyCap },
+    });
+  }
+
+  for (const insight of ((habits as any).insights || []).filter((i: any) => i.severity === 'warning').slice(0, 4)) {
+    const evidence = insight.evidence || {};
+    const currentTotal = parsePositiveFinancialAmount(evidence.currentTotal || evidence.smallPurchases?.total || evidence.currentDebtSpend || evidence.total);
+    const suggestedAmount = roundMoney(Math.max(20, Math.min(currentTotal * 0.35, currentTotal - parsePositiveFinancialAmount(evidence.previousTotal))));
+    addWeeklyRecommendation(actions, {
+      id: `habit_${insight.key}`,
+      type: insight.type === 'debt_usage_drift' ? 'pay_debt' : insight.type === 'small_purchase_accumulation' ? 'stop' : 'reduce',
+      priority: insight.type === 'debt_usage_drift' ? 'high' : 'medium',
+      severity: 'warning',
+      title: insight.type === 'small_purchase_accumulation' ? 'جمّد المصاريف الصغيرة يومين' : insight.title,
+      message: insight.message,
+      suggestedAmount,
+      source: 'financial_habits',
+      relatedIds: evidence.sampleIds || evidence.smallPurchases?.sampleIds || [],
+      evidence: insight,
+    });
+  }
+
+  const overdue = Array.isArray((recurringReview as any).overdue) ? (recurringReview as any).overdue : [];
+  const dueSoon = Array.isArray((recurringReview as any).dueSoon) ? (recurringReview as any).dueSoon : [];
+  for (const commitment of [...overdue, ...dueSoon].slice(0, 5)) {
+    const dueKey = auditDateKey(commitment.dueDate);
+    const isOverdue = dueKey && dueKey < safeNow.toISOString().slice(0, 10);
+    addWeeklyRecommendation(actions, {
+      id: `commitment_${commitment.id || stableDocId(`${commitment.title}:${dueKey}`)}`,
+      type: 'pay_commitment',
+      priority: isOverdue ? 'critical' : 'high',
+      severity: isOverdue ? 'critical' : 'warning',
+      title: isOverdue ? `سدّد المتأخر: ${commitment.title || 'التزام'}` : `جهّز استحقاق ${commitment.title || 'التزام'}`,
+      message: `موعده ${dueKey || 'قريب'} وقيمته ${commitment.amount || 0} ₪.`,
+      suggestedAmount: parsePositiveFinancialAmount(commitment.amount),
+      source: 'recurring_commitments',
+      relatedIds: [commitment.id].filter(Boolean),
+      evidence: { commitment },
+    });
+  }
+
+  const activeGoals = Array.isArray((goalsResult as any).goals) ? (goalsResult as any).goals : [];
+  const riskyGoals = activeGoals
+    .filter((goal: any) => ['critical', 'warning'].includes(String(goal.alertLevel || '')) || parsePositiveFinancialAmount(goal.monthlyGap) > 0)
+    .sort((a: any, b: any) => normalizeGoalPriorityScore(b.priority) - normalizeGoalPriorityScore(a.priority) || parsePositiveFinancialAmount(b.monthlyGap) - parsePositiveFinancialAmount(a.monthlyGap))
+    .slice(0, 3);
+  const availableForGoals = roundMoney(Math.max(0, safeThisWeek - requiredRecovery));
+  for (const goal of riskyGoals) {
+    const monthlyGap = roundMoney(Math.max(parsePositiveFinancialAmount(goal.monthlyGap), parsePositiveFinancialAmount(goal.monthlyRequired) - parsePositiveFinancialAmount(goal.monthlySavedAmount)));
+    const suggested = roundMoney(Math.min(Math.max(20, monthlyGap / 4), Math.max(0, availableForGoals * 0.35)));
+    if (suggested > 0) {
+      addWeeklyRecommendation(actions, {
+        id: `goal_${goal.id}`,
+        type: 'save_goal',
+        priority: goal.alertLevel === 'critical' ? 'high' : 'medium',
+        severity: goal.alertLevel === 'critical' ? 'warning' : 'info',
+        title: `حوّل للأهداف: ${goal.name || 'هدف ادخار'}`,
+        message: `الهدف يحتاج تقريباً ${monthlyGap} ₪ هذا الشهر للبقاء على المسار.`,
+        suggestedAmount: suggested,
+        source: 'savings_goals',
+        relatedIds: [goal.id].filter(Boolean),
+        evidence: { goalId: goal.id, monthlyGap, monthlyRequired: goal.monthlyRequired, monthlySavedAmount: goal.monthlySavedAmount, alertLevel: goal.alertLevel },
+      });
+    }
+  }
+
+  const debtBalance = parsePositiveFinancialAmount(safeBreakdown?.balances?.debt);
+  const debtLimit = parsePositiveFinancialAmount(safeBreakdown?.profileLimits?.effectiveDebtLimit);
+  if (debtBalance > 0 && (debtLimit === 0 || debtBalance >= debtLimit * 0.5 || planType === 'debt_control')) {
+    const suggestedDebtPayment = roundMoney(Math.min(debtBalance, Math.max(20, Math.max(0, safeThisWeek - requiredRecovery) * 0.25)));
+    if (suggestedDebtPayment > 0) {
+      addWeeklyRecommendation(actions, {
+        id: 'weekly_debt_payment',
+        type: 'pay_debt',
+        priority: debtLimit > 0 && debtBalance > debtLimit ? 'critical' : 'high',
+        severity: debtLimit > 0 && debtBalance > debtLimit ? 'critical' : 'warning',
+        title: 'سدّد جزءاً من الدين هذا الأسبوع',
+        message: `رصيد الدين الحالي ${debtBalance} ₪${debtLimit > 0 ? ` وحدك الشخصي ${debtLimit} ₪` : ''}.`,
+        suggestedAmount: suggestedDebtPayment,
+        source: 'safe_spending_debt_limits',
+        evidence: { debtBalance, debtLimit, safeThisWeek },
+      });
+    }
+  }
+
+  const recurringCandidates = Array.isArray((recurringDetection as any).candidates) ? (recurringDetection as any).candidates : [];
+  for (const candidate of recurringCandidates.filter((c: any) => Number(c.confidence || 0) >= 0.7).slice(0, 3)) {
+    addWeeklyRecommendation(actions, {
+      id: `schedule_${candidate.detectionKey}`,
+      type: 'schedule_commitment',
+      priority: Number(candidate.confidence || 0) >= 0.85 ? 'medium' : 'low',
+      severity: 'info',
+      title: `راجع اشتراك ${candidate.title || 'متكرر'}`,
+      message: `ظهر ${candidate.occurrenceCount || 0} مرات بقيمة تقريبية ${candidate.amount || 0} ₪. تحويله لالتزام يحسن توقعاتك.`,
+      suggestedAmount: parsePositiveFinancialAmount(candidate.amount),
+      source: 'recurring_detection',
+      relatedIds: candidate.sourceTransactionIds || [],
+      evidence: { candidate },
+    });
+  }
+
+  const openCriticalAlerts = ((alertsResult as any).alerts || []).filter((a: any) => String(a.severity || '').toLowerCase() === 'critical' && normalizeAdvisorAlertStatus(a.advisorStatus) === 'open');
+  if (openCriticalAlerts.length) {
+    addWeeklyRecommendation(actions, {
+      id: 'review_critical_alerts',
+      type: 'review_alerts',
+      priority: 'critical',
+      severity: 'critical',
+      title: 'راجع التنبيهات الحرجة أولاً',
+      message: `يوجد ${openCriticalAlerts.length} تنبيه حرج مفتوح يحتاج قراراً قبل أي صرف جديد.`,
+      suggestedAmount: 0,
+      source: 'advisor_alerts',
+      relatedIds: openCriticalAlerts.map((a: any) => a.id).filter(Boolean),
+      evidence: { alerts: openCriticalAlerts.slice(0, 5) },
+    });
+  }
+
+  if (profileCompleteness?.status !== 'ready') {
+    addWeeklyRecommendation(actions, {
+      id: 'complete_treasurer_profile',
+      type: 'complete_profile',
+      priority: 'low',
+      severity: 'info',
+      title: 'استكمل ملف أمين الصندوق',
+      message: profileCompleteness.nextPrompt || 'استكمال الملف يزيد دقة التوصيات الأسبوعية.',
+      suggestedAmount: 0,
+      source: 'treasurer_profile',
+      evidence: { completeness: profileCompleteness },
+    });
+  }
+
+  if (!actions.length) {
+    addWeeklyRecommendation(actions, {
+      id: 'maintain_weekly_plan',
+      type: 'maintain',
+      priority: 'low',
+      severity: 'info',
+      title: 'حافظ على الخطة الحالية',
+      message: `الهامش الأسبوعي الحالي ${safeThisWeek} ₪. لا توجد توصية ضغط واضحة ضمن البيانات الحالية.`,
+      suggestedAmount: 0,
+      source: 'weekly_recommendation_engine',
+      evidence: { safeThisWeek, safeToday, habitStatus: (habits as any).status },
+    });
+  }
+
+  const buckets = extractWeeklyActionBuckets(actions);
+  const warningActions = actions.filter((a: any) => ['critical', 'warning'].includes(a.severity)).length;
+  const totalPotentialSavings = roundMoney(actions.filter((a: any) => ['stop', 'reduce'].includes(a.type)).reduce((sum: number, a: any) => sum + parsePositiveFinancialAmount(a.suggestedAmount), 0));
+  const suggestedGoalTransfer = roundMoney(actions.filter((a: any) => a.type === 'save_goal').reduce((sum: number, a: any) => sum + parsePositiveFinancialAmount(a.suggestedAmount), 0));
+  const suggestedDebtPayment = roundMoney(actions.filter((a: any) => a.type === 'pay_debt').reduce((sum: number, a: any) => sum + parsePositiveFinancialAmount(a.suggestedAmount), 0));
+  const requiredCommitments = roundMoney(actions.filter((a: any) => a.type === 'pay_commitment').reduce((sum: number, a: any) => sum + parsePositiveFinancialAmount(a.suggestedAmount), 0));
+  let status = 'weekly_stable';
+  if (actions.some((a: any) => a.severity === 'critical') || requiredRecovery > 0) status = 'weekly_recovery';
+  else if (warningActions > 0) status = 'weekly_watch';
+  else if (suggestedGoalTransfer > 0 || suggestedDebtPayment > 0) status = 'weekly_growth';
+
+  const summary = {
+    safeThisWeek,
+    safeToday,
+    dailyCap,
+    requiredRecovery,
+    totalPotentialSavings,
+    suggestedGoalTransfer,
+    suggestedDebtPayment,
+    requiredCommitments,
+    warningActions,
+    actionCount: actions.length,
+  };
+  const result: any = {
+    success: true,
+    status,
+    planType,
+    message: buildWeeklyRecommendationMessage(status, summary),
+    week: { key: planKey, startIso: weekHorizon.startIso, endIso: weekHorizon.endIso, label: weekHorizon.label, days: weekHorizon.daysRemaining },
+    summary,
+    plan: buckets,
+    actions: buckets.all,
+    sources: {
+      safeSpending: { decision: (safe as any).decision, safeSpending: (safe as any).safeSpending, partial: Boolean((safe as any).partial) },
+      habits: { status: (habits as any).status, score: (habits as any).score, insightCount: ((habits as any).insights || []).length, partial: Boolean((habits as any).partial) },
+      goals: { count: activeGoals.length, riskyCount: riskyGoals.length, partial: Boolean((goalsResult as any).partial) },
+      recurring: { dueSoon: dueSoon.length, overdue: overdue.length, candidates: recurringCandidates.length, partial: Boolean((recurringReview as any).partial || (recurringDetection as any).partial) },
+      alerts: { criticalOpen: openCriticalAlerts.length, partial: Boolean((alertsResult as any).partial) },
+    },
+    profileCompleteness,
+    partial: Boolean((safe as any).partial || (habits as any).partial || (goalsResult as any).partial || (recurringReview as any).partial || (recurringDetection as any).partial || (alertsResult as any).partial),
+    readEfficiency: {
+      safeSpendingPartial: Boolean((safe as any).partial),
+      habitDocsRead: (habits as any).readEfficiency?.transactionDocsRead,
+      goalDocsRead: (goalsResult as any).readEfficiency?.savingsGoalLimit,
+      recurringCommitmentDocsRead: (recurringReview as any).readEfficiency?.commitmentDocsRead,
+      recurringTransactionDocsRead: (recurringDetection as any).readEfficiency?.transactionDocsRead,
+    },
+  };
+
+  if (parseBooleanLike(args?.save)) {
+    const reportId = stableDocId(`weekly-plan:${userId}:${planKey}`);
+    await adminDb.collection('users').doc(userId).collection('advisorWeeklyPlans').doc(reportId).set({ userId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...result }, { merge: true });
+    result.savedPlanId = reportId;
+  }
+
+  if (parseBooleanLike(args?.persistAlerts) && status !== 'weekly_stable') {
+    await addNotification(userId, `🧭 خطة الأسبوع: ${result.message}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-weekly-plan:${stableDocId(`${userId}:${planKey}:${status}`)}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity: status === 'weekly_recovery' ? 'critical' : 'warning',
+      priority: status === 'weekly_recovery' ? 'high' : 'medium',
+      category: 'weekly_recommendation_plan',
+      source: 'generateWeeklyFinancialRecommendations',
+      metadata: { week: result.week, summary, topActions: buckets.all.slice(0, 5) },
+      actions: [
+        { id: 'apply_weekly_plan', label: 'اتبع الخطة', type: 'behavior' },
+        { id: 'review_actions', label: 'راجع التوصيات', type: 'review' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return result;
+}
+
+export async function getWeeklyFinancialRecommendations(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(50, Number(args?.limit) || 10));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorWeeklyPlans')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const plans = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, plans, count: plans.length, limit, partial: Boolean((snap as any).partial || plans.length >= limit), readEfficiency: { advisorWeeklyPlanLimit: limit, docsRead: snap.docs.length } };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
