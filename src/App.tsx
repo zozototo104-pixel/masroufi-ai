@@ -1221,6 +1221,11 @@ export default function App() {
       const nextCandidates = Array.isArray(data.candidates) ? data.candidates : [];
       setRecurringCommitmentCandidates(nextCandidates);
       await idbSet('lkgs_recurring_commitment_candidates', nextCandidates);
+      await fetch('/api/commitments/recurring/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ lookAheadDays: 7, persistAlerts: true }),
+      }).catch(() => null);
       const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
       const alertsPayload = await alertsRes.json().catch(() => ({}));
       if (alertsRes.ok && alertsPayload?.success !== false) {
