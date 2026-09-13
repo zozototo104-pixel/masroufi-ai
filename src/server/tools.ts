@@ -718,7 +718,7 @@ export async function getUserBudgets(userId: string, adminDb: any): Promise<Reco
 type ExpensePaymentSplit = { account: 'cash' | 'palPay' | 'debt'; amount: number; note?: string };
 
 function normalizeSplitPaymentAccount(value: unknown): ExpensePaymentSplit['account'] | null {
-  const text = normalizeArabicText(value);
+  const text = normalizeArabicText(String(value || ''));
   if (/palpay|pal pay|بال\s*باي|بالباي|محفظ/.test(text)) return 'palPay';
   if (/كاش|نقد|نقدي|نقدا/.test(text)) return 'cash';
   if (/دين|بالدين|اجل|آجل|على الحساب|عال حساب|عالحساب/.test(text)) return 'debt';
@@ -726,7 +726,7 @@ function normalizeSplitPaymentAccount(value: unknown): ExpensePaymentSplit['acco
 }
 
 function parseExpensePaymentSplitsFromText(value: unknown): ExpensePaymentSplit[] {
-  const text = normalizeArabicText(normalizeDigits(value));
+  const text = normalizeArabicText(normalizeDigits(String(value || '')));
   if (!text) return [];
   const amount = '(\\d+(?:[\\.,]\\d+)?)';
   const currency = '(?:\\s*(?:ش|شيكل|₪|ils|nis|دولار|دينار|دنانير))?';
