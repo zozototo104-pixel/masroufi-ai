@@ -8313,6 +8313,7 @@ export async function wipeAllUserData(userId: string, token: string) {
   await deleteQuery('marketWatchlist', userDoc.collection('marketWatchlist'));
   await deleteQuery('advisorAudits', userDoc.collection('advisorAudits'));
   await deleteQuery('advisorScenarios', userDoc.collection('advisorScenarios'));
+  await deleteQuery('advisorHabitReports', userDoc.collection('advisorHabitReports'));
   await deleteQuery('salaryCycles', userDoc.collection('salaryCycles'));
   await deleteQuery('salaryIncomeGuards', userDoc.collection('salaryIncomeGuards'));
   await deleteQuery('incomeGuards', userDoc.collection('incomeGuards'));
