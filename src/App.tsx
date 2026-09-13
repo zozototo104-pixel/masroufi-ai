@@ -1126,6 +1126,7 @@ export default function App() {
       setFinancialScenarios([]);
       setRecurringCommitmentCandidates([]);
       setFinancialHabitReports([]);
+      setWeeklyFinancialPlans([]);
       setUserMemory({});
       setBudgetsData({ budgets: [], totalBudget: 0, totalSpent: 0 });
       setVaultData({ success: true, vaultBalance: 0, vaultBalanceByCurrency: {}, cycles: [], manualAdjustments: [] });
