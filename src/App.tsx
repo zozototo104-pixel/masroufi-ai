@@ -1626,6 +1626,8 @@ export default function App() {
 
   const handleApplyAdaptiveBudgetPlan = async (plan: any) => {
     if (!idToken || !plan) return;
+    const ok = window.confirm('تطبيق الخطة سيغيّر حدود الميزانيات المحفوظة للبنود. لا يسجل مصروفاً ولا يعدّل العمليات السابقة. هل تريد المتابعة؟');
+    if (!ok) return;
     try {
       const res = await fetch('/api/advisor/adaptive-budget/apply', {
         method: 'POST',
