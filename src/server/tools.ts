@@ -1916,8 +1916,20 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
   const currentBudgetRows = Array.isArray((budgetOverview as any).budgets) ? (budgetOverview as any).budgets : [];
   const currentBudgetMap = new Map(currentBudgetRows.map((b: any) => [String(b.category), b]));
-  const categorySet = new Set<string>([...Object.keys(DEFAULT_BUDGETS), ...currentBudgetRows.map((b: any) => String(b.category || '')).filter(Boolean)]);
-  const salary = parsePositiveFinancialAmount(profile.monthlySalary);
+  const customBudgetCount = Number((budgetOverview as any).customBudgetCount || 0);
+  const defaultBudgetTemplateTotal = Object.values(DEFAULT_BUDGETS).reduce((a, b) => a + b, 0);
+  const currentTotalBudgetRaw = roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalBudget) || currentBudgetRows.reduce((sum: number, b: any) => sum + parsePositiveFinancialAmount(b.limit), 0));
+  const usingDefaultBudgetTemplate = customBudgetCount === 0 && Math.abs(currentTotalBudgetRaw - defaultBudgetTemplateTotal) < 1;
+  const categorySet = new Set<string>([
+    ...(usingDefaultBudgetTemplate ? [] : Object.keys(DEFAULT_BUDGETS)),
+    ...currentBudgetRows.map((b: any) => String(b.category || '')).filter(Boolean),
+  ]);
+  if (categorySet.size === 0) Object.keys(DEFAULT_BUDGETS).forEach((category) => categorySet.add(category));
+  const salaryFromProfile = parsePositiveFinancialAmount(profile.monthlySalary);
+  const incomeFromCurrentSalaryCycle = roundMoney(parsePositiveFinancialAmount((currentSalaryCycleResult as any).salaryCycle?.totalIncome));
+  const referenceMonthlyIncome = salaryFromProfile > 0 ? salaryFromProfile : incomeFromCurrentSalaryCycle;
+  const salary = referenceMonthlyIncome;
+  const missingIncomeProfile = salaryFromProfile <= 0 && incomeFromCurrentSalaryCycle <= 0;
   const activeGoals = Array.isArray((goalsResult as any).goals) ? (goalsResult as any).goals : [];
   const monthlyGoalNeed = roundMoney(activeGoals
     .filter((g: any) => !['completed', 'cancelled', 'archived'].includes(String(g.status || 'active').toLowerCase()))
