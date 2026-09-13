@@ -2184,7 +2184,6 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
     getAdaptiveBudgetPlans({ limit: 3 }, userId, token).catch((e: any) => ({ success: false, plans: [], partial: true, error: e?.message || String(e) })),
   ]);
 
-  const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
   const safeBreakdown = (safe as any).breakdown || {};
   const safeSpending = (safe as any).safeSpending || {};
   const balances = safeBreakdown.balances || { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 };
