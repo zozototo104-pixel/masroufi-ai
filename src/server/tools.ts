@@ -646,10 +646,17 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const discretionaryAfterExpectedRoutine = roundMoney(liquidTotal - protectedTotal - expectedRoutineSpend);
   const deficitToProtected = roundMoney(Math.max(0, protectedTotal - liquidTotal));
   const cashFlowGap = roundMoney(Math.max(0, protectedTotal + expectedRoutineSpend - liquidTotal));
+  const currentDebt = parsePositiveFinancialAmount(balances.debt);
+  const salaryDebtLimit = parsePositiveFinancialAmount(profile.monthlySalary) > 0 && Number(profile.debtLimitRatio || 0) > 0
+    ? roundMoney(parsePositiveFinancialAmount(profile.monthlySalary) * Number(profile.debtLimitRatio || 0))
+    : 0;
+  const explicitDebtLimit = parsePositiveFinancialAmount(profile.maxDebtBalance);
+  const effectiveDebtLimit = roundMoney(Math.max(salaryDebtLimit, explicitDebtLimit));
+  const debtOverLimit = effectiveDebtLimit > 0 && currentDebt > effectiveDebtLimit;
 
   let status = 'safe';
   if (liquidTotal <= 0 || liquidTotal < dueCommitments) status = 'critical';
-  else if (deficitToProtected > 0) status = 'danger';
+  else if (deficitToProtected > 0 || debtOverLimit) status = 'danger';
   else if (discretionaryAfterExpectedRoutine < 0 || safeToSpendToday < Math.max(20, dailyExpenseAverage * 0.5)) status = 'warning';
 
   const warnings: string[] = [];
