@@ -2848,6 +2848,26 @@ function setupLiveApi(wss: WebSocketServer) {
       applyExpenseInferenceToPatch(draftPatch, liveExpenseIntakeDraft.args || {}, text);
       liveExpenseIntakeDraft.args = { ...(liveExpenseIntakeDraft.args || {}), ...draftPatch };
       liveExpenseIntakeDraft.updatedAt = now;
+      if (userId && isWriteLike && hasAmount && !account && !getPendingFinancialClarification(userId)) {
+        const fallbackDraftCall = buildFallbackFinancialToolCall(text, `live_draft_${requestId}_${now}`);
+        if (fallbackDraftCall?.name === 'add_transaction') {
+          pendingFinancialClarifications.set(userId, {
+            name: 'add_transaction',
+            args: sanitizePendingFinancialArgs({ ...(fallbackDraftCall.args || {}), ...(liveExpenseIntakeDraft.args || {}), userText: text, currentUserText: text }),
+            reason: 'MISSING_PAYMENT_METHOD',
+            missingFields: ['paymentMethod'],
+            message: 'هل دفعت كاش أم من محفظة PalPay أم سجلتها ديناً؟',
+            clientMessageId: `live_draft_${requestId}_${now}`,
+            createdAt: now,
+            source: 'live',
+          });
+          console.warn('[financial-clarification] stored pending payment method from Live transcript draft', {
+            requestId,
+            amount,
+            purchaseItem: liveExpenseIntakeDraft.args.purchaseItem || null,
+          });
+        }
+      }
       if (account || hasAmount || isWriteLike) {
         console.warn('[live-server-financial] tracked expense intake transcript', {
           requestId,
