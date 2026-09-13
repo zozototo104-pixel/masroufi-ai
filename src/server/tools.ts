@@ -2228,6 +2228,7 @@ function resolveMonthEndForecastWindow(args: any, now: Date) {
 
 function normalizeMonthEndForecastStatus(projectedFreeCash: number, projectedNetCash: number, requiredRecovery: number, dailyCap: number, dailyAverage: number, safeDecision: string) {
   if (projectedNetCash < 0 || requiredRecovery > 0 || ['critical', 'danger'].includes(safeDecision)) return 'month_end_deficit';
+  if (dailyAverage <= 0) return projectedFreeCash > 0 ? 'month_end_balanced' : 'month_end_pressure';
   if (projectedFreeCash < Math.max(100, dailyAverage * 2) || safeDecision === 'warning' || dailyCap < Math.max(20, dailyAverage * 0.6)) return 'month_end_pressure';
   if (projectedFreeCash >= Math.max(250, dailyAverage * 5)) return 'month_end_surplus';
   return 'month_end_balanced';
