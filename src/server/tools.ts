@@ -869,12 +869,17 @@ export async function addTransaction(args: any, userId: string, token: string) {
   }
 
   const paymentWasProvided = hasOriginalUserUtterance
-    ? Boolean(explicitUserPaymentAccount || structuredPaymentProvided || forcedCreditPurchaseIntent || userConfirmedPaymentByClarification)
+    ? Boolean(explicitUserPaymentAccount || originalTextHasMixedPaymentMethods || structuredPaymentProvided || forcedCreditPurchaseIntent || userConfirmedPaymentByClarification)
     : Boolean(structuredPaymentProvided || forcedCreditPurchaseIntent);
   const confirmedStructuredPaymentAccount = userConfirmedPaymentByClarification && ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
     ? structuredUserPaymentAccount
     : '';
-  let account = forcedCreditPurchaseIntent ? 'debt' : (confirmedStructuredPaymentAccount || explicitUserPaymentAccount || (structuredPaymentProvided ? structuredUserPaymentAccount : '') || normalizeAccount(args.paymentMethod || args.account || 'cash'));
+  const splitOrMixedStructuredPaymentAccount = structuredPaymentProvided
+    && ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
+    && (originalTextHasMixedPaymentMethods || expensePaymentSplits.length >= 2 || args.disableExpenseSplitParsing === true)
+      ? structuredUserPaymentAccount
+      : '';
+  let account = forcedCreditPurchaseIntent ? 'debt' : (splitOrMixedStructuredPaymentAccount || confirmedStructuredPaymentAccount || explicitUserPaymentAccount || (structuredPaymentProvided ? structuredUserPaymentAccount : '') || normalizeAccount(args.paymentMethod || args.account || 'cash'));
   if (args.disableExpenseSplitParsing === true && ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)) {
     account = structuredUserPaymentAccount;
   }
