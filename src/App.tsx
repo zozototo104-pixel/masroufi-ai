@@ -141,6 +141,7 @@ export default function App() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [reportsList, setReportsList] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const notificationDismissTimersRef = useRef<Record<string, number>>({});
   const [activeReport, setActiveReport] = useState<any>(null);
   const [budgetsData, setBudgetsData] = useState<any>({ budgets: [], totalBudget: 0, totalSpent: 0 });
   const [commitments, setCommitments] = useState<any[]>([]);
