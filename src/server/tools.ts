@@ -620,15 +620,27 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const balances = ctx.balances || { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 };
   const liquidTotal = roundMoney(Number(balances.total || 0));
   const dailyExpenseAverage = roundMoney(Number(ctx.dailyExpenseAverage || 0));
-  const strictness = String(args?.strictness || profile.strictness || 'balanced').toLowerCase();
-  const bufferDays = strictness === 'strict' ? 7 : strictness === 'gentle' ? 2 : 3;
+  const strictness = normalizeTreasurerStrictness(args?.strictness || profile.strictness || 'balanced');
+  const bufferDays = Math.max(
+    strictness === 'strict' ? 7 : strictness === 'gentle' ? 2 : 3,
+    Number(profile.criticalCoverageDays || 0) > 0 ? Math.min(Number(profile.criticalCoverageDays || 0), 14) : 0
+  );
   const behaviorBuffer = roundMoney(dailyExpenseAverage * bufferDays);
-  const explicitReserve = Math.max(parsePositiveFinancialAmount(args?.reserveTarget), parsePositiveFinancialAmount(profile.cashReserveTarget));
+  const explicitReserve = Math.max(
+    parsePositiveFinancialAmount(args?.reserveTarget),
+    parsePositiveFinancialAmount(profile.cashReserveTarget),
+    parsePositiveFinancialAmount(profile.minimumCashFloor),
+    parsePositiveFinancialAmount(profile.criticalLiquidityFloor)
+  );
   const reserveTarget = roundMoney(Math.max(explicitReserve, behaviorBuffer));
   const protectedTotal = roundMoney(dueCommitments + reserveTarget + savingsRequiredThisPeriod);
-  const safeToSpendUntilHorizon = roundMoney(Math.max(0, liquidTotal - protectedTotal));
-  const safeToSpendToday = roundMoney(Math.max(0, safeToSpendUntilHorizon / horizon.daysRemaining));
-  const safeToSpendThisWeek = roundMoney(Math.min(safeToSpendUntilHorizon, safeToSpendToday * Math.min(7, horizon.daysRemaining)));
+  const rawSafeToSpendUntilHorizon = roundMoney(Math.max(0, liquidTotal - protectedTotal));
+  const rawSafeToSpendToday = roundMoney(Math.max(0, rawSafeToSpendUntilHorizon / horizon.daysRemaining));
+  const profileDailyLimit = parsePositiveFinancialAmount(profile.dailySpendingLimit);
+  const profileWeeklyLimit = parsePositiveFinancialAmount(profile.weeklySpendingLimit);
+  const safeToSpendToday = roundMoney(profileDailyLimit > 0 ? Math.min(rawSafeToSpendToday, profileDailyLimit) : rawSafeToSpendToday);
+  const safeToSpendUntilHorizon = roundMoney(rawSafeToSpendUntilHorizon);
+  const safeToSpendThisWeek = roundMoney(Math.min(safeToSpendUntilHorizon, profileWeeklyLimit > 0 ? profileWeeklyLimit : safeToSpendToday * Math.min(7, horizon.daysRemaining)));
   const expectedRoutineSpend = roundMoney(dailyExpenseAverage * horizon.daysRemaining);
   const discretionaryAfterExpectedRoutine = roundMoney(liquidTotal - protectedTotal - expectedRoutineSpend);
   const deficitToProtected = roundMoney(Math.max(0, protectedTotal - liquidTotal));
