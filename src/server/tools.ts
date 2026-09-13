@@ -113,6 +113,12 @@ export async function markNotificationRead(args: any, userId: string, token: str
   return { success: true };
 }
 
+function parseBooleanLike(value: any): boolean {
+  if (typeof value === 'boolean') return value;
+  const raw = String(value || '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'نعم', 'اه', 'أه'].includes(raw);
+}
+
 function normalizeAdvisorAlertStatus(value: any) {
   const raw = String(value || 'open').toLowerCase();
   return ['open', 'resolved', 'dismissed', 'snoozed'].includes(raw) ? raw : 'open';
@@ -121,8 +127,8 @@ function normalizeAdvisorAlertStatus(value: any) {
 export async function getAdvisorAlerts(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const requestedLimit = Math.max(1, Math.min(100, Number(args?.limit) || 50));
-  const includeResolved = Boolean(args?.includeResolved);
-  const includeSnoozed = Boolean(args?.includeSnoozed);
+  const includeResolved = parseBooleanLike(args?.includeResolved);
+  const includeSnoozed = parseBooleanLike(args?.includeSnoozed);
   const nowIso = new Date().toISOString();
   const snap = await adminDb.collection('users').doc(userId).collection('notifications')
     .orderBy('createdAt', 'desc')
