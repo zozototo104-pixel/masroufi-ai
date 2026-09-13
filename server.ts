@@ -3034,6 +3034,69 @@ function classifyGeminiLiveError(err: any): { quotaExceeded: boolean; message: s
   };
 }
 
+const LIVE_TOOL_DESCRIPTION_OVERRIDES: Record<string, string> = {
+  add_transaction: 'يسجل دخل/مصروف بعد اكتمال المبلغ والنوع والبند وطريقة الدفع. لا تستخدمه لسداد الدين أو التحويل الداخلي.',
+  transfer_money: 'ينفذ تحويل داخلي بين cash وpalPay وdebt ولا يعتبر دخلاً أو مصروفاً.',
+  pay_debt: 'يسدد ديناً قائماً من cash أو palPay ولا تسجله كمصروف جديد.',
+  delete_transaction: 'يحذف عملية مالية محددة أو مطابقة بعد تحديد كافٍ.',
+  delete_recent_transactions: 'يحذف آخر عملية/عمليات من نوع محدد عندما يطلب المستخدم حذف آخر قيد.',
+  update_transaction: 'يعدل عملية موجودة ولا ينشئ قيداً جديداً.',
+  get_recent_transactions: 'يعرض آخر العمليات المالية المسجلة.',
+  query_transactions: 'يبحث في العمليات حسب اليوم أو دورة الراتب أو فترة محددة.',
+  get_balance: 'يجلب الأرصدة الحالية: cash وpalPay وdebt وغيرها.',
+  get_safe_spending_limit: 'يحسب سقف الصرف الآمن اليوم/الأسبوع/حتى نهاية دورة الراتب.',
+  run_financial_audit: 'يدقق الوضع المالي ويكشف المخاطر والأخطاء المحتملة.',
+  generate_daily_financial_pulse: 'يعطي نبض اليوم: سقف اليوم، الخطر الأكبر، ما لا يجب صرفه.',
+  forecast_month_end_financial_position: 'يتنبأ بفائض/ضغط/عجز نهاية الشهر أو دورة الراتب.',
+  generate_weekly_financial_recommendations: 'ينشئ خطة أسبوعية: أوقف، خفض، سدد، حول للأهداف.',
+  generate_adaptive_budget_plan: 'يقترح حدود ميزانية متكيّفة بدون تطبيق تلقائي.',
+  apply_adaptive_budget_plan: 'يطبق خطة الميزانية بعد موافقة صريحة فقط.',
+  analyze_financial_habits: 'يحلل عادات الصرف والارتفاعات والتكرارات.',
+  assess_purchase: 'يقيم قرار شراء قبل تنفيذه ولا يسجل مصروفاً.',
+  assess_financial_goal_impact: 'يقيس أثر مصروف مقترح على أهداف الادخار.',
+  search_local_market: 'يبحث أسعار السوق المحلي/فلسطين/العالمي بدون اختراع أسعار.',
+  memory_search: 'يبحث في ذاكرة المستخدم.',
+  memory_save: 'يحفظ معلومة مهمة في ذاكرة المستخدم.',
+};
+
+function compactLiveSchema(value: any): any {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(compactLiveSchema);
+  const out: any = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (['description', 'title', 'examples', 'default'].includes(key)) continue;
+    out[key] = compactLiveSchema(nested);
+  }
+  return out;
+}
+
+function buildGeminiLiveFunctionDeclarations() {
+  return functionDeclarations.map((decl: any) => ({
+    name: decl.name,
+    description: LIVE_TOOL_DESCRIPTION_OVERRIDES[decl.name] || String(decl.description || '').slice(0, 180),
+    parameters: compactLiveSchema(decl.parameters || { type: 'object', properties: {} }),
+  }));
+}
+
+function buildCompactGeminiLiveSystemInstruction(args: { aiName: string; userName: string; persona: string; relationshipContext: string; activeSalaryCycleText: string; personalityDesc: string }) {
+  return [
+    `أنت ${args.aiName}، مستشار مالي صوتي شخصي للمستخدم ${args.userName}. ${args.personalityDesc}`,
+    args.relationshipContext,
+    args.activeSalaryCycleText,
+    'تكلم بالعربية الطبيعية وباختصار شديد في الصوت: جملة أو جملتين، ثم توقف لتسمع المستخدم.',
+    'لا تؤكد أي إضافة أو حذف أو تحويل أو سداد قبل رجوع الأداة المناسبة بـ success=true وحفظ مؤكد. إذا فشلت الأداة قل إن العملية لم تنفذ.',
+    'المصروف يحتاج دائماً مبلغ + بند + طريقة دفع: cash أو palPay أو debt. إذا نقصت طريقة الدفع اسأل: كاش أم بال باي أم دين؟',
+    'التحويل الداخلي cash↔palPay استخدم transfer_money فقط؛ ليس دخلاً ولا مصروفاً. سداد الدين استخدم pay_debt فقط؛ ليس مصروفاً جديداً.',
+    'إذا قال المستخدم اشتريت/دفعت/مصروف مع مبلغ وطريقة دفع واضحة، نفذ add_transaction مرة واحدة فقط. إذا كانت نية شراء مثل بدي أشتري، لا تسجل مصروفاً؛ قيّم الشراء والسوق أولاً.',
+    'الشهر المالي في مصروفي هو دورة الراتب 27 إلى 26. عند سؤال شهر 8 أو أغسطس استخدم salary_cycle مع month=8 إلا إذا قال الشهر الميلادي صراحة.',
+    'لآخر العمليات استخدم get_recent_transactions. لتقرير مفصل استخدم generate_report. للسقف الآمن استخدم get_safe_spending_limit. للتدقيق استخدم run_financial_audit.',
+    'للذكاء المالي اليومي استخدم generate_daily_financial_pulse. للخطة الأسبوعية استخدم generate_weekly_financial_recommendations. لنهاية الشهر استخدم forecast_month_end_financial_position. للميزانية استخدم generate_adaptive_budget_plan ولا تطبقها إلا بعد موافقة صريحة عبر apply_adaptive_budget_plan.',
+    'للعادات استخدم analyze_financial_habits. للأهداف استخدم أدوات savings. للسوق المحلي استخدم search_local_market ولا تخترع محلاً أو سعراً.',
+    'إذا احتجت توضيحاً، اسأل سؤالاً واحداً قصيراً فقط. لا تقرأ قوائم طويلة صوتياً؛ لخّص الرقم والخطوة العملية.',
+    'لا تدّعي تشغيل تلقائي بالخلفية. قل إن النبض/التوقع يتم عند الطلب داخل التطبيق.',
+  ].filter(Boolean).join('\n');
+}
+
 function setupLiveApi(wss: WebSocketServer) {
   wss.on("connection", (clientWs: WebSocket, req) => {
     console.log("Client connected to /live");
