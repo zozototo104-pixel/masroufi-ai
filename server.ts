@@ -1068,8 +1068,11 @@ function isAmountOnlyClarificationAnswer(answer: string, amount: number | null, 
 function applyExpenseInferenceToPatch(patch: any, pendingArgs: any, answer: string) {
   const inferenceText = [pendingArgs.userText, pendingArgs.notes, pendingArgs.purchaseItem, pendingArgs.item, pendingArgs.description, answer].filter(Boolean).join(' ');
   const inferred = inferFallbackExpenseCategory(inferenceText);
-  if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['category']) && inferred.category) patch.category = inferred.category;
-  if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['subcategory']) && inferred.subcategory) patch.subcategory = inferred.subcategory;
+  const merged = { ...pendingArgs, ...patch };
+  const currentCategory = String(merged.category || '').trim();
+  const currentSubcategory = String(merged.subcategory || '').trim();
+  if ((!currentCategory || currentCategory === 'أخرى') && inferred.category && inferred.category !== 'أخرى') patch.category = inferred.category;
+  if ((!currentSubcategory || currentSubcategory === 'متفرقات') && inferred.subcategory && inferred.subcategory !== 'متفرقات') patch.subcategory = inferred.subcategory;
   if (!hasPendingFinancialValue({ ...pendingArgs, ...patch }, ['purchaseItem', 'item', 'description']) && inferred.purchaseItem) {
     patch.purchaseItem = inferred.purchaseItem;
     patch.item = inferred.purchaseItem;
