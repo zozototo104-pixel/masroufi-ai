@@ -589,6 +589,6 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'weekly plan card must use clearer labels and show multiple recommendations');
   assert.ok(app.includes('يوجد {commitments.length} التزام محفوظ'),
     'commitments dashboard must show saved commitments even when no new recurring candidates exist');
-  assert.ok(guide.includes('ماذا يحدث خلف الكواليس') && guide.includes('السقف اليومي = الهامش القابل للتوزيع / عدد الأيام المتبقية'),
-    'Arabic advisor guide must document features and behind-the-scenes calculations');
+  assert.ok(guide.includes('ماذا يحدث خلف الكواليس') && guide.includes('السقف اليومي = الهامش القابل للتوزيع / عدد الأيام المتبقية') && guide.includes('ولا يُحجز كالتزام فعلي'),
+    'Arabic advisor guide must document features and behind-the-scenes calculations without claiming average spending is reserved');
 });
