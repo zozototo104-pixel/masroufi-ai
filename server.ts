@@ -2051,6 +2051,28 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.get("/api/advisor/audit", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { runFinancialAudit } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await runFinancialAudit({ scope: 'salary_cycle', findingLimit: 8, ...(req.query || {}) }, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor audit error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/advisor/audit", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { runFinancialAudit } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await runFinancialAudit({ scope: 'salary_cycle', save: true, persistAlerts: true, findingLimit: 20, ...(req.body || {}) }, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor audit run error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/treasurer/profile", authMiddleware, async (req: any, res: any) => {
     try {
       const { getTreasurerProfile } = await import('./src/server/tools');
