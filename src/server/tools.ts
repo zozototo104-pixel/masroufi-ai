@@ -763,7 +763,7 @@ export async function addTransaction(args: any, userId: string, token: string) {
     || normalizeAccount(args.account) === 'debt';
   const forcedCreditPurchaseIntent = type === 'expense'
     && (hasOriginalUserUtterance
-      ? ((structuredCreditPurchaseIntent && explicitDebtInUserText) || (explicitDebtInUserText && mentionsPurchase))
+      ? ((structuredCreditPurchaseIntent && (explicitDebtInUserText || userConfirmedPaymentByClarification)) || (explicitDebtInUserText && mentionsPurchase))
       : structuredCreditPurchaseIntent || (mentionsDebt && mentionsPurchase))
     && !mentionsDebtRepayment
     && !mentionsCashBorrowing;
