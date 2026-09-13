@@ -950,6 +950,7 @@ export default function App() {
             await refreshActiveSalaryCycle(headers);
             await fetchAdvisorPulseData(headers);
             await fetchAdvisorAlertsData(headers);
+            await fetchAdvisorAuditData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
