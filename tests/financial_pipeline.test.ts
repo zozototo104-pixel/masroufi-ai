@@ -285,3 +285,20 @@ test('TREASURER-09: expanded treasurer profile drives advisor safety decisions a
   assert.ok(app.includes("idbSet('lkgs_treasurer_profile'"), 'dashboard must cache last-known-good treasurer profile');
   assert.ok(app.includes('ملف أمين الصندوق'), 'dashboard must render treasurer profile readiness card');
 });
+
+test('TREASURER-10: goal impact engine protects financial goals before major spending', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  assert.ok(tools.includes('export async function assessFinancialGoalImpact'), 'goal impact assessment tool must exist');
+  assert.ok(tools.includes('assess_financial_goal_impact: assessFinancialGoalImpact'), 'goal impact tool must be registered in handlers');
+  assert.ok(tools.includes('name: "assess_financial_goal_impact"'), 'goal impact tool must be exposed to Gemini');
+  assert.ok(tools.includes('estimateGoalDelayDays'), 'goal impact must estimate delay days');
+  assert.ok(tools.includes('GOAL_AT_RISK'), 'goal impact must produce a blocking goal-risk decision');
+  assert.ok(tools.includes('FINANCIAL_GOAL_IMPACT_RISK'), 'add_transaction must stop goal-damaging expenses before commit');
+  assert.ok(tools.includes('advisor-goal-impact-block'), 'blocked goal-impact expenses must become advisor alerts');
+  assert.ok(tools.includes('goalImpact, confidence'), 'purchase assessment must include goal impact results');
+  assert.ok(server.includes('app.post("/api/advisor/goal-impact", authMiddleware'), 'goal impact API must be available behind auth');
+  assert.ok((server.match(/assess_financial_goal_impact/g) || []).length >= 2, 'text and voice prompts must instruct the advisor to assess goal impact');
+  assert.ok(app.includes('أهداف تحتاج حماية'), 'dashboard pulse must highlight savings goals that need protection');
+});
