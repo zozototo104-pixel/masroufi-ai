@@ -470,3 +470,35 @@ test('TREASURER-15: adaptive budget engine proposes and applies smarter category
   assert.ok(app.includes("idbSet('lkgs_adaptive_budget_plans'"), 'dashboard must cache last-known-good adaptive budget plans');
   assert.ok(rules.includes('match /advisorBudgetPlans/{planId}'), 'Firestore rules must allow user-scoped adaptive budget plans');
 });
+
+test('TREASURER-16: month-end forecast engine predicts surplus pressure or deficit with corrections', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  const rules = await src('firestore.rules');
+  assert.ok(tools.includes('export async function forecastMonthEndFinancialPosition'), 'month-end forecast tool must exist');
+  assert.ok(tools.includes('export async function getMonthEndForecasts'), 'saved month-end forecast reader must exist');
+  assert.ok(tools.includes('resolveMonthEndForecastWindow'), 'month-end forecast must resolve salary-cycle/calendar windows');
+  assert.ok(tools.includes('normalizeMonthEndForecastStatus'), 'month-end forecast must classify status');
+  assert.ok(tools.includes('buildMonthEndCorrectionPlan'), 'month-end forecast must return a correction plan');
+  assert.ok(tools.includes('month_end_deficit'), 'month-end forecast must detect deficits');
+  assert.ok(tools.includes('month_end_pressure'), 'month-end forecast must detect pressure');
+  assert.ok(tools.includes('month_end_surplus'), 'month-end forecast must detect surplus');
+  assert.ok(tools.includes('advisorMonthEndForecasts'), 'saved month-end forecasts must be persisted and included in wipe');
+  assert.ok(tools.includes('advisor-month-end-forecast'), 'risky month-end forecasts must become advisor alerts when requested');
+  assert.ok(tools.includes("category: 'month_end_forecast'"), 'comprehensive audit must flag risky month-end forecasts');
+  assert.ok(tools.includes('forecast_month_end_financial_position: forecastMonthEndFinancialPosition'), 'month-end forecast must be registered in handlers');
+  assert.ok(tools.includes('get_month_end_forecasts: getMonthEndForecasts'), 'month-end forecast reader must be registered in handlers');
+  assert.ok(tools.includes('name: "forecast_month_end_financial_position"'), 'month-end forecast must be exposed to Gemini');
+  assert.ok(tools.includes('name: "get_month_end_forecasts"'), 'month-end forecast reader must be exposed to Gemini');
+  assert.ok(server.includes('app.post("/api/advisor/month-end-forecast", authMiddleware'), 'month-end forecast API must be available behind auth');
+  assert.ok(server.includes('app.get("/api/advisor/month-end-forecast", authMiddleware'), 'month-end forecast read API must be available behind auth');
+  assert.ok((server.match(/0\.3\.10- \*\*توقع نهاية الشهر\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to forecast month-end position');
+  assert.ok(app.includes('const [monthEndForecasts, setMonthEndForecasts]'), 'dashboard must keep month-end forecast state');
+  assert.ok(app.includes("fetch('/api/advisor/month-end-forecast?limit=8'"), 'dashboard must fetch saved month-end forecasts');
+  assert.ok(app.includes("fetch('/api/advisor/month-end-forecast'"), 'dashboard must generate month-end forecasts');
+  assert.ok(app.includes('handleForecastMonthEnd'), 'dashboard must expose a manual month-end forecast action');
+  assert.ok(app.includes('توقع نهاية الشهر'), 'dashboard must render month-end forecast card');
+  assert.ok(app.includes("idbSet('lkgs_month_end_forecasts'"), 'dashboard must cache last-known-good month-end forecasts');
+  assert.ok(rules.includes('match /advisorMonthEndForecasts/{forecastId}'), 'Firestore rules must allow user-scoped month-end forecasts');
+});
