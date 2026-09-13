@@ -2288,6 +2288,48 @@ export default function App() {
             </div>
           )}
 
+          {advisorAlerts.length > 0 && (
+            <div className="bg-slate-900 border border-amber-500/25 rounded-3xl p-5 shadow-xl">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-300" />
+                  مركز تنبيهات الخبير المالي
+                </h3>
+                <span className="text-[10px] text-amber-100 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-1">
+                  {advisorAlerts.length} مفتوح
+                </span>
+              </div>
+              <div className="space-y-3">
+                {advisorAlerts.slice(0, 3).map((alert: any) => (
+                  <div key={alert.id} className={`rounded-2xl p-3 border ${
+                    alert.severity === 'critical'
+                      ? 'bg-rose-950/30 border-rose-500/30'
+                      : 'bg-slate-950/50 border-slate-800'
+                  }`}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="text-[11px] text-slate-200 leading-5 flex-1">{alert.message}</p>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap">{alert.severity === 'critical' ? 'حرج' : 'تنبيه'}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => handleAdvisorAlertAction(alert.id, 'resolve')} className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-[10px] font-bold">
+                        تم التعامل
+                      </button>
+                      <button onClick={() => handleAdvisorAlertAction(alert.id, 'snooze')} className="px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-200 text-[10px] font-bold">
+                        ذكرني لاحقاً
+                      </button>
+                      <button onClick={() => handleAdvisorAlertAction(alert.id, 'dismiss')} className="px-2.5 py-1 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-bold">
+                        تجاهل
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {advisorAlerts.length > 3 && (
+                <p className="text-[10px] text-slate-500 mt-3">يوجد {advisorAlerts.length - 3} تنبيه إضافي محفوظ في المركز.</p>
+              )}
+            </div>
+          )}
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
