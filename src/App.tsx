@@ -3460,7 +3460,7 @@ export default function App() {
                 <p className="text-xs text-slate-200 leading-6 mb-3">{monthEndForecasts[0]?.message}</p>
                 <div className="grid grid-cols-3 gap-2 text-center mb-3">
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
-                    <p className="text-[10px] text-slate-400 mb-1">هامش متوقع</p>
+                    <p className="text-[10px] text-slate-400 mb-1">هامش بعد الصرف</p>
                     <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.projectedFreeCashAfterReserve || 0).toLocaleString()} ₪</p>
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
