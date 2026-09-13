@@ -1089,6 +1089,7 @@ export default function App() {
         await fetchFinancialHabitReportsData(headers);
         await fetchWeeklyFinancialPlansData(headers);
         await fetchAdaptiveBudgetPlansData(headers);
+        await fetchMonthEndForecastsData(headers);
 
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
