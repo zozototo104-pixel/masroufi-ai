@@ -2154,6 +2154,55 @@ export async function addTransaction(args: any, userId: string, token: string) {
       if (risk.warnings.length) {
         advisoryWarnings.push(`تحذير أمين الصندوق: ${risk.warnings.join(' ')}`);
       }
+
+      const restrictedCategoryKeys = normalizeTreasurerStringList(preflightTreasurerProfile.restrictedCategories || [])
+        .map((c: string) => normalizeArabicText(c).toLowerCase());
+      const normalizedCategoryForGoalImpact = normalizeArabicText(category).toLowerCase();
+      const isRestrictedForGoalImpact = restrictedCategoryKeys.some((c: string) => c && normalizedCategoryForGoalImpact.includes(c));
+      const shouldAssessGoalImpactBeforeWrite = amount >= 100
+        || account === 'debt'
+        || normalizeArabicText(necessity).includes('كمالي')
+        || isRestrictedForGoalImpact
+        || parsePositiveFinancialAmount(preflightTreasurerProfile.discretionaryMonthlyLimit) > 0;
+      if (shouldAssessGoalImpactBeforeWrite) {
+        const goalImpact: any = await assessFinancialGoalImpact({
+          amount,
+          category,
+          item: purchaseItemForRecord || merchant || category,
+          necessity,
+          period: 'salary_cycle',
+          goalLimit: 3,
+          riskConfirmed: Boolean(args.riskConfirmed),
+        }, userId, token).catch((goalErr: any) => ({ success: false, error: goalErr?.message || String(goalErr) }));
+        if (goalImpact?.needsConfirmation) {
+          await addNotification(userId, `🎯 أمين الصندوق أوقف العملية قبل الحفظ بسبب أثرها على الأهداف: ${goalImpact.message}`, 'warning', adminDb, {
+            idempotencyKey: `advisor-goal-impact-block:${args.operationId || `${dateResult.date}:${amount}:${account}:${category}:${merchant}`}`,
+            advisorAlert: true,
+            advisorStatus: 'open',
+            severity: goalImpact.severity === 'critical' ? 'critical' : 'warning',
+            priority: goalImpact.severity === 'critical' ? 'high' : 'medium',
+            category: 'goal_impact',
+            source: 'addTransaction.goalImpactPreflight',
+            operationId: String(args.operationId || ''),
+            metadata: { amount, account, category, subcategory, merchant, necessity, goalImpact },
+            actions: [
+              { id: 'confirm_risk', label: 'أكد المخاطرة', type: 'confirm' },
+              { id: 'compensate_goal', label: 'عوّض الهدف', type: 'behavior' },
+              { id: 'cancel', label: 'إلغاء العملية', type: 'dismiss' },
+            ],
+          });
+          return {
+            success: false,
+            needsConfirmation: true,
+            reason: 'FINANCIAL_GOAL_IMPACT_RISK',
+            message: `${goalImpact.message} إذا كنت واعياً للمخاطرة وتريد المتابعة قل بوضوح: أكد المخاطرة وسجّل العملية.`,
+            advisoryWarnings: goalImpact.warnings || [],
+            goalImpact,
+          };
+        }
+        if (goalImpact?.severity === 'warning') advisoryWarnings.push(`تأثير على الأهداف: ${goalImpact.message}`);
+      }
+
       if (limit > 0 && projected >= limit) {
         advisoryWarnings.push(`تحذير ميزانية: هذه العملية سترفع مصروف بند [${category}] إلى ${projected} ₪ مقابل سقف ${limit} ₪.`);
       }
