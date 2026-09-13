@@ -318,6 +318,7 @@ test('TREASURER-11: financial scenario simulator forecasts outcomes without reco
   assert.ok(tools.includes('SCENARIO_CRITICAL'), 'scenario simulator must produce critical decisions');
   assert.ok(tools.includes('advisorScenarios'), 'saved scenarios must be persisted and included in wipe');
   assert.ok(tools.includes('advisor-scenario'), 'risky scenarios must become advisor alerts when requested');
+  assert.ok(tools.includes("'simulate_financial_scenario'"), 'saved scenario simulations must be deduplicated as mutating tools');
   assert.ok(server.includes('app.post("/api/advisor/scenario", authMiddleware'), 'scenario simulation API must be available behind auth');
   assert.ok(server.includes('app.get("/api/advisor/scenarios", authMiddleware'), 'saved scenarios API must be available behind auth');
   assert.ok((server.match(/0\.3\.5- \*\*محاكاة السيناريوهات\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to simulate scenarios');
