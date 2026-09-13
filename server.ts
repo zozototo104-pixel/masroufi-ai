@@ -2128,6 +2128,28 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/advisor/weekly-plan", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { generateWeeklyFinancialRecommendations } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await generateWeeklyFinancialRecommendations(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor weekly plan error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/advisor/weekly-plan", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getWeeklyFinancialRecommendations } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getWeeklyFinancialRecommendations(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor weekly plans error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/advisor/market-watchlist", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketWatchlist } = await import('./src/server/tools');
