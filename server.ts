@@ -3088,14 +3088,23 @@ function compactLiveSchema(value: any): any {
   return out;
 }
 
-function buildGeminiLiveFunctionDeclarations() {
-  return functionDeclarations
-    .filter((decl: any) => GEMINI_LIVE_TOOL_NAMES.has(decl.name))
-    .map((decl: any) => ({
-      name: decl.name,
-      description: LIVE_TOOL_DESCRIPTION_OVERRIDES[decl.name] || String(decl.description || '').slice(0, 180),
-      parameters: compactLiveSchema(decl.parameters || { type: 'object', properties: {} }),
-    }));
+function getGeminiLiveToolsMode() {
+  const raw = String(process.env.GEMINI_LIVE_TOOLS_MODE || 'minimal').trim().toLowerCase();
+  if (['off', 'none', 'disabled', '0', 'false'].includes(raw)) return 'off';
+  if (raw === 'full') return 'full';
+  return 'minimal';
+}
+
+function buildGeminiLiveFunctionDeclarations(mode = getGeminiLiveToolsMode()) {
+  if (mode === 'off') return [];
+  const sourceDeclarations = mode === 'full'
+    ? functionDeclarations
+    : functionDeclarations.filter((decl: any) => GEMINI_LIVE_TOOL_NAMES.has(decl.name));
+  return sourceDeclarations.map((decl: any) => ({
+    name: decl.name,
+    description: LIVE_TOOL_DESCRIPTION_OVERRIDES[decl.name] || String(decl.description || '').slice(0, 180),
+    parameters: compactLiveSchema(decl.parameters || { type: 'object', properties: {} }),
+  }));
 }
 
 function buildCompactGeminiLiveSystemInstruction(args: { aiName: string; userName: string; persona: string; relationshipContext: string; activeSalaryCycleText: string; personalityDesc: string }) {
