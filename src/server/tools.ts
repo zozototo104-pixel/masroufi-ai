@@ -8148,6 +8148,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_budgets_overview: getBudgetsOverview,
   get_commitments: getCommitments,
   create_commitment: createCommitment,
+  detect_recurring_commitments: detectRecurringCommitments,
+  create_recurring_commitment_from_candidate: createRecurringCommitmentFromCandidate,
   update_commitment_status: updateCommitmentStatus,
   delete_commitment: deleteCommitment,
   get_treasurer_profile: getTreasurerProfile,
