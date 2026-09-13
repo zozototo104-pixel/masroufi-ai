@@ -2994,6 +2994,54 @@ export default function App() {
             )}
           </div>
 
+          <div className="bg-slate-900 border border-fuchsia-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-fuchsia-300" />
+                خطة الأسبوع الذكية
+              </h3>
+              <button onClick={handleGenerateWeeklyFinancialPlan} disabled={isWeeklyPlanGenerating} className="px-2.5 py-1 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/25 text-fuchsia-200 text-[10px] font-bold disabled:opacity-50">
+                {isWeeklyPlanGenerating ? 'يبني...' : 'ولّد الخطة'}
+              </button>
+            </div>
+            {weeklyFinancialPlans.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">آخر خطة</p>
+                    <p className="text-sm font-bold text-white">{weeklyFinancialPlans[0]?.week?.label || 'الأسبوع الحالي'}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                    {weeklyFinancialPlans[0]?.status === 'weekly_recovery' ? 'تعويض' : weeklyFinancialPlans[0]?.status === 'weekly_watch' ? 'مراقبة' : weeklyFinancialPlans[0]?.status === 'weekly_growth' ? 'تحسين' : 'مستقر'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-6 mb-3">{weeklyFinancialPlans[0]?.message}</p>
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">آمن أسبوعي</p>
+                    <p className="text-sm font-black text-white">{Number(weeklyFinancialPlans[0]?.summary?.safeThisWeek || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">تعويض</p>
+                    <p className="text-sm font-black text-white">{Number(weeklyFinancialPlans[0]?.summary?.requiredRecovery || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">توصيات</p>
+                    <p className="text-sm font-black text-white">{Number(weeklyFinancialPlans[0]?.summary?.actionCount || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                {weeklyFinancialPlans[0]?.actions?.[0] && (
+                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
+                    <p className="text-[11px] font-bold text-fuchsia-100 mb-1">{weeklyFinancialPlans[0].actions[0].title}</p>
+                    <p className="text-[11px] text-slate-300 leading-5">{weeklyFinancialPlans[0].actions[0].message}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">اضغط “ولّد الخطة” ليعطيك مصروفي توصيات الأسبوع: ماذا توقف، ماذا تخفض، ماذا تسدد، وكم تحول للأهداف.</p>
+            )}
+          </div>
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
