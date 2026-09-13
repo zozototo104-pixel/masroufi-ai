@@ -1246,8 +1246,9 @@ export default function App() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to create recurring commitment');
-      setRecurringCommitmentCandidates(prev => prev.filter((item: any) => item.detectionKey !== candidate.detectionKey));
-      await idbSet('lkgs_recurring_commitment_candidates', recurringCommitmentCandidates.filter((item: any) => item.detectionKey !== candidate.detectionKey));
+      const nextCandidates = recurringCommitmentCandidates.filter((item: any) => item.detectionKey !== candidate.detectionKey);
+      setRecurringCommitmentCandidates(nextCandidates);
+      await idbSet('lkgs_recurring_commitment_candidates', nextCandidates);
       const commitmentsRes = await fetch('/api/commitments', { headers: { 'Authorization': `Bearer ${idToken}` } });
       const commitmentsPayload = await commitmentsRes.json().catch(() => ({}));
       if (commitmentsRes.ok && Array.isArray(commitmentsPayload.commitments)) {
