@@ -2915,7 +2915,11 @@ function setupLiveApi(wss: WebSocketServer) {
       const isExplicitCommitAnswer = /(سجل|سجلي|سجليه|احفظ|احفظي|ثبت|ثبتي|تمام|اوكي|ok)/i.test(normalized);
       const now = Date.now();
       if (liveExpenseIntakeDraft && now - liveExpenseIntakeDraft.updatedAt > 90_000) liveExpenseIntakeDraft = null;
-      if (liveExpenseIntakeDraft && account && (isExplicitCommitAnswer || isShortClarificationAnswer(text))) {
+      const draftStoredAccount = liveExpenseIntakeDraft
+        ? normalizeAccount(liveExpenseIntakeDraft.args?.paymentMethod || liveExpenseIntakeDraft.args?.account || '')
+        : '';
+      const effectiveDraftAccount = account || (['cash', 'palPay', 'debt'].includes(draftStoredAccount) ? draftStoredAccount : '');
+      if (liveExpenseIntakeDraft && effectiveDraftAccount && (isExplicitCommitAnswer || isShortClarificationAnswer(text))) {
         const combinedText = [...liveExpenseIntakeDraft.texts, text].filter(Boolean).join(' ');
         const draftCall = buildFallbackFinancialToolCall(combinedText, clientMessageId);
         if (draftCall && ['add_transaction', 'transfer_money', 'pay_debt'].includes(draftCall.name) && Number((draftCall.args as any)?.amount || 0) > 0) {
