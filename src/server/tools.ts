@@ -7498,6 +7498,52 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "create_market_watch_item",
+    description: "يضيف سلعة مهمة إلى قائمة مراقبة السوق، ويفحصها مقابل السعر المحلي والحد الآمن للصرف. استخدمه عندما يقول المستخدم بدي أراقب/أشتري لاحقاً/ذكرني إذا نزل سعر سلعة أو يعطي سعراً مستهدفاً.",
+    parameters: { type:"object", properties:{
+      product:{type:"string",description:"اسم السلعة المراد مراقبتها"},
+      model:{type:"string",description:"الموديل أو المواصفات"},
+      condition:{type:"string",description:"new أو used أو unknown"},
+      targetPrice:{type:"number",description:"السعر المستهدف أو الحد الأعلى المقبول"},
+      offeredPrice:{type:"number",description:"سعر معروض حالياً للمقارنة"},
+      seller:{type:"string",description:"اسم المحل/البائع إن وجد"},
+      priority:{type:"string",description:"low أو medium أو high"},
+      desiredBy:{type:"string",description:"تاريخ الرغبة بالشراء YYYY-MM-DD إن وجد"},
+      notes:{type:"string",description:"ملاحظات عن الضمان/الحالة/المواصفات"},
+      runMarketCheck:{type:"boolean",description:"false فقط إذا أراد المستخدم حفظها بدون فحص سوق الآن"}
+    }, required:["product"] }
+  },
+  {
+    name: "get_market_watchlist",
+    description: "يعرض قائمة المشتريات/السلع التي يراقبها الخبير المالي مع آخر قرار شراء أو انتظار وربطها بالحد الآمن للصرف.",
+    parameters: { type:"object", properties:{
+      limit:{type:"number",description:"عدد العناصر المطلوب بحد أقصى 100"},
+      status:{type:"string",description:"watching أو paused أو purchased أو cancelled أو archived"},
+      includeClosed:{type:"boolean",description:"إظهار العناصر المغلقة أيضاً"}
+    } }
+  },
+  {
+    name: "update_market_watch_item",
+    description: "يحدّث عنصر مراقبة سوق أو يعيد فحصه مقابل السوق والحد الآمن. استخدمه عند تغيير السعر المعروض أو البائع أو عند وضعه purchased/cancelled.",
+    parameters: { type:"object", properties:{
+      id:{type:"string",description:"معرف عنصر المراقبة"},
+      offeredPrice:{type:"number",description:"السعر المعروض الجديد"},
+      targetPrice:{type:"number",description:"السعر المستهدف الجديد"},
+      status:{type:"string",description:"watching أو paused أو purchased أو cancelled أو archived"},
+      seller:{type:"string",description:"اسم البائع/المحل"},
+      notes:{type:"string",description:"ملاحظات جديدة"},
+      runMarketCheck:{type:"boolean",description:"إعادة فحص السوق والحد الآمن"}
+    }, required:["id"] }
+  },
+  {
+    name: "review_market_watchlist",
+    description: "يراجع قائمة مراقبة السوق ويحدّث عدة عناصر مقابل السوق المحلي والحد الآمن للصرف، ثم يرجع العناصر التي تحتاج شراء/تفاوض/انتظار.",
+    parameters: { type:"object", properties:{
+      limit:{type:"number",description:"عدد العناصر المراد قراءتها"},
+      reviewLimit:{type:"number",description:"عدد العناصر المراد إعادة فحصها الآن، بحد أقصى 10"}
+    } }
+  },
+  {
     name: "save_market_offer",
     description: "يحفظ عرض سعر موثق في دفتر سوق غزة/فلسطين أو العالمي. استخدمه عندما يعطيك المستخدم اسم محل/سعر/عنوان أو عندما تريد بناء ذاكرة سوق محلية تدريجياً.",
     parameters: { type:"object", properties:{
