@@ -1204,10 +1204,28 @@ function buildPendingFinancialClarificationCall(userId: string | null | undefine
   const pending = getPendingFinancialClarification(userId);
   if (!pending) return null;
   const patch = buildPendingClarificationPatch(userText, pending);
+  const pendingArgs = sanitizePendingFinancialArgs(pending.args || {});
+  const normalizedAnswer = normalizeArabicForIntent(userText);
+  if (!patch && isBareConfirmationAnswer(normalizedAnswer)) {
+    // The user may answer the last missing question and then say "سجلها".
+    // In that case there is no new field to patch, but the server must still
+    // execute the original pending operation using the accumulated details.
+    return {
+      name: pending.name,
+      args: {
+        ...pendingArgs,
+        userText: pendingArgs.userText || pendingArgs.currentUserText || '',
+        currentUserText: userText,
+        clarificationReplyText: userText,
+        clarifiedFromReason: pending.reason,
+        originalClarificationClientMessageId: pending.clientMessageId,
+        clientMessageId,
+      },
+    } as any;
+  }
   if (!patch) return null;
   const nextName = patch.convertToTool || pending.name;
   const { convertToTool, ...actualPatch } = patch;
-  const pendingArgs = sanitizePendingFinancialArgs(pending.args || {});
   return {
     name: nextName,
     args: {
