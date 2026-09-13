@@ -114,6 +114,11 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
     clearLiveReadyWatchdog();
     liveReadyRef.current = false;
     pendingMicFramesRef.current = [];
+    sentAudioFramesRef.current = 0;
+    voicedAudioFramesRef.current = 0;
+    speechDetectedRef.current = false;
+    firstSpeechAtRef.current = null;
+    receivedAudioFramesRef.current = 0;
     connectionEpochRef.current += 1;
     connectingRef.current = false;
     setIsConnected(false);
