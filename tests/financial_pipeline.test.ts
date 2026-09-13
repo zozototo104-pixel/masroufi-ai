@@ -188,3 +188,21 @@ test('TREASURER-05: dashboard renders and refreshes advisor pulse', async () => 
   assert.ok(app.includes('نبض أمين الصندوق'), 'dashboard must render the treasurer pulse card');
   assert.ok(app.includes('safeToSpendUntilSalaryCycleEnd'), 'dashboard card must display horizon safe spending');
 });
+
+test('TREASURER-06: advisor alert center persists and resolves financial warnings', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  assert.ok(tools.includes('export async function getAdvisorAlerts'), 'advisor alert center must expose a read API');
+  assert.ok(tools.includes('export async function updateAdvisorAlert'), 'advisor alert center must expose an update API');
+  assert.ok(tools.includes('advisorAlert: true'), 'financial warnings must be persisted as advisor alerts');
+  assert.ok(tools.includes('get_advisor_alerts: getAdvisorAlerts'), 'advisor alert read tool must be registered');
+  assert.ok(tools.includes('update_advisor_alert: updateAdvisorAlert'), 'advisor alert update tool must be registered');
+  assert.ok(tools.includes('name: "get_advisor_alerts"'), 'advisor alert read tool must be exposed to Gemini');
+  assert.ok(server.includes('app.get("/api/advisor/alerts", authMiddleware'), 'advisor alert center must be available behind auth');
+  assert.ok(server.includes('app.post("/api/advisor/alerts/:id", authMiddleware'), 'advisor alert actions must be available behind auth');
+  assert.ok(app.includes('const [advisorAlerts, setAdvisorAlerts]'), 'dashboard must keep advisor alerts state');
+  assert.ok(app.includes("fetch('/api/advisor/alerts?limit=25'"), 'dashboard must fetch advisor alerts');
+  assert.ok(app.includes('مركز تنبيهات الخبير المالي'), 'dashboard must render the advisor alert center');
+  assert.ok(app.includes('handleAdvisorAlertAction'), 'dashboard must allow resolving/dismissing/snoozing alerts');
+});
