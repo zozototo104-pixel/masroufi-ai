@@ -1944,13 +1944,16 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     parsePositiveFinancialAmount((safe as any).safeSpending?.cashFlowGap),
     parsePositiveFinancialAmount((weeklyPlan as any).summary?.requiredRecovery)
   ));
-  const salaryEnvelope = salary > 0 ? Math.max(0, salary - monthlyCommitments - monthlyGoalNeed - requiredRecovery) : 0;
-  const fallbackEnvelope = currentTotalBudget > 0 ? currentTotalBudget : Object.values(DEFAULT_BUDGETS).reduce((a, b) => a + b, 0);
-  let targetEnvelope = roundBudgetLimit(salaryEnvelope > 0 ? salaryEnvelope : fallbackEnvelope);
+  const protectedClaims = roundMoney(monthlyCommitments + monthlyGoalNeed + requiredRecovery);
+  const salaryEnvelope = salary > 0 ? Math.max(0, salary - protectedClaims) : 0;
+  const fallbackEnvelope = usingDefaultBudgetTemplate
+    ? (salary > 0 ? salaryEnvelope : Math.max(0, currentTotalSpent))
+    : currentTotalBudget;
+  let targetEnvelope = roundBudgetLimit(salary > 0 ? salaryEnvelope : fallbackEnvelope);
   if (mode === 'tighten' || requiredRecovery > 0 || ['critical', 'danger'].includes(safeDecision)) targetEnvelope = roundBudgetLimit(targetEnvelope * 0.9);
-  if (mode === 'relaxed' && requiredRecovery === 0 && safeDecision !== 'warning') targetEnvelope = roundBudgetLimit(targetEnvelope * 1.05);
+  if (mode === 'relaxed' && requiredRecovery === 0 && safeDecision !== 'warning' && salary > 0) targetEnvelope = roundBudgetLimit(targetEnvelope * 1.05);
   const essentialFloor = parsePositiveFinancialAmount(profile.essentialMonthlyEstimate);
-  if (essentialFloor > 0) targetEnvelope = Math.max(targetEnvelope, roundBudgetLimit(essentialFloor));
+  if (essentialFloor > 0 && salary > 0) targetEnvelope = Math.max(targetEnvelope, Math.min(roundBudgetLimit(essentialFloor), roundBudgetLimit(salary * 0.95)));
   if (salary > 0) targetEnvelope = Math.min(targetEnvelope, roundBudgetLimit(salary * 0.95));
 
   const rawProposals = Array.from(categorySet).map((category) => {
