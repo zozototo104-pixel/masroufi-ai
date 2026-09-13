@@ -745,7 +745,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const explicitUserPaymentAccount = explicitDebtInUserText ? 'debt' : explicitPalPayInUserText ? 'palPay' : explicitCashInUserText ? 'cash' : '';
   const rawStructuredUserPaymentAccount = args.paymentMethod || args.account || '';
   const structuredUserPaymentAccount = rawStructuredUserPaymentAccount ? normalizeAccount(rawStructuredUserPaymentAccount) : '';
-  const userConfirmedPaymentByClarification = ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
+  const structuredPaymentProvided = ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
+    && Boolean(args.paymentMethod || args.account);
+  const userConfirmedPaymentByClarification = structuredPaymentProvided
     && Boolean(args.paymentMethodClarifiedByUser || args.accountClarifiedByUser || args.creditPurchaseClarifiedByUser);
   const mentionsDebt = hasOriginalUserUtterance
     ? explicitDebtInUserText
