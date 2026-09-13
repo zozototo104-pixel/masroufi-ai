@@ -2342,6 +2342,30 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.get("/api/commitments/recurring/detect", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { detectRecurringCommitments } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      const result = await detectRecurringCommitments(req.query || {}, req.user.uid, token);
+      res.json(result);
+    } catch (e: any) {
+      console.error('Recurring commitment detection error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/commitments/recurring/create", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { createRecurringCommitmentFromCandidate } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      const result = await createRecurringCommitmentFromCandidate(req.body || {}, req.user.uid, token);
+      res.json(result);
+    } catch (e: any) {
+      console.error('Recurring commitment conversion error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.delete("/api/commitments/:id", authMiddleware, async (req: any, res: any) => {
     try {
       const { deleteCommitment } = await import('./src/server/tools');
