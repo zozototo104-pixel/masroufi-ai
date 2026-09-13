@@ -8923,6 +8923,27 @@ export const functionDeclarations = [
     } }
   },
   {
+    name: "analyze_financial_habits",
+    description: "يحلل عادات وأنماط الصرف مقارنة بالفترة السابقة: ارتفاع التصنيفات، تكرار التاجر، المصاريف الصغيرة، يوم الصرف الأعلى، وزيادة استخدام الدين. لا يسجل عملية مالية، ويمكنه حفظ تقرير أو إنشاء تنبيهات عند الطلب.",
+    parameters: { type: "object", properties: {
+      period: { type: "string", description: "last_7_days أو last_14_days أو last_30_days أو salary_cycle أو quarter" },
+      days: { type: "number", description: "عدد أيام التحليل عند الحاجة" },
+      limit: { type: "number", description: "عدد العمليات المقروءة، الافتراضي 800 والأقصى 1500" },
+      insightLimit: { type: "number", description: "عدد الأنماط المرجعة" },
+      minInsightAmount: { type: "number", description: "أقل مبلغ يستحق إظهار نمط" },
+      spikePct: { type: "number", description: "نسبة الارتفاع التي تعتبر تغيراً مهماً" },
+      save: { type: "boolean", description: "حفظ التقرير في advisorHabitReports" },
+      persistAlerts: { type: "boolean", description: "تحويل الأنماط التحذيرية إلى تنبيهات دائمة" }
+    } }
+  },
+  {
+    name: "get_financial_habit_reports",
+    description: "يعرض آخر تقارير العادات والأنماط المالية المحفوظة من advisorHabitReports.",
+    parameters: { type: "object", properties: {
+      limit: { type: "number", description: "عدد التقارير، بحد أقصى 50" }
+    } }
+  },
+  {
     name: "get_advisor_alerts",
     description: "يجلب مركز تنبيهات الخبير المالي: المخاطر المفتوحة، تجاوز الميزانيات، إيقاف أمين الصندوق للعمليات، والتنبيهات المؤجلة. استخدمه عندما يسأل المستخدم عن التحذيرات أو ما الذي يحتاج متابعة.",
     parameters: { type: "object", properties: {
