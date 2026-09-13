@@ -578,6 +578,17 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const now = args?.now ? new Date(String(args.now)) : new Date();
   const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
   const horizon = resolveSafeSpendingHorizon(args, safeNow);
+  const salaryCycleEnd = new Date(horizon.salaryCycle.endExclusiveIso);
+  const protectionEndIso = ['today', 'week'].includes(horizon.period)
+    ? horizon.salaryCycle.endExclusiveIso
+    : horizon.endIso;
+  const spendingPaceEnd = Number.isFinite(salaryCycleEnd.getTime()) && salaryCycleEnd.getTime() > safeNow.getTime()
+    ? salaryCycleEnd
+    : new Date(horizon.endIso);
+  const spendingPaceDays = Math.max(1, Math.ceil((spendingPaceEnd.getTime() - safeNow.getTime()) / 86400000));
+  const horizonAllowanceDays = horizon.period === 'salary_cycle'
+    ? spendingPaceDays
+    : Math.max(1, Math.min(horizon.daysRemaining, spendingPaceDays));
   const ctx: any = await getFinancialDecisionContext({}, userId, token);
 
   const [profileSnap, goalSnap] = await Promise.all([
