@@ -905,6 +905,216 @@ export async function assessFinancialGoalImpact(args: any, userId: string, token
   return result;
 }
 
+function normalizeFinancialScenarioType(value: any) {
+  const raw = normalizeArabicText(String(value || 'expense')).toLowerCase();
+  if (['income', 'دخل', 'راتب', 'ايراد', 'إيراد'].includes(raw)) return 'income';
+  if (['debt_payment', 'pay_debt', 'سداد دين', 'سداد'].includes(raw)) return 'debt_payment';
+  if (['savings_contribution', 'saving', 'ادخار', 'توفير'].includes(raw)) return 'savings_contribution';
+  if (['transfer', 'تحويل'].includes(raw)) return 'transfer';
+  return 'expense';
+}
+
+function normalizeFinancialScenarioFrequency(value: any) {
+  const raw = normalizeArabicText(String(value || 'once')).toLowerCase();
+  if (['daily', 'يومي', 'كل يوم'].includes(raw)) return 'daily';
+  if (['weekly', 'اسبوعي', 'أسبوعي', 'كل اسبوع', 'كل أسبوع'].includes(raw)) return 'weekly';
+  if (['monthly', 'شهري', 'كل شهر'].includes(raw)) return 'monthly';
+  return 'once';
+}
+
+function financialScenarioOccurrenceCount(frequency: string, days: number, explicitCount: any) {
+  const explicit = Number(explicitCount);
+  if (Number.isFinite(explicit) && explicit > 0) return Math.max(1, Math.min(365, Math.round(explicit)));
+  if (frequency === 'daily') return Math.max(1, Math.min(365, days));
+  if (frequency === 'weekly') return Math.max(1, Math.min(52, Math.ceil(days / 7)));
+  if (frequency === 'monthly') return Math.max(1, Math.min(12, Math.ceil(days / 30)));
+  return 1;
+}
+
+function buildScenarioRecoveryPlan(input: { gap: number; days: number; weeklyGap: number; dailyExpenseAverage: number; category: string; scenarioType: string }) {
+  const days = Math.max(1, input.days || 1);
+  const weeks = Math.max(1, Math.ceil(days / 7));
+  const dailyCutNeeded = roundMoney(input.gap / days);
+  const weeklyCutNeeded = roundMoney(input.gap / weeks);
+  const recommendations = input.gap <= 0
+    ? ['لا تحتاج خطة تعويض خاصة لهذا السيناريو؛ حافظ على السقف اليومي فقط.']
+    : [
+        `عوّض ${input.gap} ₪ عبر تخفيض يومي يقارب ${dailyCutNeeded} ₪ حتى نهاية الأفق.`,
+        `أو خفّض مصروفات أسبوعية بحوالي ${weeklyCutNeeded} ₪ لمدة ${weeks} أسبوع.`,
+        input.scenarioType === 'expense' ? `ابدأ من بند ${input.category || 'الكماليات'} قبل المساس بالبنود المحمية.` : 'وجّه أي دخل إضافي أولاً لتغطية الفجوة ثم الأهداف.',
+      ];
+  return { gap: roundMoney(input.gap), days, weeks, dailyCutNeeded, weeklyCutNeeded, recommendations };
+}
+
+function buildScenarioMessage(input: { decision: string; scenarioLabel: string; amount: number; safeDelta: number; projectedAfter: number; horizonLabel: string }) {
+  if (input.decision === 'SCENARIO_CRITICAL') return `سيناريو ${input.scenarioLabel} خطر: بعده ستحتاج تعويض ${Math.abs(input.safeDelta)} ₪ تقريباً لحماية الالتزامات والأهداف خلال ${input.horizonLabel}.`;
+  if (input.decision === 'SCENARIO_WARNING') return `سيناريو ${input.scenarioLabel} ممكن لكن بحذر: يبقى هامش آمن ضعيف بعد العملية، والرصيد المتوقع ${input.projectedAfter} ₪.`;
+  if (input.decision === 'SCENARIO_IMPROVES') return `سيناريو ${input.scenarioLabel} يحسن وضعك المالي ويزيد الهامش الآمن.`;
+  return `سيناريو ${input.scenarioLabel} يبدو آمناً ضمن البيانات الحالية، مع الالتزام بسقف الصرف اليومي.`;
+}
+
+export async function simulateFinancialScenario(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const amount = parsePositiveFinancialAmount(args?.amount ?? args?.expenseAmount ?? args?.incomeAmount ?? args?.price);
+  if (amount <= 0) return { success: false, needsClarification: true, reason: 'INVALID_SCENARIO_AMOUNT', message: 'ما المبلغ الذي تريد محاكاته؟ مثال: لو صرفت 500 ₪.' };
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const scenarioType = normalizeFinancialScenarioType(args?.type || args?.scenarioType || args?.transactionType);
+  const frequency = normalizeFinancialScenarioFrequency(args?.frequency || args?.repeat);
+  const horizon = resolveSafeSpendingHorizon({ period: args?.period || args?.horizon || 'salary_cycle' }, safeNow);
+  const horizonDays = Math.max(1, Math.min(365, Number(args?.horizonDays) || horizon.daysRemaining));
+  const occurrenceCount = financialScenarioOccurrenceCount(frequency, horizonDays, args?.occurrences || args?.count);
+  const totalScenarioAmount = roundMoney(amount * occurrenceCount);
+  const category = String(args?.category || args?.item || args?.product || (scenarioType === 'income' ? 'دخل افتراضي' : 'مصروف افتراضي'));
+  const scenarioLabel = String(args?.label || args?.name || category || 'سيناريو مالي');
+
+  const [ctx, safe, profileResult] = await Promise.all([
+    getFinancialDecisionContext({}, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e), balances: {} })),
+    getSafeSpendingLimit({ period: args?.period || args?.horizon || 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e), safeSpending: {}, breakdown: {} })),
+    getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) })),
+  ]);
+  const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
+  const balances = (ctx as any).balances || (safe as any).breakdown?.balances || {};
+  const currentLiquid = roundMoney(parsePositiveFinancialAmount((safe as any).breakdown?.liquidTotal ?? balances.total));
+  const dailyExpenseAverage = roundMoney(Number((ctx as any).dailyExpenseAverage || (safe as any).breakdown?.dailyExpenseAverage || 0));
+  const dailyIncomeAverage = roundMoney(Number((ctx as any).dailyIncomeAverage || 0));
+  const dueCommitments = roundMoney(parsePositiveFinancialAmount((safe as any).breakdown?.dueCommitments ?? (ctx as any).dueCommitments30Days));
+  const protectedTotal = roundMoney(parsePositiveFinancialAmount((safe as any).breakdown?.protectedTotal));
+  const safeUntilHorizon = roundMoney(parsePositiveFinancialAmount((safe as any).safeSpending?.safeToSpendUntilHorizon));
+  const safeToday = roundMoney(parsePositiveFinancialAmount((safe as any).safeSpending?.safeToSpendToday));
+  const expectedRoutineSpend = roundMoney(dailyExpenseAverage * horizonDays);
+  const expectedRoutineIncome = roundMoney(dailyIncomeAverage * horizonDays);
+
+  const outflowTypes = ['expense', 'debt_payment', 'savings_contribution'];
+  const totalOutflow = outflowTypes.includes(scenarioType) ? totalScenarioAmount : 0;
+  const totalInflow = scenarioType === 'income' ? totalScenarioAmount : 0;
+  const baselineProjectedBalance = roundMoney(currentLiquid + expectedRoutineIncome - expectedRoutineSpend - dueCommitments);
+  const afterScenarioLiquid = roundMoney(currentLiquid + totalInflow - totalOutflow);
+  const afterScenarioProjectedBalance = roundMoney(baselineProjectedBalance + totalInflow - totalOutflow);
+  const afterScenarioSafeToSpend = roundMoney(safeUntilHorizon + totalInflow - totalOutflow);
+  const reserveGapAfterScenario = roundMoney(Math.max(0, protectedTotal - afterScenarioLiquid));
+  const cashFlowGapAfterScenario = roundMoney(Math.max(0, protectedTotal + expectedRoutineSpend - expectedRoutineIncome - afterScenarioLiquid));
+  const conservativeShock = roundMoney(Math.max(dailyExpenseAverage * Math.min(7, horizonDays) * 0.25, parsePositiveFinancialAmount(profile.minimumCashFloor) * 0.05));
+  const conservativeProjectedBalance = roundMoney(afterScenarioProjectedBalance - conservativeShock);
+
+  const goalImpact: any = totalOutflow > 0
+    ? await assessFinancialGoalImpact({ amount: totalOutflow, category, item: args?.item || args?.product || category, necessity: args?.necessity || '', period: args?.period || 'salary_cycle', goalLimit: 5, persistAlert: false }, userId, token).catch((e: any) => ({ success: false, error: e?.message || String(e) }))
+    : null;
+
+  let decision = 'SCENARIO_SAFE';
+  let severity = 'info';
+  if (scenarioType === 'income' && afterScenarioSafeToSpend > safeUntilHorizon) {
+    decision = 'SCENARIO_IMPROVES';
+    severity = 'info';
+  }
+  if (afterScenarioSafeToSpend < 0 || reserveGapAfterScenario > 0 || cashFlowGapAfterScenario > 0 || goalImpact?.decision === 'GOAL_AT_RISK') {
+    decision = 'SCENARIO_CRITICAL';
+    severity = 'critical';
+  } else if (afterScenarioSafeToSpend < Math.max(20, safeToday) || conservativeProjectedBalance < 0 || goalImpact?.severity === 'warning' || ['critical', 'danger', 'warning'].includes(String((safe as any).decision || ''))) {
+    decision = 'SCENARIO_WARNING';
+    severity = 'warning';
+  }
+
+  const gapToRecover = roundMoney(Math.max(0, -afterScenarioSafeToSpend, reserveGapAfterScenario, cashFlowGapAfterScenario, goalImpact?.goalImpact?.amountAboveSafe || 0));
+  const recoveryPlan = buildScenarioRecoveryPlan({ gap: gapToRecover, days: horizonDays, weeklyGap: 0, dailyExpenseAverage, category, scenarioType });
+  const warnings: string[] = [];
+  if (afterScenarioSafeToSpend < 0) warnings.push(`السيناريو يكسر الهامش الآمن بـ ${Math.abs(afterScenarioSafeToSpend)} ₪.`);
+  if (reserveGapAfterScenario > 0) warnings.push(`بعد السيناريو يوجد نقص ${reserveGapAfterScenario} ₪ مقابل الحدود المحمية.`);
+  if (cashFlowGapAfterScenario > 0) warnings.push(`بعد الصرف المعتاد والالتزامات يظهر عجز ${cashFlowGapAfterScenario} ₪.`);
+  if (goalImpact?.severity === 'critical') warnings.push(`الأهداف: ${goalImpact.message}`);
+  else if (goalImpact?.severity === 'warning') warnings.push(`تنبيه أهداف: ${goalImpact.message}`);
+
+  const result: any = {
+    success: true,
+    decision,
+    severity,
+    needsConfirmation: decision === 'SCENARIO_CRITICAL' && !parseBooleanLike(args?.riskConfirmed),
+    message: buildScenarioMessage({ decision, scenarioLabel, amount: totalScenarioAmount, safeDelta: afterScenarioSafeToSpend, projectedAfter: afterScenarioProjectedBalance, horizonLabel: horizon.label }),
+    scenario: {
+      label: scenarioLabel,
+      type: scenarioType,
+      category,
+      amount,
+      frequency,
+      occurrenceCount,
+      totalScenarioAmount,
+      horizon: { ...horizon, daysRemaining: horizonDays },
+    },
+    baseline: {
+      currentLiquid,
+      safeToSpendToday: safeToday,
+      safeToSpendUntilHorizon: safeUntilHorizon,
+      projectedBalance: baselineProjectedBalance,
+      expectedRoutineSpend,
+      expectedRoutineIncome,
+      dueCommitments,
+      protectedTotal,
+    },
+    afterScenario: {
+      liquid: afterScenarioLiquid,
+      projectedBalance: afterScenarioProjectedBalance,
+      safeToSpendUntilHorizon: afterScenarioSafeToSpend,
+      reserveGap: reserveGapAfterScenario,
+      cashFlowGap: cashFlowGapAfterScenario,
+      conservativeProjectedBalance,
+      conservativeShock,
+    },
+    recoveryPlan,
+    goalImpact,
+    warnings,
+    recommendations: severity === 'critical'
+      ? ['لا تنفذ السيناريو قبل تعويض الفجوة أو تخفيض المبلغ.', ...recoveryPlan.recommendations]
+      : severity === 'warning'
+        ? ['يمكن التفكير بالسيناريو بحذر إذا التزمت بخطة التعويض.', ...recoveryPlan.recommendations]
+        : ['السيناريو مقبول حالياً؛ حافظ على السقف اليومي وراجع الالتزامات قبل التنفيذ.'],
+    profileCompleteness: (profileResult as any).completeness,
+    partial: Boolean((ctx as any).partial || (safe as any).partial || goalImpact?.partial),
+    readEfficiency: { financialContextPartial: Boolean((ctx as any).partial), safeSpendingPartial: Boolean((safe as any).partial), goalImpactPartial: Boolean(goalImpact?.partial) },
+  };
+
+  if (parseBooleanLike(args?.save)) {
+    const scenarioId = stableDocId(`scenario:${userId}:${scenarioType}:${category}:${totalScenarioAmount}:${horizon.period}:${safeNow.toISOString().slice(0, 10)}`);
+    await adminDb.collection('users').doc(userId).collection('advisorScenarios').doc(scenarioId).set({
+      userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...result,
+    }, { merge: true });
+    result.savedScenarioId = scenarioId;
+  }
+
+  if (parseBooleanLike(args?.persistAlert) && ['critical', 'warning'].includes(severity)) {
+    await addNotification(userId, `📈 سيناريو مالي: ${result.message}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-scenario:${stableDocId(`${userId}:${scenarioType}:${category}:${totalScenarioAmount}:${decision}`)}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity,
+      priority: severity === 'critical' ? 'high' : 'medium',
+      category: 'financial_scenario',
+      source: 'simulateFinancialScenario',
+      metadata: { scenario: result.scenario, afterScenario: result.afterScenario, recoveryPlan: result.recoveryPlan },
+      actions: [
+        { id: 'reduce_amount', label: 'خفّض المبلغ', type: 'behavior' },
+        { id: 'recovery_plan', label: 'خطة تعويض', type: 'review' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return result;
+}
+
+export async function getFinancialScenarios(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(50, Number(args?.limit) || 10));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorScenarios')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const scenarios = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, scenarios, count: scenarios.length, limit, partial: Boolean((snap as any).partial || scenarios.length >= limit), readEfficiency: { advisorScenarioLimit: limit, docsRead: snap.docs.length } };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
