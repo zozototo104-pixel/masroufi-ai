@@ -8012,7 +8012,7 @@ export const functionDeclarations = [
   },
   {
     name: "assess_purchase",
-    description: "يقيّم شراءً قبل تنفيذه مقابل الرصيد، معدل الصرف، الالتزامات والموازنة. لا يسجل أي عملية.",
+    description: "يقيّم شراءً قبل تنفيذه مقابل الرصيد، معدل الصرف، الالتزامات، الموازنة، وأثره على أهداف الادخار. لا يسجل أي عملية.",
     parameters: { type:"object", properties:{
       price:{type:"number",description:"السعر المقترح"}, item:{type:"string",description:"السلعة"}, model:{type:"string",description:"الموديل إن وجد"}, paymentMethod:{type:"string",description:"cash أو palPay أو debt"}, category:{type:"string",description:"البند الرئيسي"}, necessity:{type:"string",description:"ضروري أو كمالي"}
     }, required:["price"] }
