@@ -150,6 +150,8 @@ export default function App() {
   const [advisorAlerts, setAdvisorAlerts] = useState<any[]>([]);
   const [advisorAudit, setAdvisorAudit] = useState<any>(null);
   const [isAdvisorAuditRunning, setIsAdvisorAuditRunning] = useState(false);
+  const [marketWatchlist, setMarketWatchlist] = useState<any[]>([]);
+  const [isMarketWatchReviewing, setIsMarketWatchReviewing] = useState(false);
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
