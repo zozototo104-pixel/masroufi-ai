@@ -990,14 +990,17 @@ function rememberPendingFinancialClarification(userId: string | null | undefined
   if (missingFields.length === 0) return;
   const key = pendingClarificationKey(userId);
   if (!key) return;
+  const previous = getPendingFinancialClarification(userId);
+  const previousArgs = previous && previous.name === name ? sanitizePendingFinancialArgs(previous.args) : {};
+  const nextArgs = { ...previousArgs, ...sanitizePendingFinancialArgs(args || {}) };
   pendingFinancialClarifications.set(key, {
     name,
-    args: { ...(args || {}) },
+    args: nextArgs,
     reason: String(result.reason || missingFields[0] || 'NEEDS_CLARIFICATION'),
     missingFields,
     message: result.message,
     clientMessageId,
-    createdAt: Date.now(),
+    createdAt: previous?.createdAt || Date.now(),
     source,
   });
   console.warn('[financial-clarification] stored pending financial clarification', {
