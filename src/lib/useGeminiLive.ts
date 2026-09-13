@@ -562,7 +562,17 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
           clearResponseWatchdog();
           setStatus('idle');
           setIsRecording(false);
-          setError('أغلقت جلسة Gemini Live قبل وصول أي صوت. جرّب إعادة تشغيل الصوت، وإذا تكررت فافحص حصة Gemini Live أو مفاتيح API.');
+          const userActuallySpoke = speechDetectedRef.current && voicedAudioFramesRef.current >= 3;
+          if (userActuallySpoke) {
+            setError('سمعتك أرسلت صوتاً، لكن Gemini Live أغلق قبل أن يرجع صوتاً. جرّب مرة ثانية، وإذا تكررت فافحص حصة Gemini Live أو مفتاح API.');
+          } else {
+            console.warn('[live] Gemini Live closed before returned audio, but no voiced microphone input was detected', {
+              sentAudioFrames: sentAudioFramesRef.current,
+              voicedAudioFrames: voicedAudioFramesRef.current,
+              liveReady: liveReadyRef.current,
+              reason: msg.reason || msg.message || msg.error || null,
+            });
+          }
         }
 
         if (msg.error) {
