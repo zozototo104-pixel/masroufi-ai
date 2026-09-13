@@ -344,12 +344,16 @@ test('TREASURER-12: recurring commitment manager detects subscriptions and conve
   assert.ok(tools.includes('recurringDetectionKey'), 'converted commitments must carry recurrence detection metadata');
   assert.ok(tools.includes('duplicate: true'), 'direct recurring conversion must avoid duplicate commitments');
   assert.ok(tools.includes('advisor-recurring-detected'), 'high-confidence recurring candidates must become advisor alerts when requested');
+  assert.ok(tools.includes('advisor-recurring-due'), 'due or overdue recurring commitments must become advisor alerts when reviewed');
   assert.ok(tools.includes('category: \'recurring_commitments\''), 'comprehensive audit must flag untracked recurring commitments');
   assert.ok(tools.includes('detect_recurring_commitments: detectRecurringCommitments'), 'recurring detection must be registered in handlers');
+  assert.ok(tools.includes('review_recurring_commitments: reviewRecurringCommitments'), 'recurring due-date review must be registered in handlers');
   assert.ok(tools.includes('create_recurring_commitment_from_candidate: createRecurringCommitmentFromCandidate'), 'recurring conversion must be registered in handlers');
   assert.ok(tools.includes('name: "detect_recurring_commitments"'), 'recurring detection must be exposed to Gemini');
+  assert.ok(tools.includes('name: "review_recurring_commitments"'), 'recurring due-date review must be exposed to Gemini');
   assert.ok(tools.includes('name: "create_recurring_commitment_from_candidate"'), 'recurring conversion must be exposed to Gemini');
   assert.ok(server.includes('app.get("/api/commitments/recurring/detect", authMiddleware'), 'recurring detection API must be available behind auth');
+  assert.ok(server.includes('app.post("/api/commitments/recurring/review", authMiddleware'), 'recurring due review API must be available behind auth');
   assert.ok(server.includes('app.post("/api/commitments/recurring/create", authMiddleware'), 'recurring conversion API must be available behind auth');
   assert.ok(server.indexOf('app.get("/api/commitments/recurring/detect"') < server.indexOf('app.delete("/api/commitments/:id"'), 'recurring routes must be registered before id routes');
   assert.ok((server.match(/0\.3\.6- \*\*مدير الاشتراكات والالتزامات المتكررة\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to manage recurring commitments');
