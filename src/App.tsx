@@ -1048,6 +1048,7 @@ export default function App() {
             await fetchAdvisorAuditData(headers);
             await fetchMarketWatchlistData(headers);
             await fetchFinancialScenariosData(headers);
+            await fetchRecurringCommitmentCandidatesData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
