@@ -2011,7 +2011,8 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     const rank: any = { protected: 4, essential: 3, restricted: 2, discretionary: 1, flexible: 0 };
     return rank[b.kind] - rank[a.kind] || Math.abs(b.change) - Math.abs(a.change);
   });
-  const incomeFit = fitAdaptiveBudgetProposalsToIncomeEnvelope(preliminaryProposals, targetEnvelope, referenceMonthlyIncome);
+  const incomeFitReference = referenceMonthlyIncome > 0 ? referenceMonthlyIncome : usingDefaultBudgetTemplate ? 1 : 0;
+  const incomeFit = fitAdaptiveBudgetProposalsToIncomeEnvelope(preliminaryProposals, targetEnvelope, incomeFitReference);
   const proposals = incomeFit.proposals;
   const totalProposed = roundMoney(proposals.reduce((sum: number, p: any) => sum + p.proposedLimit, 0));
   const totalChange = roundMoney(totalProposed - currentTotalBudget);
