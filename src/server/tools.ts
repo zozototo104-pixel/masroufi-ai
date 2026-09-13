@@ -439,13 +439,47 @@ export async function recordTransactionCommittedSideEffects(
         await addNotification(
           userId,
           `⚠️ تنبيه ميزانية: تجاوزت سقف ميزانية [${category}] لهذا الشهر (${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
-          'warning', db
+          'warning', db,
+          {
+            idempotencyKey: `advisor-budget-critical:${category}:${thisMonth}`,
+            advisorAlert: true,
+            advisorStatus: 'open',
+            severity: 'critical',
+            priority: 'high',
+            category: 'budget_threshold',
+            source: 'recordTransactionCommittedSideEffects',
+            transactionId,
+            operationId,
+            metadata: { amount, category, budgetLimit, totalSpentForCat, ratio: roundFinancial(ratio), thisMonth },
+            actions: [
+              { id: 'review_budget', label: 'راجع الميزانية', type: 'review' },
+              { id: 'pause_category_spending', label: 'أوقف الصرف على البند', type: 'behavior' },
+              { id: 'resolve', label: 'تم التعامل', type: 'resolve' },
+            ],
+          }
         );
       } else if (ratio >= 0.8) {
         await addNotification(
           userId,
           `⚠️ تنبيه ميزانية: اقتربت من سقف ميزانية [${category}] لهذا الشهر (وصلت ${Math.round(ratio * 100)}% - ${totalSpentForCat} ₪ من ${budgetLimit} ₪).`,
-          'warning', db
+          'warning', db,
+          {
+            idempotencyKey: `advisor-budget-warning:${category}:${thisMonth}`,
+            advisorAlert: true,
+            advisorStatus: 'open',
+            severity: 'warning',
+            priority: 'medium',
+            category: 'budget_threshold',
+            source: 'recordTransactionCommittedSideEffects',
+            transactionId,
+            operationId,
+            metadata: { amount, category, budgetLimit, totalSpentForCat, ratio: roundFinancial(ratio), thisMonth },
+            actions: [
+              { id: 'review_budget', label: 'راجع الميزانية', type: 'review' },
+              { id: 'slow_down', label: 'خفّض الصرف', type: 'behavior' },
+              { id: 'resolve', label: 'تم التعامل', type: 'resolve' },
+            ],
+          }
         );
       }
     } catch (budgetErr) {
