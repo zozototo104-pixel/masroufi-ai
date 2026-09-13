@@ -1993,6 +1993,42 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.get("/api/advisor/pulse", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getSafeSpendingLimit } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      const safe = await getSafeSpendingLimit({ period: 'salary_cycle', ...(req.query || {}) }, req.user.uid, token);
+      const warnings = Array.isArray(safe?.warnings) ? safe.warnings.slice(0, 5) : [];
+      const recommendations = Array.isArray(safe?.recommendations) ? safe.recommendations.slice(0, 5) : [];
+      const savingsAlerts = Array.isArray(safe?.savingsGoals)
+        ? safe.savingsGoals.filter((goal: any) => ['critical', 'warning'].includes(String(goal.alertLevel || ''))).slice(0, 5)
+        : [];
+      res.json({
+        success: safe?.success !== false,
+        generatedAt: new Date().toISOString(),
+        pulse: {
+          decision: safe?.decision || 'unknown',
+          headline: safe?.message || 'لا يوجد نبض مالي متاح حالياً.',
+          safeToSpendToday: safe?.safeSpending?.safeToSpendToday || 0,
+          safeToSpendThisWeek: safe?.safeSpending?.safeToSpendThisWeek || 0,
+          safeToSpendUntilSalaryCycleEnd: safe?.safeSpending?.safeToSpendUntilHorizon || 0,
+          horizon: safe?.safeSpending?.horizon,
+          warnings,
+          recommendations,
+          nextCommitments: Array.isArray(safe?.commitments) ? safe.commitments.slice(0, 5) : [],
+          savingsAlerts,
+        },
+        safeSpending: safe?.safeSpending,
+        breakdown: safe?.breakdown,
+        confidence: safe?.confidence,
+        partial: Boolean(safe?.partial),
+      });
+    } catch (e: any) {
+      console.error('Advisor pulse error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/treasurer/profile", authMiddleware, async (req: any, res: any) => {
     try {
       const { getTreasurerProfile } = await import('./src/server/tools');
