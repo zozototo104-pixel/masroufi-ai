@@ -1019,6 +1019,7 @@ export default function App() {
       setCommitments([]);
       setSavingsGoals([]);
       setAdvisorPulse(null);
+      setTreasurerProfile(null);
       setAdvisorAlerts([]);
       setAdvisorAudit(null);
       setMarketWatchlist([]);
