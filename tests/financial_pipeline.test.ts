@@ -167,3 +167,12 @@ test('TREASURER-03: safe spending limit tool protects commitments, reserve, and 
   assert.ok(tools.includes('dueCommitments + reserveTarget + savingsRequiredThisPeriod'), 'safe limit must protect commitments, reserve, and active savings goals');
   assert.ok(tools.includes('getFinancialDecisionContext({}, userId, token)'), 'safe limit must reuse the unified financial decision context');
 });
+
+test('TREASURER-04: advisor pulse endpoint exposes the safe spending summary', async () => {
+  const server = await src('server.ts');
+  assert.ok(server.includes('app.get("/api/advisor/pulse", authMiddleware'), 'advisor pulse must be available behind auth');
+  assert.ok(server.includes('getSafeSpendingLimit({ period: \'salary_cycle\''), 'advisor pulse must be based on salary-cycle safe spending by default');
+  assert.ok(server.includes('safeToSpendToday'), 'advisor pulse must expose today safe spend');
+  assert.ok(server.includes('safeToSpendUntilSalaryCycleEnd'), 'advisor pulse must expose horizon safe spend');
+  assert.ok(server.includes('0.3.1- **حد الصرف الآمن**'), 'text and voice prompts must instruct Gemini to use the safe spending tool');
+});
