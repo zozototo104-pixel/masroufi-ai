@@ -449,6 +449,9 @@ test('TREASURER-15: adaptive budget engine proposes and applies smarter category
   assert.ok(tools.includes("queryTransactions({ period: 'current_salary_cycle'"), 'adaptive budgets must infer income from the current salary cycle when the treasurer profile salary is missing');
   assert.ok(tools.includes('referenceMonthlyIncome'), 'adaptive budget output must expose the income used for the plan');
   assert.ok(tools.includes('usingDefaultBudgetTemplate'), 'adaptive budgets must detect the default 7300 ILS template instead of treating it as real income');
+  assert.ok(tools.includes('DEFAULT_BUDGETS is only an') && tools.includes('it is not an active user budget'), 'budget overview must not treat the default 7300 ILS template as an active user budget');
+  assert.ok(tools.includes('const userBudgets: Record<string, number> = {}'), 'stored budget reads must start from explicit user budgets, not the default template');
+  assert.ok(tools.includes('initialBudgetSetup') && tools.includes('قالب ${defaultBudgetTemplateTotal} ₪ استخدم فقط كأوزان توزيع'), 'adaptive budget must present default template as distribution weights during first setup');
   assert.ok(tools.includes('لن أعتبر قالب 7300'), 'adaptive budget must not present the default 7300 ILS template as a valid recommendation when income is missing');
   assert.ok(tools.includes('needs_income_profile'), 'adaptive budget must ask for income setup when no reliable income exists');
   assert.ok(tools.includes('income_conflict'), 'adaptive budget must flag conflicts when obligations exceed income');
