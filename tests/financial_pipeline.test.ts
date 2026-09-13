@@ -248,6 +248,8 @@ test('TREASURER-08: market watchlist links local market intelligence with safe s
   assert.ok(tools.includes('getSafeSpendingLimit({ period: \'salary_cycle\' }'), 'market watch evaluation must include safe spending context');
   assert.ok(tools.includes('advisor-market-watch'), 'risky market watch evaluations must become advisor alerts');
   assert.ok(tools.includes('marketWatchlist'), 'wipe must include the market watchlist collection');
+  assert.ok(rules.includes('match /marketWatchlist/{watchId}'), 'Firestore rules must allow user-scoped market watchlist access');
+  assert.ok(rules.includes('match /advisorAudits/{auditId}'), 'Firestore rules must allow user-scoped advisor audit snapshots');
   assert.ok(server.includes('app.get("/api/advisor/market-watchlist", authMiddleware'), 'market watchlist API must be available behind auth');
   assert.ok(server.includes('app.post("/api/advisor/market-watchlist/review", authMiddleware'), 'market watchlist review API must be available behind auth');
   assert.ok(server.indexOf('app.post("/api/advisor/market-watchlist/review"') < server.indexOf('app.post("/api/advisor/market-watchlist/:id"'), 'review route must be registered before the :id route');
