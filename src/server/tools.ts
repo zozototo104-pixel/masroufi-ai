@@ -4484,6 +4484,20 @@ export async function runFinancialAudit(args: any, userId: string, token: string
     });
   }
 
+  const recurringDetection = await detectRecurringCommitments({ limit: Math.min(limit, 500), candidateLimit: 5, minOccurrences: 2 }, userId, token).catch((e: any) => ({ success: false, candidates: [], error: e?.message || String(e) }));
+  const recurringCandidates = Array.isArray((recurringDetection as any).candidates) ? (recurringDetection as any).candidates : [];
+  if (recurringCandidates.length) {
+    addAuditFinding(findings, {
+      severity: recurringCandidates.some((c: any) => Number(c.confidence || 0) >= 0.85) ? 'warning' : 'info',
+      category: 'recurring_commitments',
+      title: 'مصاريف متكررة غير مجدولة',
+      message: `وجدت ${recurringCandidates.length} مصروف متكرر محتمل غير موجود كالتزام. تحويله لالتزام يحسن توقعات نهاية الشهر.`,
+      evidence: { candidates: recurringCandidates.slice(0, 5).map((c: any) => ({ detectionKey: c.detectionKey, title: c.title, amount: c.amount, frequency: c.frequency, nextDueDate: c.nextDueDate, confidence: c.confidence })) },
+      relatedIds: recurringCandidates.flatMap((c: any) => c.sourceTransactionIds || []).slice(0, 20),
+      recommendedActions: ['راجع المرشحات المتكررة', 'حوّل الاشتراكات والفواتير المؤكدة إلى التزامات متكررة'],
+    });
+  }
+
   const openCriticalAlerts = notifications.filter((n: any) => Boolean(n.advisorAlert) && normalizeAdvisorAlertStatus(n.advisorStatus) === 'open' && String(n.severity || '').toLowerCase() === 'critical');
   if (openCriticalAlerts.length) {
     addAuditFinding(findings, {
