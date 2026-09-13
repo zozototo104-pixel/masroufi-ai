@@ -3363,9 +3363,8 @@ function setupLiveApi(wss: WebSocketServer) {
           try {
             awaitingPostToolAudio = true;
             liveAudioSinceLastToolResponse = 0;
-            await session.sendClientContent({
-              turns: [{ role: 'user', parts: [{ text: `النتيجة الحقيقية من السيرفر للعملية المالية، اقرأها فقط ولا تستخدم أدوات جديدة ولا تقل تم إذا كانت فاشلة: ${reply}` }] }],
-              turnComplete: true,
+            session.sendRealtimeInput({
+              text: `النتيجة الحقيقية من السيرفر للعملية المالية، اقرأها فقط ولا تستخدم أدوات جديدة ولا تقل تم إذا كانت فاشلة: ${reply}`,
             });
             schedulePostToolAudioFallback(reply);
           } catch (speakErr: any) {
