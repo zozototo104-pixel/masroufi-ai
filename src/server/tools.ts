@@ -360,6 +360,152 @@ export async function recordTransactionCommittedSideEffects(
 // V5: unified financial context used by the assistant before consequential decisions.
 // It is on-demand only: no timers/polling. The transaction snapshot is reused for all calculations.
 // V6 (MF-1): exclude commitments with status='paid' from due30 to prevent double subtraction.
+function resolveSafeSpendingHorizon(args: any, now: Date) {
+  const raw = normalizeArabicText(String(args?.period || args?.horizon || 'salary_cycle')).toLowerCase();
+  const salaryCycle = getCurrentSalaryCycle(now);
+  let period = 'salary_cycle';
+  let label = salaryCycle.name || 'دورة الراتب الحالية';
+  let end = new Date(salaryCycle.endExclusiveIso);
+
+  if (args?.untilDate) {
+    const explicit = new Date(String(args.untilDate));
+    if (Number.isFinite(explicit.getTime())) {
+      period = 'custom';
+      label = `حتى ${explicit.toISOString().slice(0, 10)}`;
+      explicit.setUTCHours(23, 59, 59, 999);
+      end = explicit;
+    }
+  } else if (/today|اليوم|يوم/.test(raw)) {
+    period = 'today';
+    label = 'اليوم';
+    end = new Date(now.getTime());
+    end.setUTCHours(23, 59, 59, 999);
+  } else if (/week|اسبوع|أسبوع|7/.test(raw)) {
+    period = 'week';
+    label = 'الأسبوع القادم';
+    end = new Date(now.getTime() + 7 * 86400000);
+  } else if (/30|month|شهر/.test(raw)) {
+    period = 'next_30_days';
+    label = 'الـ 30 يوم القادمة';
+    end = new Date(now.getTime() + 30 * 86400000);
+  }
+
+  if (!Number.isFinite(end.getTime()) || end.getTime() <= now.getTime()) end = new Date(now.getTime() + 86400000);
+  const daysRemaining = Math.max(1, Math.ceil((end.getTime() - now.getTime()) / 86400000));
+  return { period, label, startIso: now.toISOString(), endIso: end.toISOString(), daysRemaining, salaryCycle };
+}
+
+function buildSafeSpendingAdvice(input: {
+  status: string;
+  deficitToProtected: number;
+  cashFlowGap: number;
+  safeToSpendToday: number;
+  safeToSpendThisWeek: number;
+  safeToSpendUntilHorizon: number;
+  horizonLabel: string;
+}) {
+  if (input.status === 'critical') return `الوضع حرج: السيولة الحالية لا تغطي الالتزامات القريبة. تحتاج توفير ${input.cashFlowGap || input.deficitToProtected} ₪ قبل أي صرف إضافي.`;
+  if (input.status === 'danger') return `الوضع ضاغط: لا يوجد مبلغ آمن للصرف قبل حماية الالتزامات والاحتياطي. العجز مقابل الحدود المحمية ${input.deficitToProtected} ₪.`;
+  if (input.status === 'warning') return `الصرف لازم يكون مضبوط. الحد الآمن اليوم تقريباً ${input.safeToSpendToday} ₪، وخلال ${input.horizonLabel}: ${input.safeToSpendUntilHorizon} ₪.`;
+  return `الوضع يسمح بصرف مضبوط. الحد الآمن اليوم تقريباً ${input.safeToSpendToday} ₪، وهذا الأسبوع ${input.safeToSpendThisWeek} ₪.`;
+}
+
+export async function getSafeSpendingLimit(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const horizon = resolveSafeSpendingHorizon(args, safeNow);
+  const ctx: any = await getFinancialDecisionContext({}, userId, token);
+
+  const [profileSnap, goalSnap] = await Promise.all([
+    adminDb.collection('users').doc(userId).collection('treasurer').doc('profile').get().catch(() => ({ exists: false, data: () => ({}) })),
+    adminDb.collection('users').doc(userId).collection('savingsGoals').limit(100).get().catch(() => ({ docs: [], partial: true })),
+  ]);
+
+  const profile = (profileSnap as any).exists ? ((profileSnap as any).data() || {}) : {};
+  const rawGoals = ((goalSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }))
+    .filter((goal: any) => !['completed', 'cancelled', 'archived'].includes(String(goal.status || 'active').toLowerCase()));
+  const savingsGoalPlans = rawGoals.map((goal: any) => buildSavingsGoalPlan({ goal, now: safeNow }));
+  const savingsRequiredThisPeriod = roundMoney(savingsGoalPlans.reduce((sum: number, goal: any) => {
+    return sum + Math.max(0, Number(goal.monthlyRequired || 0) - Number(goal.monthlySavedAmount || 0));
+  }, 0));
+
+  const activeCommitments = (ctx.commitments || []).filter((c: any) => {
+    const status = String(c.status || 'pending').toLowerCase();
+    if (status === 'paid' || status === 'cancelled') return false;
+    const due = String(c.dueDate || '');
+    return !due || due <= horizon.endIso;
+  });
+  const dueCommitments = roundMoney(activeCommitments.reduce((sum: number, c: any) => sum + parsePositiveFinancialAmount(c.amount), 0));
+  const balances = ctx.balances || { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 };
+  const liquidTotal = roundMoney(Number(balances.total || 0));
+  const dailyExpenseAverage = roundMoney(Number(ctx.dailyExpenseAverage || 0));
+  const strictness = String(args?.strictness || profile.strictness || 'balanced').toLowerCase();
+  const bufferDays = strictness === 'strict' ? 7 : strictness === 'gentle' ? 2 : 3;
+  const behaviorBuffer = roundMoney(dailyExpenseAverage * bufferDays);
+  const explicitReserve = Math.max(parsePositiveFinancialAmount(args?.reserveTarget), parsePositiveFinancialAmount(profile.cashReserveTarget));
+  const reserveTarget = roundMoney(Math.max(explicitReserve, behaviorBuffer));
+  const protectedTotal = roundMoney(dueCommitments + reserveTarget + savingsRequiredThisPeriod);
+  const safeToSpendUntilHorizon = roundMoney(Math.max(0, liquidTotal - protectedTotal));
+  const safeToSpendToday = roundMoney(Math.max(0, safeToSpendUntilHorizon / horizon.daysRemaining));
+  const safeToSpendThisWeek = roundMoney(Math.min(safeToSpendUntilHorizon, safeToSpendToday * Math.min(7, horizon.daysRemaining)));
+  const expectedRoutineSpend = roundMoney(dailyExpenseAverage * horizon.daysRemaining);
+  const discretionaryAfterExpectedRoutine = roundMoney(liquidTotal - protectedTotal - expectedRoutineSpend);
+  const deficitToProtected = roundMoney(Math.max(0, protectedTotal - liquidTotal));
+  const cashFlowGap = roundMoney(Math.max(0, protectedTotal + expectedRoutineSpend - liquidTotal));
+
+  let status = 'safe';
+  if (liquidTotal <= 0 || liquidTotal < dueCommitments) status = 'critical';
+  else if (deficitToProtected > 0) status = 'danger';
+  else if (discretionaryAfterExpectedRoutine < 0 || safeToSpendToday < Math.max(20, dailyExpenseAverage * 0.5)) status = 'warning';
+
+  const warnings: string[] = [];
+  if (dueCommitments > liquidTotal) warnings.push(`الالتزامات القريبة (${dueCommitments} ₪) أكبر من السيولة الحالية (${liquidTotal} ₪).`);
+  if (deficitToProtected > 0) warnings.push(`السيولة ناقصة ${deficitToProtected} ₪ لحماية الالتزامات والاحتياطي والأهداف.`);
+  if (discretionaryAfterExpectedRoutine < 0) warnings.push(`بعد نمط الصرف المعتاد يوجد عجز متوقع ${Math.abs(discretionaryAfterExpectedRoutine)} ₪ حتى ${horizon.label}.`);
+  if (savingsRequiredThisPeriod > 0) warnings.push(`الأهداف النشطة تحتاج تقريباً ${savingsRequiredThisPeriod} ₪ هذا الشهر للبقاء على المسار.`);
+
+  const recommendations = status === 'safe'
+    ? ['حافظ على الصرف اليومي ضمن الحد الآمن ولا تلمس مبلغ الالتزامات أو الاحتياطي.', 'أي شراء كمالي كبير يفضّل فحصه بالسوق المحلي أولاً.']
+    : ['أوقف الكماليات مؤقتاً حتى تغطي الالتزامات والاحتياطي.', 'راجع الالتزامات القريبة، وحوّل أي فائض صغير للأهداف ذات الأولوية العالية.'];
+
+  return {
+    success: true,
+    decision: status,
+    message: buildSafeSpendingAdvice({ status, deficitToProtected, cashFlowGap, safeToSpendToday, safeToSpendThisWeek, safeToSpendUntilHorizon, horizonLabel: horizon.label }),
+    safeSpending: {
+      currency: 'ILS',
+      horizon,
+      safeToSpendToday,
+      safeToSpendThisWeek,
+      safeToSpendUntilHorizon,
+      discretionaryAfterExpectedRoutine,
+      deficitToProtected,
+      cashFlowGap,
+    },
+    breakdown: {
+      balances,
+      liquidTotal,
+      dueCommitments,
+      reserveTarget,
+      reserveSource: explicitReserve > 0 ? 'treasurer_profile_or_request' : 'spending_behavior_buffer',
+      savingsRequiredThisPeriod,
+      protectedTotal,
+      dailyExpenseAverage,
+      expectedRoutineSpend,
+      strictness,
+      bufferDays,
+    },
+    commitments: activeCommitments.slice(0, 10).map((c: any) => ({ id: c.id, title: c.title, amount: c.amount, dueDate: c.dueDate, category: c.category, status: c.status || 'pending' })),
+    savingsGoals: savingsGoalPlans.slice(0, 10).map((g: any) => ({ id: g.id, name: g.name, remainingAmount: g.remainingAmount, monthlyRequired: g.monthlyRequired, priority: g.priority, dueDate: g.dueDate, alertLevel: g.alertLevel })),
+    warnings,
+    recommendations,
+    confidence: ctx.confidence,
+    partial: Boolean(ctx.partial || (goalSnap as any).partial),
+    readEfficiency: { ...(ctx.readEfficiency || {}), treasurerProfileDocsRead: 1, savingsGoalLimit: 100, savingsGoalDocsRead: rawGoals.length },
+  };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
