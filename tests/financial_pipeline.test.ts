@@ -195,6 +195,7 @@ test('TREASURER-06: advisor alert center persists and resolves financial warning
   const app = await src('src/App.tsx');
   assert.ok(tools.includes('export async function getAdvisorAlerts'), 'advisor alert center must expose a read API');
   assert.ok(tools.includes('export async function updateAdvisorAlert'), 'advisor alert center must expose an update API');
+  assert.ok(tools.includes('parseBooleanLike(args?.includeResolved)'), 'advisor alert query booleans must not treat "false" strings as true');
   assert.ok(tools.includes('advisorAlert: true'), 'financial warnings must be persisted as advisor alerts');
   assert.ok(tools.includes('advisor-budget-critical'), 'budget limit breaches must become persistent advisor alerts');
   assert.ok(tools.includes('advisor-debt-risk'), 'high debt purchase risks must become persistent advisor alerts');
