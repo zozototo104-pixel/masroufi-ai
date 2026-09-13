@@ -125,7 +125,26 @@ export async function runIdempotent(
     };
   }
 
-  if (claim.action === 'return') return { kind: 'cache_hit', cachedResult: claim.result };
+  if (claim.action === 'return') {
+    if (allowNonDurableCacheBust && resultIsSafeToRetryWithoutCaching(claim.result)) {
+      console.warn('[idempotency] clearing stale non-durable cached validation result and retrying current completed clarification', {
+        operationIdPreview: operationId.slice(0, 80),
+        reason: claim.result?.reason,
+        needsClarification: claim.result?.needsClarification === true,
+        needsConfirmation: claim.result?.needsConfirmation === true,
+      });
+      try {
+        await ref.delete();
+        return await runIdempotent(userId, operationId, fn, false);
+      } catch (deleteErr: any) {
+        console.error('[idempotency] failed to clear stale non-durable cached validation result', {
+          operationIdPreview: operationId.slice(0, 80),
+          deleteError: deleteErr?.message,
+        });
+      }
+    }
+    return { kind: 'cache_hit', cachedResult: claim.result };
+  }
   if (claim.action === 'wait') return { kind: 'cache_hit', cachedResult: await waitForCompletedResult(ref) };
 
   try {
