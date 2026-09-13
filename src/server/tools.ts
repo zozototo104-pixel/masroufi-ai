@@ -6112,6 +6112,69 @@ export async function detectRecurringCommitments(args: any, userId: string, toke
   };
 }
 
+export async function reviewRecurringCommitments(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const lookAheadDays = Math.max(1, Math.min(60, Number(args?.lookAheadDays) || 7));
+  const limit = Math.max(20, Math.min(300, Number(args?.limit) || 150));
+  const end = new Date(safeNow.getTime());
+  end.setUTCDate(end.getUTCDate() + lookAheadDays);
+  const todayKey = safeNow.toISOString().slice(0, 10);
+  const endKey = end.toISOString().slice(0, 10);
+  const snap = await adminDb.collection('commitments')
+    .where('userId', '==', userId)
+    .orderBy('dueDate', 'asc')
+    .limit(limit)
+    .get();
+  const commitments = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const activeRecurring = commitments.filter((c: any) => {
+    const status = String(c.status || 'pending').toLowerCase();
+    return Boolean(c.recurring || c.recurringFrequency || c.recurringDetectionKey) && !['paid', 'cancelled'].includes(status);
+  });
+  const dueSoon = activeRecurring.filter((c: any) => {
+    const dueKey = auditDateKey(c.dueDate);
+    return /^\d{4}-\d{2}-\d{2}$/.test(dueKey) && dueKey >= todayKey && dueKey <= endKey;
+  });
+  const overdue = activeRecurring.filter((c: any) => {
+    const dueKey = auditDateKey(c.dueDate);
+    return /^\d{4}-\d{2}-\d{2}$/.test(dueKey) && dueKey < todayKey;
+  });
+
+  if (parseBooleanLike(args?.persistAlerts)) {
+    for (const commitment of [...overdue, ...dueSoon].slice(0, 20)) {
+      const dueKey = auditDateKey(commitment.dueDate);
+      const isOverdue = dueKey < todayKey;
+      await addNotification(userId, `${isOverdue ? '🚨' : '🔔'} ${isOverdue ? 'التزام متكرر متأخر' : 'التزام متكرر قريب'}: ${commitment.title || 'التزام'} بقيمة ${commitment.amount || 0} ₪ موعده ${dueKey}.`, 'warning', adminDb, {
+        idempotencyKey: `advisor-recurring-due:${commitment.id}:${dueKey}`,
+        advisorAlert: true,
+        advisorStatus: 'open',
+        severity: isOverdue ? 'critical' : 'warning',
+        priority: isOverdue ? 'high' : 'medium',
+        category: 'recurring_commitment_due',
+        source: 'reviewRecurringCommitments',
+        metadata: { commitmentId: commitment.id, dueDate: dueKey, amount: commitment.amount, recurringFrequency: commitment.recurringFrequency },
+        actions: [
+          { id: 'mark_paid', label: 'تم السداد', type: 'resolve' },
+          { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+          { id: 'review_commitment', label: 'راجع الالتزام', type: 'review' },
+        ],
+      });
+    }
+  }
+
+  return {
+    success: true,
+    dueSoon,
+    overdue,
+    count: dueSoon.length + overdue.length,
+    lookAheadDays,
+    window: { start: todayKey, end: endKey },
+    partial: Boolean((snap as any).partial || commitments.length >= limit),
+    readEfficiency: { commitmentDocsRead: commitments.length, commitmentLimit: limit },
+  };
+}
+
 export async function createRecurringCommitmentFromCandidate(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const candidateArg = args?.candidate && typeof args.candidate === 'object' ? args.candidate : null;
