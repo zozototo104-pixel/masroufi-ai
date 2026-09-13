@@ -45,6 +45,33 @@ async function waitForCompletedResult(ref: any, attempts = 20): Promise<any> {
   };
 }
 
+function resultReachedDurableWrite(result: any): boolean {
+  return Boolean(
+    result?.success === true ||
+    result?.transactionCommitted === true ||
+    result?.cloudStorageConfirmed === true ||
+    result?.durability === 'committed' ||
+    result?.transactionId ||
+    result?.commitmentId ||
+    result?.goalId ||
+    result?.reportId ||
+    (Array.isArray(result?.transactionIds) && result.transactionIds.length > 0) ||
+    (Array.isArray(result?.deletedTransactionIds) && result.deletedTransactionIds.length > 0)
+  );
+}
+
+function resultIsSafeToRetryWithoutCaching(result: any): boolean {
+  if (resultReachedDurableWrite(result)) return false;
+  return Boolean(
+    result?.success === false ||
+    result?.needsClarification === true ||
+    result?.needsConfirmation === true ||
+    result?.retryable === true ||
+    result?.reason ||
+    result?.error
+  );
+}
+
 export interface IdempotencyOutcome {
   kind: 'cache_hit' | 'cache_miss';
   cachedResult?: any;
