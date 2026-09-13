@@ -1759,6 +1759,319 @@ export async function getWeeklyFinancialRecommendations(args: any, userId: strin
   return { success: true, plans, count: plans.length, limit, partial: Boolean((snap as any).partial || plans.length >= limit), readEfficiency: { advisorWeeklyPlanLimit: limit, docsRead: snap.docs.length } };
 }
 
+function normalizeAdaptiveBudgetMode(value: any) {
+  const raw = normalizeArabicText(String(value || 'balanced')).toLowerCase();
+  if (/tight|شد|تقشف|انقاذ|إنقاذ|recovery/.test(raw)) return 'tighten';
+  if (/growth|ادخار|توفير|هدف/.test(raw)) return 'growth';
+  if (/relaxed|مرن|خفيف/.test(raw)) return 'relaxed';
+  return 'balanced';
+}
+
+function roundBudgetLimit(value: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (n < 100) return Math.max(10, Math.round(n / 10) * 10);
+  return Math.max(10, Math.round(n / 25) * 25);
+}
+
+function adaptiveBudgetCategoryKind(category: string, profile: any) {
+  const normalized = normalizeArabicText(category).toLowerCase();
+  const protectedCategories = normalizeTreasurerStringList(profile.protectedCategories || [])
+    .map((c: string) => normalizeArabicText(c).toLowerCase());
+  const restrictedCategories = normalizeTreasurerStringList(profile.restrictedCategories || [])
+    .map((c: string) => normalizeArabicText(c).toLowerCase());
+  if (protectedCategories.some((c: string) => c && normalized.includes(c))) return 'protected';
+  if (/طعام|منزل|اولاد|أولاد|ابناء|أبناء|صحة|علاج|تعليم|تدريب|مواصلات|فواتير|التزامات|ايجار|إيجار|دواء/.test(normalized)) return 'essential';
+  if (restrictedCategories.some((c: string) => c && normalized.includes(c))) return 'restricted';
+  if (/ترفيه|مطاعم|قهوة|كافيه|حلويات|زيارات|ضيافة|هدايا|ملابس|كماليات|تجميل|العاب|ألعاب/.test(normalized)) return 'discretionary';
+  return 'flexible';
+}
+
+function monthlyCommitmentAmount(commitment: any) {
+  const amount = parsePositiveFinancialAmount(commitment.amount);
+  const frequency = normalizeRecurringCommitmentFrequency(commitment.recurringFrequency || commitment.frequency);
+  if (commitment.recurring || commitment.recurringFrequency || commitment.recurringDetectionKey) {
+    if (frequency === 'weekly') return roundMoney(amount * 4.33);
+    if (frequency === 'biweekly') return roundMoney(amount * 2.17);
+    if (frequency === 'quarterly') return roundMoney(amount / 3);
+    if (frequency === 'yearly') return roundMoney(amount / 12);
+    return amount;
+  }
+  return amount;
+}
+
+function findBudgetCategoryInsight(habits: any, category: string) {
+  const normalized = normalizeArabicText(category).toLowerCase();
+  return ((habits?.insights || []) as any[]).find((insight: any) => {
+    const evidenceCategory = normalizeArabicText(String(insight?.evidence?.category || insight?.evidence?.key || insight?.title || '')).toLowerCase();
+    const message = normalizeArabicText(String(insight?.message || '')).toLowerCase();
+    return insight?.type === 'category_spike' && (evidenceCategory.includes(normalized) || message.includes(normalized));
+  });
+}
+
+function buildAdaptiveBudgetReason(input: any) {
+  const parts: string[] = [];
+  if (input.kind === 'protected' || input.kind === 'essential') parts.push('بند محمي/أساسي لذلك لا يتم ضغطه بقوة.');
+  if (input.kind === 'restricted' || input.kind === 'discretionary') parts.push('بند مرن أو مقيد ويمكن تخفيضه لحماية الأهداف.');
+  if (input.spikeInsight) parts.push('ظهر ارتفاع في هذا البند مقارنة بالفترة السابقة.');
+  if (input.ratio >= 1) parts.push('تم تجاوز السقف الحالي هذا الشهر.');
+  else if (input.ratio >= 0.8) parts.push('البند قريب من السقف الحالي.');
+  if (input.envelopeScale < 1) parts.push('تم تخفيضه ضمن إعادة توزيع السقف الشهري العام.');
+  return parts.join(' ') || 'اقتراح مبني على الصرف الحالي والحد الآمن والأهداف.';
+}
+
+function adaptiveBudgetStatus(proposals: any[], totalCurrent: number, totalProposed: number, envelope: number) {
+  const reduced = proposals.filter((p: any) => p.change < 0).length;
+  const increased = proposals.filter((p: any) => p.change > 0).length;
+  if (totalProposed > envelope) return 'needs_manual_review';
+  if (reduced > increased) return 'tightened';
+  if (increased > reduced) return 'rebalanced_growth';
+  return 'balanced';
+}
+
+export async function generateAdaptiveBudgetPlan(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const mode = normalizeAdaptiveBudgetMode(args?.mode || args?.focus);
+  const [profileResult, budgetOverview, safe, habits, goalsResult, commitmentsResult, weeklyPlan] = await Promise.all([
+    getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) })),
+    getBudgetsOverview({}, userId, token).catch((e: any) => ({ success: false, budgets: [], totalBudget: 0, totalSpent: 0, partial: true, error: e?.message || String(e) })),
+    getSafeSpendingLimit({ period: 'salary_cycle' }, userId, token).catch((e: any) => ({ success: false, decision: 'unknown', safeSpending: {}, breakdown: {}, partial: true, error: e?.message || String(e) })),
+    analyzeFinancialHabits({ period: args?.habitPeriod || 'last_30_days', insightLimit: 10, limit: Math.max(200, Math.min(1000, Number(args?.transactionLimit) || 700)) }, userId, token).catch((e: any) => ({ success: false, insights: [], current: {}, partial: true, error: e?.message || String(e) })),
+    getSavingsGoals({ now: safeNow.toISOString() }, userId, token).catch((e: any) => ({ success: false, goals: [], partial: true, error: e?.message || String(e) })),
+    getCommitments({ limit: 200 }, userId, token).catch((e: any) => ({ success: false, commitments: [], partial: true, error: e?.message || String(e) })),
+    generateWeeklyFinancialRecommendations({ focus: mode === 'tighten' ? 'recovery' : mode === 'growth' ? 'savings_growth' : 'weekly', habitPeriod: args?.habitPeriod || 'last_14_days' }, userId, token).catch((e: any) => ({ success: false, actions: [], summary: {}, partial: true, error: e?.message || String(e) })),
+  ]);
+
+  const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
+  const currentBudgetRows = Array.isArray((budgetOverview as any).budgets) ? (budgetOverview as any).budgets : [];
+  const currentBudgetMap = new Map(currentBudgetRows.map((b: any) => [String(b.category), b]));
+  const categorySet = new Set<string>([...Object.keys(DEFAULT_BUDGETS), ...currentBudgetRows.map((b: any) => String(b.category || '')).filter(Boolean)]);
+  const salary = parsePositiveFinancialAmount(profile.monthlySalary);
+  const activeGoals = Array.isArray((goalsResult as any).goals) ? (goalsResult as any).goals : [];
+  const monthlyGoalNeed = roundMoney(activeGoals
+    .filter((g: any) => !['completed', 'cancelled', 'archived'].includes(String(g.status || 'active').toLowerCase()))
+    .reduce((sum: number, g: any) => sum + Math.max(parsePositiveFinancialAmount(g.monthlyRequired), parsePositiveFinancialAmount(g.monthlyGap)), 0));
+  const activeCommitments = Array.isArray((commitmentsResult as any).commitments) ? (commitmentsResult as any).commitments.filter((c: any) => !['paid', 'cancelled'].includes(String(c.status || '').toLowerCase())) : [];
+  const monthlyCommitments = roundMoney(activeCommitments.reduce((sum: number, c: any) => sum + monthlyCommitmentAmount(c), 0));
+  const currentTotalBudget = roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalBudget) || currentBudgetRows.reduce((sum: number, b: any) => sum + parsePositiveFinancialAmount(b.limit), 0));
+  const currentTotalSpent = roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalSpent));
+  const safeDecision = String((safe as any).decision || '').toLowerCase();
+  const requiredRecovery = roundMoney(Math.max(
+    parsePositiveFinancialAmount((safe as any).safeSpending?.deficitToProtected),
+    parsePositiveFinancialAmount((safe as any).safeSpending?.cashFlowGap),
+    parsePositiveFinancialAmount((weeklyPlan as any).summary?.requiredRecovery)
+  ));
+  const salaryEnvelope = salary > 0 ? Math.max(0, salary - monthlyCommitments - monthlyGoalNeed - requiredRecovery) : 0;
+  const fallbackEnvelope = currentTotalBudget > 0 ? currentTotalBudget : Object.values(DEFAULT_BUDGETS).reduce((a, b) => a + b, 0);
+  let targetEnvelope = roundBudgetLimit(salaryEnvelope > 0 ? salaryEnvelope : fallbackEnvelope);
+  if (mode === 'tighten' || requiredRecovery > 0 || ['critical', 'danger'].includes(safeDecision)) targetEnvelope = roundBudgetLimit(targetEnvelope * 0.9);
+  if (mode === 'relaxed' && requiredRecovery === 0 && safeDecision !== 'warning') targetEnvelope = roundBudgetLimit(targetEnvelope * 1.05);
+  const essentialFloor = parsePositiveFinancialAmount(profile.essentialMonthlyEstimate);
+  if (essentialFloor > 0) targetEnvelope = Math.max(targetEnvelope, roundBudgetLimit(essentialFloor));
+  if (salary > 0) targetEnvelope = Math.min(targetEnvelope, roundBudgetLimit(salary * 0.95));
+
+  const rawProposals = Array.from(categorySet).map((category) => {
+    const row: any = currentBudgetMap.get(category) || { category, limit: DEFAULT_BUDGETS[category] || 0, spent: 0, percentage: 0 };
+    const currentLimit = roundMoney(parsePositiveFinancialAmount(row.limit || DEFAULT_BUDGETS[category] || 0));
+    const spent = roundMoney(parsePositiveFinancialAmount(row.spent));
+    const ratio = currentLimit > 0 ? spent / currentLimit : 0;
+    const kind = adaptiveBudgetCategoryKind(category, profile);
+    const spikeInsight = findBudgetCategoryInsight(habits, category);
+    let proposed = currentLimit || DEFAULT_BUDGETS[category] || Math.max(100, spent * 1.1);
+    if (kind === 'protected' || kind === 'essential') {
+      proposed = Math.max(proposed, spent * 1.05, kind === 'protected' ? 250 : 150);
+      if (ratio >= 0.9 && mode !== 'tighten') proposed *= 1.08;
+    } else {
+      if (spikeInsight || kind === 'restricted' || mode === 'tighten' || requiredRecovery > 0) proposed *= kind === 'restricted' ? 0.75 : 0.85;
+      else if (ratio < 0.5 && spent > 0) proposed = Math.max(spent * 1.25, proposed * 0.9);
+      else if (mode === 'growth') proposed *= 0.95;
+      proposed = Math.max(50, proposed);
+    }
+    if (spent > 0 && (kind === 'protected' || kind === 'essential')) proposed = Math.max(proposed, spent);
+    return {
+      category,
+      kind,
+      currentLimit: roundBudgetLimit(currentLimit),
+      currentSpent: spent,
+      currentUsagePct: currentLimit > 0 ? Math.round((spent / currentLimit) * 100) : 0,
+      proposedLimit: roundBudgetLimit(proposed),
+      envelopeScale: 1,
+      spikeInsight: Boolean(spikeInsight),
+      reason: '',
+    };
+  });
+
+  const protectedKinds = new Set(['protected', 'essential']);
+  const protectedSum = rawProposals.filter((p: any) => protectedKinds.has(p.kind)).reduce((sum: number, p: any) => sum + p.proposedLimit, 0);
+  const adjustable = rawProposals.filter((p: any) => !protectedKinds.has(p.kind));
+  const adjustableSum = adjustable.reduce((sum: number, p: any) => sum + p.proposedLimit, 0);
+  const adjustableEnvelope = Math.max(0, targetEnvelope - protectedSum);
+  const envelopeScale = adjustableSum > 0 && adjustableEnvelope > 0 && protectedSum + adjustableSum > targetEnvelope ? Math.max(0.35, Math.min(1, adjustableEnvelope / adjustableSum)) : 1;
+  const proposals = rawProposals.map((p: any) => {
+    const scaledLimit = protectedKinds.has(p.kind) ? p.proposedLimit : roundBudgetLimit(p.proposedLimit * envelopeScale);
+    const proposedLimit = Math.max(p.kind === 'restricted' || p.kind === 'discretionary' ? 30 : 50, scaledLimit);
+    const change = roundMoney(proposedLimit - p.currentLimit);
+    const changePct = p.currentLimit > 0 ? Math.round((change / p.currentLimit) * 100) : 100;
+    return {
+      ...p,
+      proposedLimit,
+      change,
+      changePct,
+      envelopeScale,
+      action: change < -5 ? 'decrease' : change > 5 ? 'increase' : 'keep',
+      reason: buildAdaptiveBudgetReason({ ...p, proposedLimit, change, ratio: p.currentLimit > 0 ? p.currentSpent / p.currentLimit : 0, envelopeScale }),
+    };
+  }).sort((a: any, b: any) => {
+    const rank: any = { protected: 4, essential: 3, restricted: 2, discretionary: 1, flexible: 0 };
+    return rank[b.kind] - rank[a.kind] || Math.abs(b.change) - Math.abs(a.change);
+  });
+
+  const totalProposed = roundMoney(proposals.reduce((sum: number, p: any) => sum + p.proposedLimit, 0));
+  const totalChange = roundMoney(totalProposed - currentTotalBudget);
+  const decreasedCategories = proposals.filter((p: any) => p.action === 'decrease');
+  const increasedCategories = proposals.filter((p: any) => p.action === 'increase');
+  const result: any = {
+    success: true,
+    mode,
+    status: adaptiveBudgetStatus(proposals, currentTotalBudget, totalProposed, targetEnvelope),
+    message: totalChange < 0
+      ? `اقترحت ميزانية أضيق بـ ${Math.abs(totalChange)} ₪ لحماية السيولة والأهداف.`
+      : totalChange > 0
+        ? `اقترحت إعادة توزيع مع زيادة صافية ${totalChange} ₪ على البنود الأهم.`
+        : 'اقترحت إعادة توزيع متوازنة بدون تغيير كبير في إجمالي الميزانية.',
+    month: (budgetOverview as any).month || safeNow.toISOString().slice(0, 7),
+    envelope: {
+      targetEnvelope,
+      salary,
+      currentTotalBudget,
+      currentTotalSpent,
+      monthlyCommitments,
+      monthlyGoalNeed,
+      requiredRecovery,
+      safeDecision,
+      essentialFloor,
+      envelopeScale,
+    },
+    proposals,
+    summary: {
+      totalCurrentBudget: currentTotalBudget,
+      totalProposedBudget: totalProposed,
+      totalChange,
+      decreasedCount: decreasedCategories.length,
+      increasedCount: increasedCategories.length,
+      unchangedCount: proposals.length - decreasedCategories.length - increasedCategories.length,
+      topDecreases: decreasedCategories.slice(0, 5),
+      topIncreases: increasedCategories.slice(0, 5),
+    },
+    recommendations: [
+      decreasedCategories[0] ? `خفّض ${decreasedCategories[0].category} إلى ${decreasedCategories[0].proposedLimit} ₪.` : '',
+      increasedCategories[0] ? `ارفع/ثبّت ${increasedCategories[0].category} إلى ${increasedCategories[0].proposedLimit} ₪ لأنه مهم أو قريب من السقف.` : '',
+      requiredRecovery > 0 ? `قبل توسيع أي بند، عوّض ${requiredRecovery} ₪ من الفجوة الحالية.` : 'راجع الخطة بعد أسبوع من العمليات الجديدة.',
+    ].filter(Boolean),
+    profileCompleteness: (profileResult as any).completeness,
+    sources: {
+      budgetsPartial: Boolean((budgetOverview as any).partial),
+      safePartial: Boolean((safe as any).partial),
+      habitsPartial: Boolean((habits as any).partial),
+      goalsPartial: Boolean((goalsResult as any).partial),
+      commitmentsPartial: Boolean((commitmentsResult as any).partial),
+      weeklyPlanPartial: Boolean((weeklyPlan as any).partial),
+    },
+    partial: Boolean((budgetOverview as any).partial || (safe as any).partial || (habits as any).partial || (goalsResult as any).partial || (commitmentsResult as any).partial || (weeklyPlan as any).partial),
+    readEfficiency: {
+      budgetDocsRead: currentBudgetRows.length,
+      habitDocsRead: (habits as any).readEfficiency?.transactionDocsRead,
+      commitmentDocsRead: (commitmentsResult as any).readEfficiency?.commitmentDocsRead,
+    },
+  };
+
+  if (parseBooleanLike(args?.save)) {
+    const planId = stableDocId(`adaptive-budget:${userId}:${result.month}:${mode}`);
+    await adminDb.collection('users').doc(userId).collection('advisorBudgetPlans').doc(planId).set({ userId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), applied: false, ...result }, { merge: true });
+    result.savedPlanId = planId;
+  }
+
+  if (parseBooleanLike(args?.persistAlert) && (decreasedCategories.length || requiredRecovery > 0 || result.status === 'needs_manual_review')) {
+    await addNotification(userId, `🧮 ميزانية متكيّفة: ${result.message}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-adaptive-budget:${stableDocId(`${userId}:${result.month}:${mode}:${result.status}`)}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity: result.status === 'needs_manual_review' || requiredRecovery > 0 ? 'warning' : 'info',
+      priority: requiredRecovery > 0 ? 'high' : 'medium',
+      category: 'adaptive_budget_plan',
+      source: 'generateAdaptiveBudgetPlan',
+      metadata: { month: result.month, envelope: result.envelope, summary: result.summary },
+      actions: [
+        { id: 'review_budget_plan', label: 'راجع الخطة', type: 'review' },
+        { id: 'apply_budget_plan', label: 'طبّق الحدود', type: 'confirm' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return result;
+}
+
+export async function getAdaptiveBudgetPlans(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(50, Number(args?.limit) || 10));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorBudgetPlans')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const plans = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, plans, count: plans.length, limit, partial: Boolean((snap as any).partial || plans.length >= limit), readEfficiency: { advisorBudgetPlanLimit: limit, docsRead: snap.docs.length } };
+}
+
+export async function applyAdaptiveBudgetPlan(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  if (!parseBooleanLike(args?.applyConfirmed || args?.confirmed || args?.riskConfirmed)) {
+    return { success: false, needsConfirmation: true, reason: 'CONFIRM_ADAPTIVE_BUDGET_APPLY', message: 'تطبيق الخطة سيغيّر حدود الميزانية المحفوظة. قل: أكد تطبيق خطة الميزانية.' };
+  }
+  let plan = args?.plan && typeof args.plan === 'object' ? args.plan : null;
+  let planId = args?.planId || args?.id || plan?.savedPlanId || plan?.id;
+  if (!plan && planId) {
+    const snap = await adminDb.collection('users').doc(userId).collection('advisorBudgetPlans').doc(String(planId)).get();
+    if (!snap.exists) return { success: false, reason: 'ADAPTIVE_BUDGET_PLAN_NOT_FOUND', message: 'لم أجد خطة الميزانية المطلوبة.' };
+    plan = { id: snap.id, ...snap.data() };
+  }
+  if (!plan && Array.isArray(args?.proposals)) plan = { proposals: args.proposals, month: new Date().toISOString().slice(0, 7) };
+  if (!plan || !Array.isArray(plan.proposals) || !plan.proposals.length) {
+    return { success: false, needsClarification: true, reason: 'MISSING_ADAPTIVE_BUDGET_PROPOSALS', message: 'أحتاج خطة ميزانية أو قائمة حدود مقترحة لتطبيقها.' };
+  }
+  const proposals = plan.proposals
+    .filter((p: any) => p?.category && parsePositiveFinancialAmount(p.proposedLimit) > 0)
+    .slice(0, 50);
+  if (!proposals.length) return { success: false, reason: 'NO_VALID_BUDGET_PROPOSALS', message: 'لا توجد حدود ميزانية صالحة للتطبيق.' };
+  const batch = adminDb.batch();
+  const nowIso = new Date().toISOString();
+  for (const proposal of proposals) {
+    const category = String(proposal.category);
+    batch.set(adminDb.collection('users').doc(userId).collection('budgets').doc(category), {
+      category,
+      limit: roundBudgetLimit(parsePositiveFinancialAmount(proposal.proposedLimit)),
+      adaptiveBudget: true,
+      adaptiveBudgetPlanId: planId || null,
+      adaptiveBudgetReason: proposal.reason || '',
+      previousLimit: parsePositiveFinancialAmount(proposal.currentLimit),
+      updatedAt: nowIso,
+    }, { merge: true });
+  }
+  if (planId) {
+    batch.set(adminDb.collection('users').doc(userId).collection('advisorBudgetPlans').doc(String(planId)), {
+      applied: true,
+      appliedAt: nowIso,
+      appliedBudgetCount: proposals.length,
+      updatedAt: nowIso,
+    }, { merge: true });
+  }
+  await batch.commit();
+  await addNotification(userId, `تم تطبيق خطة الميزانية المتكيّفة على ${proposals.length} بند.`, 'success', adminDb);
+  return { success: true, appliedCount: proposals.length, planId: planId || null, appliedBudgets: proposals.map((p: any) => ({ category: p.category, limit: roundBudgetLimit(parsePositiveFinancialAmount(p.proposedLimit)) })) };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
