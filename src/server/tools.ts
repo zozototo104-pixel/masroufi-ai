@@ -338,11 +338,30 @@ async function addNotification(
       : adminDb.collection('users').doc(userId).collection('notifications').doc();
     const existing = docId ? await ref.get() : null;
     if (existing?.exists) {
-      await ref.set({
+      const duplicatePatch: any = {
         duplicateCount: Number(existing.data()?.duplicateCount || 0) + 1,
         lastDuplicateAt: now,
         delivered: existing.data()?.delivered ?? false,
-      }, { merge: true });
+      };
+      if (options.advisorAlert) {
+        Object.assign(duplicatePatch, {
+          message,
+          type,
+          read: false,
+          advisorAlert: true,
+          advisorStatus: options.advisorStatus || 'open',
+          severity: options.severity || existing.data()?.severity || null,
+          priority: options.priority || existing.data()?.priority || null,
+          category: options.category || existing.data()?.category || null,
+          source: options.source || existing.data()?.source || null,
+          actions: Array.isArray(options.actions) ? options.actions.slice(0, 6) : existing.data()?.actions || [],
+          metadata: options.metadata || existing.data()?.metadata || null,
+          resolvedAt: null,
+          dismissedAt: null,
+          snoozedUntil: null,
+        });
+      }
+      await ref.set(duplicatePatch, { merge: true });
       return;
     }
     await ref.set({
