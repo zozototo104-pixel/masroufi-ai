@@ -2943,7 +2943,9 @@ function setupLiveApi(wss: WebSocketServer) {
       const hasDraft = Boolean(liveExpenseIntakeDraft && Date.now() - liveExpenseIntakeDraft.updatedAt <= 90_000);
       const hasAmount = Boolean(extractAmountFromFinancialText(text));
       const fullDirect = hasAmount && Boolean(account) && looksLikeFinancialWriteIntent(text);
-      const shortCommitAnswer = Boolean(account) && (hasPending || hasDraft) && !/(شو|ايش|كم|اخر|آخر|اعطيني|اعطني|ورجيني|اعرض|عرض|تقرير)/.test(normalized);
+      const readQuestion = /(شو|ايش|كم|اخر|آخر|اعطيني|اعطني|ورجيني|اعرض|عرض|تقرير)/.test(normalized);
+      const pendingClarificationAnswer = hasPending && isShortClarificationAnswer(text) && !readQuestion;
+      const shortCommitAnswer = ((Boolean(account) && (hasPending || hasDraft)) || pendingClarificationAnswer) && !readQuestion;
       if (!fullDirect && !shortCommitAnswer) return;
       const clientMessageId = `live_server_${requestId}_${Date.now()}_${stableShortFingerprint(text)}`;
       console.warn('[live-server-financial] scheduled deterministic completion candidate', {
