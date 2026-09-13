@@ -1045,8 +1045,10 @@ function isShortClarificationAnswer(text: string): boolean {
 
 function cleanFinancialClarificationText(answer: string): string {
   const merchant = extractMerchantFromFinancialText(answer);
-  return normalizeArabicText(answer)
-    .replace(normalizeArabicText(merchant), ' ')
+  const normalizedAnswer = normalizeArabicForIntent(answer);
+  const normalizedMerchant = merchant ? normalizeArabicForIntent(merchant) : '';
+  return normalizedAnswer
+    .replace(normalizedMerchant ? normalizedMerchant : /$a/, ' ')
     .replace(/(?:^|\s)\d+(?:[\.,]\d+)?\s*(?:ش|شيكل|₪|دولار|دينار|دنانير|ils|nis)?(?=\s|$)/gi, ' ')
     .replace(/شراء|اشتريت|شريت|اشتري|اخذت|اخدت|مصروف|مصاريف|دفعت|دفع|سجل|سجلي|سجليه|تسجيل|قيد|مبلغ|قيمه|قيمة|شيكل|ش|₪|كاش|نقد|نقدي|محفظه|محفظة|بال باي|بالباي|palpay|pal pay|دين|بالدين|من|عند|على|بـ|لأجل|لاجل|عشان|علشان/g, ' ')
     .replace(/\s+/g, ' ')
