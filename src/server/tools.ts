@@ -7877,6 +7877,8 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   get_financial_decision_context: getFinancialDecisionContext,
   get_safe_spending_limit: getSafeSpendingLimit,
   assess_financial_goal_impact: assessFinancialGoalImpact,
+  simulate_financial_scenario: simulateFinancialScenario,
+  get_financial_scenarios: getFinancialScenarios,
   get_advisor_alerts: getAdvisorAlerts,
   update_advisor_alert: updateAdvisorAlert,
   assess_purchase: assessPurchase,
