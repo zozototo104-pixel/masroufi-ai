@@ -1281,8 +1281,9 @@ function mergePendingFinancialClarificationIntoToolCall(
   const { convertToTool, ...actualPatch } = patch || {};
   const mergedArgs = {
     ...pendingArgs,
+    ...args,
     ...actualPatch,
-    userText: pendingArgs.userText || pendingArgs.currentUserText || '',
+    userText: pendingArgs.userText || pendingArgs.currentUserText || args.userText || '',
     currentUserText: syntheticAnswer,
     clarificationReplyText: syntheticAnswer,
     clarifiedFromReason: pending.reason,
