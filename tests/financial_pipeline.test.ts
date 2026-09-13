@@ -339,6 +339,7 @@ test('TREASURER-12: recurring commitment manager detects subscriptions and conve
   assert.ok(tools.includes('normalizeRecurringCommitmentFrequency'), 'recurring commitment frequency normalization must exist');
   assert.ok(tools.includes('buildRecurringCandidate'), 'recurring commitment candidate builder must exist');
   assert.ok(tools.includes('export async function detectRecurringCommitments'), 'recurring commitment detection tool must exist');
+  assert.ok(tools.includes('export async function reviewRecurringCommitments'), 'recurring due-date review tool must exist');
   assert.ok(tools.includes('export async function createRecurringCommitmentFromCandidate'), 'recurring commitment conversion tool must exist');
   assert.ok(tools.includes('recurringDetectionKey'), 'converted commitments must carry recurrence detection metadata');
   assert.ok(tools.includes('duplicate: true'), 'direct recurring conversion must avoid duplicate commitments');
