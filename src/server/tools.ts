@@ -1936,7 +1936,7 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     .reduce((sum: number, g: any) => sum + Math.max(parsePositiveFinancialAmount(g.monthlyRequired), parsePositiveFinancialAmount(g.monthlyGap)), 0));
   const activeCommitments = Array.isArray((commitmentsResult as any).commitments) ? (commitmentsResult as any).commitments.filter((c: any) => !['paid', 'cancelled'].includes(String(c.status || '').toLowerCase())) : [];
   const monthlyCommitments = roundMoney(activeCommitments.reduce((sum: number, c: any) => sum + monthlyCommitmentAmount(c), 0));
-  const currentTotalBudget = roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalBudget) || currentBudgetRows.reduce((sum: number, b: any) => sum + parsePositiveFinancialAmount(b.limit), 0));
+  const currentTotalBudget = currentTotalBudgetRaw;
   const currentTotalSpent = roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalSpent));
   const safeDecision = String((safe as any).decision || '').toLowerCase();
   const requiredRecovery = roundMoney(Math.max(
