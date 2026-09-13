@@ -706,6 +706,25 @@ export default function App() {
       }
     };
 
+    const fetchMarketWatchlistData = async (headers: Record<string, string>) => {
+      try {
+        const marketRes = await fetch('/api/advisor/market-watchlist?limit=12', { headers });
+        const marketPayload = await marketRes.json().catch(() => ({}));
+        if (marketRes.ok && marketPayload?.success !== false) {
+          const nextItems = Array.isArray(marketPayload.items) ? marketPayload.items : [];
+          setMarketWatchlist(nextItems);
+          await idbSet('lkgs_market_watchlist', nextItems);
+        } else {
+          const cachedMarketWatchlist = await idbGet<any[]>('lkgs_market_watchlist');
+          if (Array.isArray(cachedMarketWatchlist)) setMarketWatchlist(cachedMarketWatchlist);
+        }
+      } catch (marketErr) {
+        console.warn('Market watchlist refresh failed:', marketErr);
+        const cachedMarketWatchlist = await idbGet<any[]>('lkgs_market_watchlist');
+        if (Array.isArray(cachedMarketWatchlist)) setMarketWatchlist(cachedMarketWatchlist);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
