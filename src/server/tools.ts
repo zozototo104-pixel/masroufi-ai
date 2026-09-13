@@ -818,7 +818,16 @@ export async function addTransaction(args: any, userId: string, token: string) {
     subcategory = /راتب|salary|قبض/i.test(`${notes} ${args.category || ''}`) ? 'راتب' : 'دخل عام';
   }
   const originalExpenseText = String(args.userText || '').trim();
-  const expenseIdentitySource = originalExpenseText || `${explicitPurchaseItem} ${beneficiary} ${notes}`;
+  const clarifiedPurchaseItemProvided = Boolean(args.purchaseItemClarifiedByUser || args.itemClarifiedByUser || args.descriptionClarifiedByUser);
+  const clarifiedBeneficiaryProvided = Boolean(args.beneficiaryClarifiedByUser || args.purposeClarifiedByUser || args.forWhomClarifiedByUser || args.forWhoClarifiedByUser);
+  const expenseIdentitySource = [
+    originalExpenseText,
+    explicitPurchaseItem,
+    beneficiary,
+    notes,
+    args.currentUserText,
+    args.clarificationReplyText,
+  ].filter(Boolean).join(' ') || `${explicitPurchaseItem} ${beneficiary} ${notes}`;
   const normalizedExpenseIdentitySource = normalizeArabicText(expenseIdentitySource);
   const beneficiaryPurposeRegex = /(للاولاد|للأولاد|للابناء|للأبناء|للعيال|للاطفال|للأطفال|للبنات|للبيت|للدار|للمنزل|للعيله|للعيلة|للعائله|للعائلة|للزوجة|لزوجتي|للزوج|لزوجي|للام|للأم|لامي|لأمي|للاب|للأب|لابوي|لأبوي|للعمل|للمدرسه|للمدرسة|للجامعه|للجامعة|للعلاج|للدواء|للضيافه|للضيافة|للضيف|للضيوف|للزياره|للزيارة|لنفسى|لنفسي|الي|إلي|الاولاد|الأولاد|الابناء|الأبناء|العيال|الاطفال|الأطفال|البنات|البيت|الدار|المنزل|العيله|العيلة|العائله|العائلة|زوجتي|زوجي|امي|أمي|ابوي|أبوي|العمل|المدرسه|المدرسة|الجامعه|الجامعة|العلاج|الدواء|الضيافه|الضيافة|الضيف|الضيوف|الزياره|الزيارة)/;
   const cleanedExpenseIdentity = normalizedExpenseIdentitySource
