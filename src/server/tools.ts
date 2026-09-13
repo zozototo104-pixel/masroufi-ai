@@ -7430,10 +7430,10 @@ export async function setCategoryBudget(args: any, userId: string, token: string
 export async function getBudgetsOverview(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const customBudgetDocs = await getUserCustomBudgetDocs(userId, adminDb);
-  // Reuse the documents already fetched above. Calling getUserBudgets() here
-  // would read the same Firestore budget subcollection a second time on every
-  // dashboard refresh.
-  const userBudgets: Record<string, number> = { ...DEFAULT_BUDGETS };
+  // Reuse the documents already fetched above. DEFAULT_BUDGETS is only an
+  // onboarding/template suggestion; it is not an active user budget and must not
+  // show as a fake 7300 ₪ monthly limit for users whose real income is lower.
+  const userBudgets: Record<string, number> = {};
   customBudgetDocs.forEach((b) => {
     if (b.limit) userBudgets[b.category || b.id] = Number(b.limit);
   });
