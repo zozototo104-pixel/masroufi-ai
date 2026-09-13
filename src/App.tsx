@@ -1073,6 +1073,7 @@ export default function App() {
             await fetchMarketWatchlistData(headers);
             await fetchFinancialScenariosData(headers);
             await fetchRecurringCommitmentCandidatesData(headers);
+            await fetchFinancialHabitReportsData(headers);
           }
           if (scope === 'vault' || scope === 'transactions+vault' || scope === 'financial' || scope === 'transaction' || scope === 'transactions') return;
         } catch (err) {
