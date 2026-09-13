@@ -1017,6 +1017,7 @@ export default function App() {
         await fetchMarketWatchlistData(headers);
         await fetchFinancialScenariosData(headers);
         await fetchRecurringCommitmentCandidatesData(headers);
+        await fetchFinancialHabitReportsData(headers);
 
         const memRes = await fetch('/api/memory', { headers });
         const memData = await memRes.json();
