@@ -425,7 +425,26 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const profile = (profileSnap as any).exists ? ((profileSnap as any).data() || {}) : {};
   const rawGoals = ((goalSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }))
     .filter((goal: any) => !['completed', 'cancelled', 'archived'].includes(String(goal.status || 'active').toLowerCase()));
-  const savingsGoalPlans = rawGoals.map((goal: any) => buildSavingsGoalPlan({ goal, now: safeNow }));
+  const savingsPeriod = {
+    startIso: horizon.salaryCycle.startIso,
+    endExclusiveIso: horizon.salaryCycle.endExclusiveIso,
+    label: horizon.salaryCycle.name,
+  };
+  let savingsContributionDocsRead = 0;
+  const savingsGoalPlans: any[] = [];
+  for (const goal of rawGoals) {
+    let contributions: any[] = [];
+    try {
+      const contributionSnap = await adminDb.collection('users').doc(userId).collection('savingsGoals').doc(String(goal.id)).collection('contributions')
+        .where('createdAt', '>=', savingsPeriod.startIso)
+        .where('createdAt', '<', savingsPeriod.endExclusiveIso)
+        .limit(100)
+        .get();
+      contributions = contributionSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      savingsContributionDocsRead += contributions.length;
+    } catch {}
+    savingsGoalPlans.push(buildSavingsGoalPlan({ goal, contributions, now: safeNow, period: savingsPeriod }));
+  }
   const savingsRequiredThisPeriod = roundMoney(savingsGoalPlans.reduce((sum: number, goal: any) => {
     return sum + Math.max(0, Number(goal.monthlyRequired || 0) - Number(goal.monthlySavedAmount || 0));
   }, 0));
