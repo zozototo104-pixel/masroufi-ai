@@ -157,6 +157,8 @@ export default function App() {
   const [isScenarioSimulating, setIsScenarioSimulating] = useState(false);
   const [recurringCommitmentCandidates, setRecurringCommitmentCandidates] = useState<any[]>([]);
   const [isRecurringCommitmentDetecting, setIsRecurringCommitmentDetecting] = useState(false);
+  const [financialHabitReports, setFinancialHabitReports] = useState<any[]>([]);
+  const [isFinancialHabitsAnalyzing, setIsFinancialHabitsAnalyzing] = useState(false);
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
