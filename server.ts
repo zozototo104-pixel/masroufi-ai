@@ -2150,6 +2150,39 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
+  app.post("/api/advisor/adaptive-budget", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { generateAdaptiveBudgetPlan } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await generateAdaptiveBudgetPlan(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor adaptive budget plan error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/advisor/adaptive-budget", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { getAdaptiveBudgetPlans } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await getAdaptiveBudgetPlans(req.query || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor adaptive budget plans error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/advisor/adaptive-budget/apply", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { applyAdaptiveBudgetPlan } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await applyAdaptiveBudgetPlan(req.body || {}, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Advisor adaptive budget apply error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/advisor/market-watchlist", authMiddleware, async (req: any, res: any) => {
     try {
       const { getMarketWatchlist } = await import('./src/server/tools');
