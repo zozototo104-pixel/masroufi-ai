@@ -842,6 +842,25 @@ export default function App() {
       }
     };
 
+    const fetchAdaptiveBudgetPlansData = async (headers: Record<string, string>) => {
+      try {
+        const budgetPlanRes = await fetch('/api/advisor/adaptive-budget?limit=8', { headers });
+        const budgetPlanPayload = await budgetPlanRes.json().catch(() => ({}));
+        if (budgetPlanRes.ok && budgetPlanPayload?.success !== false) {
+          const nextPlans = Array.isArray(budgetPlanPayload.plans) ? budgetPlanPayload.plans : [];
+          setAdaptiveBudgetPlans(nextPlans);
+          await idbSet('lkgs_adaptive_budget_plans', nextPlans);
+        } else {
+          const cachedPlans = await idbGet<any[]>('lkgs_adaptive_budget_plans');
+          if (Array.isArray(cachedPlans)) setAdaptiveBudgetPlans(cachedPlans);
+        }
+      } catch (budgetPlanErr) {
+        console.warn('Adaptive budget plans refresh failed:', budgetPlanErr);
+        const cachedPlans = await idbGet<any[]>('lkgs_adaptive_budget_plans');
+        if (Array.isArray(cachedPlans)) setAdaptiveBudgetPlans(cachedPlans);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
