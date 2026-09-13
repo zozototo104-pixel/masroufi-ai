@@ -1353,6 +1353,40 @@ export default function App() {
     }
   };
 
+  const handleGenerateWeeklyFinancialPlan = async () => {
+    if (!idToken || isWeeklyPlanGenerating) return;
+    setIsWeeklyPlanGenerating(true);
+    try {
+      const res = await fetch('/api/advisor/weekly-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ focus: 'weekly', habitPeriod: 'last_14_days', save: true, persistAlerts: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to generate weekly financial plan');
+      const plansRes = await fetch('/api/advisor/weekly-plan?limit=8', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const plansPayload = await plansRes.json().catch(() => ({}));
+      const nextPlans = plansRes.ok && plansPayload?.success !== false && Array.isArray(plansPayload.plans)
+        ? plansPayload.plans
+        : [data, ...weeklyFinancialPlans.filter((p: any) => p.id !== data.savedPlanId && p.savedPlanId !== data.savedPlanId)].slice(0, 8);
+      setWeeklyFinancialPlans(nextPlans);
+      await idbSet('lkgs_weekly_financial_plans', nextPlans);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+      setNotifications(prev => [...prev, { id: `weekly-plan-generated-${Date.now()}`, type: data.status === 'weekly_recovery' ? 'warning' : 'success', message: data.message || 'تم توليد خطة الأسبوع.' }]);
+    } catch (err) {
+      console.warn('Weekly financial plan generation failed:', err);
+      setNotifications(prev => [...prev, { id: `weekly-plan-failed-${Date.now()}`, type: 'warning', message: 'تعذر توليد خطة الأسبوع الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsWeeklyPlanGenerating(false);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
