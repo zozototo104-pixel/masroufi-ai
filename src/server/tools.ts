@@ -759,6 +759,7 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
       balances,
       liquidTotal,
       dueCommitments,
+      implicitlyPaidCommitments,
       reserveTarget,
       reserveSource: explicitReserve > 0 ? 'treasurer_profile_or_request' : 'none',
       behaviorBufferForForecastOnly: behaviorBuffer,
