@@ -9536,7 +9536,7 @@ export async function queryTransactions(args: any, userId: string, token: string
   // can erase valid rows stored as Firestore Timestamp objects, which made
   // "مصروفات الشهر هذا / دورة شهر 9" falsely return no expenses.
 
-  filtered.sort((a: any, b: any) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
+  filtered.sort((a: any, b: any) => (transactionAnalysisDate(b)?.getTime() || 0) - (transactionAnalysisDate(a)?.getTime() || 0));
 
   const total = roundMoney(filtered.reduce((sum, t: any) => sum + parsePositiveFinancialAmount(t.amount), 0));
   const summary = summarizeTransactionsForTool(filtered);
