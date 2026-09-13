@@ -368,6 +368,8 @@ test('LIVE-AUDIO: client must not show no-audio errors before real microphone sp
     'liveClosed without returned audio should become a visible error only after likely user speech');
   assert.ok(appLive.includes('Gemini Live closed before returned audio, but no voiced microphone input was detected'),
     'silent/pre-ready Live closes should be logged for diagnostics instead of alarming the user');
+  assert.ok(appLive.includes('setIsConnected(false)'),
+    'client must not keep showing a connected Live session after the server reports liveClosed');
   assert.ok(appLive.includes('voiced microphone frames were sent but no Gemini audio has returned yet'),
     'no-response watchdog should be tied to voiced audio, not only raw silent frames');
   assert.equal(server.includes('sendClientContent'), false,
