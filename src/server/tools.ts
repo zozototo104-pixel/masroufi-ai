@@ -1446,11 +1446,13 @@ export async function analyzeFinancialHabits(args: any, userId: string, token: s
     success: true,
     score,
     status,
-    message: status === 'habit_risk'
-      ? 'هناك أكثر من نمط صرف يحتاج ضبطاً هذا الأسبوع/الشهر.'
-      : status === 'watch'
-        ? 'يوجد نمط أو أكثر يستحق المتابعة قبل أن يتحول لمشكلة.'
-        : 'عادات الصرف مستقرة نسبياً ضمن البيانات الحالية.',
+    message: status === 'insufficient_data'
+      ? 'لا توجد مصروفات مقروءة في هذه الفترة، لذلك لا أستطيع الحكم على العادات بعد. جرّب فترة أطول أو راجع تواريخ العمليات.'
+      : status === 'habit_risk'
+        ? 'هناك أكثر من نمط صرف يحتاج ضبطاً هذا الأسبوع/الشهر.'
+        : status === 'watch'
+          ? 'يوجد نمط أو أكثر يستحق المتابعة قبل أن يتحول لمشكلة.'
+          : 'عادات الصرف مستقرة نسبياً ضمن البيانات الحالية.',
     window: { key: window.key, label: window.label, days: window.days, startIso: window.start.toISOString(), endIso: window.end.toISOString(), previousStartIso: window.previousStart.toISOString(), previousEndIso: window.previousEnd.toISOString() },
     totals: { currentExpense: current.expenseTotal, previousExpense: previous.expenseTotal, delta, deltaPct, currentIncome: current.incomeTotal, previousIncome: previous.incomeTotal },
     current,
