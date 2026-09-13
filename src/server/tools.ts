@@ -5613,8 +5613,10 @@ function normalizeTreasurerProfile(raw: any = {}) {
   profile.alertPreferences = normalizeTreasurerAlertPreferences(profile.alertPreferences);
   profile.protectedCategories = normalizeTreasurerStringList(profile.protectedCategories, TREASURER_PROFILE_DEFAULTS.protectedCategories, 30);
   profile.restrictedCategories = normalizeTreasurerStringList(profile.restrictedCategories, [], 30);
-  profile.financialPriorities = normalizeTreasurerPriorityList(profile.financialPriorities || profile.priorities);
-  profile.financialGoals = normalizeTreasurerPriorityList(profile.financialGoals || profile.goals);
+  const hasFinancialPriorities = Object.prototype.hasOwnProperty.call(raw || {}, 'financialPriorities');
+  const hasFinancialGoals = Object.prototype.hasOwnProperty.call(raw || {}, 'financialGoals');
+  profile.financialPriorities = normalizeTreasurerPriorityList(hasFinancialPriorities ? raw.financialPriorities : (raw?.priorities ?? profile.financialPriorities));
+  profile.financialGoals = normalizeTreasurerPriorityList(hasFinancialGoals ? raw.financialGoals : (raw?.goals ?? profile.financialGoals));
   profile.notes = String(profile.notes || '').slice(0, 1000);
   return profile;
 }
