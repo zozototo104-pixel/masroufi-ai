@@ -3198,8 +3198,23 @@ export default function App() {
                   <p className="text-[10px] text-slate-500">يوجد {recurringCommitmentCandidates.length - 3} مرشح إضافي.</p>
                 )}
               </div>
+            ) : commitments.length > 0 ? (
+              <div className="space-y-3">
+                {commitments.slice(0, 3).map((commitment: any) => (
+                  <div key={commitment.id} className="bg-slate-950/50 border border-slate-800 rounded-2xl p-3">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="text-[12px] font-bold text-white">{commitment.title || commitment.name || 'التزام'}</p>
+                      <span className="text-[10px] text-orange-200 whitespace-nowrap">{Number(commitment.amount || 0).toLocaleString()} ₪</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-5">
+                      {commitment.recurring || commitment.recurringFrequency || commitment.recurringDetectionKey ? 'متكرر' : 'مجدول'} · الاستحقاق {String(commitment.dueDate || '').slice(0, 10) || 'غير محدد'} · {commitment.status || 'pending'}
+                    </p>
+                  </div>
+                ))}
+                <p className="text-[10px] text-slate-500">يوجد {commitments.length} التزام محفوظ. استخدم “اكتشف التكرار” فقط لاستخراج التزامات جديدة من العمليات السابقة.</p>
+              </div>
             ) : (
-              <p className="text-xs text-slate-400 leading-6">اضغط “اكتشف التكرار” ليفحص مصروفي آخر العمليات ويقترح الاشتراكات أو الأقساط التي تستحق جدولتها.</p>
+              <p className="text-xs text-slate-400 leading-6">لا توجد التزامات محفوظة حاليًا. اضغط “اكتشف التكرار” ليفحص مصروفي آخر العمليات ويقترح الاشتراكات أو الأقساط التي تستحق جدولتها.</p>
             )}
           </div>
 
