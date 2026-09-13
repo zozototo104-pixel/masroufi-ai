@@ -161,6 +161,8 @@ export default function App() {
   const [isFinancialHabitsAnalyzing, setIsFinancialHabitsAnalyzing] = useState(false);
   const [weeklyFinancialPlans, setWeeklyFinancialPlans] = useState<any[]>([]);
   const [isWeeklyPlanGenerating, setIsWeeklyPlanGenerating] = useState(false);
+  const [adaptiveBudgetPlans, setAdaptiveBudgetPlans] = useState<any[]>([]);
+  const [isAdaptiveBudgetGenerating, setIsAdaptiveBudgetGenerating] = useState(false);
   const [selectedVaultCycleId, setSelectedVaultCycleId] = useState<string>('');
   const [selectedVaultCycleDetails, setSelectedVaultCycleDetails] = useState<any>(null);
   const [isVaultCycleLoading, setIsVaultCycleLoading] = useState(false);
