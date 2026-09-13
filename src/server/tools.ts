@@ -8257,6 +8257,36 @@ export const functionDeclarations = [
     }
   },
   {
+    name: "detect_recurring_commitments",
+    description: "يفحص آخر العمليات المالية بقراءة محدودة لاكتشاف مصاريف متكررة مثل اشتراك، إيجار، إنترنت، فاتورة أو قسط، ويقترح تحويلها إلى التزامات متكررة. لا يحولها تلقائياً إلا إذا طلب المستخدم ذلك.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "عدد العمليات المقروءة، الافتراضي 500 والأقصى 1000" },
+        minOccurrences: { type: "number", description: "أقل عدد تكرارات لاكتشاف النمط" },
+        candidateLimit: { type: "number", description: "عدد المرشحات المرجعة" },
+        persistAlerts: { type: "boolean", description: "تحويل المرشحات عالية الثقة إلى تنبيهات دائمة" }
+      }
+    }
+  },
+  {
+    name: "create_recurring_commitment_from_candidate",
+    description: "يحوّل مرشح مصروف متكرر إلى التزام متكرر محفوظ. استخدمه فقط بعد موافقة المستخدم على المرشح أو عندما يعطي المستخدم اسم الالتزام والمبلغ والتكرار صراحة.",
+    parameters: {
+      type: "object",
+      properties: {
+        detectionKey: { type: "string", description: "معرف المرشح من detect_recurring_commitments" },
+        candidate: { type: "object", description: "مرشح كامل من detect_recurring_commitments" },
+        title: { type: "string", description: "اسم الالتزام عند الإدخال اليدوي" },
+        amount: { type: "number", description: "قيمة الالتزام" },
+        dueDate: { type: "string", description: "موعد الاستحقاق القادم YYYY-MM-DD" },
+        frequency: { type: "string", description: "weekly أو biweekly أو monthly أو quarterly أو yearly" },
+        category: { type: "string", description: "تصنيف الالتزام" },
+        notes: { type: "string", description: "ملاحظات اختيارية" }
+      }
+    }
+  },
+  {
     name: "update_commitment_status",
     description: "V6: يحدّث حالة التزام (pending/paid/cancelled). الالتزامات المدفوعة لا تُخصم مرة أخرى من توقع 30 يوماً. استخدمها بعد تنفيذ سداد الالتزام فعلياً.",
     parameters: {
