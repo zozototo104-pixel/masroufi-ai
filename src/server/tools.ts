@@ -6120,6 +6120,23 @@ export async function createRecurringCommitmentFromCandidate(args: any, userId: 
   }
   if (!candidate) return { success: false, needsClarification: true, reason: 'MISSING_RECURRING_CANDIDATE', message: 'حدد المصروف المتكرر أو أعطني اسم الالتزام والمبلغ.' };
   const frequency = normalizeRecurringCommitmentFrequency(candidate.frequency || args.frequency || args.recurringFrequency);
+  const detectionKey = candidate.detectionKey || candidate.id || args.detectionKey || stableDocId(`manual-recurring:${userId}:${candidate.title}:${candidate.amount}:${frequency}`);
+  const existingSnap = await adminDb.collection('commitments')
+    .where('userId', '==', userId)
+    .orderBy('dueDate', 'asc')
+    .limit(300)
+    .get()
+    .catch(() => ({ docs: [], partial: true }));
+  const normalizedCandidateTitle = normalizeArabicText(String(args.title || candidate.title || '')).toLowerCase();
+  const candidateAmount = roundMoney(parsePositiveFinancialAmount(args.amount || candidate.amount));
+  const duplicate = ((existingSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() })).find((c: any) => {
+    const sameDetection = detectionKey && String(c.recurringDetectionKey || '') === String(detectionKey);
+    const sameRecurringShape = Boolean(c.recurring) && normalizeArabicText(String(c.title || '')).toLowerCase() === normalizedCandidateTitle && roundMoney(parsePositiveFinancialAmount(c.amount)) === candidateAmount && normalizeRecurringCommitmentFrequency(c.recurringFrequency) === frequency;
+    return sameDetection || sameRecurringShape;
+  });
+  if (duplicate) {
+    return { success: true, duplicate: true, id: duplicate.id, commitment: duplicate, candidate, message: `هذا الالتزام المتكرر موجود مسبقاً: ${duplicate.title || candidate.title}.` };
+  }
   const created = await createCommitment({
     title: args.title || candidate.title,
     amount: args.amount || candidate.amount,
