@@ -1290,6 +1290,29 @@ export async function addTransaction(args: any, userId: string, token: string) {
         riskConfirmed: Boolean(args.riskConfirmed),
       });
       if (risk.needsConfirmation) {
+        const confirmationReasons = Array.isArray((risk as any).confirmationReasons) && (risk as any).confirmationReasons.length
+          ? (risk as any).confirmationReasons
+          : risk.warnings;
+        return {
+          success: false,
+          needsConfirmation: true,
+          reason: risk.severity === 'critical' ? 'TREASURER_CRITICAL_RISK' : 'TREASURER_RISK_CONFIRMATION_REQUIRED',
+          message: `أمين الصندوق يوقف العملية مؤقتاً قبل الحفظ. ${confirmationReasons.join(' ')} إذا كنت واعياً للمخاطرة وتريد المتابعة قل بوضوح: أكد المخاطرة وسجّل العملية.`,
+          advisoryWarnings: risk.warnings,
+          riskAssessment: risk,
+          financialImpact: {
+            amount,
+            account,
+            category,
+            availableBefore: (risk as any).availableBefore,
+            availableAfter: (risk as any).availableAfter,
+            budgetPercentageAfter: (risk as any).budgetPercentageAfter,
+            coverageDays: (risk as any).coverageDays,
+            projected30DayBalanceAfter: (risk as any).projected30DayBalanceAfter,
+          },
+        };
+      }
+      if (risk.warnings.length) {
         advisoryWarnings.push(`تحذير أمين الصندوق: ${risk.warnings.join(' ')}`);
       }
       if (limit > 0 && projected >= limit) {
