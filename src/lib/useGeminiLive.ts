@@ -51,6 +51,9 @@ export function useGeminiLive(settings?: { voice: string; persona: string; apiKe
   const responseWatchdogRef = useRef<number | null>(null);
   const liveReadyWatchdogRef = useRef<number | null>(null);
   const sentAudioFramesRef = useRef(0);
+  const voicedAudioFramesRef = useRef(0);
+  const speechDetectedRef = useRef(false);
+  const firstSpeechAtRef = useRef<number | null>(null);
   const receivedAudioFramesRef = useRef(0);
   const lastReceivedAudioAtRef = useRef<number | null>(null);
   const playbackUnderrunsRef = useRef(0);
