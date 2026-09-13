@@ -773,6 +773,25 @@ export default function App() {
       }
     };
 
+    const fetchRecurringCommitmentCandidatesData = async (headers: Record<string, string>) => {
+      try {
+        const recurringRes = await fetch('/api/commitments/recurring/detect?candidateLimit=6&minOccurrences=2', { headers });
+        const recurringPayload = await recurringRes.json().catch(() => ({}));
+        if (recurringRes.ok && recurringPayload?.success !== false) {
+          const nextCandidates = Array.isArray(recurringPayload.candidates) ? recurringPayload.candidates : [];
+          setRecurringCommitmentCandidates(nextCandidates);
+          await idbSet('lkgs_recurring_commitment_candidates', nextCandidates);
+        } else {
+          const cachedCandidates = await idbGet<any[]>('lkgs_recurring_commitment_candidates');
+          if (Array.isArray(cachedCandidates)) setRecurringCommitmentCandidates(cachedCandidates);
+        }
+      } catch (recurringErr) {
+        console.warn('Recurring commitment detection refresh failed:', recurringErr);
+        const cachedCandidates = await idbGet<any[]>('lkgs_recurring_commitment_candidates');
+        if (Array.isArray(cachedCandidates)) setRecurringCommitmentCandidates(cachedCandidates);
+      }
+    };
+
     const fetchData = async () => {
       if (dashboardRefreshInFlightRef.current) {
         console.warn('[firestore] dashboard refresh already in flight; skipping duplicate refresh');
