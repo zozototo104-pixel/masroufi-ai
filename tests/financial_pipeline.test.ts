@@ -502,3 +502,38 @@ test('TREASURER-16: month-end forecast engine predicts surplus pressure or defic
   assert.ok(app.includes("idbSet('lkgs_month_end_forecasts'"), 'dashboard must cache last-known-good month-end forecasts');
   assert.ok(rules.includes('match /advisorMonthEndForecasts/{forecastId}'), 'Firestore rules must allow user-scoped month-end forecasts');
 });
+
+test('TREASURER-17: daily financial pulse gives a practical today plan without pretending background automation', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  const rules = await src('firestore.rules');
+  assert.ok(tools.includes('export async function generateDailyFinancialPulse'), 'daily financial pulse generator must exist');
+  assert.ok(tools.includes('export async function getDailyFinancialPulses'), 'saved daily pulse reader must exist');
+  assert.ok(tools.includes('normalizeDailyPulseStatus'), 'daily pulse must classify daily risk status');
+  assert.ok(tools.includes('buildDailyPulseHeadline'), 'daily pulse must build a concise daily headline');
+  assert.ok(tools.includes('buildDailyDoNotSpendList'), 'daily pulse must return a do-not-spend list');
+  assert.ok(tools.includes('daily_block'), 'daily pulse must detect days where discretionary spending should be blocked');
+  assert.ok(tools.includes('daily_caution'), 'daily pulse must detect caution days');
+  assert.ok(tools.includes('daily_growth'), 'daily pulse must detect healthy improvement days');
+  assert.ok(tools.includes('biggestRisk'), 'daily pulse must expose the biggest risk for today');
+  assert.ok(tools.includes('advisorDailyPulses'), 'daily pulses must be persisted and included in wipe');
+  assert.ok(tools.includes('advisor-daily-pulse'), 'risky daily pulses must become advisor alerts when requested');
+  assert.ok(tools.includes("category: 'daily_financial_pulse'"), 'daily pulse alerts must be categorized');
+  assert.ok(tools.includes('generate_daily_financial_pulse: generateDailyFinancialPulse'), 'daily pulse generator must be registered in handlers');
+  assert.ok(tools.includes('get_daily_financial_pulses: getDailyFinancialPulses'), 'daily pulse reader must be registered in handlers');
+  assert.ok(tools.includes('name: "generate_daily_financial_pulse"'), 'daily pulse generator must be exposed to Gemini');
+  assert.ok(tools.includes('name: "get_daily_financial_pulses"'), 'daily pulse reader must be exposed to Gemini');
+  assert.ok(server.includes('app.post("/api/advisor/daily-pulse", authMiddleware'), 'daily pulse generation API must be available behind auth');
+  assert.ok(server.includes('app.get("/api/advisor/daily-pulse", authMiddleware'), 'daily pulse read API must be available behind auth');
+  assert.ok((server.match(/0\.3\.11- \*\*نبض اليوم المالي\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to generate daily pulses');
+  assert.ok(server.includes('بدون ادعاء تشغيل تلقائي بالخلفية'), 'daily pulse prompt must avoid pretending background automation');
+  assert.ok(app.includes('const [dailyFinancialPulses, setDailyFinancialPulses]'), 'dashboard must keep daily pulse state');
+  assert.ok(app.includes("fetch('/api/advisor/daily-pulse?limit=8'"), 'dashboard must fetch saved daily pulses');
+  assert.ok(app.includes("fetch('/api/advisor/daily-pulse'"), 'dashboard must generate daily pulses');
+  assert.ok(app.includes('handleGenerateDailyFinancialPulse'), 'dashboard must expose a manual daily pulse action');
+  assert.ok(app.includes('نبض اليوم المالي'), 'dashboard must render daily pulse card');
+  assert.ok(app.includes('لا تصرف اليوم على'), 'dashboard must render do-not-spend guidance');
+  assert.ok(app.includes("idbSet('lkgs_daily_financial_pulses'"), 'dashboard must cache last-known-good daily pulses');
+  assert.ok(rules.includes('match /advisorDailyPulses/{pulseId}'), 'Firestore rules must allow user-scoped daily pulses');
+});
