@@ -641,12 +641,18 @@ export default function App() {
     };
 
     const fetchAdvisorPulseData = async (headers: Record<string, string>) => {
-      const pulseRes = await fetch('/api/advisor/pulse', { headers });
-      const pulsePayload = await pulseRes.json().catch(() => ({}));
-      if (pulseRes.ok && pulsePayload?.success !== false) {
-        setAdvisorPulse(pulsePayload);
-        await idbSet('lkgs_advisor_pulse', pulsePayload);
-      } else {
+      try {
+        const pulseRes = await fetch('/api/advisor/pulse', { headers });
+        const pulsePayload = await pulseRes.json().catch(() => ({}));
+        if (pulseRes.ok && pulsePayload?.success !== false) {
+          setAdvisorPulse(pulsePayload);
+          await idbSet('lkgs_advisor_pulse', pulsePayload);
+        } else {
+          const cachedPulse = await idbGet<any>('lkgs_advisor_pulse');
+          if (cachedPulse) setAdvisorPulse(cachedPulse);
+        }
+      } catch (pulseErr) {
+        console.warn('Advisor pulse refresh failed:', pulseErr);
         const cachedPulse = await idbGet<any>('lkgs_advisor_pulse');
         if (cachedPulse) setAdvisorPulse(cachedPulse);
       }
