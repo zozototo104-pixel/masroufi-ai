@@ -651,7 +651,11 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
     parsePositiveFinancialAmount(profile.minimumCashFloor),
     parsePositiveFinancialAmount(profile.criticalLiquidityFloor)
   );
-  const reserveTarget = roundMoney(Math.max(explicitReserve, behaviorBuffer));
+  // Do not reserve average spending as if it were a real obligation. The user's
+  // safe cap should be based on the explicit critical floor they configured plus
+  // unpaid due commitments and real active savings goals. Spending pace is used
+  // for warnings/forecasts only, not as a hidden reserve that cuts salary in half.
+  const reserveTarget = roundMoney(explicitReserve);
   const protectedTotal = roundMoney(dueCommitments + reserveTarget + savingsRequiredThisPeriod);
   const rawSafeToSpendUntilProtection = roundMoney(Math.max(0, liquidTotal - protectedTotal));
   const rawSafeToSpendToday = roundMoney(Math.max(0, rawSafeToSpendUntilProtection / spendingPaceDays));
