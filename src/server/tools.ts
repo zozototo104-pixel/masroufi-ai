@@ -866,7 +866,13 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const paymentWasProvided = hasOriginalUserUtterance
     ? Boolean(explicitUserPaymentAccount || structuredPaymentProvided || forcedCreditPurchaseIntent || userConfirmedPaymentByClarification)
     : Boolean(structuredPaymentProvided || forcedCreditPurchaseIntent);
-  let account = forcedCreditPurchaseIntent ? 'debt' : (explicitUserPaymentAccount || (structuredPaymentProvided ? structuredUserPaymentAccount : '') || normalizeAccount(args.paymentMethod || args.account || 'cash'));
+  const confirmedStructuredPaymentAccount = userConfirmedPaymentByClarification && ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
+    ? structuredUserPaymentAccount
+    : '';
+  let account = forcedCreditPurchaseIntent ? 'debt' : (confirmedStructuredPaymentAccount || explicitUserPaymentAccount || (structuredPaymentProvided ? structuredUserPaymentAccount : '') || normalizeAccount(args.paymentMethod || args.account || 'cash'));
+  if (args.disableExpenseSplitParsing === true && ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)) {
+    account = structuredUserPaymentAccount;
+  }
   let category = String(args.category || '').trim();
   let subcategory = String(args.subcategory || '').trim();
   const merchant = String(args.merchant || args.creditor || args.seller || args.store || args.vendor || args.person || '').trim();
