@@ -3530,6 +3530,39 @@ ${activeSalaryCycleText}
                             activeSalaryCycleYear: activeSalaryCycleContext.year,
                           };
                         }
+                        if (effectiveCall.name === 'update_transaction' && isSyntheticTransactionReference((toolArgs as any).id)) {
+                          const draftArgs = liveExpenseIntakeDraft && Date.now() - liveExpenseIntakeDraft.updatedAt <= 90_000
+                            ? sanitizePendingFinancialArgs(liveExpenseIntakeDraft.args || {})
+                            : {};
+                          const mergedAddArgs: any = {
+                            ...draftArgs,
+                            ...toolArgs,
+                            type: 'expense',
+                            userText: String(draftArgs.userText || draftArgs.currentUserText || liveUserTextBeforeMerge || (toolArgs as any).userText || ''),
+                            currentUserText: String(liveUserTextBeforeMerge || (toolArgs as any).currentUserText || (toolArgs as any).userText || ''),
+                          };
+                          delete mergedAddArgs.id;
+                          mergedAddArgs.amount = Number(mergedAddArgs.amount || draftArgs.amount || extractAmountFromFinancialText(mergedAddArgs.userText) || extractAmountFromFinancialText(mergedAddArgs.currentUserText) || 0);
+                          const inferredAccount = normalizeAccount(mergedAddArgs.paymentMethod || mergedAddArgs.account || draftArgs.paymentMethod || draftArgs.account || accountFromFinancialText(mergedAddArgs.currentUserText) || accountFromFinancialText(mergedAddArgs.userText) || '');
+                          if (['cash', 'palPay', 'debt'].includes(inferredAccount)) {
+                            mergedAddArgs.account = inferredAccount;
+                            mergedAddArgs.paymentMethod = inferredAccount;
+                          }
+                          if (!mergedAddArgs.purchaseItem && mergedAddArgs.notes) mergedAddArgs.purchaseItem = String(mergedAddArgs.notes).replace(/شراء|اشتريت|شريت|مصروف/g, ' ').trim();
+                          if (!mergedAddArgs.item && mergedAddArgs.purchaseItem) mergedAddArgs.item = mergedAddArgs.purchaseItem;
+                          if (!mergedAddArgs.description && mergedAddArgs.purchaseItem) mergedAddArgs.description = mergedAddArgs.purchaseItem;
+                          mergedAddArgs.purchaseItemClarifiedByUser = Boolean(mergedAddArgs.purchaseItem || draftArgs.purchaseItemClarifiedByUser);
+                          console.warn('[live-tool] rerouted synthetic update_transaction to add_transaction for pending/new expense', {
+                            requestId,
+                            originalId: (toolArgs as any).id,
+                            amount: mergedAddArgs.amount,
+                            account: mergedAddArgs.account,
+                            purchaseItem: mergedAddArgs.purchaseItem,
+                            merchant: mergedAddArgs.merchant || null,
+                          });
+                          effectiveCall = { ...effectiveCall, name: 'add_transaction', args: mergedAddArgs } as FunctionCall;
+                          toolArgs = mergedAddArgs;
+                        }
                         const isGenerateReportCall = effectiveCall.name === 'generate_report' || effectiveCall.name === 'generateReport';
                         const reportArgsText = JSON.stringify(toolArgs || {});
                         const reportRequestedMonth = parseSalaryCycleMonth(toolArgs.month || toolArgs.salaryMonth || toolArgs.monthNumber) ?? parseSalaryCycleMonth(String(toolArgs.title || ''));
