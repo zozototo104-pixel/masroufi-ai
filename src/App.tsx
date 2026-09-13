@@ -1276,6 +1276,31 @@ export default function App() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.error || 'Failed to update advisor alert');
+      if (action !== 'read') {
+        const headers = { 'Authorization': `Bearer ${idToken}` };
+        const [alertsRes, auditRes] = await Promise.all([
+          fetch('/api/advisor/alerts?limit=25', { headers }),
+          fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6', { headers }),
+        ]);
+        const alertsPayload = await alertsRes.json().catch(() => ({}));
+        if (alertsRes.ok && alertsPayload?.success !== false) {
+          const refreshedAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+          setAdvisorAlerts(refreshedAlerts);
+          await idbSet('lkgs_advisor_alerts', refreshedAlerts);
+        }
+        const auditPayload = await auditRes.json().catch(() => ({}));
+        if (auditRes.ok && auditPayload?.success !== false) {
+          setAdvisorAudit(auditPayload);
+          await idbSet('lkgs_advisor_audit', auditPayload);
+        }
+        setNotifications(prev => [...prev, {
+          id: `advisor-alert-${action}-${Date.now()}`,
+          type: 'success',
+          message: action === 'resolve'
+            ? 'تم إغلاق التنبيه وتحديث سلامة الدفتر. ملاحظة: هذا لا يعدّل العمليات المالية تلقائياً.'
+            : 'تم تحديث التنبيه وتحديث سلامة الدفتر.',
+        }]);
+      }
     } catch (err) {
       console.warn('Advisor alert action failed:', err);
       setAdvisorAlerts(previousAlerts);
