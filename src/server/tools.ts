@@ -2007,11 +2007,14 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   const currentBudgetRows = Array.isArray((budgetOverview as any).budgets) ? (budgetOverview as any).budgets : [];
   const currentBudgetMap = new Map(currentBudgetRows.map((b: any) => [String(b.category), b]));
   const customBudgetCount = Number((budgetOverview as any).customBudgetCount || 0);
+  const hasExplicitBudgets = customBudgetCount > 0 || currentBudgetRows.some((b: any) => parsePositiveFinancialAmount(b.limit) > 0);
   const defaultBudgetTemplateTotal = Object.values(DEFAULT_BUDGETS).reduce((a, b) => a + b, 0);
-  const currentTotalBudgetRaw = roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalBudget) || currentBudgetRows.reduce((sum: number, b: any) => sum + parsePositiveFinancialAmount(b.limit), 0));
-  const usingDefaultBudgetTemplate = customBudgetCount === 0 && Math.abs(currentTotalBudgetRaw - defaultBudgetTemplateTotal) < 1;
+  const currentTotalBudgetRaw = hasExplicitBudgets
+    ? roundMoney(parsePositiveFinancialAmount((budgetOverview as any).totalBudget) || currentBudgetRows.reduce((sum: number, b: any) => sum + parsePositiveFinancialAmount(b.limit), 0))
+    : 0;
+  const usingDefaultBudgetTemplate = !hasExplicitBudgets;
   const categorySet = new Set<string>([
-    ...(usingDefaultBudgetTemplate ? [] : Object.keys(DEFAULT_BUDGETS)),
+    ...Object.keys(DEFAULT_BUDGETS),
     ...currentBudgetRows.map((b: any) => String(b.category || '')).filter(Boolean),
   ]);
   if (categorySet.size === 0) Object.keys(DEFAULT_BUDGETS).forEach((category) => categorySet.add(category));
