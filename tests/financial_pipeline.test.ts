@@ -303,3 +303,29 @@ test('TREASURER-10: goal impact engine protects financial goals before major spe
   assert.ok((server.match(/assess_financial_goal_impact/g) || []).length >= 2, 'text and voice prompts must instruct the advisor to assess goal impact');
   assert.ok(app.includes('أهداف تحتاج حماية'), 'dashboard pulse must highlight savings goals that need protection');
 });
+
+test('TREASURER-11: financial scenario simulator forecasts outcomes without recording transactions', async () => {
+  const tools = await src('src/server/tools.ts');
+  const server = await src('server.ts');
+  const app = await src('src/App.tsx');
+  const rules = await src('firestore.rules');
+  assert.ok(tools.includes('export async function simulateFinancialScenario'), 'scenario simulator must exist');
+  assert.ok(tools.includes('export async function getFinancialScenarios'), 'saved scenario reader must exist');
+  assert.ok(tools.includes('simulate_financial_scenario: simulateFinancialScenario'), 'scenario simulator must be registered in handlers');
+  assert.ok(tools.includes('get_financial_scenarios: getFinancialScenarios'), 'saved scenario reader must be registered in handlers');
+  assert.ok(tools.includes('name: "simulate_financial_scenario"'), 'scenario simulator must be exposed to Gemini');
+  assert.ok(tools.includes('buildScenarioRecoveryPlan'), 'scenario simulator must return a recovery plan');
+  assert.ok(tools.includes('SCENARIO_CRITICAL'), 'scenario simulator must produce critical decisions');
+  assert.ok(tools.includes('advisorScenarios'), 'saved scenarios must be persisted and included in wipe');
+  assert.ok(tools.includes('advisor-scenario'), 'risky scenarios must become advisor alerts when requested');
+  assert.ok(server.includes('app.post("/api/advisor/scenario", authMiddleware'), 'scenario simulation API must be available behind auth');
+  assert.ok(server.includes('app.get("/api/advisor/scenarios", authMiddleware'), 'saved scenarios API must be available behind auth');
+  assert.ok((server.match(/0\.3\.5- \*\*محاكاة السيناريوهات\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to simulate scenarios');
+  assert.ok(app.includes('const [financialScenarios, setFinancialScenarios]'), 'dashboard must keep financial scenario state');
+  assert.ok(app.includes("fetch('/api/advisor/scenarios?limit=8'"), 'dashboard must fetch saved financial scenarios');
+  assert.ok(app.includes("fetch('/api/advisor/scenario'"), 'dashboard must run quick financial scenarios');
+  assert.ok(app.includes('handleQuickScenarioSimulation'), 'dashboard must expose a quick scenario action');
+  assert.ok(app.includes('محرك السيناريوهات المالية'), 'dashboard must render financial scenario card');
+  assert.ok(app.includes("idbSet('lkgs_financial_scenarios'"), 'dashboard must cache last-known-good financial scenarios');
+  assert.ok(rules.includes('match /advisorScenarios/{scenarioId}'), 'Firestore rules must allow user-scoped saved scenarios');
+});
