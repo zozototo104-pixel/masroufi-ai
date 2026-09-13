@@ -1145,7 +1145,7 @@ function buildPendingClarificationPatch(userText: string, pending: PendingFinanc
   }
 
   const cleanedFreeText = cleanFinancialClarificationText(answer);
-  const answerIsOnlyAmountOrAccount = Boolean(account || (amount && cleanedFreeText.length === 0));
+  const answerIsOnlyAmountOrAccount = Boolean(account || isAmountOnlyClarificationAnswer(answer, amount, cleanedFreeText));
   if (!answerIsOnlyAmountOrAccount && cleanedFreeText) {
     if (fields.has('creditor') || (pending.name === 'transfer_money' && !hasPendingFinancialValue(pendingArgs, ['creditor', 'person', 'merchant']))) {
       patch.creditor = cleanedFreeText;
