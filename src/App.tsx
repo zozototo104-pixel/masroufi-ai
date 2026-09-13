@@ -1413,6 +1413,66 @@ export default function App() {
     }
   };
 
+  const handleGenerateAdaptiveBudgetPlan = async () => {
+    if (!idToken || isAdaptiveBudgetGenerating) return;
+    setIsAdaptiveBudgetGenerating(true);
+    try {
+      const res = await fetch('/api/advisor/adaptive-budget', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ mode: 'balanced', habitPeriod: 'last_30_days', save: true, persistAlert: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to generate adaptive budget plan');
+      const plansRes = await fetch('/api/advisor/adaptive-budget?limit=8', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const plansPayload = await plansRes.json().catch(() => ({}));
+      const nextPlans = plansRes.ok && plansPayload?.success !== false && Array.isArray(plansPayload.plans)
+        ? plansPayload.plans
+        : [data, ...adaptiveBudgetPlans.filter((p: any) => p.id !== data.savedPlanId && p.savedPlanId !== data.savedPlanId)].slice(0, 8);
+      setAdaptiveBudgetPlans(nextPlans);
+      await idbSet('lkgs_adaptive_budget_plans', nextPlans);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+      setNotifications(prev => [...prev, { id: `adaptive-budget-generated-${Date.now()}`, type: data.status === 'needs_manual_review' ? 'warning' : 'success', message: data.message || 'تم اقتراح ميزانية متكيّفة.' }]);
+    } catch (err) {
+      console.warn('Adaptive budget generation failed:', err);
+      setNotifications(prev => [...prev, { id: `adaptive-budget-failed-${Date.now()}`, type: 'warning', message: 'تعذر اقتراح الميزانية الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsAdaptiveBudgetGenerating(false);
+    }
+  };
+
+  const handleApplyAdaptiveBudgetPlan = async (plan: any) => {
+    if (!idToken || !plan) return;
+    try {
+      const res = await fetch('/api/advisor/adaptive-budget/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ planId: plan.savedPlanId || plan.id, plan, applyConfirmed: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to apply adaptive budget plan');
+      const budgetsRes = await fetch('/api/budgets', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const budgetsPayload = await budgetsRes.json().catch(() => ({}));
+      if (budgetsRes.ok && budgetsPayload?.success !== false) {
+        setBudgetsData(budgetsPayload);
+        await idbSet('lkgs_budgets', budgetsPayload);
+      }
+      const nextPlans = adaptiveBudgetPlans.map((item: any) => (item.id === plan.id || item.savedPlanId === plan.savedPlanId) ? { ...item, applied: true, appliedAt: new Date().toISOString() } : item);
+      setAdaptiveBudgetPlans(nextPlans);
+      await idbSet('lkgs_adaptive_budget_plans', nextPlans);
+      setNotifications(prev => [...prev, { id: `adaptive-budget-applied-${Date.now()}`, type: 'success', message: data?.message || `تم تطبيق ${data.appliedCount || 0} حد ميزانية.` }]);
+    } catch (err) {
+      console.warn('Adaptive budget apply failed:', err);
+      setNotifications(prev => [...prev, { id: `adaptive-budget-apply-failed-${Date.now()}`, type: 'warning', message: 'تعذر تطبيق خطة الميزانية الآن.' }]);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
