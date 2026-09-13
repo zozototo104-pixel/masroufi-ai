@@ -573,6 +573,36 @@ function buildSafeSpendingAdvice(input: {
   return `الوضع يسمح بصرف مضبوط. الحد الآمن اليوم تقريباً ${input.safeToSpendToday} ₪، وهذا الأسبوع ${input.safeToSpendThisWeek} ₪.`;
 }
 
+function normalizePaymentMatchText(value: any) {
+  return normalizeArabicText(String(value || '')).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function textLooksRelatedForPayment(commitment: any, tx: any) {
+  const commitmentText = normalizePaymentMatchText([commitment.title, commitment.name, commitment.category, commitment.merchant, commitment.description].filter(Boolean).join(' '));
+  const transactionText = normalizePaymentMatchText([tx.title, tx.name, tx.category, tx.merchant, tx.description, tx.note, tx.notes].filter(Boolean).join(' '));
+  if (!commitmentText || !transactionText) return false;
+  if (transactionText.includes(commitmentText) || commitmentText.includes(transactionText)) return true;
+  const commitmentWords = commitmentText.split(' ').filter((w: string) => w.length >= 3);
+  return commitmentWords.some((word: string) => transactionText.includes(word));
+}
+
+function findImplicitCommitmentPayment(commitment: any, transactions: any[], salaryCycleStartIso: string, protectionEndIso: string) {
+  const amount = parsePositiveFinancialAmount(commitment.amount);
+  if (amount <= 0) return null;
+  const start = auditAsDate(salaryCycleStartIso);
+  const end = auditAsDate(protectionEndIso);
+  return transactions.find((tx: any) => {
+    if (String(tx.type || '').toLowerCase() !== 'expense') return false;
+    if (tx.transactionType === 'CREDIT_PURCHASE') return false;
+    const txDate = transactionAnalysisDate(tx);
+    if (!txDate || (start && txDate < start) || (end && txDate > end)) return false;
+    const txAmount = parsePositiveFinancialAmount(tx.amount);
+    const amountTolerance = Math.max(2, amount * 0.08);
+    if (Math.abs(txAmount - amount) > amountTolerance) return false;
+    return textLooksRelatedForPayment(commitment, tx);
+  }) || null;
+}
+
 export async function getSafeSpendingLimit(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = args?.now ? new Date(String(args.now)) : new Date();
