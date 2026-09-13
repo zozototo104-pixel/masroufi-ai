@@ -114,6 +114,18 @@ service cloud.firestore {
         allow read: if ownsUserPath(userId);
         allow write: if ownsUserPath(userId);
       }
+
+      // Advisor market watchlist subcollection.
+      match /marketWatchlist/{watchId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
+
+      // Saved advisor audit snapshots.
+      match /advisorAudits/{auditId} {
+        allow read: if ownsUserPath(userId);
+        allow write: if ownsUserPath(userId);
+      }
     }
 
     // debts collection (legacy recurring items path — kept for backward compatibility,
