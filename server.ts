@@ -1263,8 +1263,12 @@ function mergePendingFinancialClarificationIntoToolCall(
 ): { name: string; args: any; merged: boolean } {
   const pending = getPendingFinancialClarification(userId);
   if (!pending) return { name: callName, args: toolArgs, merged: false };
-  if (!['add_transaction', 'transfer_money', 'pay_debt'].includes(callName) && callName !== pending.name) {
+  if (!['add_transaction', 'transfer_money', 'pay_debt', 'update_transaction'].includes(callName) && callName !== pending.name) {
     return { name: callName, args: toolArgs, merged: false };
+  }
+  if (callName === 'update_transaction' && pending.name === 'add_transaction') {
+    const updateArgs = toolArgs || {};
+    if (!isSyntheticTransactionReference(updateArgs.id)) return { name: callName, args: toolArgs, merged: false };
   }
   const args = toolArgs || {};
   const looksLikeFreshFullCommand = Number(args.amount || 0) > 0 && !isShortClarificationAnswer(userText || '') && looksLikeFinancialWriteIntent(userText || '');
