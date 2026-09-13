@@ -5868,13 +5868,20 @@ export async function getCommitments(args: any, userId: string, token: string) {
 export async function createCommitment(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const docRef = adminDb.collection('commitments').doc();
-  const commitment = {
+  const recurringFrequency = normalizeRecurringCommitmentFrequency(args.recurringFrequency || args.frequency || args.interval);
+  const isRecurring = parseBooleanLike(args.recurring) || Boolean(args.recurringFrequency || args.frequency || args.interval || args.recurringDetectionKey);
+  const commitment: any = {
     userId,
     title: args.title || 'التزام مجدول',
     amount: parsePositiveFinancialAmount(args.amount),
     dueDate: args.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     category: args.category || 'أقساط والتزامات',
     notes: args.notes || '',
+    recurring: isRecurring,
+    recurringFrequency: isRecurring ? recurringFrequency : null,
+    recurringDetectionKey: args.recurringDetectionKey || args.detectionKey || null,
+    recurringConfidence: args.recurringConfidence !== undefined ? Math.max(0, Math.min(1, Number(args.recurringConfidence) || 0)) : null,
+    sourceTransactionIds: Array.isArray(args.sourceTransactionIds) ? args.sourceTransactionIds.slice(0, 20) : [],
     // V6 (MF-1): explicit lifecycle status. Values: 'pending' | 'paid' | 'cancelled'.
     status: 'pending',
     createdAt: new Date().toISOString()
