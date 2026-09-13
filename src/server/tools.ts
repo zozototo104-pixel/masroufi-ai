@@ -2073,6 +2073,241 @@ export async function applyAdaptiveBudgetPlan(args: any, userId: string, token: 
   return { success: true, appliedCount: proposals.length, planId: planId || null, message, appliedBudgets: proposals.map((p: any) => ({ category: p.category, limit: roundBudgetLimit(parsePositiveFinancialAmount(p.proposedLimit)) })) };
 }
 
+function resolveMonthEndForecastWindow(args: any, now: Date) {
+  const raw = normalizeArabicText(String(args?.mode || args?.period || args?.horizon || 'salary_cycle')).toLowerCase();
+  if (/calendar|تقويم|الشهر الميلادي|نهاية الشهر الميلادي/.test(raw)) {
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const elapsedDays = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / 86400000));
+    const daysRemaining = Math.max(1, Math.ceil((end.getTime() - now.getTime()) / 86400000));
+    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    return { key: `calendar_${now.toISOString().slice(0, 7)}`, mode: 'calendar_month', label: 'نهاية الشهر الميلادي', start, end, elapsedDays, daysRemaining, totalDays };
+  }
+  const cycle = getCurrentSalaryCycle(now);
+  const start = new Date(cycle.startIso);
+  const end = new Date(cycle.endExclusiveIso);
+  const safeStart = Number.isFinite(start.getTime()) ? start : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const safeEnd = Number.isFinite(end.getTime()) && end.getTime() > now.getTime() ? end : new Date(now.getTime() + 86400000);
+  const elapsedDays = Math.max(1, Math.ceil((now.getTime() - safeStart.getTime()) / 86400000));
+  const daysRemaining = Math.max(1, Math.ceil((safeEnd.getTime() - now.getTime()) / 86400000));
+  const totalDays = Math.max(1, Math.ceil((safeEnd.getTime() - safeStart.getTime()) / 86400000));
+  return { key: `salary_cycle_${cycle.id || cycle.name || safeStart.toISOString().slice(0, 7)}`, mode: 'salary_cycle', label: cycle.name || 'نهاية دورة الراتب', start: safeStart, end: safeEnd, elapsedDays, daysRemaining, totalDays, salaryCycle: cycle };
+}
+
+function normalizeMonthEndForecastStatus(projectedFreeCash: number, projectedNetCash: number, requiredRecovery: number, dailyCap: number, dailyAverage: number, safeDecision: string) {
+  if (projectedNetCash < 0 || requiredRecovery > 0 || ['critical', 'danger'].includes(safeDecision)) return 'month_end_deficit';
+  if (projectedFreeCash < Math.max(100, dailyAverage * 2) || safeDecision === 'warning' || dailyCap < Math.max(20, dailyAverage * 0.6)) return 'month_end_pressure';
+  if (projectedFreeCash >= Math.max(250, dailyAverage * 5)) return 'month_end_surplus';
+  return 'month_end_balanced';
+}
+
+function buildMonthEndForecastMessage(status: string, forecast: any) {
+  if (status === 'month_end_deficit') return `التوقع الحالي يشير إلى عجز/فجوة بنهاية الفترة بقيمة تقريبية ${forecast.requiredRecovery || forecast.projectedGap || 0} ₪ إذا استمر نفس النمط.`;
+  if (status === 'month_end_pressure') return `التوقع يشير إلى ضغط بنهاية الفترة: الهامش الحر المتوقع ${forecast.projectedFreeCashAfterReserve || 0} ₪ فقط، والسقف اليومي المقترح ${forecast.dailyCorrectionCap || 0} ₪.`;
+  if (status === 'month_end_surplus') return `التوقع جيد: قد تنهي الفترة بفائض حر يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪ بعد الالتزامات والاحتياطي والأهداف.`;
+  return `التوقع متوازن: نهاية الفترة قريبة من الصفر الآمن مع هامش يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪.`;
+}
+
+function buildMonthEndCorrectionPlan(input: any) {
+  const actions: any[] = [];
+  const recoveryNeeded = roundMoney(Math.max(0, input.requiredRecovery || input.projectedGap || 0));
+  const dailyCap = roundMoney(Math.max(0, input.dailyCorrectionCap || 0));
+  if (recoveryNeeded > 0) {
+    actions.push({
+      id: 'recover_projected_gap',
+      type: 'recover_gap',
+      priority: 'critical',
+      title: 'عوّض الفجوة قبل نهاية الفترة',
+      message: `خفّض الصرف أو وفّر دخل إضافي بقيمة ${recoveryNeeded} ₪ تقريباً لحماية نهاية الشهر.`,
+      suggestedAmount: recoveryNeeded,
+    });
+  }
+  if (dailyCap > 0) {
+    actions.push({
+      id: 'daily_cap_until_month_end',
+      type: 'daily_cap',
+      priority: recoveryNeeded > 0 ? 'high' : 'medium',
+      title: 'التزم بسقف يومي حتى نهاية الفترة',
+      message: `السقف اليومي الآمن المقترح حتى نهاية الفترة هو ${dailyCap} ₪.`,
+      suggestedAmount: dailyCap,
+    });
+  }
+  for (const commitment of (input.overdueCommitments || []).slice(0, 3)) {
+    actions.push({
+      id: `pay_overdue_${commitment.id || stableDocId(commitment.title || 'commitment')}`,
+      type: 'pay_commitment',
+      priority: 'critical',
+      title: `سدّد الالتزام المتأخر: ${commitment.title || 'التزام'}`,
+      message: `متأخر بقيمة ${commitment.amount || 0} ₪، ويضغط توقع نهاية الشهر.`,
+      suggestedAmount: parsePositiveFinancialAmount(commitment.amount),
+    });
+  }
+  for (const insight of (input.habitWarnings || []).slice(0, 3)) {
+    actions.push({
+      id: `reduce_habit_${insight.key || stableDocId(insight.title || 'habit')}`,
+      type: insight.type === 'small_purchase_accumulation' ? 'stop_small_purchases' : 'reduce_category',
+      priority: 'medium',
+      title: insight.type === 'small_purchase_accumulation' ? 'جمّد المصاريف الصغيرة' : insight.title,
+      message: insight.message,
+      suggestedAmount: parsePositiveFinancialAmount(insight.evidence?.currentTotal || insight.evidence?.smallPurchases?.total) * 0.25,
+    });
+  }
+  if (input.goalNeed > 0) {
+    actions.push({
+      id: 'protect_savings_goals',
+      type: 'protect_goals',
+      priority: 'medium',
+      title: 'احمِ أهداف الادخار من التأخير',
+      message: `الأهداف تحتاج تقريباً ${input.goalNeed} ₪ ضمن هذه الفترة للبقاء على المسار.`,
+      suggestedAmount: input.goalNeed,
+    });
+  }
+  return {
+    dailyCap,
+    recoveryNeeded,
+    actions: actions.map((a: any) => ({ ...a, suggestedAmount: roundMoney(parsePositiveFinancialAmount(a.suggestedAmount)) })).slice(0, 8),
+  };
+}
+
+export async function forecastMonthEndFinancialPosition(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const window = resolveMonthEndForecastWindow(args || {}, safeNow);
+  const [profileResult, safe, habits, goalsResult, commitmentsResult, recurringReview, adaptivePlansResult] = await Promise.all([
+    getTreasurerProfile({}, userId, token).catch(() => ({ profile: normalizeTreasurerProfile({}), completeness: buildTreasurerProfileCompleteness(normalizeTreasurerProfile({})) })),
+    getSafeSpendingLimit({ untilDate: new Date(window.end.getTime() - 1).toISOString().slice(0, 10) }, userId, token).catch((e: any) => ({ success: false, decision: 'unknown', safeSpending: {}, breakdown: {}, partial: true, error: e?.message || String(e) })),
+    analyzeFinancialHabits({ period: window.mode === 'salary_cycle' ? 'salary_cycle' : 'last_30_days', insightLimit: 10, limit: Math.max(200, Math.min(1200, Number(args?.transactionLimit) || 800)) }, userId, token).catch((e: any) => ({ success: false, current: {}, insights: [], totals: {}, partial: true, error: e?.message || String(e) })),
+    getSavingsGoals({ now: safeNow.toISOString() }, userId, token).catch((e: any) => ({ success: false, goals: [], partial: true, error: e?.message || String(e) })),
+    getCommitments({ limit: 250 }, userId, token).catch((e: any) => ({ success: false, commitments: [], partial: true, error: e?.message || String(e) })),
+    reviewRecurringCommitments({ lookAheadDays: window.daysRemaining, limit: 250 }, userId, token).catch((e: any) => ({ success: false, dueSoon: [], overdue: [], partial: true, error: e?.message || String(e) })),
+    getAdaptiveBudgetPlans({ limit: 3 }, userId, token).catch((e: any) => ({ success: false, plans: [], partial: true, error: e?.message || String(e) })),
+  ]);
+
+  const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
+  const safeBreakdown = (safe as any).breakdown || {};
+  const safeSpending = (safe as any).safeSpending || {};
+  const balances = safeBreakdown.balances || { cash: 0, palPay: 0, debt: 0, vault: 0, total: 0 };
+  const liquidTotal = roundMoney(parsePositiveFinancialAmount(balances.total));
+  const currentExpenseTotal = roundMoney(parsePositiveFinancialAmount((habits as any).current?.expenseTotal || (habits as any).totals?.currentExpense));
+  const habitDailyAverage = currentExpenseTotal > 0 ? roundMoney(currentExpenseTotal / Math.max(1, window.elapsedDays)) : 0;
+  const safeDailyAverage = roundMoney(parsePositiveFinancialAmount(safeBreakdown.dailyExpenseAverage));
+  const dailyAverage = roundMoney(Math.max(habitDailyAverage, safeDailyAverage));
+  const dueCommitments = roundMoney(parsePositiveFinancialAmount(safeBreakdown.dueCommitments));
+  const reserveTarget = roundMoney(parsePositiveFinancialAmount(safeBreakdown.reserveTarget));
+  const goalNeedFromSafe = roundMoney(parsePositiveFinancialAmount(safeBreakdown.savingsRequiredThisPeriod));
+  const activeGoals = Array.isArray((goalsResult as any).goals) ? (goalsResult as any).goals : [];
+  const goalNeedFromGoals = roundMoney(activeGoals
+    .filter((g: any) => !['completed', 'cancelled', 'archived'].includes(String(g.status || 'active').toLowerCase()))
+    .reduce((sum: number, g: any) => sum + Math.max(parsePositiveFinancialAmount(g.monthlyGap), parsePositiveFinancialAmount(g.monthlyRequired) - parsePositiveFinancialAmount(g.monthlySavedAmount)), 0));
+  const goalNeed = roundMoney(Math.max(goalNeedFromSafe, goalNeedFromGoals));
+  const projectedRoutineSpend = roundMoney(dailyAverage * window.daysRemaining);
+  const projectedNetCash = roundMoney(liquidTotal - dueCommitments - goalNeed - projectedRoutineSpend);
+  const projectedFreeCashAfterReserve = roundMoney(projectedNetCash - reserveTarget);
+  const projectedGap = roundMoney(Math.max(0, -projectedFreeCashAfterReserve));
+  const requiredRecovery = roundMoney(Math.max(projectedGap, parsePositiveFinancialAmount(safeSpending.cashFlowGap), parsePositiveFinancialAmount(safeSpending.deficitToProtected)));
+  const availableForRoutineAfterProtected = roundMoney(Math.max(0, liquidTotal - dueCommitments - goalNeed - reserveTarget));
+  const dailyCorrectionCap = roundMoney(Math.max(0, availableForRoutineAfterProtected / Math.max(1, window.daysRemaining)));
+  const safeDecision = String((safe as any).decision || '').toLowerCase();
+  const status = normalizeMonthEndForecastStatus(projectedFreeCashAfterReserve, projectedNetCash, requiredRecovery, dailyCorrectionCap, dailyAverage, safeDecision);
+  const habitWarnings = Array.isArray((habits as any).insights) ? (habits as any).insights.filter((i: any) => i.severity === 'warning') : [];
+  const overdueCommitments = Array.isArray((recurringReview as any).overdue) ? (recurringReview as any).overdue : [];
+  const dueSoonCommitments = Array.isArray((recurringReview as any).dueSoon) ? (recurringReview as any).dueSoon : [];
+  const correctionPlan = buildMonthEndCorrectionPlan({ requiredRecovery, projectedGap, dailyCorrectionCap, overdueCommitments, habitWarnings, goalNeed });
+  const confidencePenalty = [safe, habits, goalsResult, commitmentsResult, recurringReview, adaptivePlansResult].filter((r: any) => Boolean(r?.partial || !r?.success)).length * 8;
+  const confidence = Math.max(35, Math.min(95, 88 - confidencePenalty - ((profileResult as any).completeness?.status === 'ready' ? 0 : 8)));
+  const forecast = {
+    liquidTotal,
+    projectedRoutineSpend,
+    dueCommitments,
+    goalNeed,
+    reserveTarget,
+    projectedNetCash,
+    projectedFreeCashAfterReserve,
+    projectedGap,
+    requiredRecovery,
+    dailyAverage,
+    dailyCorrectionCap,
+  };
+  const warnings: string[] = [];
+  if (requiredRecovery > 0) warnings.push(`يوجد تعويض مطلوب ${requiredRecovery} ₪ حتى لا تنتهي الفترة بعجز أو ضغط.`);
+  if (dailyAverage > dailyCorrectionCap && dailyCorrectionCap > 0) warnings.push(`متوسط صرفك الحالي ${dailyAverage} ₪ أعلى من السقف التصحيحي ${dailyCorrectionCap} ₪.`);
+  if (overdueCommitments.length) warnings.push(`يوجد ${overdueCommitments.length} التزام متكرر متأخر يضغط التوقع.`);
+  if (dueSoonCommitments.length) warnings.push(`يوجد ${dueSoonCommitments.length} التزام متكرر قريب قبل نهاية الفترة.`);
+  if (habitWarnings.length) warnings.push(`وجدت ${habitWarnings.length} نمط صرف تحذيري قد يرفع الصرف المتوقع.`);
+
+  const result: any = {
+    success: true,
+    status,
+    confidence,
+    message: buildMonthEndForecastMessage(status, forecast),
+    window: { key: window.key, mode: window.mode, label: window.label, startIso: window.start.toISOString(), endIso: window.end.toISOString(), elapsedDays: window.elapsedDays, daysRemaining: window.daysRemaining, totalDays: window.totalDays },
+    forecast,
+    correctionPlan,
+    drivers: {
+      topHabitWarnings: habitWarnings.slice(0, 5),
+      overdueCommitments: overdueCommitments.slice(0, 5),
+      dueSoonCommitments: dueSoonCommitments.slice(0, 5),
+      activeGoalCount: activeGoals.length,
+      latestAdaptiveBudgetPlan: Array.isArray((adaptivePlansResult as any).plans) ? (adaptivePlansResult as any).plans[0] || null : null,
+    },
+    warnings,
+    recommendations: correctionPlan.actions.slice(0, 5).map((a: any) => a.message),
+    profileCompleteness: (profileResult as any).completeness,
+    sources: {
+      safeSpending: { decision: (safe as any).decision, partial: Boolean((safe as any).partial) },
+      habits: { status: (habits as any).status, score: (habits as any).score, partial: Boolean((habits as any).partial) },
+      goals: { count: activeGoals.length, partial: Boolean((goalsResult as any).partial) },
+      commitments: { count: Array.isArray((commitmentsResult as any).commitments) ? (commitmentsResult as any).commitments.length : 0, partial: Boolean((commitmentsResult as any).partial) },
+      recurring: { overdue: overdueCommitments.length, dueSoon: dueSoonCommitments.length, partial: Boolean((recurringReview as any).partial) },
+      adaptiveBudget: { count: Array.isArray((adaptivePlansResult as any).plans) ? (adaptivePlansResult as any).plans.length : 0, partial: Boolean((adaptivePlansResult as any).partial) },
+    },
+    partial: Boolean((safe as any).partial || (habits as any).partial || (goalsResult as any).partial || (commitmentsResult as any).partial || (recurringReview as any).partial || (adaptivePlansResult as any).partial),
+    readEfficiency: {
+      habitDocsRead: (habits as any).readEfficiency?.transactionDocsRead,
+      commitmentDocsRead: (commitmentsResult as any).readEfficiency?.commitmentDocsRead,
+      adaptivePlanDocsRead: (adaptivePlansResult as any).readEfficiency?.docsRead,
+    },
+  };
+
+  if (parseBooleanLike(args?.save)) {
+    const reportId = stableDocId(`month-end-forecast:${userId}:${window.key}:${safeNow.toISOString().slice(0, 10)}`);
+    await adminDb.collection('users').doc(userId).collection('advisorMonthEndForecasts').doc(reportId).set({ userId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...result }, { merge: true });
+    result.savedForecastId = reportId;
+  }
+
+  if (parseBooleanLike(args?.persistAlerts) && ['month_end_deficit', 'month_end_pressure'].includes(status)) {
+    await addNotification(userId, `🔮 توقع نهاية الشهر: ${result.message}`, 'warning', adminDb, {
+      idempotencyKey: `advisor-month-end-forecast:${stableDocId(`${userId}:${window.key}:${status}`)}`,
+      advisorAlert: true,
+      advisorStatus: 'open',
+      severity: status === 'month_end_deficit' ? 'critical' : 'warning',
+      priority: status === 'month_end_deficit' ? 'high' : 'medium',
+      category: 'month_end_forecast',
+      source: 'forecastMonthEndFinancialPosition',
+      metadata: { window: result.window, forecast, correctionPlan },
+      actions: [
+        { id: 'follow_correction_plan', label: 'اتبع خطة التصحيح', type: 'behavior' },
+        { id: 'review_drivers', label: 'راجع الأسباب', type: 'review' },
+        { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+      ],
+    });
+  }
+
+  return result;
+}
+
+export async function getMonthEndForecasts(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(50, Number(args?.limit) || 10));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorMonthEndForecasts')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const forecasts = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return { success: true, forecasts, count: forecasts.length, limit, partial: Boolean((snap as any).partial || forecasts.length >= limit), readEfficiency: { advisorMonthEndForecastLimit: limit, docsRead: snap.docs.length } };
+}
+
 export async function getFinancialDecisionContext(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const now = new Date();
