@@ -782,7 +782,9 @@ export async function addTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: addTransaction", args);
   
-  const amount = parseAbsoluteFinancialAmount(args.amount);
+  const expensePaymentSplits = normalizeExpensePaymentSplits(args);
+  const splitPaymentTotalAmount = Math.round(expensePaymentSplits.reduce((sum, split) => sum + Number(split.amount || 0), 0) * 100) / 100;
+  const amount = parseAbsoluteFinancialAmount(args.amount) || splitPaymentTotalAmount;
 
   const originalUtteranceText = normalizeArabicText([
     args.userText,
