@@ -204,6 +204,7 @@ test('TREASURER-06: advisor alert center persists and resolves financial warning
   assert.ok(tools.includes('name: "get_advisor_alerts"'), 'advisor alert read tool must be exposed to Gemini');
   assert.ok(server.includes('app.get("/api/advisor/alerts", authMiddleware'), 'advisor alert center must be available behind auth');
   assert.ok(server.includes('app.post("/api/advisor/alerts/:id", authMiddleware'), 'advisor alert actions must be available behind auth');
+  assert.ok((server.match(/0\.3\.2- \*\*مركز تنبيهات الخبير\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to use the advisor alert center');
   assert.ok(app.includes('const [advisorAlerts, setAdvisorAlerts]'), 'dashboard must keep advisor alerts state');
   assert.ok(app.includes("fetch('/api/advisor/alerts?limit=25'"), 'dashboard must fetch advisor alerts');
   assert.ok(app.includes('مركز تنبيهات الخبير المالي'), 'dashboard must render the advisor alert center');
