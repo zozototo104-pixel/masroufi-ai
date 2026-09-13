@@ -1210,6 +1210,57 @@ export default function App() {
     }
   };
 
+  const handleDetectRecurringCommitments = async () => {
+    if (!idToken || isRecurringCommitmentDetecting) return;
+    setIsRecurringCommitmentDetecting(true);
+    try {
+      const res = await fetch('/api/commitments/recurring/detect?candidateLimit=8&minOccurrences=2&persistAlerts=true', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to detect recurring commitments');
+      const nextCandidates = Array.isArray(data.candidates) ? data.candidates : [];
+      setRecurringCommitmentCandidates(nextCandidates);
+      await idbSet('lkgs_recurring_commitment_candidates', nextCandidates);
+      const alertsRes = await fetch('/api/advisor/alerts?limit=25', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const alertsPayload = await alertsRes.json().catch(() => ({}));
+      if (alertsRes.ok && alertsPayload?.success !== false) {
+        const nextAlerts = Array.isArray(alertsPayload.alerts) ? alertsPayload.alerts : [];
+        setAdvisorAlerts(nextAlerts);
+        await idbSet('lkgs_advisor_alerts', nextAlerts);
+      }
+      setNotifications(prev => [...prev, { id: `recurring-detected-${Date.now()}`, type: 'success', message: nextCandidates.length ? `وجدت ${nextCandidates.length} مصروف متكرر محتمل.` : 'لم أجد اشتراكات متكررة جديدة ضمن القراءة الحالية.' }]);
+    } catch (err) {
+      console.warn('Recurring commitment detection failed:', err);
+      setNotifications(prev => [...prev, { id: `recurring-detect-failed-${Date.now()}`, type: 'warning', message: 'تعذر اكتشاف الاشتراكات الآن. جرّب لاحقاً أو افحص الاتصال.' }]);
+    } finally {
+      setIsRecurringCommitmentDetecting(false);
+    }
+  };
+
+  const handleCreateRecurringCommitment = async (candidate: any) => {
+    if (!idToken || !candidate?.detectionKey) return;
+    try {
+      const res = await fetch('/api/commitments/recurring/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ candidate }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to create recurring commitment');
+      setRecurringCommitmentCandidates(prev => prev.filter((item: any) => item.detectionKey !== candidate.detectionKey));
+      await idbSet('lkgs_recurring_commitment_candidates', recurringCommitmentCandidates.filter((item: any) => item.detectionKey !== candidate.detectionKey));
+      const commitmentsRes = await fetch('/api/commitments', { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const commitmentsPayload = await commitmentsRes.json().catch(() => ({}));
+      if (commitmentsRes.ok && Array.isArray(commitmentsPayload.commitments)) {
+        setCommitments(commitmentsPayload.commitments);
+        await idbSet('lkgs_commitments', commitmentsPayload.commitments);
+      }
+      setNotifications(prev => [...prev, { id: `recurring-created-${Date.now()}`, type: 'success', message: data?.message || 'تم تحويل المصروف المتكرر إلى التزام.' }]);
+    } catch (err) {
+      console.warn('Recurring commitment conversion failed:', err);
+      setNotifications(prev => [...prev, { id: `recurring-create-failed-${Date.now()}`, type: 'warning', message: 'تعذر تحويل المرشح إلى التزام الآن.' }]);
+    }
+  };
+
   const handleSaveMemoryItem = async (e: FormEvent) => {
     e.preventDefault();
     if (!idToken || !newMemoryKey.trim() || !newMemoryValue.trim()) return;
