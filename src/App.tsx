@@ -3360,10 +3360,17 @@ export default function App() {
                     <p className="text-sm font-black text-white">{Number(weeklyFinancialPlans[0]?.summary?.actionCount || 0).toLocaleString()}</p>
                   </div>
                 </div>
-                {weeklyFinancialPlans[0]?.actions?.[0] && (
-                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
-                    <p className="text-[11px] font-bold text-fuchsia-100 mb-1">{weeklyFinancialPlans[0].actions[0].title}</p>
-                    <p className="text-[11px] text-slate-300 leading-5">{weeklyFinancialPlans[0].actions[0].message}</p>
+                {weeklyFinancialPlans[0]?.actions?.length > 0 && (
+                  <div className="space-y-2">
+                    {weeklyFinancialPlans[0].actions.slice(0, 3).map((action: any) => (
+                      <div key={action.id || action.title} className="bg-black/20 border border-white/10 rounded-2xl p-3">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-[11px] font-bold text-fuchsia-100">{action.title}</p>
+                          {Number(action.suggestedAmount || 0) > 0 && <span className="text-[10px] text-fuchsia-200 whitespace-nowrap">{Number(action.suggestedAmount || 0).toLocaleString()} ₪</span>}
+                        </div>
+                        <p className="text-[11px] text-slate-300 leading-5">{action.message}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
