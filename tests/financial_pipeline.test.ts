@@ -267,6 +267,7 @@ test('TREASURER-09: expanded treasurer profile drives advisor safety decisions a
   assert.ok(tools.includes('TREASURER_PROFILE_DEFAULTS'), 'expanded treasurer profile defaults must exist');
   assert.ok(tools.includes('buildTreasurerProfileCompleteness'), 'profile completeness scoring must exist');
   assert.ok(tools.includes('normalizeTreasurerProfile'), 'profile writes/reads must normalize user settings');
+  assert.ok(tools.includes("raw?.priorities ?? profile.financialPriorities"), 'profile normalization must preserve legacy priorities');
   assert.ok(tools.includes('profileCompleteness = buildTreasurerProfileCompleteness(profile)'), 'safe spending must include profile completeness');
   assert.ok(tools.includes('parsePositiveFinancialAmount(profile.criticalLiquidityFloor)'), 'safe spending must protect critical liquidity floor');
   assert.ok(tools.includes('profileDailyLimit'), 'safe spending must respect daily spending limit');
