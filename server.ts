@@ -2868,6 +2868,7 @@ function setupLiveApi(wss: WebSocketServer) {
         draftPatch.purchaseItem = cleanedDetail;
         draftPatch.item = cleanedDetail;
         draftPatch.description = cleanedDetail;
+        draftPatch.purchaseItemClarifiedByUser = true;
       }
       applyExpenseInferenceToPatch(draftPatch, liveExpenseIntakeDraft.args || {}, text);
       liveExpenseIntakeDraft.args = { ...(liveExpenseIntakeDraft.args || {}), ...draftPatch };
