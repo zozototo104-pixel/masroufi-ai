@@ -654,6 +654,24 @@ export default function App() {
       }
     };
 
+    const fetchTreasurerProfileData = async (headers: Record<string, string>) => {
+      try {
+        const profileRes = await fetch('/api/treasurer/profile', { headers });
+        const profilePayload = await profileRes.json().catch(() => ({}));
+        if (profileRes.ok && profilePayload?.success !== false) {
+          setTreasurerProfile(profilePayload);
+          await idbSet('lkgs_treasurer_profile', profilePayload);
+        } else {
+          const cachedProfile = await idbGet<any>('lkgs_treasurer_profile');
+          if (cachedProfile) setTreasurerProfile(cachedProfile);
+        }
+      } catch (profileErr) {
+        console.warn('Treasurer profile refresh failed:', profileErr);
+        const cachedProfile = await idbGet<any>('lkgs_treasurer_profile');
+        if (cachedProfile) setTreasurerProfile(cachedProfile);
+      }
+    };
+
     const fetchAdvisorPulseData = async (headers: Record<string, string>) => {
       try {
         const pulseRes = await fetch('/api/advisor/pulse', { headers });
