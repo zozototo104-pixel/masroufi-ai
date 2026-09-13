@@ -806,9 +806,13 @@ export async function addTransaction(args: any, userId: string, token: string) {
   if (type !== 'income' && type !== 'expense') type = 'expense';
 
   const explicitDebtInUserText = /(?:^|[^ء-يa-z0-9])(?:دين|دينا|ديناً|كدين|بالدين|اجل|على الحساب|عال حساب|عالحساب|credit_purchase|debt)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
-  const explicitPalPayInUserText = /(?:^|[^ء-يa-z0-9])(?:palpay|pal pay|بال باي|البال باي|محفظه|محفظة)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
+  const explicitPalPayInUserText = /(?:^|[^ء-يa-z0-9])(?:palpay|pal pay|بال باي|البال باي|بال بي|بالبي|بل بي|بالبى|balbea|balbe|محفظه|محفظة)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
   const explicitCashInUserText = /(?:^|[^ء-يa-z0-9])(?:كاش|نقد|نقدا|نقدي)(?:$|[^ء-يa-z0-9])/.test(originalUtteranceText);
-  const explicitUserPaymentAccount = explicitDebtInUserText ? 'debt' : explicitPalPayInUserText ? 'palPay' : explicitCashInUserText ? 'cash' : '';
+  const explicitPaymentMentionCount = [explicitDebtInUserText, explicitPalPayInUserText, explicitCashInUserText].filter(Boolean).length;
+  const originalTextHasMixedPaymentMethods = explicitPaymentMentionCount > 1;
+  const explicitUserPaymentAccount = explicitPaymentMentionCount === 1
+    ? (explicitDebtInUserText ? 'debt' : explicitPalPayInUserText ? 'palPay' : explicitCashInUserText ? 'cash' : '')
+    : '';
   const rawStructuredUserPaymentAccount = args.paymentMethod || args.account || '';
   const structuredUserPaymentAccount = rawStructuredUserPaymentAccount ? normalizeAccount(rawStructuredUserPaymentAccount) : '';
   const structuredPaymentProvided = ['cash', 'palPay', 'debt'].includes(structuredUserPaymentAccount)
