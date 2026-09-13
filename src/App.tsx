@@ -3244,6 +3244,54 @@ export default function App() {
             )}
           </div>
 
+          <div className="bg-slate-900 border border-purple-500/25 rounded-3xl p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-purple-300" />
+                توقع نهاية الشهر
+              </h3>
+              <button onClick={handleForecastMonthEnd} disabled={isMonthEndForecasting} className="px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/25 text-purple-200 text-[10px] font-bold disabled:opacity-50">
+                {isMonthEndForecasting ? 'يتوقع...' : 'توقع الآن'}
+              </button>
+            </div>
+            {monthEndForecasts.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">آخر توقع</p>
+                    <p className="text-sm font-bold text-white">{monthEndForecasts[0]?.window?.label || 'نهاية الفترة'}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                    {monthEndForecasts[0]?.status === 'month_end_deficit' ? 'عجز' : monthEndForecasts[0]?.status === 'month_end_pressure' ? 'ضغط' : monthEndForecasts[0]?.status === 'month_end_surplus' ? 'فائض' : 'متوازن'} · ثقة {Number(monthEndForecasts[0]?.confidence || 0).toLocaleString()}%
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-6 mb-3">{monthEndForecasts[0]?.message}</p>
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">هامش متوقع</p>
+                    <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.projectedFreeCashAfterReserve || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">تعويض</p>
+                    <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.requiredRecovery || 0).toLocaleString()} ₪</p>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                    <p className="text-[10px] text-slate-400 mb-1">سقف يومي</p>
+                    <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.dailyCorrectionCap || 0).toLocaleString()} ₪</p>
+                  </div>
+                </div>
+                {monthEndForecasts[0]?.correctionPlan?.actions?.[0] && (
+                  <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
+                    <p className="text-[11px] font-bold text-purple-100 mb-1">{monthEndForecasts[0].correctionPlan.actions[0].title}</p>
+                    <p className="text-[11px] text-slate-300 leading-5">{monthEndForecasts[0].correctionPlan.actions[0].message}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 leading-6">اضغط “توقع الآن” ليحسب مصروفي هل ستنهي دورة الراتب بفائض، ضغط، أو عجز، مع سقف يومي وخطة تصحيح.</p>
+            )}
+          </div>
+
           {/* Savings Vault Card */}
           <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
