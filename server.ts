@@ -3005,6 +3005,9 @@ function setupLiveApi(wss: WebSocketServer) {
           }
         }
         rememberLiveFinancialCommit(liveKey, result);
+        if (isCommittedFinancialMutationResponse(result) || result?.transactionCommitted === true) {
+          liveServerFinancialCompletionKeys.set(liveKey, Date.now());
+        }
         const functionResponses = [{ id: `server_${Date.now()}`, name: call.name, args: toolArgs, requestArgs: toolArgs, response: result }];
         updatePendingFinancialClarificationFromResponses(userId, functionResponses as any, clientMessageId, 'live');
         const reply = buildDeterministicFinancialReply(functionResponses as any) || result?.message || 'انتهت محاولة تنفيذ العملية المالية.';
