@@ -5995,6 +5995,145 @@ export async function createCommitment(args: any, userId: string, token: string)
  * V6 (MF-1): update commitment lifecycle status.
  * Used to mark a commitment as paid (excludes from forecast) or cancelled.
  */
+export async function detectRecurringCommitments(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const now = args?.now ? new Date(String(args.now)) : new Date();
+  const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
+  const limit = Math.max(100, Math.min(1000, Number(args?.limit) || 500));
+  const minOccurrences = Math.max(2, Math.min(12, Number(args?.minOccurrences) || 2));
+  let transactions: any[] = [];
+  let readSource = 'date_desc_bounded';
+  let partial = false;
+  try {
+    const snap = await adminDb.collection('transactions')
+      .where('userId', '==', userId)
+      .orderBy('date', 'desc')
+      .limit(limit)
+      .get();
+    transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    partial = Boolean((snap as any).partial || transactions.length >= limit);
+  } catch (err: any) {
+    readSource = 'createdAt_desc_bounded_fallback';
+    try {
+      const snap = await adminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
+      transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      partial = true;
+    } catch (fallbackErr: any) {
+      readSource = 'userId_bounded_fallback';
+      const snap = await adminDb.collection('transactions').where('userId', '==', userId).limit(limit).get();
+      transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      partial = true;
+    }
+  }
+
+  const existingSnap = await adminDb.collection('commitments')
+    .where('userId', '==', userId)
+    .orderBy('dueDate', 'asc')
+    .limit(300)
+    .get()
+    .catch(() => ({ docs: [], partial: true }));
+  const existingCommitments = ((existingSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+  const existingKeys = new Set(existingCommitments.map((c: any) => String(c.recurringDetectionKey || '').trim()).filter(Boolean));
+  const existingTitleAmounts = new Set(existingCommitments.map((c: any) => `${normalizeArabicText(String(c.title || '')).toLowerCase()}:${roundMoney(parsePositiveFinancialAmount(c.amount))}`));
+
+  const expenses = transactions.filter((tx: any) => {
+    if (String(tx.type || '').toLowerCase() !== 'expense') return false;
+    const amount = parsePositiveFinancialAmount(tx.amount);
+    if (amount < 10) return false;
+    const status = String(tx.status || '').toLowerCase();
+    return !['deleted', 'cancelled', 'void'].includes(status);
+  });
+  const groups = new Map<string, any[]>();
+  for (const tx of expenses) {
+    const key = recurringCandidateKey(tx);
+    if (!key) continue;
+    const arr = groups.get(key) || [];
+    arr.push(tx);
+    groups.set(key, arr);
+  }
+  const candidates = Array.from(groups.entries())
+    .filter(([, group]) => group.length >= minOccurrences)
+    .map(([key, group]) => buildRecurringCandidate(group, key, safeNow))
+    .filter(Boolean)
+    .filter((candidate: any) => !existingKeys.has(candidate.detectionKey) && !existingTitleAmounts.has(`${normalizeArabicText(String(candidate.title || '')).toLowerCase()}:${roundMoney(candidate.amount)}`))
+    .sort((a: any, b: any) => b.confidence - a.confidence || b.occurrenceCount - a.occurrenceCount)
+    .slice(0, Math.max(1, Math.min(25, Number(args?.candidateLimit) || 10)));
+
+  if (parseBooleanLike(args?.persistAlerts)) {
+    for (const candidate of candidates.filter((c: any) => c.confidence >= 0.7).slice(0, 5)) {
+      await addNotification(userId, `🔁 اكتشفت مصروفاً متكرراً: ${candidate.title} بقيمة تقريبية ${candidate.amount} ₪ (${candidate.frequency}). هل تريد تحويله لالتزام؟`, 'warning', adminDb, {
+        idempotencyKey: `advisor-recurring-detected:${candidate.detectionKey}`,
+        advisorAlert: true,
+        advisorStatus: 'open',
+        severity: candidate.confidence >= 0.85 ? 'warning' : 'info',
+        priority: candidate.confidence >= 0.85 ? 'medium' : 'low',
+        category: 'recurring_commitment_candidate',
+        source: 'detectRecurringCommitments',
+        metadata: { candidate },
+        actions: [
+          { id: 'create_commitment', label: 'حوّل لالتزام', type: 'create' },
+          { id: 'ignore_recurring', label: 'ليس متكرراً', type: 'dismiss' },
+          { id: 'snooze', label: 'ذكرني لاحقاً', type: 'snooze' },
+        ],
+      });
+    }
+  }
+
+  return {
+    success: true,
+    candidates,
+    count: candidates.length,
+    summary: {
+      scannedTransactions: transactions.length,
+      scannedExpenses: expenses.length,
+      groupedKeys: groups.size,
+      existingRecurringCommitments: existingKeys.size,
+    },
+    partial: Boolean(partial || (existingSnap as any).partial),
+    readEfficiency: { transactionDocsRead: transactions.length, transactionLimit: limit, commitmentDocsRead: existingCommitments.length, readSource },
+  };
+}
+
+export async function createRecurringCommitmentFromCandidate(args: any, userId: string, token: string) {
+  const candidateArg = args?.candidate && typeof args.candidate === 'object' ? args.candidate : null;
+  let candidate = candidateArg;
+  if (!candidate && args?.detectionKey) {
+    const detected = await detectRecurringCommitments({ limit: args.limit || 500, candidateLimit: 25 }, userId, token);
+    candidate = (detected.candidates || []).find((c: any) => c.detectionKey === args.detectionKey || c.id === args.detectionKey);
+  }
+  if (!candidate && args?.title && args?.amount) {
+    candidate = {
+      title: args.title,
+      amount: parsePositiveFinancialAmount(args.amount),
+      frequency: normalizeRecurringCommitmentFrequency(args.frequency || args.recurringFrequency || 'monthly'),
+      nextDueDate: args.dueDate || estimateNextRecurringDueDate(new Date(), normalizeRecurringCommitmentFrequency(args.frequency || args.recurringFrequency || 'monthly')),
+      category: args.category || 'أقساط والتزامات',
+      confidence: Number(args.confidence || 0.6),
+      detectionKey: args.detectionKey || stableDocId(`manual-recurring:${userId}:${args.title}:${args.amount}`),
+      sourceTransactionIds: Array.isArray(args.sourceTransactionIds) ? args.sourceTransactionIds : [],
+    };
+  }
+  if (!candidate) return { success: false, needsClarification: true, reason: 'MISSING_RECURRING_CANDIDATE', message: 'حدد المصروف المتكرر أو أعطني اسم الالتزام والمبلغ.' };
+  const frequency = normalizeRecurringCommitmentFrequency(candidate.frequency || args.frequency || args.recurringFrequency);
+  const created = await createCommitment({
+    title: args.title || candidate.title,
+    amount: args.amount || candidate.amount,
+    dueDate: args.dueDate || candidate.nextDueDate || estimateNextRecurringDueDate(new Date(), frequency),
+    category: args.category || candidate.category || 'أقساط والتزامات',
+    notes: args.notes || `تم إنشاؤه من اكتشاف مصروف متكرر بثقة ${candidate.confidence || 'غير محددة'}.`,
+    recurring: true,
+    recurringFrequency: frequency,
+    recurringDetectionKey: candidate.detectionKey || candidate.id,
+    recurringConfidence: candidate.confidence || 0.6,
+    sourceTransactionIds: candidate.sourceTransactionIds || [],
+  }, userId, token);
+  return { ...created, candidate, message: `حوّلت ${created.commitment?.title || candidate.title} إلى التزام متكرر ${frequency}.` };
+}
+
 export async function updateCommitmentStatus(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   if (!args.id) return { success: false, error: 'Commitment ID is required' };
