@@ -573,6 +573,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'top notifications must auto-dismiss after a visible delay');
   assert.ok(app.includes('إغلاق التنبيه') && app.includes('لا يعدّل العمليات المالية تلقائياً'),
     'advisor alert action must clarify that resolving an alert does not auto-fix ledger data');
+  assert.ok(app.includes('تفصيل السقف الآمن') && app.includes('متوسط الصرف للتوقع والتحذير فقط وليس مبلغًا محجوزًا'),
+    'treasurer pulse card must explain why cash is reserved and that spending pace is not a hidden reserve');
   assert.ok(app.includes("fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6'") && app.includes("idbSet('lkgs_advisor_audit'"),
     'resolving or dismissing an alert must refresh the audit score shown on the dashboard');
   assert.ok(app.includes('window.confirm') && app.includes('تطبيق الخطة سيغيّر حدود الميزانيات'),
