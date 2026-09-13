@@ -2078,6 +2078,8 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     ].filter(Boolean),
     profileCompleteness: (profileResult as any).completeness,
     sources: {
+      incomeSource: salaryFromProfile > 0 ? 'treasurer_profile' : incomeFromCurrentSalaryCycle > 0 ? 'current_salary_cycle' : 'missing',
+      currentSalaryCyclePartial: Boolean((currentSalaryCycleResult as any).partial),
       budgetsPartial: Boolean((budgetOverview as any).partial),
       safePartial: Boolean((safe as any).partial),
       habitsPartial: Boolean((habits as any).partial),
@@ -2085,7 +2087,7 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
       commitmentsPartial: Boolean((commitmentsResult as any).partial),
       weeklyPlanPartial: Boolean((weeklyPlan as any).partial),
     },
-    partial: Boolean((budgetOverview as any).partial || (safe as any).partial || (habits as any).partial || (goalsResult as any).partial || (commitmentsResult as any).partial || (weeklyPlan as any).partial),
+    partial: Boolean((budgetOverview as any).partial || (currentSalaryCycleResult as any).partial || (safe as any).partial || (habits as any).partial || (goalsResult as any).partial || (commitmentsResult as any).partial || (weeklyPlan as any).partial),
     readEfficiency: {
       budgetDocsRead: currentBudgetRows.length,
       habitDocsRead: (habits as any).readEfficiency?.transactionDocsRead,
