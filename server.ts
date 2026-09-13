@@ -3110,6 +3110,15 @@ function compactLiveSchema(value: any, insidePropertiesMap = false): any {
     if (!insidePropertiesMap && ['description', 'title', 'examples', 'default'].includes(key)) continue;
     out[key] = compactLiveSchema(nested, key === 'properties');
   }
+  if (!insidePropertiesMap && String(out.type || '').toLowerCase() === 'array' && !out.items) {
+    // Gemini Live validates JSON schema more strictly than the text endpoint.
+    // Any array parameter must define items; otherwise setup closes with:
+    // parameters.properties[x].items: missing field.
+    out.items = { type: 'object', properties: {} };
+  }
+  if (!insidePropertiesMap && String(out.type || '').toLowerCase() === 'object' && !out.properties) {
+    out.properties = {};
+  }
   if (!insidePropertiesMap && Array.isArray(out.required) && out.properties && typeof out.properties === 'object') {
     out.required = out.required.filter((name: any) => typeof name === 'string' && Object.prototype.hasOwnProperty.call(out.properties, name));
     if (out.required.length === 0) delete out.required;
