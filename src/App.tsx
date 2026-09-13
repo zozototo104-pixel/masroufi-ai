@@ -3309,7 +3309,7 @@ export default function App() {
                     <p className="text-sm font-bold text-white">{financialHabitReports[0]?.window?.label || 'تحليل عادات الصرف'}</p>
                   </div>
                   <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
-                    {financialHabitReports[0]?.status === 'habit_risk' ? 'خطر عادات' : financialHabitReports[0]?.status === 'watch' ? 'راقب' : 'مستقر'} · {Number(financialHabitReports[0]?.score || 0).toLocaleString()}%
+                    {financialHabitReports[0]?.status === 'insufficient_data' ? 'بيانات غير كافية' : financialHabitReports[0]?.status === 'habit_risk' ? 'خطر عادات' : financialHabitReports[0]?.status === 'watch' ? 'راقب' : 'مستقر'} · {Number(financialHabitReports[0]?.score || 0).toLocaleString()}%
                   </span>
                 </div>
                 <p className="text-xs text-slate-200 leading-6 mb-3">{financialHabitReports[0]?.message}</p>
