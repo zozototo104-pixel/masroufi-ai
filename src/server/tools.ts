@@ -5414,39 +5414,240 @@ export async function deleteCommitment(args: any, userId: string, token: string)
   return { success: true };
 }
 
+const TREASURER_PROFILE_DEFAULTS: any = {
+  profileVersion: 2,
+  monthlySalary: 0,
+  salaryDay: null,
+  salaryCycleStartDay: 27,
+  salaryCycleEndDay: 26,
+  cashReserveTarget: 0,
+  minimumCashFloor: 0,
+  criticalLiquidityFloor: 0,
+  criticalCoverageDays: 14,
+  warningCoverageDays: 21,
+  dailySpendingLimit: 0,
+  weeklySpendingLimit: 0,
+  discretionaryMonthlyLimit: 0,
+  essentialMonthlyEstimate: 0,
+  debtLimitRatio: 1,
+  maxDebtBalance: 0,
+  dependentsCount: 0,
+  householdSize: 1,
+  savingsRateTarget: 10,
+  strictness: 'balanced',
+  currency: 'ILS',
+  locale: 'Gaza/Palestine',
+  marketRegion: { primary: 'Gaza', secondary: 'Palestine', allowGlobalReference: true },
+  alertPreferences: {
+    safeSpendPulse: true,
+    budgetThresholdPct: 80,
+    criticalBudgetThresholdPct: 100,
+    commitments: true,
+    debts: true,
+    goals: true,
+    marketWatch: true,
+    audit: true,
+    notificationTone: 'balanced',
+  },
+  protectedCategories: ['طعام ومشتريات منزل', 'فواتير والتزامات', 'صحة وعلاج', 'تعليم وتدريب'],
+  restrictedCategories: [],
+  financialPriorities: [],
+  financialGoals: [],
+  notes: '',
+  createdAt: null,
+  updatedAt: null,
+};
+
+function clampFinancialDay(value: any): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.max(1, Math.min(31, Math.round(n)));
+}
+
+function normalizeTreasurerStrictness(value: any) {
+  const raw = normalizeArabicText(String(value || 'balanced')).toLowerCase();
+  if (['strict', 'صارم', 'شديد', 'حازم'].includes(raw)) return 'strict';
+  if (['gentle', 'خفيف', 'لين', 'مرن'].includes(raw)) return 'gentle';
+  return 'balanced';
+}
+
+function normalizeTreasurerStringList(value: any, fallback: string[] = [], maxItems = 20): string[] {
+  const arr = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[،,\n]/) : fallback;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of arr) {
+    const item = String(raw || '').trim();
+    if (!item || seen.has(item)) continue;
+    seen.add(item);
+    out.push(item.slice(0, 80));
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+function normalizeTreasurerPriorityList(value: any): any[] {
+  const arr = Array.isArray(value) ? value : [];
+  return arr.slice(0, 20).map((item: any, index: number) => {
+    if (typeof item === 'string') return { title: item.slice(0, 120), priority: index + 1, status: 'active' };
+    return {
+      title: String(item?.title || item?.name || '').slice(0, 120),
+      priority: Math.max(1, Math.min(20, Number(item?.priority) || index + 1)),
+      targetAmount: parsePositiveFinancialAmount(item?.targetAmount),
+      dueDate: item?.dueDate || '',
+      status: String(item?.status || 'active'),
+      notes: String(item?.notes || '').slice(0, 240),
+    };
+  }).filter((item: any) => item.title);
+}
+
+function normalizeTreasurerMarketRegion(value: any, fallback: any = TREASURER_PROFILE_DEFAULTS.marketRegion) {
+  if (typeof value === 'string') return { ...fallback, primary: value || fallback.primary };
+  const raw = value && typeof value === 'object' ? value : {};
+  return {
+    primary: String(raw.primary || fallback.primary || 'Gaza'),
+    secondary: String(raw.secondary || fallback.secondary || 'Palestine'),
+    allowGlobalReference: raw.allowGlobalReference === undefined ? Boolean(fallback.allowGlobalReference) : parseBooleanLike(raw.allowGlobalReference),
+  };
+}
+
+function normalizeTreasurerAlertPreferences(value: any, fallback: any = TREASURER_PROFILE_DEFAULTS.alertPreferences) {
+  const raw = value && typeof value === 'object' ? value : {};
+  const threshold = Math.max(50, Math.min(99, Number(raw.budgetThresholdPct ?? fallback.budgetThresholdPct ?? 80) || 80));
+  const critical = Math.max(threshold + 1, Math.min(150, Number(raw.criticalBudgetThresholdPct ?? fallback.criticalBudgetThresholdPct ?? 100) || 100));
+  return {
+    safeSpendPulse: raw.safeSpendPulse === undefined ? Boolean(fallback.safeSpendPulse) : parseBooleanLike(raw.safeSpendPulse),
+    budgetThresholdPct: threshold,
+    criticalBudgetThresholdPct: critical,
+    commitments: raw.commitments === undefined ? Boolean(fallback.commitments) : parseBooleanLike(raw.commitments),
+    debts: raw.debts === undefined ? Boolean(fallback.debts) : parseBooleanLike(raw.debts),
+    goals: raw.goals === undefined ? Boolean(fallback.goals) : parseBooleanLike(raw.goals),
+    marketWatch: raw.marketWatch === undefined ? Boolean(fallback.marketWatch) : parseBooleanLike(raw.marketWatch),
+    audit: raw.audit === undefined ? Boolean(fallback.audit) : parseBooleanLike(raw.audit),
+    notificationTone: String(raw.notificationTone || fallback.notificationTone || 'balanced'),
+  };
+}
+
+function normalizeTreasurerProfile(raw: any = {}) {
+  const profile: any = { ...TREASURER_PROFILE_DEFAULTS, ...(raw || {}) };
+  profile.profileVersion = 2;
+  profile.monthlySalary = parsePositiveFinancialAmount(profile.monthlySalary);
+  profile.salaryDay = clampFinancialDay(profile.salaryDay);
+  profile.salaryCycleStartDay = clampFinancialDay(profile.salaryCycleStartDay) || 27;
+  profile.salaryCycleEndDay = clampFinancialDay(profile.salaryCycleEndDay) || 26;
+  profile.cashReserveTarget = parsePositiveFinancialAmount(profile.cashReserveTarget);
+  profile.minimumCashFloor = parsePositiveFinancialAmount(profile.minimumCashFloor);
+  profile.criticalLiquidityFloor = parsePositiveFinancialAmount(profile.criticalLiquidityFloor);
+  profile.criticalCoverageDays = Math.max(0, Math.min(90, Number(profile.criticalCoverageDays) || 14));
+  profile.warningCoverageDays = Math.max(profile.criticalCoverageDays, Math.min(120, Number(profile.warningCoverageDays) || 21));
+  profile.dailySpendingLimit = parsePositiveFinancialAmount(profile.dailySpendingLimit);
+  profile.weeklySpendingLimit = parsePositiveFinancialAmount(profile.weeklySpendingLimit);
+  profile.discretionaryMonthlyLimit = parsePositiveFinancialAmount(profile.discretionaryMonthlyLimit);
+  profile.essentialMonthlyEstimate = parsePositiveFinancialAmount(profile.essentialMonthlyEstimate);
+  profile.debtLimitRatio = Math.max(0, Math.min(5, Number(profile.debtLimitRatio) || 1));
+  profile.maxDebtBalance = parsePositiveFinancialAmount(profile.maxDebtBalance);
+  profile.dependentsCount = Math.max(0, Math.min(30, Math.round(Number(profile.dependentsCount) || 0)));
+  profile.householdSize = Math.max(1, Math.min(40, Math.round(Number(profile.householdSize) || 1)));
+  profile.savingsRateTarget = Math.max(0, Math.min(80, Number(profile.savingsRateTarget) || 0));
+  profile.strictness = normalizeTreasurerStrictness(profile.strictness);
+  profile.currency = String(profile.currency || 'ILS');
+  profile.locale = String(profile.locale || 'Gaza/Palestine');
+  profile.marketRegion = normalizeTreasurerMarketRegion(profile.marketRegion);
+  profile.alertPreferences = normalizeTreasurerAlertPreferences(profile.alertPreferences);
+  profile.protectedCategories = normalizeTreasurerStringList(profile.protectedCategories, TREASURER_PROFILE_DEFAULTS.protectedCategories, 30);
+  profile.restrictedCategories = normalizeTreasurerStringList(profile.restrictedCategories, [], 30);
+  profile.financialPriorities = normalizeTreasurerPriorityList(profile.financialPriorities || profile.priorities);
+  profile.financialGoals = normalizeTreasurerPriorityList(profile.financialGoals || profile.goals);
+  profile.notes = String(profile.notes || '').slice(0, 1000);
+  return profile;
+}
+
+function buildTreasurerProfileCompleteness(profile: any) {
+  const checks = [
+    { key: 'monthlySalary', label: 'الراتب الشهري', ok: parsePositiveFinancialAmount(profile.monthlySalary) > 0, prompt: 'كم راتبك أو دخلك الشهري المتوقع؟' },
+    { key: 'salaryDay', label: 'يوم الراتب', ok: Boolean(profile.salaryDay), prompt: 'في أي يوم ينزل الراتب عادة؟' },
+    { key: 'cashReserveTarget', label: 'احتياطي الأمان', ok: parsePositiveFinancialAmount(profile.cashReserveTarget || profile.criticalLiquidityFloor || profile.minimumCashFloor) > 0, prompt: 'كم أقل مبلغ لازم يظل محمي كاحتياطي؟' },
+    { key: 'debtLimitRatio', label: 'حد الدين المقبول', ok: Number(profile.debtLimitRatio) > 0 || parsePositiveFinancialAmount(profile.maxDebtBalance) > 0, prompt: 'ما أقصى دين مقبول كنسبة من دخلك أو كمبلغ؟' },
+    { key: 'financialPriorities', label: 'الأولويات المالية', ok: Array.isArray(profile.financialPriorities) && profile.financialPriorities.length > 0, prompt: 'ما أهم أولوياتك المالية الآن؟' },
+    { key: 'alertPreferences', label: 'تفضيلات التنبيه', ok: Boolean(profile.alertPreferences), prompt: 'هل تريد تنبيهات صارمة أم متوازنة أم لطيفة؟' },
+  ];
+  const missing = checks.filter(c => !c.ok).map(({ key, label, prompt }) => ({ key, label, prompt }));
+  const score = Math.round((checks.length - missing.length) / checks.length * 100);
+  return {
+    score,
+    status: score >= 85 ? 'ready' : score >= 55 ? 'partial' : 'needs_onboarding',
+    missing,
+    nextPrompt: missing[0]?.prompt || '',
+  };
+}
+
+function buildTreasurerProfilePatch(args: any, existing: any = {}) {
+  const patch: any = { profileVersion: 2, updatedAt: new Date().toISOString() };
+  if (args.monthlySalary !== undefined || args.salary !== undefined || args.monthlyIncome !== undefined) patch.monthlySalary = parsePositiveFinancialAmount(args.monthlySalary ?? args.salary ?? args.monthlyIncome);
+  if (args.salaryDay !== undefined || args.payday !== undefined) patch.salaryDay = clampFinancialDay(args.salaryDay ?? args.payday);
+  if (args.salaryCycleStartDay !== undefined) patch.salaryCycleStartDay = clampFinancialDay(args.salaryCycleStartDay) || 27;
+  if (args.salaryCycleEndDay !== undefined) patch.salaryCycleEndDay = clampFinancialDay(args.salaryCycleEndDay) || 26;
+  if (args.cashReserveTarget !== undefined || args.reserveTarget !== undefined) patch.cashReserveTarget = parsePositiveFinancialAmount(args.cashReserveTarget ?? args.reserveTarget);
+  if (args.minimumCashFloor !== undefined) patch.minimumCashFloor = parsePositiveFinancialAmount(args.minimumCashFloor);
+  if (args.criticalLiquidityFloor !== undefined || args.liquidityFloor !== undefined) patch.criticalLiquidityFloor = parsePositiveFinancialAmount(args.criticalLiquidityFloor ?? args.liquidityFloor);
+  if (args.criticalCoverageDays !== undefined) patch.criticalCoverageDays = Math.max(0, Math.min(90, Number(args.criticalCoverageDays) || 0));
+  if (args.warningCoverageDays !== undefined) patch.warningCoverageDays = Math.max(0, Math.min(120, Number(args.warningCoverageDays) || 0));
+  if (args.dailySpendingLimit !== undefined) patch.dailySpendingLimit = parsePositiveFinancialAmount(args.dailySpendingLimit);
+  if (args.weeklySpendingLimit !== undefined) patch.weeklySpendingLimit = parsePositiveFinancialAmount(args.weeklySpendingLimit);
+  if (args.discretionaryMonthlyLimit !== undefined) patch.discretionaryMonthlyLimit = parsePositiveFinancialAmount(args.discretionaryMonthlyLimit);
+  if (args.essentialMonthlyEstimate !== undefined) patch.essentialMonthlyEstimate = parsePositiveFinancialAmount(args.essentialMonthlyEstimate);
+  if (args.debtLimitRatio !== undefined) patch.debtLimitRatio = Math.max(0, Math.min(5, Number(args.debtLimitRatio) || 0));
+  if (args.maxDebtBalance !== undefined || args.maxDebt !== undefined) patch.maxDebtBalance = parsePositiveFinancialAmount(args.maxDebtBalance ?? args.maxDebt);
+  if (args.dependentsCount !== undefined || args.dependents !== undefined) patch.dependentsCount = Math.max(0, Math.min(30, Math.round(Number(args.dependentsCount ?? args.dependents) || 0)));
+  if (args.householdSize !== undefined || args.familySize !== undefined) patch.householdSize = Math.max(1, Math.min(40, Math.round(Number(args.householdSize ?? args.familySize) || 1)));
+  if (args.savingsRateTarget !== undefined) patch.savingsRateTarget = Math.max(0, Math.min(80, Number(args.savingsRateTarget) || 0));
+  if (args.strictness !== undefined) patch.strictness = normalizeTreasurerStrictness(args.strictness);
+  if (args.currency !== undefined) patch.currency = String(args.currency || 'ILS');
+  if (args.locale !== undefined) patch.locale = String(args.locale || 'Gaza/Palestine');
+  if (args.marketRegion !== undefined || args.marketPrimary !== undefined || args.marketSecondary !== undefined || args.allowGlobalReference !== undefined) {
+    patch.marketRegion = normalizeTreasurerMarketRegion({
+      ...(existing.marketRegion || {}),
+      ...(typeof args.marketRegion === 'object' ? args.marketRegion : {}),
+      primary: args.marketPrimary ?? (typeof args.marketRegion === 'string' ? args.marketRegion : undefined) ?? existing.marketRegion?.primary,
+      secondary: args.marketSecondary ?? existing.marketRegion?.secondary,
+      allowGlobalReference: args.allowGlobalReference ?? existing.marketRegion?.allowGlobalReference,
+    }, existing.marketRegion || TREASURER_PROFILE_DEFAULTS.marketRegion);
+  }
+  if (args.alertPreferences !== undefined || args.notificationTone !== undefined || args.budgetThresholdPct !== undefined || args.criticalBudgetThresholdPct !== undefined) {
+    patch.alertPreferences = normalizeTreasurerAlertPreferences({
+      ...(existing.alertPreferences || {}),
+      ...(args.alertPreferences && typeof args.alertPreferences === 'object' ? args.alertPreferences : {}),
+      notificationTone: args.notificationTone ?? existing.alertPreferences?.notificationTone,
+      budgetThresholdPct: args.budgetThresholdPct ?? existing.alertPreferences?.budgetThresholdPct,
+      criticalBudgetThresholdPct: args.criticalBudgetThresholdPct ?? existing.alertPreferences?.criticalBudgetThresholdPct,
+    }, existing.alertPreferences || TREASURER_PROFILE_DEFAULTS.alertPreferences);
+  }
+  if (args.protectedCategories !== undefined) patch.protectedCategories = normalizeTreasurerStringList(args.protectedCategories, existing.protectedCategories || TREASURER_PROFILE_DEFAULTS.protectedCategories, 30);
+  if (args.restrictedCategories !== undefined || args.blockedCategories !== undefined) patch.restrictedCategories = normalizeTreasurerStringList(args.restrictedCategories ?? args.blockedCategories, existing.restrictedCategories || [], 30);
+  if (args.financialPriorities !== undefined || args.priorities !== undefined) patch.financialPriorities = normalizeTreasurerPriorityList(args.financialPriorities ?? args.priorities);
+  if (args.financialGoals !== undefined || args.goals !== undefined) patch.financialGoals = normalizeTreasurerPriorityList(args.financialGoals ?? args.goals);
+  if (args.notes !== undefined) patch.notes = String(args.notes || '').slice(0, 1000);
+  return patch;
+}
+
 export async function getTreasurerProfile(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const ref = adminDb.collection('users').doc(userId).collection('treasurer').doc('profile');
   const snap = await ref.get();
-  const profile = snap.exists ? snap.data() : {
-    monthlySalary: 0,
-    salaryDay: null,
-    cashReserveTarget: 0,
-    savingsRateTarget: 10,
-    strictness: 'balanced',
-    currency: 'ILS',
-    locale: 'Gaza/Palestine',
-    createdAt: null,
-    updatedAt: null
-  };
-  return { success: true, profile };
+  const profile = normalizeTreasurerProfile(snap.exists ? snap.data() : {});
+  return { success: true, profile, completeness: buildTreasurerProfileCompleteness(profile) };
 }
 
 export async function updateTreasurerProfile(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const ref = adminDb.collection('users').doc(userId).collection('treasurer').doc('profile');
-  const patch: any = { updatedAt: new Date().toISOString() };
-  if (args.monthlySalary !== undefined) patch.monthlySalary = parsePositiveFinancialAmount(args.monthlySalary);
-  if (args.salaryDay !== undefined) patch.salaryDay = args.salaryDay ? Number(args.salaryDay) : null;
-  if (args.cashReserveTarget !== undefined || args.reserveTarget !== undefined) patch.cashReserveTarget = parsePositiveFinancialAmount(args.cashReserveTarget ?? args.reserveTarget);
-  if (args.savingsRateTarget !== undefined) patch.savingsRateTarget = Math.max(0, Math.min(80, Number(args.savingsRateTarget) || 0));
-  if (args.strictness !== undefined) patch.strictness = String(args.strictness || 'balanced');
-  if (args.locale !== undefined) patch.locale = String(args.locale || 'Gaza/Palestine');
-  if (args.notes !== undefined) patch.notes = String(args.notes || '');
   const snap = await ref.get();
+  const existing = normalizeTreasurerProfile(snap.exists ? snap.data() : {});
+  const patch = buildTreasurerProfilePatch(args || {}, existing);
   if (!snap.exists) patch.createdAt = new Date().toISOString();
-  await ref.set({ ...(snap.exists ? snap.data() : {}), ...patch });
-  return { success: true, profile: { ...(snap.exists ? snap.data() : {}), ...patch } };
+  await ref.set({ ...existing, ...patch }, { merge: true });
+  const profile = normalizeTreasurerProfile({ ...existing, ...patch });
+  const completeness = buildTreasurerProfileCompleteness(profile);
+  return { success: true, profile, completeness, message: completeness.status === 'ready' ? 'تم تحديث ملف أمين الصندوق وأصبح جاهزاً لاتخاذ قرارات أدق.' : `تم تحديث الملف. بقي ${completeness.missing.length} عنصر لتحسين دقة المستشار.` };
 }
 
 export async function getSavingsGoals(args: any, userId: string, token: string) {
