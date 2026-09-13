@@ -1056,6 +1056,52 @@ export async function addTransaction(args: any, userId: string, token: string) {
     message: `لم أستطع تصنيف هذا المصروف كضروري أو كمالي وفق واقع غزة من الوصف الحالي. ${necessitySuggestion?.reason || ''} قل لي باختصار: ما الحاجة من هذا الشراء؟`
   };
   if (type === 'expense' && account === 'debt' && !merchant) return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'لمن سُجّل هذا الدين أو من أي محل/شخص اشتريت بالدين؟' };
+  if (type === 'expense' && expensePaymentSplits.some(split => split.account === 'debt') && !merchant) {
+    return { success: false, needsClarification: true, reason: 'MISSING_CREDITOR', missingFields: ['creditor'], message: 'جزء من المصروف مسجل دين. لمن أو عند أي محل سُجّل هذا الدين؟' };
+  }
+
+  if (type === 'expense'
+    && expensePaymentSplits.length >= 2
+    && !mentionsDebtRepayment
+    && !mentionsCashBorrowing
+    && args.disableExpenseSplitParsing !== true) {
+    const splitResults: any[] = [];
+    const splitBaseOperationId = String(args.operationId || `tx_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
+    for (const [index, split] of expensePaymentSplits.entries()) {
+      const splitResult = await addTransaction({
+        ...args,
+        amount: split.amount,
+        account: split.account,
+        paymentMethod: split.account,
+        paymentMethodClarifiedByUser: true,
+        accountClarifiedByUser: true,
+        creditPurchaseClarifiedByUser: split.account === 'debt' ? true : args.creditPurchaseClarifiedByUser,
+        disableExpenseSplitParsing: true,
+        operationId: `${splitBaseOperationId}|split_expense_payment|${index + 1}|${split.account}|${split.amount}`,
+        notes: [notes, split.note].filter(Boolean).join(' - '),
+      }, userId, token);
+      splitResults.push(splitResult);
+      if (!splitResult?.success) {
+        return {
+          ...splitResult,
+          splitExpense: true,
+          partialSplitResults: splitResults,
+          message: splitResult?.message || 'تعذر حفظ أحد أجزاء المصروف المقسم، لذلك أوقفت العملية قبل إكمال باقي الأجزاء.',
+        };
+      }
+    }
+    const splitTotal = Math.round(expensePaymentSplits.reduce((sum, split) => sum + split.amount, 0) * 100) / 100;
+    return {
+      success: true,
+      splitExpense: true,
+      transactionCommitted: splitResults.every(result => result?.success === true),
+      transactionIds: splitResults.map(result => result?.transactionId).filter(Boolean),
+      results: splitResults,
+      amount: splitTotal,
+      splits: expensePaymentSplits,
+      message: `تم حفظ المصروف مقسماً: ${expensePaymentSplits.map(split => `${split.amount} ₪ ${split.account === 'palPay' ? 'PalPay' : split.account === 'cash' ? 'نقدي' : 'دين'}`).join('، ')}.`,
+    };
+  }
 
   const explicitDebtSettlementIntent = mentionsDebtRepayment
     || (type === 'expense' && category.includes('سداد'))
