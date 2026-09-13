@@ -196,6 +196,9 @@ test('TREASURER-06: advisor alert center persists and resolves financial warning
   assert.ok(tools.includes('export async function getAdvisorAlerts'), 'advisor alert center must expose a read API');
   assert.ok(tools.includes('export async function updateAdvisorAlert'), 'advisor alert center must expose an update API');
   assert.ok(tools.includes('advisorAlert: true'), 'financial warnings must be persisted as advisor alerts');
+  assert.ok(tools.includes('advisor-budget-critical'), 'budget limit breaches must become persistent advisor alerts');
+  assert.ok(tools.includes('advisor-debt-risk'), 'high debt purchase risks must become persistent advisor alerts');
+  assert.ok(tools.includes('Object.assign(duplicatePatch'), 'repeated advisor alerts must reopen after a new duplicate event');
   assert.ok(tools.includes('get_advisor_alerts: getAdvisorAlerts'), 'advisor alert read tool must be registered');
   assert.ok(tools.includes('update_advisor_alert: updateAdvisorAlert'), 'advisor alert update tool must be registered');
   assert.ok(tools.includes('name: "get_advisor_alerts"'), 'advisor alert read tool must be exposed to Gemini');
