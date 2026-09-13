@@ -2095,17 +2095,6 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
     }
   });
 
-  app.post("/api/advisor/market-watchlist/:id", authMiddleware, async (req: any, res: any) => {
-    try {
-      const { updateMarketWatchItem } = await import('./src/server/tools');
-      const token = req.headers.authorization.split('Bearer ')[1];
-      res.json(await updateMarketWatchItem({ ...(req.body || {}), id: req.params.id }, req.user.uid, token));
-    } catch (e: any) {
-      console.error('Update market watch item error:', e.message);
-      res.status(500).json({ error: e.message });
-    }
-  });
-
   app.post("/api/advisor/market-watchlist/review", authMiddleware, async (req: any, res: any) => {
     try {
       const { reviewMarketWatchlist } = await import('./src/server/tools');
@@ -2113,6 +2102,17 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
       res.json(await reviewMarketWatchlist(req.body || {}, req.user.uid, token));
     } catch (e: any) {
       console.error('Review market watchlist error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/advisor/market-watchlist/:id", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { updateMarketWatchItem } = await import('./src/server/tools');
+      const token = req.headers.authorization.split('Bearer ')[1];
+      res.json(await updateMarketWatchItem({ ...(req.body || {}), id: req.params.id }, req.user.uid, token));
+    } catch (e: any) {
+      console.error('Update market watch item error:', e.message);
       res.status(500).json({ error: e.message });
     }
   });
