@@ -253,6 +253,7 @@ test('FIN-15B: idempotency must not cache missing-field clarification results as
   assert.ok(src.includes('resultIsSafeToRetryWithoutCaching'), 'idempotency must identify non-durable validation/clarification results');
   assert.ok(src.includes('await ref.delete()') && src.includes('Missing-field/validation answers are part of an ongoing conversation'), 'idempotency must clear pending locks for missing-field results instead of caching them as completed writes');
   assert.ok(src.includes('clearing stale non-durable cached validation result'), 'idempotency must clear old cached validation failures that otherwise block completed clarification saves');
+  assert.ok(src.includes('clearing waited non-durable validation result') && src.includes("waitedResult?.reason !== 'IDEMPOTENT_OPERATION_IN_FLIGHT'"), 'idempotency must also clear non-durable validation results returned after waiting, without clearing real in-flight writes');
 });
 
 test('FIN-16: PalPay malformed amounts collapse to invalid zero through the shared parser', () => {
