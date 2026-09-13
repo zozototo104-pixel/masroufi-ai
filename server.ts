@@ -2821,7 +2821,7 @@ function setupLiveApi(wss: WebSocketServer) {
         draftPatch.merchant = merchantFromText;
       }
       const cleanedDetail = cleanFinancialClarificationText(text);
-      const detailIsUseful = cleanedDetail && !account && !isBareConfirmationAnswer(normalized);
+      const detailIsUseful = cleanedDetail && !account && !isAmountOnlyClarificationAnswer(text, amount, cleanedDetail) && !isBareConfirmationAnswer(normalized);
       if (detailIsUseful && !merchantFromText && !hasPendingFinancialValue(liveExpenseIntakeDraft.args, ['purchaseItem', 'item', 'description'])) {
         draftPatch.purchaseItem = cleanedDetail;
         draftPatch.item = cleanedDetail;
