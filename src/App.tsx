@@ -659,6 +659,7 @@ export default function App() {
       if (Array.isArray(cachedFinancialHabitReports)) setFinancialHabitReports(cachedFinancialHabitReports);
       if (Array.isArray(cachedWeeklyFinancialPlans)) setWeeklyFinancialPlans(cachedWeeklyFinancialPlans);
       if (Array.isArray(cachedAdaptiveBudgetPlans)) setAdaptiveBudgetPlans(cachedAdaptiveBudgetPlans);
+      if (Array.isArray(cachedMonthEndForecasts)) setMonthEndForecasts(cachedMonthEndForecasts);
       setNotifications(prev => {
         if (prev.some((n: any) => n.id === 'firestore-quota-exhausted')) return prev;
         return [...prev, { id: 'firestore-quota-exhausted', message: 'انتهت حصة Firestore اليوم. أوقفت التحديثات السحابية مؤقتًا واستخدمت آخر نسخة محفوظة لتجنب استهلاك إضافي.', type: 'warning' }];
