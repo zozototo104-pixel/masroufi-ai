@@ -715,6 +715,69 @@ export async function getUserBudgets(userId: string, adminDb: any): Promise<Reco
   return mergedBudgets;
 }
 
+type ExpensePaymentSplit = { account: 'cash' | 'palPay' | 'debt'; amount: number; note?: string };
+
+function normalizeSplitPaymentAccount(value: unknown): ExpensePaymentSplit['account'] | null {
+  const text = normalizeArabicText(value);
+  if (/palpay|pal pay|بال\s*باي|بالباي|محفظ/.test(text)) return 'palPay';
+  if (/كاش|نقد|نقدي|نقدا/.test(text)) return 'cash';
+  if (/دين|بالدين|اجل|آجل|على الحساب|عال حساب|عالحساب/.test(text)) return 'debt';
+  return null;
+}
+
+function parseExpensePaymentSplitsFromText(value: unknown): ExpensePaymentSplit[] {
+  const text = normalizeArabicText(normalizeDigits(value));
+  if (!text) return [];
+  const amount = '(\\d+(?:[\\.,]\\d+)?)';
+  const currency = '(?:\\s*(?:ش|شيكل|₪|ils|nis|دولار|دينار|دنانير))?';
+  const account = '(palpay|pal pay|بال\\s*باي|بالباي|محفظه|محفظة|كاش|نقد|نقدي|نقدا|دين|بالدين|اجل|آجل|على\\s*الحساب|عال\\s*حساب|عالحساب)';
+  const candidates: Array<{ account: ExpensePaymentSplit['account']; amount: number; index: number }> = [];
+  const addCandidate = (rawAccount: string, rawAmount: string, index: number) => {
+    const normalizedAccount = normalizeSplitPaymentAccount(rawAccount);
+    const parsedAmount = Number(String(rawAmount || '').replace(',', '.'));
+    if (!normalizedAccount || !Number.isFinite(parsedAmount) || parsedAmount <= 0) return;
+    candidates.push({ account: normalizedAccount, amount: Math.round(parsedAmount * 100) / 100, index });
+  };
+  const amountBeforeAccount = new RegExp(`${amount}${currency}\\s*(?:من\\s+|على\\s+|بال\\s+)?${account}`, 'gi');
+  for (const match of text.matchAll(amountBeforeAccount)) {
+    addCandidate(match[2], match[1], match.index || 0);
+  }
+  const accountBeforeAmount = new RegExp(`${account}\\s*(?:ب|بـ|بقيمه|بقيمة|قيمه|قيمة|مبلغ|قدره|من)?\\s*${amount}${currency}`, 'gi');
+  for (const match of text.matchAll(accountBeforeAmount)) {
+    addCandidate(match[1], match[2], match.index || 0);
+  }
+  if (candidates.length < 2) return [];
+  const byAccount = new Map<ExpensePaymentSplit['account'], ExpensePaymentSplit>();
+  for (const candidate of candidates.sort((a, b) => a.index - b.index)) {
+    const existing = byAccount.get(candidate.account);
+    if (existing) existing.amount = Math.round((existing.amount + candidate.amount) * 100) / 100;
+    else byAccount.set(candidate.account, { account: candidate.account, amount: candidate.amount });
+  }
+  const splits = Array.from(byAccount.values()).filter(s => s.amount > 0);
+  return splits.length >= 2 ? splits : [];
+}
+
+function normalizeExpensePaymentSplits(args: any): ExpensePaymentSplit[] {
+  const raw = Array.isArray(args?.expensePaymentSplits) ? args.expensePaymentSplits
+    : Array.isArray(args?.paymentSplits) ? args.paymentSplits
+    : Array.isArray(args?.expenseSplit) ? args.expenseSplit
+    : [];
+  const explicit: ExpensePaymentSplit[] = [];
+  for (const rawItem of raw) {
+    const item = rawItem && typeof rawItem === 'object' ? rawItem : {};
+    const account = normalizeSplitPaymentAccount(item.account || item.paymentMethod || item.wallet || item.method);
+    const amount = parseAbsoluteFinancialAmount(item.amount);
+    if (account && amount > 0) explicit.push({ account, amount, note: String(item.note || item.notes || '') });
+  }
+  if (explicit.length >= 2) return explicit;
+  if (args?.disableExpenseSplitParsing) return [];
+  return parseExpensePaymentSplitsFromText([
+    args?.clarificationReplyText,
+    args?.currentUserText,
+    args?.userText,
+  ].map(v => String(v || '').trim()).filter(Boolean).join(' '));
+}
+
 export async function addTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: addTransaction", args);
