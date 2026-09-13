@@ -6145,7 +6145,7 @@ export async function createRecurringCommitmentFromCandidate(args: any, userId: 
     notes: args.notes || `تم إنشاؤه من اكتشاف مصروف متكرر بثقة ${candidate.confidence || 'غير محددة'}.`,
     recurring: true,
     recurringFrequency: frequency,
-    recurringDetectionKey: candidate.detectionKey || candidate.id,
+    recurringDetectionKey: detectionKey,
     recurringConfidence: candidate.confidence || 0.6,
     sourceTransactionIds: candidate.sourceTransactionIds || [],
   }, userId, token);
