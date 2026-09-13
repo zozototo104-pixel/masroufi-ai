@@ -1173,6 +1173,10 @@ function incrementHabitBucket(map: Record<string, any>, key: string, amount: num
   map[bucketKey] = bucket;
 }
 
+function transactionAnalysisDate(tx: any): Date | null {
+  return auditAsDate(tx?.date || tx?.localDay || tx?.localDate || tx?.dateKey || tx?.localDayKey || tx?.createdAt);
+}
+
 function summarizeHabitTransactions(transactions: any[], start: Date, end: Date) {
   const summary: any = {
     startIso: start.toISOString(),
