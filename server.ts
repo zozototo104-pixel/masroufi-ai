@@ -1179,12 +1179,13 @@ function buildPendingFinancialClarificationCall(userId: string | null | undefine
   if (!patch) return null;
   const nextName = patch.convertToTool || pending.name;
   const { convertToTool, ...actualPatch } = patch;
+  const pendingArgs = sanitizePendingFinancialArgs(pending.args || {});
   return {
     name: nextName,
     args: {
-      ...pending.args,
+      ...pendingArgs,
       ...actualPatch,
-      userText: pending.args.userText || pending.args.currentUserText || '',
+      userText: pendingArgs.userText || pendingArgs.currentUserText || '',
       clarificationReplyText: userText,
       clarifiedFromReason: pending.reason,
       originalClarificationClientMessageId: pending.clientMessageId,
