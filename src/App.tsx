@@ -3207,7 +3207,7 @@ export default function App() {
                 <p className="text-[10px] text-slate-400 leading-5 mb-3">المحاكاة لا تسجل عملية؛ تفترض “ماذا لو صرفت/دخلت هذا المبلغ؟” ثم تقارن الهامش قبل وبعد مع الصرف المعتاد والالتزامات.</p>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
-                    <p className="text-[10px] text-slate-400 mb-1">بعد السيناريو</p>
+                    <p className="text-[10px] text-slate-400 mb-1">الهامش بعده</p>
                     <p className="text-sm font-black text-white">{Number(financialScenarios[0]?.afterScenario?.safeToSpendUntilHorizon || 0).toLocaleString()} ₪</p>
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
