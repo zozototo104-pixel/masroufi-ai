@@ -2827,7 +2827,12 @@ function setupLiveApi(wss: WebSocketServer) {
       if (account) {
         draftPatch.paymentMethod = account;
         draftPatch.account = account;
-        if (account === 'debt') draftPatch.transactionType = 'CREDIT_PURCHASE';
+        draftPatch.paymentMethodClarifiedByUser = true;
+        draftPatch.accountClarifiedByUser = true;
+        if (account === 'debt') {
+          draftPatch.transactionType = 'CREDIT_PURCHASE';
+          draftPatch.creditPurchaseClarifiedByUser = true;
+        }
       }
       const merchantFromText = extractMerchantFromFinancialText(text);
       if (merchantFromText && !hasPendingFinancialValue(liveExpenseIntakeDraft.args, ['merchant', 'creditor', 'seller', 'store', 'vendor', 'person'])) {
