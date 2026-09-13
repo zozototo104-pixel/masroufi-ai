@@ -2033,16 +2033,24 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   const result: any = {
     success: true,
     mode,
-    status: adaptiveBudgetStatus(proposals, currentTotalBudget, totalProposed, targetEnvelope),
-    message: totalChange < 0
-      ? `اقترحت ميزانية أضيق بـ ${Math.abs(totalChange)} ₪ لحماية السيولة والأهداف.`
-      : totalChange > 0
-        ? `اقترحت إعادة توزيع مع زيادة صافية ${totalChange} ₪ على البنود الأهم.`
-        : 'اقترحت إعادة توزيع متوازنة بدون تغيير كبير في إجمالي الميزانية.',
+    status: adaptiveBudgetStatus(proposals, currentTotalBudget, totalProposed, targetEnvelope, incomeGuard),
+    message: missingIncomeProfile
+      ? 'لا أملك دخلاً شهرياً مؤكداً، لذلك لن أعتبر قالب 7300 ₪ ميزانية مقترحة. اضبط دخلك في ملف أمين الصندوق ليتم اقتراح حدود دقيقة.'
+      : incomeGuard.unableToFitIncome
+        ? `دخلك/هامشك المتاح غير كافٍ بعد الالتزامات والأهداف (${protectedClaims} ₪)، لذلك تحتاج مراجعة يدوية قبل اعتماد أي ميزانية.`
+        : totalChange < 0
+          ? `اقترحت ميزانية أضيق بـ ${Math.abs(totalChange)} ₪ ومقيدة بسقف الدخل المتاح ${targetEnvelope} ₪.`
+          : totalChange > 0
+            ? `اقترحت إعادة توزيع مع زيادة صافية ${totalChange} ₪، لكنها مقيدة بسقف الدخل المتاح ${targetEnvelope} ₪.`
+            : 'اقترحت إعادة توزيع متوازنة بدون تغيير كبير في إجمالي الميزانية، ومقيدة بالدخل المتاح.',
     month: (budgetOverview as any).month || safeNow.toISOString().slice(0, 7),
     envelope: {
       targetEnvelope,
       salary,
+      salaryFromProfile,
+      incomeFromCurrentSalaryCycle,
+      referenceMonthlyIncome,
+      incomeGuard,
       currentTotalBudget,
       currentTotalSpent,
       monthlyCommitments,
