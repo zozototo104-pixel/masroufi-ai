@@ -2377,6 +2377,45 @@ export default function App() {
             <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl -translate-x-10 -translate-y-10"></div>
           </div>
 
+          {treasurerProfile?.profile && (
+            <div className={`border rounded-3xl p-5 shadow-xl ${
+              treasurerProfile.completeness?.status === 'ready'
+                ? 'bg-emerald-950/20 border-emerald-500/30'
+                : treasurerProfile.completeness?.status === 'partial'
+                  ? 'bg-cyan-950/20 border-cyan-500/30'
+                  : 'bg-amber-950/20 border-amber-500/30'
+            }`}>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-cyan-300" />
+                  ملف أمين الصندوق
+                </h3>
+                <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
+                  اكتمال {Number(treasurerProfile.completeness?.score || 0).toLocaleString()}%
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                  <p className="text-[10px] text-slate-400 mb-1">الراتب</p>
+                  <p className="text-sm font-black text-white">{Number(treasurerProfile.profile.monthlySalary || 0).toLocaleString()} ₪</p>
+                </div>
+                <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                  <p className="text-[10px] text-slate-400 mb-1">يوم الراتب</p>
+                  <p className="text-sm font-black text-white">{treasurerProfile.profile.salaryDay || 'غير محدد'}</p>
+                </div>
+                <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
+                  <p className="text-[10px] text-slate-400 mb-1">الصرامة</p>
+                  <p className="text-sm font-black text-white">{treasurerProfile.profile.strictness === 'strict' ? 'صارم' : treasurerProfile.profile.strictness === 'gentle' ? 'لطيف' : 'متوازن'}</p>
+                </div>
+              </div>
+              {treasurerProfile.completeness?.nextPrompt && (
+                <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
+                  <p className="text-[11px] text-slate-300 leading-5">لزيادة دقة المستشار: {treasurerProfile.completeness.nextPrompt}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {advisorPulse?.pulse && (
             <div className={`border rounded-3xl p-5 shadow-xl ${
               ['critical', 'danger'].includes(String(advisorPulse.pulse.decision || ''))
