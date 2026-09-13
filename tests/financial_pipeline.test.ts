@@ -444,6 +444,14 @@ test('TREASURER-15: adaptive budget engine proposes and applies smarter category
   assert.ok(tools.includes('adaptiveBudgetCategoryKind'), 'adaptive budgets must classify protected/essential/discretionary categories');
   assert.ok(tools.includes('monthlyCommitmentAmount'), 'adaptive budgets must account for recurring commitments monthly');
   assert.ok(tools.includes('roundBudgetLimit'), 'adaptive budget limits must be rounded to usable amounts');
+  assert.ok(tools.includes('fitAdaptiveBudgetProposalsToIncomeEnvelope'), 'adaptive budgets must cap proposed totals to the real available income envelope');
+  assert.ok(tools.includes("queryTransactions({ period: 'current_salary_cycle'"), 'adaptive budgets must infer income from the current salary cycle when the treasurer profile salary is missing');
+  assert.ok(tools.includes('referenceMonthlyIncome'), 'adaptive budget output must expose the income used for the plan');
+  assert.ok(tools.includes('usingDefaultBudgetTemplate'), 'adaptive budgets must detect the default 7300 ILS template instead of treating it as real income');
+  assert.ok(tools.includes('لن أعتبر قالب 7300'), 'adaptive budget must not present the default 7300 ILS template as a valid recommendation when income is missing');
+  assert.ok(tools.includes('needs_income_profile'), 'adaptive budget must ask for income setup when no reliable income exists');
+  assert.ok(tools.includes('income_conflict'), 'adaptive budget must flag conflicts when obligations exceed income');
+  assert.ok(tools.includes('incomeSource'), 'adaptive budget result must disclose whether income came from profile, salary cycle, or is missing');
   assert.ok(tools.includes('CONFIRM_ADAPTIVE_BUDGET_APPLY'), 'adaptive budget apply must require explicit confirmation');
   assert.ok(tools.includes('adminDb.batch()'), 'adaptive budget apply must write category limits atomically');
   assert.ok(tools.includes('adaptiveBudgetPlanId'), 'applied category budgets must retain the source plan id');
