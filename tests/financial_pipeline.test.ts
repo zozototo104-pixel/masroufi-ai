@@ -176,7 +176,7 @@ test('TREASURER-04: advisor pulse endpoint exposes the safe spending summary', a
   assert.ok(server.includes('getSafeSpendingLimit({ period: \'salary_cycle\''), 'advisor pulse must be based on salary-cycle safe spending by default');
   assert.ok(server.includes('safeToSpendToday'), 'advisor pulse must expose today safe spend');
   assert.ok(server.includes('safeToSpendUntilSalaryCycleEnd'), 'advisor pulse must expose horizon safe spend');
-  assert.ok(server.includes('0.3.1- **حد الصرف الآمن**'), 'text and voice prompts must instruct Gemini to use the safe spending tool');
+  assert.ok((server.match(/0\.3\.1- \*\*حد الصرف الآمن\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to use the safe spending tool');
 });
 
 test('TREASURER-05: dashboard renders and refreshes advisor pulse', async () => {
