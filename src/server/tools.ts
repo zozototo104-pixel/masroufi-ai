@@ -6308,6 +6308,7 @@ const rawToolHandlers: Record<string, (args: any, userId: string, token: string)
   repair_account_balance_snapshot: repairAccountBalanceSnapshot,
   get_balance: getBalance,
   get_financial_decision_context: getFinancialDecisionContext,
+  get_safe_spending_limit: getSafeSpendingLimit,
   assess_purchase: assessPurchase,
   search_local_market: searchLocalMarket,
   get_market_directory: getMarketDirectory,
