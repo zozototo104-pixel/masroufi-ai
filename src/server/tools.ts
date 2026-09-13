@@ -7703,6 +7703,7 @@ export async function wipeAllUserData(userId: string, token: string) {
     verify('marketDirectory', userDoc.collection('marketDirectory')),
     verify('marketWatchlist', userDoc.collection('marketWatchlist')),
     verify('advisorAudits', userDoc.collection('advisorAudits')),
+    verify('advisorScenarios', userDoc.collection('advisorScenarios')),
     verify('salaryCycles', userDoc.collection('salaryCycles')),
     verify('salaryIncomeGuards', userDoc.collection('salaryIncomeGuards')),
     verify('incomeGuards', userDoc.collection('incomeGuards')),
