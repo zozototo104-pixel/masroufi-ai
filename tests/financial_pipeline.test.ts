@@ -571,6 +571,10 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'resolving or dismissing an alert must refresh the audit score shown on the dashboard');
   assert.ok(app.includes('window.confirm') && app.includes('تطبيق الخطة سيغيّر حدود الميزانيات'),
     'adaptive budget application must require visible user confirmation');
+  assert.ok(tools.includes('calculationTrace') && tools.includes('currentLiquid + expectedRoutineIncome - expectedRoutineSpend - dueCommitments'),
+    'scenario engine must expose its calculation trace so users can understand the judgment');
+  assert.ok(tools.includes("queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 500 }"),
+    'financial context must fall back to salary-cycle transaction reads when date-only queries miss localDay records');
   assert.ok(app.includes('الهامش بعده') && app.includes('المحاكاة لا تسجل عملية'),
     'scenario card must explain that it is a what-if simulation, not a transaction');
   assert.ok(app.includes('سقف الأسبوع') && app.includes('weeklyFinancialPlans[0].actions.slice(0, 3)'),
