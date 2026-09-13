@@ -3618,6 +3618,24 @@ ${activeSalaryCycleText}
     - اجعل ردودك الصوتية سريعة، واضحة، وموجزة (جملة أو جملتين فقط) لضمان سرعة الاستجابة اللحظية والتفاعل السلس.
 `;
 
+      const liveSystemInstruction = buildCompactGeminiLiveSystemInstruction({
+        aiName,
+        userName,
+        persona,
+        relationshipContext,
+        activeSalaryCycleText,
+        personalityDesc,
+      });
+      const liveFunctionDeclarations = buildGeminiLiveFunctionDeclarations();
+      console.log('[live] opening Gemini Live session', {
+        requestId,
+        model: 'gemini-3.1-flash-live-preview',
+        voice,
+        toolCount: liveFunctionDeclarations.length,
+        fullSystemInstructionChars: systemInstruction.length,
+        liveSystemInstructionChars: liveSystemInstruction.length,
+      });
+
       sessionPromise = ai.live.connect({
         model: "gemini-3.1-flash-live-preview",
         config: {
@@ -3627,11 +3645,11 @@ ${activeSalaryCycleText}
           // server, but then replies like "بال باي" never reach the deterministic
           // completion path and the model keeps asking cash/PalPay again.
           inputAudioTranscription: {},
-          systemInstruction,
+          systemInstruction: liveSystemInstruction,
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
           },
-          tools: [{ functionDeclarations: functionDeclarations as any }]
+          tools: [{ functionDeclarations: liveFunctionDeclarations as any }]
         },
         callbacks: {
           onmessage: async (message: LiveServerMessage) => {
