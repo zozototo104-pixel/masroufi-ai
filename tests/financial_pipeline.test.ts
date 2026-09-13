@@ -221,7 +221,7 @@ test('TREASURER-07: comprehensive financial audit is exposed to advisor and dash
   assert.ok(tools.includes('name: "run_financial_audit"'), 'comprehensive audit must be exposed to Gemini');
   assert.ok(tools.includes('FULL_FINANCIAL_AUDIT_REQUIRES_CONFIRMATION'), 'full-history audit must require explicit confirmation');
   assert.ok(tools.includes('advisorAudits'), 'saved audit results must be persisted under advisorAudits');
-  assert.ok(tools.includes('audit_debt_integrity'), 'audit findings must be able to create persistent advisor alerts');
+  assert.ok(tools.includes('category: `audit_${finding.category}`'), 'audit findings must be able to create persistent advisor alerts');
   assert.ok(server.includes('app.get("/api/advisor/audit", authMiddleware'), 'advisor audit summary must be available behind auth');
   assert.ok(server.includes('app.post("/api/advisor/audit", authMiddleware'), 'manual advisor audit run must be available behind auth');
   assert.ok((server.match(/0\.3\.3- \*\*المدقق المالي الشامل\*\*/g) || []).length >= 2, 'text and voice prompts must both instruct Gemini to use the comprehensive audit');
