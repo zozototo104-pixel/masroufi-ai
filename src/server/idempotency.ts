@@ -130,6 +130,22 @@ export async function runIdempotent(
   try {
     const result = await fn();
     const completedAt = Date.now();
+    if (resultIsSafeToRetryWithoutCaching(result)) {
+      // Missing-field/validation answers are part of an ongoing conversation, not
+      // a durable financial side effect. Caching them as "completed" makes the
+      // next clarification answer return the old "I need X" result instead of
+      // reaching add_transaction with the completed data.
+      try {
+        await ref.delete();
+      } catch (deleteErr: any) {
+        console.warn('[idempotency] non-durable validation result could not clear pending lock; returning live result anyway', {
+          operationIdPreview: operationId.slice(0, 80),
+          deleteError: deleteErr?.message,
+          reason: result?.reason,
+        });
+      }
+      return { kind: 'cache_miss', result };
+    }
     try {
       await ref.set(buildCompletedIdempotencyRecord(userId, operationId, result, completedAt), { merge: true });
     } catch (persistErr: any) {
