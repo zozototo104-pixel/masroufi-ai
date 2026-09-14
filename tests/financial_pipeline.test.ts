@@ -588,8 +588,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'commitments list must merge ordered and unordered reads so undated saved commitments are not hidden');
   assert.ok(tools.includes('hasValidDueDate') && tools.includes('daysRemaining !== null'),
     'undated commitments must not be marked as due today');
-  assert.ok(tools.includes("return Boolean(c.dueDate || c.recurring || c.recurringFrequency || c.recurringDetectionKey)"),
-    'commitment review must not hide real due commitments just because recurring=true is missing');
+  assert.ok(tools.includes('return Boolean(commitmentDueKey(c) || c.recurring || c.recurringFrequency || c.recurringDetectionKey)'),
+    'commitment review must not hide real due commitments just because recurring=true is missing and must normalize day-only due dates');
   assert.ok(tools.includes('dailyAverage <= 0') && tools.includes('لا أعتبر المبلغ المتبقي كله فائضاً'),
     'month-end forecast must not claim current remaining cash is a surplus when spending pace is missing');
   assert.ok(app.includes('notificationDismissTimersRef') && app.includes("const delay = type === 'error' ? 12000"),
