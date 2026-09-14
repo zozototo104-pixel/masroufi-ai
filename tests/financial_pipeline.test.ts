@@ -586,6 +586,12 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'recurring detection must consider description/note fields, not only merchant or notes');
   assert.ok(tools.includes('orderedSnapshot') && tools.includes('unorderedSnapshot') && tools.includes('orderedDocsRead'),
     'commitments list must merge ordered and unordered reads so undated saved commitments are not hidden');
+  assert.ok(tools.includes('commitmentDayOfMonthFromValue') && tools.includes('nextMonthlyCommitmentDateKey') && tools.includes('dueDay: { type: "number"'),
+    'commitment creation must treat day-only due dates like "1" as monthly due days, not ancient JavaScript dates');
+  assert.ok(tools.includes('dueDateWasNormalized') && tools.includes('missing_due_date'),
+    'commitments API must return normalized due dates for old records and expose missing-date status');
+  assert.ok(app.includes("setCommitments(prev => prev.filter((commitment: any) => commitment.id !== id))") && app.includes('commitment-delete-failed'),
+    'commitment delete button must update the visible list immediately and report deletion failures');
   assert.ok(tools.includes('hasValidDueDate') && tools.includes('daysRemaining !== null'),
     'undated commitments must not be marked as due today');
   assert.ok(tools.includes('return Boolean(commitmentDueKey(c) || c.recurring || c.recurringFrequency || c.recurringDetectionKey)'),
