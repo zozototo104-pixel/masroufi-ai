@@ -5223,7 +5223,7 @@ export default function App() {
                     <div className={`p-2 rounded-xl text-xs font-bold ${
                       c.isOverdue ? 'bg-rose-500/20 text-rose-400' : c.isDueSoon ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-400'
                     }`}>
-                      {c.daysRemaining !== undefined && c.daysRemaining < 0 ? `متأخر ${Math.abs(c.daysRemaining)} يوم` : c.daysRemaining === 0 ? 'اليوم' : `${c.daysRemaining} يوم متبقي`}
+                      {typeof c.daysRemaining === 'number' ? (c.daysRemaining < 0 ? `متأخر ${Math.abs(c.daysRemaining)} يوم` : c.daysRemaining === 0 ? 'اليوم' : `${c.daysRemaining} يوم متبقي`) : 'بدون تاريخ'}
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-white flex items-center gap-2">
