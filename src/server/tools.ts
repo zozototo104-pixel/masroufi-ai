@@ -6367,13 +6367,20 @@ export async function runFinancialAudit(args: any, userId: string, token: string
   }
 
   const monthEndForecast = await forecastMonthEndFinancialPosition({ horizon: 'salary_cycle', transactionLimit: Math.min(limit, 800) }, userId, token).catch((e: any) => ({ success: false, status: 'unknown', error: e?.message || String(e) }));
-  if (['month_end_deficit', 'month_end_pressure'].includes(String((monthEndForecast as any).status || ''))) {
+  const monthEndStatus = String((monthEndForecast as any).status || '');
+  const monthEndForecastPayload = (monthEndForecast as any).forecast || {};
+  const hardMonthEndRecovery = roundMoney(parsePositiveFinancialAmount(monthEndForecastPayload.requiredRecovery));
+  const monthEndSpendingPressure = roundMoney(parsePositiveFinancialAmount(monthEndForecastPayload.spendingReductionNeeded || monthEndForecastPayload.projectedGap));
+  if (['month_end_deficit', 'month_end_pressure'].includes(monthEndStatus)) {
+    const isHardMonthEndDeficit = monthEndStatus === 'month_end_deficit' && hardMonthEndRecovery > 0;
     addAuditFinding(findings, {
-      severity: (monthEndForecast as any).status === 'month_end_deficit' ? 'critical' : 'warning',
-      category: 'month_end_forecast',
-      title: 'توقع نهاية الشهر يحتاج انتباه',
-      message: (monthEndForecast as any).message || 'توقع نهاية الشهر يشير إلى ضغط أو عجز محتمل.',
-      evidence: { forecast: (monthEndForecast as any).forecast, correctionPlan: (monthEndForecast as any).correctionPlan, confidence: (monthEndForecast as any).confidence },
+      severity: isHardMonthEndDeficit ? 'critical' : 'warning',
+      category: isHardMonthEndDeficit ? 'month_end_deficit' : 'month_end_spending_pressure',
+      title: isHardMonthEndDeficit ? 'عجز فعلي متوقع نهاية الفترة' : 'ضغط صرف متوقع نهاية الفترة',
+      message: isHardMonthEndDeficit
+        ? ((monthEndForecast as any).message || `يوجد عجز فعلي متوقع بقيمة ${hardMonthEndRecovery} ₪.`)
+        : `لا يوجد عجز فعلي مؤكد، لكن استمرار نمط الصرف قد يحتاج تخفيض صرف بنحو ${monthEndSpendingPressure} ₪ حتى نهاية الفترة.`,
+      evidence: { forecast: monthEndForecastPayload, correctionPlan: (monthEndForecast as any).correctionPlan, confidence: (monthEndForecast as any).confidence },
       relatedIds: [],
       recommendedActions: ((monthEndForecast as any).correctionPlan?.actions || []).slice(0, 5).map((a: any) => a.message || a.title).filter(Boolean),
     });
