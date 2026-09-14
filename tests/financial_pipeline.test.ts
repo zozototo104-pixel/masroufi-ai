@@ -572,6 +572,10 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'habit analysis must fall back when date-sorted queries miss localDay-only transactions');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_RECURRING_DETECTION'),
     'recurring detection must fall back when date-sorted queries miss localDay-only transactions');
+  assert.ok(tools.includes('service|phone_bill') && tools.includes('service|internet_bill') && tools.includes('service|family_support_mother'),
+    'recurring detection must group local phone, internet, and family-support wording semantically');
+  assert.ok(tools.includes('tx.description') && tools.includes('tx.note'),
+    'recurring detection must consider description/note fields, not only merchant or notes');
   assert.ok(tools.includes("return Boolean(c.dueDate || c.recurring || c.recurringFrequency || c.recurringDetectionKey)"),
     'commitment review must not hide real due commitments just because recurring=true is missing');
   assert.ok(tools.includes('dailyAverage <= 0') && tools.includes('لا أعتبر المبلغ المتبقي كله فائضاً'),
