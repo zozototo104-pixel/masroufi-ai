@@ -1535,7 +1535,7 @@ async function startServer() {
   let cachedCloudHealth: any = null;
   app.get("/api/cloud-health", async (req, res) => {
     const nowMs = Date.now();
-    const cacheTtlMs = cachedCloudHealth?.quotaExhausted ? 10 * 60_000 : 60_000;
+    const cacheTtlMs = cachedCloudHealth?.quotaExhausted ? 10 * 60_000 : 5 * 60_000;
     if (cachedCloudHealth && nowMs - cachedCloudHealth.cachedAtMs < cacheTtlMs) {
       return res.json({ ...cachedCloudHealth.body, cached: true, cacheTtlMs });
     }
