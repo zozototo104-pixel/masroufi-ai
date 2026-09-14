@@ -2661,16 +2661,21 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
   const hardDeficitToProtected = liquidTotalForPulse > 0 && protectedTotalForPulse > 0
     ? Math.max(0, protectedTotalForPulse - liquidTotalForPulse)
     : 0;
-  const rawRecoveryCandidates = [
+  const hardRecoveryCandidates = [
     parsePositiveFinancialAmount(safeSpending.deficitToProtected),
-    parsePositiveFinancialAmount(safeSpending.cashFlowGap),
     parsePositiveFinancialAmount((monthEndForecast as any).forecast?.requiredRecovery),
     parsePositiveFinancialAmount((weeklyPlan as any).summary?.requiredRecovery),
   ];
   // A configured critical floor/reserve (مثلاً 200 ₪) is not itself a recovery
   // amount when current liquidity is already above it. Recovery means an actual
   // shortage below protected obligations, not "keep 200 untouched".
-  const requiredRecovery = roundMoney(Math.max(0, hardDeficitToProtected, ...rawRecoveryCandidates.filter((amount: number) => amount > 0 && amount > reserveTargetForPulse)));
+  const requiredRecovery = roundMoney(Math.max(0, hardDeficitToProtected, ...hardRecoveryCandidates));
+  const spendingPressureGap = roundMoney(Math.max(
+    0,
+    parsePositiveFinancialAmount(safeSpending.cashFlowGap) - requiredRecovery,
+    parsePositiveFinancialAmount((monthEndForecast as any).forecast?.spendingReductionNeeded),
+    parsePositiveFinancialAmount((weeklyPlan as any).summary?.spendingPressureGap)
+  ));
   const recurringDueSoon = Array.isArray((recurringReview as any).dueSoon) ? (recurringReview as any).dueSoon : [];
   const recurringOverdue = Array.isArray((recurringReview as any).overdue) ? (recurringReview as any).overdue : [];
   const habitWarnings = Array.isArray((habits as any).insights) ? (habits as any).insights.filter((i: any) => i.severity === 'warning') : [];
