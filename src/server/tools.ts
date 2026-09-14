@@ -665,9 +665,10 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   const activeCommitments = (ctx.commitments || []).filter((c: any) => {
     const status = String(c.status || 'pending').toLowerCase();
     if (status === 'paid' || status === 'cancelled') return false;
-    if (!c.dueDate) return false;
-    const dueDate = auditAsDate(c.dueDate);
-    const dueWithinHorizon = dueDate ? dueDate.toISOString() <= protectionEndIso : String(c.dueDate || '') <= protectionEndIso;
+    const normalizedDueDate = normalizeCommitmentDueDateValue(c.dueDate ?? c.dueDayOfMonth ?? c.dueDay, new Date(), null);
+    if (!normalizedDueDate) return false;
+    const dueDate = parseDateLike(normalizedDueDate) || auditAsDate(normalizedDueDate);
+    const dueWithinHorizon = dueDate ? dueDate.toISOString() <= `${protectionEndIso}T23:59:59.999Z` : normalizedDueDate <= protectionEndIso;
     if (!dueWithinHorizon) return false;
     const implicitPayment = findImplicitCommitmentPayment(c, cycleTransactions, horizon.salaryCycle.startIso, protectionEndIso);
     if (implicitPayment) {
