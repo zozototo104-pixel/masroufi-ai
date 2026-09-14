@@ -564,6 +564,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'safe spending must not reserve commitments that appear already paid by matching current-cycle expenses');
   assert.ok(tools.includes('transactionAnalysisDate') && tools.includes('tx?.localDay') && tools.includes('tx?.dateKey'),
     'habit and recurring engines must understand local transaction date fields, not only date');
+  assert.ok(tools.includes('const rawValue = tx?.date || tx?.localDay || tx?.localDate || tx?.dateKey'),
+    'salary-cycle date keys must prefer local transaction day fields before createdAt');
   assert.ok(tools.includes('insufficient_data') && tools.includes('لا توجد مصروفات مقروءة في هذه الفترة'),
     'habit analysis must not claim stability when no current-period expenses are readable');
   assert.ok(tools.includes("queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit }") && tools.includes("queryTransactions({ period: 'previous_salary_cycle', includeTransactions: true, limit }"),
