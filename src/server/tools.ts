@@ -2795,7 +2795,7 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
     recommendations: sortedTasks.slice(0, 5).map((t: any) => t.message || t.title).filter(Boolean),
     profileCompleteness: (profileResult as any).completeness,
     sources: {
-      safeSpending: { decision: (safe as any).decision, partial: Boolean((safe as any).partial) },
+      safeSpending: { success: (safe as any).success !== false, decision: (safe as any).decision, partial: Boolean((safe as any).partial), error: (safe as any).error || null },
       habits: { status: (habits as any).status, score: (habits as any).score, partial: Boolean((habits as any).partial) },
       weeklyPlan: { status: (weeklyPlan as any).status, actionCount: weeklyActions.length, partial: Boolean((weeklyPlan as any).partial) },
       monthEndForecast: { status: (monthEndForecast as any).status, confidence: (monthEndForecast as any).confidence, partial: Boolean((monthEndForecast as any).partial) },
