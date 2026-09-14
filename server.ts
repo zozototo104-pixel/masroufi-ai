@@ -2053,11 +2053,42 @@ For Arabic/RTL tables, inspect the visual date column on the far right or far le
 
   app.get("/api/advisor/audit", authMiddleware, async (req: any, res: any) => {
     try {
-      const { runFinancialAudit } = await import('./src/server/tools');
-      const token = req.headers.authorization.split('Bearer ')[1];
-      res.json(await runFinancialAudit({ scope: 'salary_cycle', findingLimit: 8, ...(req.query || {}) }, req.user.uid, token));
+      // GET must be a cheap saved-result read. Running the full audit here made
+      // every dashboard load scan transactions/alerts/commitments and could burn
+      // Firestore quota. POST /api/advisor/audit is the explicit heavy action.
+      const limit = Math.max(1, Math.min(10, Number(req.query?.limit || 1)));
+      const snap = await adminDb.collection('users').doc(req.user.uid).collection('advisorAudits')
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
+      const audits = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      const latest = audits[0];
+      if (!latest) {
+        return res.json({
+          success: true,
+          score: null,
+          status: 'not_run',
+          message: 'لم يتم تشغيل تدقيق مالي محفوظ بعد. اضغط تشغيل تدقيق عند الحاجة.',
+          findings: [],
+          counts: { total: 0, bySeverity: { critical: 0, warning: 0, info: 0 } },
+          fromSavedAudit: true,
+          audits: [],
+          limit,
+          partial: false,
+          readEfficiency: { advisorAuditDocsRead: 0, limit }
+        });
+      }
+      res.json({
+        success: true,
+        ...latest,
+        fromSavedAudit: true,
+        audits,
+        limit,
+        partial: Boolean((snap as any).partial || audits.length >= limit),
+        readEfficiency: { advisorAuditDocsRead: snap.docs.length, limit }
+      });
     } catch (e: any) {
-      console.error('Advisor audit error:', e.message);
+      console.error('Advisor audit read error:', e.message);
       res.status(500).json({ error: e.message });
     }
   });
