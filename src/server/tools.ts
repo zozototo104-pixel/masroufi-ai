@@ -1605,6 +1605,20 @@ export async function generateWeeklyFinancialRecommendations(args: any, userId: 
   const requiredRecovery = roundMoney(Math.max(0, hardWeeklyDeficit, ...hardRecoveryCandidates));
   const dailyCap = roundMoney(safeToday > 0 ? safeToday : Math.max(0, safeThisWeek / 7));
 
+  if (spendingPressureGap > 0 && requiredRecovery === 0) {
+    addWeeklyRecommendation(actions, {
+      id: 'reduce_expected_spending_pressure',
+      type: 'reduce',
+      priority: 'high',
+      severity: 'warning',
+      title: 'خفّض ضغط الصرف المتوقع',
+      message: `إذا استمر نمط الصرف الحالي قد تحتاج تخفيض حوالي ${spendingPressureGap} ₪ خلال الفترة، وهذا ليس تعويضاً نقدياً بل ضبط صرف.`,
+      suggestedAmount: spendingPressureGap,
+      source: 'safe_spending_limit',
+      evidence: { spendingPressureGap, safeSpending, safeBreakdown },
+    });
+  }
+
   if (['critical', 'danger'].includes(safeDecision) || requiredRecovery > 0) {
     addWeeklyRecommendation(actions, {
       id: 'stop_discretionary_until_recovered',
