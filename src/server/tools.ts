@@ -6251,11 +6251,12 @@ export async function runFinancialAudit(args: any, userId: string, token: string
   const nowKey = safeNow.toISOString().slice(0, 10);
   const pendingCommitments = commitments.filter((c: any) => !['paid', 'cancelled'].includes(String(c.status || 'pending').toLowerCase()));
   const overdueCommitments = pendingCommitments.filter((c: any) => {
-    const dueKey = auditDateKey(c.dueDate);
+    const dueKey = normalizeCommitmentDueDateValue(c.dueDate ?? c.dueDayOfMonth ?? c.dueDay, safeNow, null) || auditDateKey(c.dueDate);
     return /^\d{4}-\d{2}-\d{2}$/.test(dueKey) && dueKey < nowKey;
   });
   const dueSoonCommitments = pendingCommitments.filter((c: any) => {
-    const due = auditAsDate(c.dueDate);
+    const dueKey = normalizeCommitmentDueDateValue(c.dueDate ?? c.dueDayOfMonth ?? c.dueDay, safeNow, null);
+    const due = dueKey ? (parseDateLike(dueKey) || auditAsDate(dueKey)) : null;
     if (!due) return false;
     const days = Math.ceil((due.getTime() - safeNow.getTime()) / 86400000);
     return days >= 0 && days <= 7;
