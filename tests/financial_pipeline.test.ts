@@ -582,12 +582,12 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'advisor alert action must clarify that resolving an alert does not auto-fix ledger data');
   assert.ok(app.includes('تفصيل السقف الآمن') && app.includes('متوسط الصرف للتوقع والتحذير فقط وليس مبلغًا محجوزًا'),
     'treasurer pulse card must explain why cash is reserved and that spending pace is not a hidden reserve');
-  assert.ok(tools.includes('hardDeficitToProtected') && tools.includes('amount > 0 && amount > reserveTargetForPulse'),
-    'daily pulse must not treat an explicit critical floor like 200 ILS as a recovery amount while liquidity is above it');
-  assert.ok(tools.includes('hardWeeklyDeficit') && tools.includes('reserveTargetForWeekly'),
-    'weekly plan must not create recovery tasks from the critical floor alone');
-  assert.ok(tools.includes('hardForecastDeficit') && tools.includes('forecastRecoveryCandidates'),
-    'month-end forecast must distinguish real projected gaps from the protected critical floor');
+  assert.ok(tools.includes('hardDeficitToProtected') && tools.includes('spendingPressureGap') && tools.includes('daily_reduce_spending_pressure'),
+    'daily pulse must separate hard recovery from expected-spending pressure');
+  assert.ok(tools.includes('hardWeeklyDeficit') && tools.includes('reduce_expected_spending_pressure'),
+    'weekly plan must show spending pressure as watch/reduce, not recovery');
+  assert.ok(tools.includes('hardForecastDeficit') && tools.includes('spendingReductionNeeded'),
+    'month-end forecast must distinguish real projected gaps from the protected critical floor and spending pressure');
   assert.ok(tools.includes('safeCalculationOk') && tools.includes('daily_safe_spending_unavailable'),
     'daily pulse must not display a zero cap as a real result when safe-spending calculation fails');
   assert.ok(app.includes("fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6'") && app.includes("idbSet('lkgs_advisor_audit'"),
