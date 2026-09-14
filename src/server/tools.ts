@@ -7813,12 +7813,13 @@ export async function getCommitments(args: any, userId: string, token: string) {
   const now = new Date();
   const enriched = commitments.map((c: any) => {
     const due = auditAsDate(c.dueDate) || new Date(c.dueDate);
-    const diffMs = Number.isFinite(due.getTime()) ? due.getTime() - now.getTime() : 0;
-    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const hasValidDueDate = Number.isFinite(due.getTime());
+    const diffMs = hasValidDueDate ? due.getTime() - now.getTime() : 0;
+    const daysRemaining = hasValidDueDate ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : null;
     // V6: paid/cancelled commitments keep their explicit status — don't override with isOverdue.
     const explicitStatus = c.status && ['pending', 'paid', 'cancelled'].includes(c.status) ? c.status : null;
-    const isDueSoon = explicitStatus === 'pending' && daysRemaining >= 0 && daysRemaining <= 3;
-    const isOverdue = explicitStatus === 'pending' && daysRemaining < 0;
+    const isDueSoon = explicitStatus === 'pending' && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 3;
+    const isOverdue = explicitStatus === 'pending' && daysRemaining !== null && daysRemaining < 0;
     return {
       ...c,
       daysRemaining,
