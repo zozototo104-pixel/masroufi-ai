@@ -2691,11 +2691,23 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
       type: 'recover_gap',
       priority: 'critical',
       severity: 'critical',
-      title: 'لا تصرف كماليات قبل تعويض الفجوة',
-      message: `تحتاج تعويض ${requiredRecovery} ₪ تقريباً لحماية الالتزامات والاحتياطي قبل نهاية الفترة.`,
+      title: 'لا تصرف كماليات قبل تغطية العجز',
+      message: `تحتاج تعويض فعلي ${requiredRecovery} ₪ تقريباً لأن السيولة أقل من الالتزامات/الحد الحرج/الأهداف.`,
       suggestedAmount: requiredRecovery,
       source: 'safe_spending_and_forecast',
       evidence: { safeDecision: (safe as any).decision, forecastStatus: (monthEndForecast as any).status },
+    });
+  } else if (spendingPressureGap > 0) {
+    addDailyPulseTask(tasks, {
+      id: 'daily_reduce_spending_pressure',
+      type: 'reduce_spending_pressure',
+      priority: 'high',
+      severity: 'warning',
+      title: 'خفّض الصرف المتوقع',
+      message: `يوجد ضغط صرف متوقع ${spendingPressureGap} ₪ إذا استمر نفس النمط. هذا ليس تعويضاً نقدياً؛ هو مقدار تخفيض مطلوب في الصرف.`,
+      suggestedAmount: spendingPressureGap,
+      source: 'safe_spending_and_forecast',
+      evidence: { spendingPressureGap, safeDecision: (safe as any).decision, forecastStatus: (monthEndForecast as any).status },
     });
   }
   if (!safeCalculationOk) {
