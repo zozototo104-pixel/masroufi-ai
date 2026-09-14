@@ -752,7 +752,7 @@ export default function App() {
       setBalance(balances.total);
       setReportsList(Array.isArray(cachedRep) ? cachedRep : []);
       setBudgetsData(cachedBudgets || { budgets: [], totalBudget: 0, totalSpent: 0, partial: true, quotaExhausted: true });
-      setCommitments(Array.isArray(cachedCommitments) ? cachedCommitments : []);
+      setCommitments(normalizeCommitmentsForDisplay(Array.isArray(cachedCommitments) ? cachedCommitments : []));
       setSavingsGoals(Array.isArray(cachedSavings) ? cachedSavings : []);
       if (cachedAdvisorPulse) setAdvisorPulse(cachedAdvisorPulse);
       if (cachedTreasurerProfile) setTreasurerProfile(cachedTreasurerProfile);
