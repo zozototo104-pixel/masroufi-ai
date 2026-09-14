@@ -2823,6 +2823,7 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
       safeToSpendToday,
       safeToSpendThisWeek,
       requiredRecovery,
+      spendingPressureGap,
       monthEndStatus: (monthEndForecast as any).status,
       monthEndFreeCash: (monthEndForecast as any).forecast?.projectedFreeCashAfterReserve,
       weeklyStatus: (weeklyPlan as any).status,
