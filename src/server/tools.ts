@@ -2774,8 +2774,9 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
     mode: pulseMode,
     status,
     score,
-    headline: buildDailyPulseHeadline(status, { safeToSpendToday }),
+    headline: buildDailyPulseHeadline(status, { safeCalculationOk, safeToSpendToday }),
     summary: {
+      safeCalculationOk,
       safeToSpendToday,
       safeToSpendThisWeek,
       requiredRecovery,
