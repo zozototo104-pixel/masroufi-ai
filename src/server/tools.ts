@@ -6534,6 +6534,20 @@ export async function runFinancialAudit(args: any, userId: string, token: string
   };
 }
 
+export async function getLatestFinancialAudit(args: any, userId: string, token: string) {
+  const adminDb = getDb(token);
+  const limit = Math.max(1, Math.min(10, Number(args?.limit) || 1));
+  const snap = await adminDb.collection('users').doc(userId).collection('advisorAudits')
+    .orderBy('createdAt', 'desc')
+    .limit(limit)
+    .get();
+  const audits = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const latest = audits[0] || null;
+  return latest
+    ? { success: true, ...latest, fromSavedAudit: true, audits, count: audits.length, limit, partial: Boolean((snap as any).partial || audits.length >= limit), readEfficiency: { advisorAuditDocsRead: snap.docs.length, limit } }
+    : { success: true, score: null, status: 'not_run', message: 'لم يتم تشغيل تدقيق مالي محفوظ بعد. اضغط تشغيل تدقيق عند الحاجة.', findings: [], counts: { total: 0, bySeverity: { critical: 0, warning: 0, info: 0 } }, fromSavedAudit: true, audits: [], count: 0, limit, partial: false, readEfficiency: { advisorAuditDocsRead: 0, limit } };
+}
+
 export async function updateTransaction(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   console.log("TOOL CALL: updateTransaction", args);
