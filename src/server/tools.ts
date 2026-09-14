@@ -1501,6 +1501,7 @@ export async function analyzeFinancialHabits(args: any, userId: string, token: s
     recommendations: insights.slice(0, 3).flatMap((i: any) => i.recommendations || []).slice(0, 5),
     profileCompleteness: profileResult.completeness,
     partial,
+    readDiagnostics,
     readEfficiency: { transactionDocsRead: transactions.length, transactionLimit: limit, readSource },
   };
 
