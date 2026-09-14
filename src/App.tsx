@@ -2053,20 +2053,38 @@ export default function App() {
     }
   };
 
-  const handleDeleteCommitment = async (id: string) => {
-    if (!idToken) return;
+  const handleDeleteCommitment = async (id: string, clientKey?: string) => {
+    const target = String(id || clientKey || '');
+    if (!target) {
+      setNotifications(prev => [...prev, { id: `commitment-delete-missing-${Date.now()}`, type: 'error', message: 'تعذر حذف الالتزام: لا يوجد معرف صالح.' }]);
+      return;
+    }
+    const matchesTarget = (commitment: any) => String(commitment.id || '') === target || String(commitment._clientKey || '') === target || (clientKey && String(commitment._clientKey || '') === String(clientKey));
+    const previousCommitments = commitments;
+    const nextCommitments = previousCommitments.filter((commitment: any) => !matchesTarget(commitment));
+    setCommitments(nextCommitments);
+    await idbSet('lkgs_commitments', nextCommitments);
+
+    if (!idToken || !id) {
+      setNotifications(prev => [...prev, { id: `commitment-deleted-local-${Date.now()}`, type: 'success', message: 'تم حذف الالتزام من القائمة المحلية.' }]);
+      return;
+    }
     try {
-      const res = await fetch(`/api/commitments/${id}`, {
+      const res = await fetch(`/api/commitments/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${idToken}` }
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'تعذر حذف الالتزام');
-      setCommitments(prev => prev.filter((commitment: any) => commitment.id !== id));
+      const notFound = data?.error && String(data.error).includes('غير موجود');
+      if (!res.ok || data?.success === false) {
+        if (!notFound) throw new Error(data?.error || data?.message || 'تعذر حذف الالتزام');
+      }
       setNotifications(prev => [...prev, { id: `commitment-deleted-${Date.now()}`, type: 'success', message: 'تم حذف الالتزام.' }]);
       window.dispatchEvent(new CustomEvent('masrofi:refresh'));
     } catch (e: any) {
       console.error("Failed to delete commitment", e);
+      setCommitments(previousCommitments);
+      await idbSet('lkgs_commitments', previousCommitments);
       setNotifications(prev => [...prev, { id: `commitment-delete-failed-${Date.now()}`, type: 'error', message: e?.message || 'تعذر حذف الالتزام.' }]);
     }
   };
