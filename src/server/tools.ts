@@ -1462,6 +1462,16 @@ export async function analyzeFinancialHabits(args: any, userId: string, token: s
   const profile = normalizeTreasurerProfile(profileResult.profile || {});
   const current = summarizeHabitTransactions(transactions, window.start, window.end);
   const previous = summarizeHabitTransactions(transactions, window.previousStart, window.previousEnd);
+  const readDiagnostics = {
+    loadedTransactions: transactions.length,
+    readableDateTransactions: transactions.filter((tx: any) => Boolean(transactionAnalysisDate(tx))).length,
+    expenseLikeTransactions: transactions.filter((tx: any) => habitTransactionKind(tx) === 'expense').length,
+    currentWindowExpenseCount: current.expenseCount,
+    previousWindowExpenseCount: previous.expenseCount,
+    windowStartIso: window.start.toISOString(),
+    windowEndIso: window.end.toISOString(),
+    readSource,
+  };
   const insights = buildFinancialHabitInsights(current, previous, profile, args || {}).slice(0, Math.max(1, Math.min(20, Number(args?.insightLimit) || 8)));
   const warningCount = insights.filter((i: any) => i.severity === 'warning').length;
   const infoPatternCount = insights.filter((i: any) => i.severity === 'info' && i.type !== 'stable').length;
