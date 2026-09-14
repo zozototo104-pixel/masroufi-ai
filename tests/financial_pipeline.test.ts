@@ -590,8 +590,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'commitment creation must treat day-only due dates like "1" as monthly due days, not ancient JavaScript dates');
   assert.ok(tools.includes('dueDateWasNormalized') && tools.includes('missing_due_date'),
     'commitments API must return normalized due dates for old records and expose missing-date status');
-  assert.ok(app.includes("setCommitments(prev => prev.filter((commitment: any) => commitment.id !== id))") && app.includes('commitment-delete-failed'),
-    'commitment delete button must update the visible list immediately and report deletion failures');
+  assert.ok(app.includes('matchesTarget') && app.includes("await idbSet('lkgs_commitments', nextCommitments)") && app.includes('commitment-delete-failed'),
+    'commitment delete button must update the visible list/cache immediately and report deletion failures');
   assert.ok(tools.includes('hasValidDueDate') && tools.includes('daysRemaining !== null'),
     'undated commitments must not be marked as due today');
   assert.ok(tools.includes('return Boolean(commitmentDueKey(c) || c.recurring || c.recurringFrequency || c.recurringDetectionKey)'),
