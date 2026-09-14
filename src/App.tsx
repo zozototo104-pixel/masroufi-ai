@@ -1244,6 +1244,10 @@ export default function App() {
       if (refreshDebounceRef.current) window.clearTimeout(refreshDebounceRef.current);
       refreshDebounceRef.current = window.setTimeout(async () => {
         refreshDebounceRef.current = null;
+        if (scope === 'all') {
+          await fetchData();
+          return;
+        }
         const refreshActiveSalaryCycle = async (headers: Record<string, string>) => {
           const activeCycleId = affectedCycleIds[0] || selectedVaultCycleIdRef.current;
           if (!activeCycleId) return;
