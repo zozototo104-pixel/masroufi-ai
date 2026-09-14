@@ -1802,6 +1802,7 @@ export async function generateWeeklyFinancialRecommendations(args: any, userId: 
     safeToday,
     dailyCap,
     requiredRecovery,
+    spendingPressureGap,
     totalPotentialSavings,
     suggestedGoalTransfer,
     suggestedDebtPayment,
