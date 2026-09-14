@@ -7871,10 +7871,13 @@ export async function getCommitments(args: any, userId: string, token: string) {
     const isOverdue = explicitStatus === 'pending' && daysRemaining !== null && daysRemaining < 0;
     return {
       ...c,
+      dueDate: normalizedDueDate || c.dueDate || null,
+      dueDayOfMonth,
       daysRemaining,
       isDueSoon,
       isOverdue,
-      status: explicitStatus || (isOverdue ? 'overdue' : isDueSoon ? 'due_soon' : 'upcoming')
+      dueDateWasNormalized: Boolean(normalizedDueDate && normalizedDueDate !== c.dueDate),
+      status: explicitStatus || (isOverdue ? 'overdue' : isDueSoon ? 'due_soon' : hasValidDueDate ? 'upcoming' : 'missing_due_date')
     };
   });
 
