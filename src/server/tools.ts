@@ -2155,6 +2155,7 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
     initialBudgetSetup: !hasExplicitBudgets,
     defaultBudgetTemplateTotal,
     protectedClaims,
+    spendingPressureGap,
     salaryEnvelope,
     capApplied: incomeFit.capApplied,
     preCapTotal: incomeFit.preCapTotal,
