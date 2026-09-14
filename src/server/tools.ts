@@ -2626,8 +2626,9 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
   const profile = normalizeTreasurerProfile((profileResult as any).profile || {});
   const safeSpending = (safe as any).safeSpending || {};
   const safeBreakdown = (safe as any).breakdown || {};
-  const safeToSpendToday = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendToday));
-  const safeToSpendThisWeek = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendThisWeek));
+  const safeCalculationOk = (safe as any).success !== false && Object.prototype.hasOwnProperty.call(safeSpending, 'safeToSpendToday');
+  const safeToSpendToday = safeCalculationOk ? roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendToday)) : 0;
+  const safeToSpendThisWeek = safeCalculationOk ? roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendThisWeek)) : 0;
   const liquidTotalForPulse = roundMoney(parsePositiveFinancialAmount(safeBreakdown.liquidTotal));
   const protectedTotalForPulse = roundMoney(parsePositiveFinancialAmount(safeBreakdown.protectedTotal));
   const reserveTargetForPulse = roundMoney(parsePositiveFinancialAmount(safeBreakdown.reserveTarget));
