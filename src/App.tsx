@@ -3314,6 +3314,14 @@ export default function App() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-200 leading-6 mb-3">{financialHabitReports[0]?.message}</p>
+                {financialHabitReports[0]?.status === 'insufficient_data' && financialHabitReports[0]?.readDiagnostics && (
+                  <div className="bg-black/20 border border-amber-500/20 rounded-2xl p-3 mb-3">
+                    <p className="text-[11px] font-bold text-amber-100 mb-1">تشخيص القراءة</p>
+                    <p className="text-[10px] text-slate-300 leading-5">
+                      تم تحميل {Number(financialHabitReports[0].readDiagnostics.loadedTransactions || 0).toLocaleString()} عملية، منها {Number(financialHabitReports[0].readDiagnostics.expenseLikeTransactions || 0).toLocaleString()} مصروف محتمل، وداخل نافذة التحليل {Number(financialHabitReports[0].readDiagnostics.currentWindowExpenseCount || 0).toLocaleString()} مصروف.
+                    </p>
+                  </div>
+                )}
                 {financialHabitReports[0]?.insights?.[0] && (
                   <div className="bg-black/20 border border-white/10 rounded-2xl p-3">
                     <p className="text-[11px] font-bold text-lime-100 mb-1">{financialHabitReports[0].insights[0].title}</p>
