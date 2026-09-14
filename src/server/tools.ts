@@ -7710,10 +7710,32 @@ function inferRecurringFrequencyFromIntervals(intervals: number[]) {
 }
 
 function recurringCandidateKey(tx: any) {
-  const merchant = normalizeArabicText(String(tx.merchant || tx.beneficiary || '')).toLowerCase();
   const category = normalizeArabicText(String(tx.category || '')).toLowerCase();
   const subcategory = normalizeArabicText(String(tx.subcategory || '')).toLowerCase();
-  const notes = normalizeArabicText(String(tx.purchaseItem || tx.notes || '')).toLowerCase().replace(/\d+/g, '').slice(0, 40);
+  const fullText = normalizeArabicText([
+    tx.title,
+    tx.name,
+    tx.category,
+    tx.subcategory,
+    tx.merchant,
+    tx.beneficiary,
+    tx.purchaseItem,
+    tx.description,
+    tx.note,
+    tx.notes,
+  ].filter(Boolean).join(' ')).toLowerCase();
+
+  // Group common local bills by semantic meaning, not exact wording. Users may
+  // record the same obligation as "جوال", "فاتورة جوال", "هاتف", or provider
+  // names across different categories.
+  if (/جوال|هاتف|موبايل|اتصال|اتصالات|jawwal|ooredoo|mobile|phone/.test(fullText)) return 'service|phone_bill';
+  if (/انترنت|إنترنت|نت|راوتر|فايبر|adsl|fiber|internet|wifi|wi-fi/.test(fullText)) return 'service|internet_bill';
+  if (/امي|أمي|والدتي|مصروف امي|مصروف أمي|العيله|العائلة|اهلي|أهلي/.test(fullText)) return 'service|family_support_mother';
+  if (/كهربا|كهرباء|ماء|مياه|بلدية|غاز/.test(fullText)) return 'service|utility_bill';
+  if (/ايجار|إيجار|اجار|أجار|rent/.test(fullText)) return 'service|rent';
+
+  const merchant = normalizeArabicText(String(tx.merchant || tx.beneficiary || '')).toLowerCase();
+  const notes = normalizeArabicText(String(tx.purchaseItem || tx.description || tx.note || tx.notes || '')).toLowerCase().replace(/\d+/g, '').slice(0, 60);
   const anchor = merchant || notes || subcategory || category;
   if (!anchor) return '';
   return `${category || 'uncategorized'}|${subcategory || 'general'}|${anchor}`;
