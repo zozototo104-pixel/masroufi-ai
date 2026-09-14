@@ -3424,8 +3424,8 @@ export default function App() {
                     <p className="text-sm font-black text-white">{Number(adaptiveBudgetPlans[0]?.summary?.totalProposedBudget || 0).toLocaleString()} ₪</p>
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
-                    <p className="text-[10px] text-slate-400 mb-1">التغير</p>
-                    <p className="text-sm font-black text-white">{Number(adaptiveBudgetPlans[0]?.summary?.totalChange || 0).toLocaleString()} ₪</p>
+                    <p className="text-[10px] text-slate-400 mb-1">{adaptiveBudgetPlans[0]?.status === 'initial_setup' ? 'نوع الخطة' : 'التغير'}</p>
+                    <p className="text-sm font-black text-white">{adaptiveBudgetPlans[0]?.status === 'initial_setup' ? 'أولى' : `${Number(adaptiveBudgetPlans[0]?.summary?.totalChange || 0).toLocaleString()} ₪`}</p>
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
                     <p className="text-[10px] text-slate-400 mb-1">بنود</p>
