@@ -1236,7 +1236,22 @@ function incrementHabitBucket(map: Record<string, any>, key: string, amount: num
 }
 
 function transactionAnalysisDate(tx: any): Date | null {
-  return auditAsDate(tx?.date || tx?.localDay || tx?.localDate || tx?.dateKey || tx?.localDayKey || tx?.createdAt);
+  const candidates = [tx?.date, tx?.localDay, tx?.localDate, tx?.dateKey, tx?.localDayKey, tx?.transactionDate, tx?.createdAt];
+  for (const candidate of candidates) {
+    const parsed = auditAsDate(candidate) || parseDateLike(candidate);
+    if (parsed && Number.isFinite(parsed.getTime())) return parsed;
+  }
+  const fallbackKey = transactionDateKey(tx);
+  const fallback = parseDateLike(fallbackKey) || auditAsDate(fallbackKey);
+  return fallback && Number.isFinite(fallback.getTime()) ? fallback : null;
+}
+
+function habitTransactionKind(tx: any): 'expense' | 'income' | 'other' {
+  const type = normalizeArabicText(String(tx?.type || '')).toLowerCase();
+  const transactionType = String(tx?.transactionType || tx?.kind || '').toUpperCase();
+  if (['income', 'دخل', 'ايراد', 'إيراد'].includes(type) || transactionType === 'INCOME' || transactionType === 'DEBT_BORROWING') return 'income';
+  if (['expense', 'مصروف', 'صرف', 'مشتريات'].includes(type) || transactionType === 'EXPENSE' || transactionType === 'CREDIT_PURCHASE') return 'expense';
+  return 'other';
 }
 
 function mergeHabitTransactions(primary: any[], extra: any[]) {
