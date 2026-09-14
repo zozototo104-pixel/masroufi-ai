@@ -167,7 +167,9 @@ export default function App() {
 
   const rememberCloudConnected = async () => {
     cloudProbeFailuresRef.current = 0;
+    firestoreQuotaCooldownUntilRef.current = 0;
     setIsOfflineMode(false);
+    setNotifications(prev => prev.filter((n: any) => n.id !== 'firestore-quota-exhausted'));
     try { await idbSet('last_cloud_ok_at', Date.now()); } catch { /* ignore */ }
   };
 
