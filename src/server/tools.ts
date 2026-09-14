@@ -2932,12 +2932,10 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   let recent = recentSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   const commitments = commitmentSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
   let monthExpenses = monthExpenseSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-  if (recent.length === 0 || monthExpenses.length === 0) {
-    const cycleFallback: any = await queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 500 }, userId, token).catch(() => ({ transactions: [], partial: true }));
-    const fallbackTransactions = Array.isArray(cycleFallback.transactions) ? cycleFallback.transactions : [];
-    if (recent.length === 0 && fallbackTransactions.length > 0) recent = fallbackTransactions;
-    if (monthExpenses.length === 0 && fallbackTransactions.length > 0) monthExpenses = fallbackTransactions.filter((t: any) => t.type === 'expense');
-  }
+  const cycleTransactions = Array.isArray((cycleTxResult as any).transactions) ? (cycleTxResult as any).transactions : [];
+  const cycleExpenses = cycleTransactions.filter((t: any) => String(t.type || '').toLowerCase() === 'expense');
+  if (cycleTransactions.length > recent.length) recent = cycleTransactions;
+  if (cycleExpenses.length > monthExpenses.length) monthExpenses = cycleExpenses;
   const realExpenseTxs = recent.filter((t: any) => t.type === 'expense' && t.transactionType !== 'CREDIT_PURCHASE');
   const incomeTxs = recent.filter((t: any) => t.type === 'income' && t.transactionType !== 'DEBT_BORROWING');
   const txTimes = recent.map((t: any) => transactionAnalysisDate(t)?.getTime() || 0).filter(Number.isFinite).filter((n: number) => n > 0);
