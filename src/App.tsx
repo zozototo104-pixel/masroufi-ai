@@ -5327,7 +5327,7 @@ export default function App() {
 
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-rose-400 text-sm sm:text-base">
-                      {c.amount.toLocaleString()} ₪
+                      {Number(c.amount || 0).toLocaleString()} ₪
                     </span>
                     <button 
                       type="button"
