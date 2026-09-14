@@ -7791,12 +7791,24 @@ function buildRecurringCandidate(group: any[], key: string, now: Date) {
 export async function getCommitments(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const limit = Math.max(1, Math.min(300, Number(args?.limit) || 100));
-  const snapshot = await adminDb.collection('commitments')
-    .where('userId', '==', userId)
-    .orderBy('dueDate', 'asc')
-    .limit(limit)
-    .get();
-  const commitments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  const [orderedSnapshot, unorderedSnapshot] = await Promise.all([
+    adminDb.collection('commitments')
+      .where('userId', '==', userId)
+      .orderBy('dueDate', 'asc')
+      .limit(limit)
+      .get()
+      .catch((err: any) => ({ docs: [], partial: true, error: err })),
+    adminDb.collection('commitments')
+      .where('userId', '==', userId)
+      .limit(limit)
+      .get()
+      .catch((err: any) => ({ docs: [], partial: true, error: err })),
+  ]);
+  const byId = new Map<string, any>();
+  for (const doc of [...((orderedSnapshot as any).docs || []), ...((unorderedSnapshot as any).docs || [])]) {
+    byId.set(doc.id, { id: doc.id, ...doc.data() });
+  }
+  const commitments = Array.from(byId.values());
   
   const now = new Date();
   const enriched = commitments.map((c: any) => {
