@@ -1794,7 +1794,7 @@ export async function generateWeeklyFinancialRecommendations(args: any, userId: 
   const requiredCommitments = roundMoney(actions.filter((a: any) => a.type === 'pay_commitment').reduce((sum: number, a: any) => sum + parsePositiveFinancialAmount(a.suggestedAmount), 0));
   let status = 'weekly_stable';
   if (actions.some((a: any) => a.severity === 'critical') || requiredRecovery > 0) status = 'weekly_recovery';
-  else if (warningActions > 0) status = 'weekly_watch';
+  else if (warningActions > 0 || spendingPressureGap > 0) status = 'weekly_watch';
   else if (suggestedGoalTransfer > 0 || suggestedDebtPayment > 0) status = 'weekly_growth';
 
   const summary = {
