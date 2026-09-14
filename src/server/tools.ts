@@ -6379,14 +6379,19 @@ export async function runFinancialAudit(args: any, userId: string, token: string
     });
   }
 
-  const openCriticalAlerts = notifications.filter((n: any) => Boolean(n.advisorAlert) && normalizeAdvisorAlertStatus(n.advisorStatus) === 'open' && String(n.severity || '').toLowerCase() === 'critical');
+  const openCriticalAlerts = notifications.filter((n: any) =>
+    Boolean(n.advisorAlert)
+    && normalizeAdvisorAlertStatus(n.advisorStatus) === 'open'
+    && String(n.severity || '').toLowerCase() === 'critical'
+    && !isRecomputableAdvisorAlert(n)
+  );
   if (openCriticalAlerts.length) {
     addAuditFinding(findings, {
       severity: 'critical',
       category: 'advisor_alerts',
       title: 'تنبيهات حرجة مفتوحة',
-      message: `يوجد ${openCriticalAlerts.length} تنبيه مالي حرج لم يتم التعامل معه.`,
-      evidence: { sample: openCriticalAlerts.slice(0, 5).map((n: any) => ({ id: n.id, message: n.message, category: n.category, createdAt: n.createdAt })) },
+      message: `يوجد ${openCriticalAlerts.length} تنبيه مالي حرج يدوي/غير قابل لإعادة الحساب لم يتم التعامل معه.`,
+      evidence: { sample: openCriticalAlerts.slice(0, 5).map((n: any) => ({ id: n.id, message: n.message, category: n.category, source: n.source, createdAt: n.createdAt })) },
       relatedIds: openCriticalAlerts.map((n: any) => n.id).slice(0, 20),
       recommendedActions: ['افتح مركز التنبيهات', 'حل أو أجّل أو تجاهل التنبيهات بقرار واعٍ'],
     });
