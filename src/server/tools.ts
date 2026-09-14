@@ -2482,7 +2482,8 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
   };
   const warnings: string[] = [];
   if (dailyAverage <= 0) warnings.push('لا يوجد متوسط صرف يومي كافٍ، لذلك لا أعتبر المبلغ المتبقي كله فائضاً مؤكداً. حدّث/راجع تواريخ العمليات ثم أعد التوقع.');
-  if (requiredRecovery > 0) warnings.push(`يوجد تعويض مطلوب ${requiredRecovery} ₪ حتى لا تنتهي الفترة بعجز أو ضغط.`);
+  if (requiredRecovery > 0) warnings.push(`يوجد عجز فعلي ${requiredRecovery} ₪ مقابل الالتزامات/الحد الحرج/الأهداف.`);
+  if (spendingReductionNeeded > 0) warnings.push(`يوجد ضغط صرف متوقع ${spendingReductionNeeded} ₪ إذا استمر نفس نمط الصرف؛ هذا تخفيض صرف مطلوب وليس تعويضاً نقدياً.`);
   if (dailyAverage > dailyCorrectionCap && dailyCorrectionCap > 0) warnings.push(`متوسط صرفك الحالي ${dailyAverage} ₪ أعلى من السقف التصحيحي ${dailyCorrectionCap} ₪.`);
   if (overdueCommitments.length) warnings.push(`يوجد ${overdueCommitments.length} التزام متكرر متأخر يضغط التوقع.`);
   if (dueSoonCommitments.length) warnings.push(`يوجد ${dueSoonCommitments.length} التزام متكرر قريب قبل نهاية الفترة.`);
