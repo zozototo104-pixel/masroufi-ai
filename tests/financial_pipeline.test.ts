@@ -588,6 +588,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'treasurer pulse card must explain why cash is reserved and that spending pace is not a hidden reserve');
   assert.ok(tools.includes('hardDeficitToProtected') && tools.includes('spendingPressureGap') && tools.includes('daily_reduce_spending_pressure'),
     'daily pulse must separate hard recovery from expected-spending pressure');
+  assert.ok(app.includes('عجز فعلي') && app.includes('ضغط متوقع') && app.includes('spendingPressureGap'),
+    'dashboard must label hard deficit separately from expected spending pressure');
   assert.ok(tools.includes('hardWeeklyDeficit') && tools.includes('reduce_expected_spending_pressure'),
     'weekly plan must show spending pressure as watch/reduce, not recovery');
   assert.ok(tools.includes('hardForecastDeficit') && tools.includes('spendingReductionNeeded'),
