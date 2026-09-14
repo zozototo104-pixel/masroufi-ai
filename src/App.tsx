@@ -5239,6 +5239,7 @@ export default function App() {
                       {c.amount.toLocaleString()} ₪
                     </span>
                     <button 
+                      type="button"
                       onClick={() => handleDeleteCommitment(c.id)}
                       className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
                       title="حذف الالتزام"
