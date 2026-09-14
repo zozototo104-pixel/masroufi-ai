@@ -576,8 +576,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'habit analysis must expose read diagnostics when expenses still cannot be read');
   assert.ok(app.includes("status === 'insufficient_data' ? 'بيانات غير كافية'"),
     'habit dashboard must display insufficient-data status instead of stable when spending cannot be read');
-  assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS'),
-    'habit analysis must fall back when date-sorted queries miss localDay-only transactions');
+  assert.ok(tools.includes('NO_HABIT_TRANSACTIONS_FROM_PRIMARY_READS') && tools.includes("readSource = 'userId_bounded_fallback'"),
+    'habit analysis must fall back when salary-cycle and date-sorted reads miss localDay-only transactions');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_RECURRING_DETECTION'),
     'recurring detection must fall back when date-sorted queries miss localDay-only transactions');
   assert.ok(tools.includes('service|phone_bill') && tools.includes('service|internet_bill') && tools.includes('service|family_support_mother'),
