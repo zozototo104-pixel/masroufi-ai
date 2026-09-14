@@ -558,8 +558,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'safe spending must protect the remaining salary cycle and pace daily/weekly caps instead of showing all cash as today spend');
   assert.ok(tools.includes('const reserveTarget = roundMoney(explicitReserve)') && tools.includes('behaviorBufferForForecastOnly'),
     'safe spending must not reserve average spending as a hidden buffer; average spending is forecast-only');
-  assert.ok(tools.includes('if (!c.dueDate) return false'),
-    'safe spending must not reserve undated commitments as upcoming unpaid obligations');
+  assert.ok(tools.includes('normalizeCommitmentDueDateValue') && tools.includes('if (!normalizedDueDate) return false'),
+    'safe spending must not reserve undated commitments as upcoming unpaid obligations and must normalize day-only due dates');
   assert.ok(tools.includes('findImplicitCommitmentPayment') && tools.includes('implicitlyPaidCommitments'),
     'safe spending must not reserve commitments that appear already paid by matching current-cycle expenses');
   assert.ok(tools.includes('transactionAnalysisDate') && tools.includes('tx?.localDay') && tools.includes('tx?.dateKey'),
