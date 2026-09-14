@@ -8147,7 +8147,7 @@ export async function reviewRecurringCommitments(args: any, userId: string, toke
 
   if (parseBooleanLike(args?.persistAlerts)) {
     for (const commitment of [...overdue, ...dueSoon].slice(0, 20)) {
-      const dueKey = auditDateKey(commitment.dueDate);
+      const dueKey = commitmentDueKey(commitment);
       const isOverdue = dueKey < todayKey;
       await addNotification(userId, `${isOverdue ? '🚨' : '🔔'} ${isOverdue ? 'التزام متكرر متأخر' : 'التزام متكرر قريب'}: ${commitment.title || 'التزام'} بقيمة ${commitment.amount || 0} ₪ موعده ${dueKey}.`, 'warning', adminDb, {
         idempotencyKey: `advisor-recurring-due:${commitment.id}:${dueKey}`,
