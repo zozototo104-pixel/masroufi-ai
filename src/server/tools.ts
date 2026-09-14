@@ -1239,6 +1239,15 @@ function transactionAnalysisDate(tx: any): Date | null {
   return auditAsDate(tx?.date || tx?.localDay || tx?.localDate || tx?.dateKey || tx?.localDayKey || tx?.createdAt);
 }
 
+function mergeHabitTransactions(primary: any[], extra: any[]) {
+  const map = new Map<string, any>();
+  for (const tx of [...(primary || []), ...(extra || [])]) {
+    const id = String(tx?.id || tx?.operationId || `${tx?.date || tx?.localDay || tx?.createdAt || ''}:${tx?.amount || ''}:${tx?.category || ''}:${tx?.merchant || ''}:${map.size}`);
+    if (!map.has(id)) map.set(id, tx);
+  }
+  return Array.from(map.values());
+}
+
 function summarizeHabitTransactions(transactions: any[], start: Date, end: Date) {
   const summary: any = {
     startIso: start.toISOString(),
