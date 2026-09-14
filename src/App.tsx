@@ -1991,9 +1991,12 @@ export default function App() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'تعذر حذف الالتزام');
+      setCommitments(prev => prev.filter((commitment: any) => commitment.id !== id));
+      setNotifications(prev => [...prev, { id: `commitment-deleted-${Date.now()}`, type: 'success', message: 'تم حذف الالتزام.' }]);
       window.dispatchEvent(new CustomEvent('masrofi:refresh'));
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to delete commitment", e);
+      setNotifications(prev => [...prev, { id: `commitment-delete-failed-${Date.now()}`, type: 'error', message: e?.message || 'تعذر حذف الالتزام.' }]);
     }
   };
 
