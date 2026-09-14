@@ -1278,7 +1278,8 @@ export default function App() {
             await fetchAdvisorAuditData(headers);
             await fetchMarketWatchlistData(headers);
             await fetchFinancialScenariosData(headers);
-            await fetchRecurringCommitmentCandidatesData(headers);
+            const cachedCandidates = await idbGet<any[]>('lkgs_recurring_commitment_candidates');
+            if (Array.isArray(cachedCandidates)) setRecurringCommitmentCandidates(cachedCandidates);
             await fetchFinancialHabitReportsData(headers);
             await fetchWeeklyFinancialPlansData(headers);
             await fetchAdaptiveBudgetPlansData(headers);
