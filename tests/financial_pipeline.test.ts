@@ -576,6 +576,10 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'recurring detection must group local phone, internet, and family-support wording semantically');
   assert.ok(tools.includes('tx.description') && tools.includes('tx.note'),
     'recurring detection must consider description/note fields, not only merchant or notes');
+  assert.ok(tools.includes('orderedSnapshot') && tools.includes('unorderedSnapshot') && tools.includes('orderedDocsRead'),
+    'commitments list must merge ordered and unordered reads so undated saved commitments are not hidden');
+  assert.ok(tools.includes('hasValidDueDate') && tools.includes('daysRemaining !== null'),
+    'undated commitments must not be marked as due today');
   assert.ok(tools.includes("return Boolean(c.dueDate || c.recurring || c.recurringFrequency || c.recurringDetectionKey)"),
     'commitment review must not hide real due commitments just because recurring=true is missing');
   assert.ok(tools.includes('dailyAverage <= 0') && tools.includes('لا أعتبر المبلغ المتبقي كله فائضاً'),
