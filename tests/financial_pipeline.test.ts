@@ -612,6 +612,12 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'weekly plan must show spending pressure as watch/reduce, not recovery');
   assert.ok(tools.includes('hardForecastDeficit') && tools.includes('spendingReductionNeeded'),
     'month-end forecast must distinguish real projected gaps from the protected critical floor and spending pressure');
+  assert.ok(tools.includes('isRecomputableAdvisorAlert') && tools.includes('!isRecomputableAdvisorAlert(n)'),
+    'financial audit must not create a critical feedback loop from old recomputable advisor alerts');
+  assert.ok(tools.includes('month_end_spending_pressure') && tools.includes('isHardMonthEndDeficit'),
+    'financial audit must classify projected spending pressure as warning unless there is hard recovery');
+  assert.ok(tools.includes('reduce_projected_spending_pressure') && tools.includes('عوّض العجز الفعلي'),
+    'month-end correction plan must split spending reduction from hard deficit recovery');
   assert.ok(tools.includes('safeCalculationOk') && tools.includes('daily_safe_spending_unavailable'),
     'daily pulse must not display a zero cap as a real result when safe-spending calculation fails');
   assert.ok(tools.includes('alreadyCoveredByPulse') && tools.includes("actionType === 'daily_cap'") && tools.includes("actionType === 'recover_gap'"),
