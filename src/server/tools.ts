@@ -7742,8 +7742,8 @@ function recurringCandidateKey(tx: any) {
 }
 
 function recurringKeywordBoost(tx: any) {
-  const text = normalizeArabicText(`${tx.category || ''} ${tx.subcategory || ''} ${tx.merchant || ''} ${tx.beneficiary || ''} ${tx.purchaseItem || ''} ${tx.notes || ''}`).toLowerCase();
-  return /اشتراك|subscription|netflix|spotify|انترنت|internet|كهرباء|ماء|ايجار|إيجار|rent|قسط|gym|نادي|مدرسة|جامعة|تامين|تأمين|هاتف|جوال|فاتورة/.test(text) ? 0.15 : 0;
+  const text = normalizeArabicText(`${tx.category || ''} ${tx.subcategory || ''} ${tx.merchant || ''} ${tx.beneficiary || ''} ${tx.purchaseItem || ''} ${tx.description || ''} ${tx.note || ''} ${tx.notes || ''}`).toLowerCase();
+  return /اشتراك|subscription|netflix|spotify|انترنت|إنترنت|internet|كهرباء|ماء|مياه|بلدية|غاز|ايجار|إيجار|اجار|أجار|rent|قسط|gym|نادي|مدرسة|جامعة|تامين|تأمين|هاتف|جوال|موبايل|فاتورة|امي|أمي|والدتي/.test(text) ? 0.15 : 0;
 }
 
 function buildRecurringCandidate(group: any[], key: string, now: Date) {
