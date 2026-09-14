@@ -1516,8 +1516,9 @@ export default function App() {
       const commitmentsRes = await fetch('/api/commitments', { headers: { 'Authorization': `Bearer ${idToken}` } });
       const commitmentsPayload = await commitmentsRes.json().catch(() => ({}));
       if (commitmentsRes.ok && Array.isArray(commitmentsPayload.commitments)) {
-        setCommitments(commitmentsPayload.commitments);
-        await idbSet('lkgs_commitments', commitmentsPayload.commitments);
+        const normalizedCommitments = normalizeCommitmentsForDisplay(commitmentsPayload.commitments);
+        setCommitments(normalizedCommitments);
+        await idbSet('lkgs_commitments', normalizedCommitments);
       }
       setNotifications(prev => [...prev, { id: `recurring-created-${Date.now()}`, type: 'success', message: data?.message || 'تم تحويل المصروف المتكرر إلى التزام.' }]);
     } catch (err) {
