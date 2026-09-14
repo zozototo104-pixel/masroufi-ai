@@ -3358,7 +3358,7 @@ export default function App() {
                     <p className="text-sm font-bold text-white">{weeklyFinancialPlans[0]?.week?.label || 'الأسبوع الحالي'}</p>
                   </div>
                   <span className="text-[10px] text-slate-300 bg-black/20 border border-white/10 rounded-full px-2 py-1">
-                    {weeklyFinancialPlans[0]?.status === 'weekly_recovery' ? 'تعويض' : weeklyFinancialPlans[0]?.status === 'weekly_watch' ? 'مراقبة' : weeklyFinancialPlans[0]?.status === 'weekly_growth' ? 'تحسين' : 'مستقر'}
+                    {weeklyFinancialPlans[0]?.status === 'weekly_recovery' ? 'عجز فعلي' : weeklyFinancialPlans[0]?.status === 'weekly_watch' ? 'مراقبة' : weeklyFinancialPlans[0]?.status === 'weekly_growth' ? 'تحسين' : 'مستقر'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-200 leading-6 mb-3">{weeklyFinancialPlans[0]?.message}</p>
