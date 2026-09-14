@@ -7889,6 +7889,84 @@ export async function getCommitments(args: any, userId: string, token: string) {
   };
 }
 
+function commitmentDayOfMonthFromValue(value: any): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 31) return value;
+  const raw = normalizeArabicText(normalizeDigits(value)).toLowerCase().trim();
+  if (!raw) return null;
+  if (/^\d{1,2}$/.test(raw)) {
+    const day = Number(raw);
+    return day >= 1 && day <= 31 ? day : null;
+  }
+  const wordMap: Record<string, number> = {
+    'واحد': 1,
+    'واحدة': 1,
+    'الاول': 1,
+    'الأول': 1,
+    'اول': 1,
+    'أول': 1,
+    'الثاني': 2,
+    'تاني': 2,
+    'الثالث': 3,
+    'الرابع': 4,
+    'الخامس': 5,
+    'العاشر': 10,
+  };
+  for (const [word, day] of Object.entries(wordMap)) {
+    if (raw.includes(word)) return day;
+  }
+  const monthlyMatch = raw.match(/(?:يوم|موعد|استحقاق|تاريخ)?\s*(\d{1,2})\s*(?:من)?\s*(?:كل)?\s*(?:شهر|الشهر)/);
+  if (monthlyMatch) {
+    const day = Number(monthlyMatch[1]);
+    return day >= 1 && day <= 31 ? day : null;
+  }
+  return null;
+}
+
+function nextMonthlyCommitmentDateKey(day: number, now: Date = new Date()) {
+  const localToday = formatFinancialLocalDateKey(now);
+  const [yearRaw, monthRaw, dayRaw] = localToday.split('-').map(Number);
+  let year = yearRaw;
+  let month = monthRaw;
+  const todayDay = dayRaw || now.getUTCDate();
+  if (day < todayDay) {
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const safeDay = Math.min(day, lastDay);
+  return `${year}-${String(month).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+}
+
+function normalizeCommitmentDueDateValue(value: any, now: Date = new Date(), fallbackDays: number | null = null): string | null {
+  const raw = normalizeDigits(value).trim();
+  if (!raw) {
+    if (fallbackDays === null) return null;
+    return formatDateKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + fallbackDays)));
+  }
+  const isoDate = raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:T.*)?$/);
+  if (isoDate) {
+    const [, y, m, d] = isoDate;
+    const parsed = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+    return Number.isFinite(parsed.getTime()) ? formatDateKey(parsed) : null;
+  }
+  const slashDate = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (slashDate) {
+    const [, d, m, y] = slashDate;
+    const parsed = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+    return Number.isFinite(parsed.getTime()) ? formatDateKey(parsed) : null;
+  }
+  const day = commitmentDayOfMonthFromValue(raw);
+  if (day !== null) return nextMonthlyCommitmentDateKey(day, now);
+  const parsed = raw.length >= 6 ? (parseDateLike(value) || auditAsDate(value)) : null;
+  if (parsed && Number.isFinite(parsed.getTime())) return formatDateKey(parsed);
+  if (fallbackDays === null) return null;
+  return formatDateKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + fallbackDays)));
+}
+
 export async function createCommitment(args: any, userId: string, token: string) {
   const adminDb = getDb(token);
   const docRef = adminDb.collection('commitments').doc();
