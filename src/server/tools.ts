@@ -2753,6 +2753,7 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
   const sortedTasks = tasks.sort((a: any, b: any) => dailyPulsePriorityRank(b.priority) - dailyPulsePriorityRank(a.priority) || parsePositiveFinancialAmount(b.suggestedAmount) - parsePositiveFinancialAmount(a.suggestedAmount)).slice(0, 10);
   const warningTaskCount = sortedTasks.filter((t: any) => ['critical', 'warning'].includes(t.severity)).length;
   const status = normalizeDailyPulseStatus({
+    safeCalculationOk,
     safeDecision: (safe as any).decision,
     forecastStatus: (monthEndForecast as any).status,
     criticalAlertCount: criticalAlerts.length,
