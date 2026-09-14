@@ -5309,7 +5309,7 @@ export default function App() {
             {/* Commitments List */}
             <div className="overflow-y-auto flex-1 my-2 space-y-3 pr-1">
               {commitments.map((c: any) => (
-                <div key={c.id} className="bg-slate-950/60 border border-slate-800 p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-colors">
+                <div key={c.id || c._clientKey} className="bg-slate-950/60 border border-slate-800 p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-xl text-xs font-bold ${
                       c.isOverdue ? 'bg-rose-500/20 text-rose-400' : c.isDueSoon ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-400'
