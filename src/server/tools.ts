@@ -1413,28 +1413,33 @@ export async function analyzeFinancialHabits(args: any, userId: string, token: s
   const window = resolveHabitAnalysisWindow(args || {}, safeNow);
   const limit = Math.max(100, Math.min(1500, Number(args?.limit) || 800));
   let transactions: any[] = [];
-  let readSource = 'date_desc_bounded';
+  let readSource = 'salary_cycle_plus_date_desc';
   let partial = false;
   try {
+    const [cycleResult, previousCycleResult, dateSnap] = await Promise.all([
+      queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit }, userId, token)
+        .catch((err: any) => ({ success: false, transactions: [], partial: true, error: err?.message || String(err) })),
+      queryTransactions({ period: 'previous_salary_cycle', includeTransactions: true, limit }, userId, token)
+        .catch((err: any) => ({ success: false, transactions: [], partial: true, error: err?.message || String(err) })),
+      adminDb.collection('transactions')
+        .where('userId', '==', userId)
+        .orderBy('date', 'desc')
+        .limit(limit)
+        .get()
+        .catch((err: any) => ({ docs: [], partial: true, error: err })),
+    ]);
+    const cycleTransactions = Array.isArray((cycleResult as any).transactions) ? (cycleResult as any).transactions : [];
+    const previousCycleTransactions = Array.isArray((previousCycleResult as any).transactions) ? (previousCycleResult as any).transactions : [];
+    const dateTransactions = ((dateSnap as any).docs || []).map((d: any) => ({ id: d.id, ...d.data() }));
+    transactions = mergeHabitTransactions(mergeHabitTransactions(cycleTransactions, previousCycleTransactions), dateTransactions);
+    partial = Boolean((cycleResult as any).partial || (previousCycleResult as any).partial || (dateSnap as any).partial || transactions.length >= limit);
+    if (transactions.length === 0) throw new Error('NO_HABIT_TRANSACTIONS_FROM_PRIMARY_READS');
+  } catch (err: any) {
+    readSource = 'userId_bounded_fallback';
     const snap = await adminDb.collection('transactions')
       .where('userId', '==', userId)
-      .orderBy('date', 'desc')
       .limit(limit)
       .get();
-    transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    partial = Boolean((snap as any).partial || transactions.length >= limit);
-    if (transactions.length === 0) throw new Error('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS');
-  } catch (err: any) {
-    readSource = 'createdAt_desc_bounded_fallback';
-    const snap = await adminDb.collection('transactions')
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-      .get()
-      .catch(async () => {
-        readSource = 'userId_bounded_fallback';
-        return adminDb.collection('transactions').where('userId', '==', userId).limit(limit).get();
-      });
     transactions = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     partial = true;
   }
