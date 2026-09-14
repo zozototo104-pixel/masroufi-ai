@@ -2442,15 +2442,19 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
   const projectedNetCash = roundMoney(liquidTotal - dueCommitments - goalNeed - projectedRoutineSpend);
   const projectedFreeCashAfterReserve = roundMoney(projectedNetCash - reserveTarget);
   const projectedGap = roundMoney(Math.max(0, -projectedFreeCashAfterReserve));
-  const forecastRecoveryCandidates = [
-    projectedGap,
-    parsePositiveFinancialAmount(safeSpending.cashFlowGap),
-    parsePositiveFinancialAmount(safeSpending.deficitToProtected),
-  ];
   const hardForecastDeficit = liquidTotal > 0 && reserveTarget + dueCommitments + goalNeed > 0
     ? Math.max(0, reserveTarget + dueCommitments + goalNeed - liquidTotal)
     : 0;
-  const requiredRecovery = roundMoney(Math.max(0, hardForecastDeficit, ...forecastRecoveryCandidates.filter((amount: number) => amount > 0 && amount > reserveTarget)));
+  const requiredRecovery = roundMoney(Math.max(
+    0,
+    hardForecastDeficit,
+    parsePositiveFinancialAmount(safeSpending.deficitToProtected)
+  ));
+  const spendingReductionNeeded = roundMoney(Math.max(
+    0,
+    projectedGap,
+    parsePositiveFinancialAmount(safeSpending.cashFlowGap) - requiredRecovery
+  ));
   const availableForRoutineAfterProtected = roundMoney(Math.max(0, liquidTotal - dueCommitments - goalNeed - reserveTarget));
   const dailyCorrectionCap = roundMoney(Math.max(0, availableForRoutineAfterProtected / Math.max(1, window.daysRemaining)));
   const safeDecision = String((safe as any).decision || '').toLowerCase();
