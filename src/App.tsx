@@ -3368,8 +3368,9 @@ export default function App() {
                     <p className="text-sm font-black text-white">{Number(weeklyFinancialPlans[0]?.summary?.safeThisWeek || 0).toLocaleString()} ₪</p>
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
-                    <p className="text-[10px] text-slate-400 mb-1">تعويض</p>
+                    <p className="text-[10px] text-slate-400 mb-1">عجز فعلي</p>
                     <p className="text-sm font-black text-white">{Number(weeklyFinancialPlans[0]?.summary?.requiredRecovery || 0).toLocaleString()} ₪</p>
+                    {Number(weeklyFinancialPlans[0]?.summary?.spendingPressureGap || 0) > 0 && <p className="text-[9px] text-amber-200 mt-1">ضغط {Number(weeklyFinancialPlans[0]?.summary?.spendingPressureGap || 0).toLocaleString()} ₪</p>}
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
                     <p className="text-[10px] text-slate-400 mb-1">توصيات</p>
