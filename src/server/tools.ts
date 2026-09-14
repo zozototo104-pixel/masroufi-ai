@@ -1592,13 +1592,17 @@ export async function generateWeeklyFinancialRecommendations(args: any, userId: 
   const hardWeeklyDeficit = liquidTotalForWeekly > 0 && protectedTotalForWeekly > 0
     ? Math.max(0, protectedTotalForWeekly - liquidTotalForWeekly)
     : 0;
-  const weeklyRecoveryCandidates = [
+  const hardRecoveryCandidates = [
     parsePositiveFinancialAmount(safeSpending.deficitToProtected),
-    parsePositiveFinancialAmount(safeSpending.cashFlowGap),
     parsePositiveFinancialAmount(safeBreakdown.deficitToProtected),
-    parsePositiveFinancialAmount(safeBreakdown.cashFlowGap),
   ];
-  const requiredRecovery = roundMoney(Math.max(0, hardWeeklyDeficit, ...weeklyRecoveryCandidates.filter((amount: number) => amount > 0 && amount > reserveTargetForWeekly)));
+  const spendingPressureGap = roundMoney(Math.max(0,
+    parsePositiveFinancialAmount(safeSpending.cashFlowGap),
+    parsePositiveFinancialAmount(safeBreakdown.cashFlowGap)
+  ));
+  // Recovery is a real shortage below protected obligations. Cash-flow pressure
+  // from expected spending is shown separately as a spending reduction target.
+  const requiredRecovery = roundMoney(Math.max(0, hardWeeklyDeficit, ...hardRecoveryCandidates));
   const dailyCap = roundMoney(safeToday > 0 ? safeToday : Math.max(0, safeThisWeek / 7));
 
   if (['critical', 'danger'].includes(safeDecision) || requiredRecovery > 0) {
