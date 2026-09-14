@@ -566,6 +566,12 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'habit and recurring engines must understand local transaction date fields, not only date');
   assert.ok(tools.includes('insufficient_data') && tools.includes('لا توجد مصروفات مقروءة في هذه الفترة'),
     'habit analysis must not claim stability when no current-period expenses are readable');
+  assert.ok(tools.includes("queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit }") && tools.includes("queryTransactions({ period: 'previous_salary_cycle', includeTransactions: true, limit }"),
+    'habit analysis must read current and previous salary-cycle transactions like the rest of the advisor engines');
+  assert.ok(tools.includes('habitTransactionKind') && tools.includes("transactionType === 'EXPENSE'") && tools.includes("transactionType === 'CREDIT_PURCHASE'"),
+    'habit analysis must recognize expense-like transactions even when the type field is missing or stored in older formats');
+  assert.ok(tools.includes('readDiagnostics') && app.includes('تشخيص القراءة'),
+    'habit analysis must expose read diagnostics when expenses still cannot be read');
   assert.ok(app.includes("status === 'insufficient_data' ? 'بيانات غير كافية'"),
     'habit dashboard must display insufficient-data status instead of stable when spending cannot be read');
   assert.ok(tools.includes('NO_DATE_SORTED_TRANSACTIONS_FOR_HABITS'),
