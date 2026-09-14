@@ -2667,7 +2667,19 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
       evidence: { safeDecision: (safe as any).decision, forecastStatus: (monthEndForecast as any).status },
     });
   }
-  if (safeToSpendToday >= 0) {
+  if (!safeCalculationOk) {
+    addDailyPulseTask(tasks, {
+      id: 'daily_safe_spending_unavailable',
+      type: 'refresh_safe_spending',
+      priority: 'high',
+      severity: 'warning',
+      title: 'أعد حساب السقف الآمن',
+      message: 'لم أستطع حساب سقف اليوم من البيانات الحالية، لذلك لن أعرض صفرًا كأنه سقف مالي حقيقي.',
+      suggestedAmount: 0,
+      source: 'safe_spending_limit',
+      evidence: { error: (safe as any).error || null, safe },
+    });
+  } else if (safeToSpendToday >= 0) {
     addDailyPulseTask(tasks, {
       id: 'daily_safe_spending_cap',
       type: 'daily_cap',
