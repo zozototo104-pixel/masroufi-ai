@@ -10368,10 +10368,13 @@ export const functionDeclarations = [
       properties: {
         title: { type: "string", description: "اسم الالتزام أو القسط (مثال: قسط جامعة، إيجار البيت، دين تاجر)" },
         amount: { type: "number", description: "المبلغ المطلوب سداده بالشيكل" },
-        dueDate: { type: "string", description: "تاريخ الاستحقاق بصيغة YYYY-MM-DD" },
+        dueDate: { type: "string", description: "تاريخ الاستحقاق الكامل بصيغة YYYY-MM-DD فقط. لا تضع هنا رقم اليوم وحده." },
+        dueDay: { type: "number", description: "يوم الاستحقاق الشهري من 1 إلى 31 إذا قال المستخدم: يوم 1 من كل شهر أو يوم 10." },
+        recurring: { type: "boolean", description: "هل الالتزام دوري/شهري" },
+        recurringFrequency: { type: "string", description: "monthly أو weekly أو yearly عند الالتزام المتكرر" },
         category: { type: "string", description: "التصنيف" }
       },
-      required: ["title", "amount", "dueDate"]
+      required: ["title", "amount"]
     }
   },
   {
