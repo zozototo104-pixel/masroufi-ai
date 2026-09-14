@@ -2462,7 +2462,7 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
   const habitWarnings = Array.isArray((habits as any).insights) ? (habits as any).insights.filter((i: any) => i.severity === 'warning') : [];
   const overdueCommitments = Array.isArray((recurringReview as any).overdue) ? (recurringReview as any).overdue : [];
   const dueSoonCommitments = Array.isArray((recurringReview as any).dueSoon) ? (recurringReview as any).dueSoon : [];
-  const correctionPlan = buildMonthEndCorrectionPlan({ requiredRecovery, projectedGap, dailyCorrectionCap, overdueCommitments, habitWarnings, goalNeed });
+  const correctionPlan = buildMonthEndCorrectionPlan({ requiredRecovery, projectedGap: spendingReductionNeeded, dailyCorrectionCap, overdueCommitments, habitWarnings, goalNeed });
   const confidencePenalty = [safe, habits, goalsResult, commitmentsResult, recurringReview, adaptivePlansResult].filter((r: any) => Boolean(r?.partial || !r?.success)).length * 8;
   const confidence = Math.max(35, Math.min(95, 88 - confidencePenalty - ((profileResult as any).completeness?.status === 'ready' ? 0 : 8)));
   const forecast = {
