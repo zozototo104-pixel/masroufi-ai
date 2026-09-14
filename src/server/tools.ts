@@ -7597,18 +7597,10 @@ export async function checkBudgetStatus(args: any, userId: string, token: string
   console.log("TOOL CALL: checkBudgetStatus", args);
   
   const userBudgets = await getUserBudgets(userId, adminDb);
-  const now = new Date();
-  const thisMonth = now.toISOString().slice(0, 7);
-  const monthStart = `${thisMonth}-01T00:00:00.000Z`;
-  const nextMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const nextMonthStart = `${nextMonthDate.toISOString().slice(0, 10)}T00:00:00.000Z`;
-  const txSnapshot = await adminDb.collection('transactions')
-    .where('userId', '==', userId)
-    .where('date', '>=', monthStart)
-    .where('date', '<', nextMonthStart)
-    .limit(300)
-    .get();
-  const expenses = txSnapshot.docs.map(d => d.data()).filter(t => t.type === 'expense');
+  const txResult: any = await queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 500 }, userId, token)
+    .catch((err: any) => ({ success: false, transactions: [], partial: true, error: err?.message || String(err) }));
+  const expenses = (Array.isArray(txResult.transactions) ? txResult.transactions : [])
+    .filter((t: any) => String(t.type || '').toLowerCase() === 'expense');
   
   if (args.category) {
     const categoryExpenses = expenses.filter(t => t.category === args.category);
