@@ -2580,6 +2580,15 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
   }
 
   if (parseBooleanLike(args?.persistAlerts) && ['month_end_deficit', 'month_end_pressure'].includes(status)) {
+    for (const staleStatus of ['month_end_deficit', 'month_end_pressure'].filter((s) => s !== status)) {
+      const staleId = stableDocId(`${userId}|notification|advisor-month-end-forecast:${stableDocId(`${userId}:${window.key}:${staleStatus}`)}`);
+      await adminDb.collection('users').doc(userId).collection('notifications').doc(staleId).set({
+        advisorStatus: 'dismissed',
+        dismissedAt: new Date().toISOString(),
+        staleBecause: status,
+        read: true,
+      }, { merge: true }).catch(() => undefined);
+    }
     await addNotification(userId, `🔮 توقع نهاية الشهر: ${result.message}`, 'warning', adminDb, {
       idempotencyKey: `advisor-month-end-forecast:${stableDocId(`${userId}:${window.key}:${status}`)}`,
       advisorAlert: true,
