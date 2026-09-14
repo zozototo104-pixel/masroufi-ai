@@ -1461,7 +1461,7 @@ export default function App() {
       const res = await fetch('/api/advisor/habits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ period: 'last_30_days', save: true, persistAlerts: true, insightLimit: 8 }),
+        body: JSON.stringify({ period: 'current_salary_cycle', save: true, persistAlerts: true, insightLimit: 8 }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.success === false) throw new Error(data?.error || data?.message || 'Failed to analyze financial habits');
