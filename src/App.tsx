@@ -67,6 +67,77 @@ function buildLocalSalaryCycleOptions(monthsBack = 12) {
   });
 }
 
+function normalizeCommitmentDigits(value: unknown): string {
+  return String(value || '')
+    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .trim();
+}
+
+function parseCommitmentDayOfMonth(value: unknown): number | null {
+  const raw = normalizeCommitmentDigits(value);
+  if (/^\d{1,2}$/.test(raw)) {
+    const day = Number(raw);
+    return day >= 1 && day <= 31 ? day : null;
+  }
+  return null;
+}
+
+function nextCommitmentDueDateKey(day: number, now = new Date()): string {
+  let year = now.getFullYear();
+  let month = now.getMonth();
+  if (day < now.getDate()) month += 1;
+  const candidate = new Date(year, month, 1);
+  year = candidate.getFullYear();
+  month = candidate.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const safeDay = Math.min(day, lastDay);
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+}
+
+function normalizeCommitmentDueDateForUi(commitment: any, now = new Date()): string | null {
+  const raw = normalizeCommitmentDigits(commitment?.dueDate || commitment?.dueDayOfMonth || commitment?.dueDay || commitment?.dayOfMonth || '');
+  const iso = raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:T.*)?$/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+  const day = parseCommitmentDayOfMonth(raw);
+  if (day !== null) return nextCommitmentDueDateKey(day, now);
+  return raw || null;
+}
+
+function commitmentDaysRemainingForUi(dueDate: string | null, now = new Date()): number | null {
+  if (!dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const [y, m, d] = dueDate.split('-').map(Number);
+  const due = new Date(y, m - 1, d);
+  if (!Number.isFinite(due.getTime())) return null;
+  return Math.ceil((due.getTime() - today.getTime()) / 86400000);
+}
+
+function normalizeCommitmentForDisplay(commitment: any): any {
+  const dueDate = normalizeCommitmentDueDateForUi(commitment);
+  const daysRemaining = commitmentDaysRemainingForUi(dueDate);
+  const isOverdue = typeof daysRemaining === 'number' && daysRemaining < 0;
+  const isDueSoon = typeof daysRemaining === 'number' && daysRemaining >= 0 && daysRemaining <= 3;
+  return {
+    ...commitment,
+    dueDate,
+    daysRemaining,
+    isOverdue,
+    isDueSoon,
+    _clientKey: commitment?.id || commitment?._clientKey || `${commitment?.title || 'commitment'}-${commitment?.amount || 0}-${dueDate || 'no-date'}`,
+  };
+}
+
+function normalizeCommitmentsForDisplay(commitments: any[]): any[] {
+  return (Array.isArray(commitments) ? commitments : [])
+    .map(normalizeCommitmentForDisplay)
+    .sort((a, b) => {
+      const ad = typeof a.daysRemaining === 'number' ? a.daysRemaining : Number.MAX_SAFE_INTEGER;
+      const bd = typeof b.daysRemaining === 'number' ? b.daysRemaining : Number.MAX_SAFE_INTEGER;
+      return ad - bd;
+    });
+}
+
 export default function App() {
   const [user, setUser] = useState<any | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
