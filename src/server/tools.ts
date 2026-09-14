@@ -1586,12 +1586,19 @@ export async function generateWeeklyFinancialRecommendations(args: any, userId: 
   const safeBreakdown = (safe as any).breakdown || {};
   const safeThisWeek = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendThisWeek ?? safeSpending.safeToSpendUntilHorizon));
   const safeToday = roundMoney(parsePositiveFinancialAmount(safeSpending.safeToSpendToday));
-  const requiredRecovery = roundMoney(Math.max(
+  const liquidTotalForWeekly = roundMoney(parsePositiveFinancialAmount(safeBreakdown.liquidTotal));
+  const protectedTotalForWeekly = roundMoney(parsePositiveFinancialAmount(safeBreakdown.protectedTotal));
+  const reserveTargetForWeekly = roundMoney(parsePositiveFinancialAmount(safeBreakdown.reserveTarget));
+  const hardWeeklyDeficit = liquidTotalForWeekly > 0 && protectedTotalForWeekly > 0
+    ? Math.max(0, protectedTotalForWeekly - liquidTotalForWeekly)
+    : 0;
+  const weeklyRecoveryCandidates = [
     parsePositiveFinancialAmount(safeSpending.deficitToProtected),
     parsePositiveFinancialAmount(safeSpending.cashFlowGap),
     parsePositiveFinancialAmount(safeBreakdown.deficitToProtected),
-    parsePositiveFinancialAmount(safeBreakdown.cashFlowGap)
-  ));
+    parsePositiveFinancialAmount(safeBreakdown.cashFlowGap),
+  ];
+  const requiredRecovery = roundMoney(Math.max(0, hardWeeklyDeficit, ...weeklyRecoveryCandidates.filter((amount: number) => amount > 0 && amount > reserveTargetForWeekly)));
   const dailyCap = roundMoney(safeToday > 0 ? safeToday : Math.max(0, safeThisWeek / 7));
 
   if (['critical', 'danger'].includes(safeDecision) || requiredRecovery > 0) {
