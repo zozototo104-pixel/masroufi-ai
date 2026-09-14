@@ -7493,34 +7493,24 @@ export async function getBudgetsOverview(args: any, userId: string, token: strin
   });
   
   const now = new Date();
-  const thisMonth = now.toISOString().slice(0, 7);
-  const monthStart = `${thisMonth}-01`;
-  const nextMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const nextMonthStart = nextMonthDate.toISOString().slice(0, 10);
-
-  let txDocs: any[] = [];
+  const salaryCycle = getCurrentSalaryCycle(now);
+  const thisMonth = salaryCycle.id || now.toISOString().slice(0, 7);
   let partial = false;
   let queryError = '';
+  let cycleTransactions: any[] = [];
   try {
-    const txSnapshot = await adminDb.collection('transactions')
-      .where('userId', '==', userId)
-      .where('date', '>=', monthStart)
-      .where('date', '<', nextMonthStart)
-      .get();
-    txDocs = txSnapshot.docs;
+    const txResult: any = await queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 700 }, userId, token);
+    cycleTransactions = Array.isArray(txResult.transactions) ? txResult.transactions : [];
+    partial = Boolean(txResult.partial);
   } catch (rangeErr: any) {
-    // If the range query needs a composite index or quota is exhausted, do not
-    // publish a partially sampled spending total as if it were authoritative.
-    // Returning partial=true lets the UI keep the last-known-good budget view.
-    console.warn('[budgets] monthly range query failed; returning partial budget totals:', rangeErr);
+    console.warn('[budgets] salary-cycle transaction query failed; returning partial budget totals:', rangeErr);
     partial = true;
-    queryError = rangeErr?.message || 'monthly budget range query failed';
-    txDocs = [];
+    queryError = rangeErr?.message || 'salary-cycle budget transaction query failed';
+    cycleTransactions = [];
   }
 
-  const monthExpenses = txDocs
-    .map((d: any) => ({ id: d.id, ...d.data() }))
-    .filter((t: any) => t.type === 'expense' && String(t.date || '').startsWith(thisMonth));
+  const monthExpenses = cycleTransactions
+    .filter((t: any) => String(t.type || '').toLowerCase() === 'expense');
 
   const categories = Object.keys(userBudgets);
   const budgets = categories.map(cat => {
