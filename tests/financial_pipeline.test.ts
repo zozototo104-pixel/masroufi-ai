@@ -600,6 +600,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'month-end forecast must distinguish real projected gaps from the protected critical floor and spending pressure');
   assert.ok(tools.includes('safeCalculationOk') && tools.includes('daily_safe_spending_unavailable'),
     'daily pulse must not display a zero cap as a real result when safe-spending calculation fails');
+  assert.ok(tools.includes('alreadyCoveredByPulse') && tools.includes("actionType === 'daily_cap'") && tools.includes("actionType === 'recover_gap'"),
+    'daily pulse must not duplicate the same cap/recovery/pressure tasks from weekly and month-end engines');
   assert.ok(app.includes("fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6'") && app.includes("idbSet('lkgs_advisor_audit'"),
     'resolving or dismissing an alert must refresh the audit score shown on the dashboard');
   assert.ok(app.includes('window.confirm') && app.includes('تطبيق الخطة سيغيّر حدود الميزانيات'),
