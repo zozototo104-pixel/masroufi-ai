@@ -3483,8 +3483,9 @@ export default function App() {
                     <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.projectedFreeCashAfterReserve || 0).toLocaleString()} ₪</p>
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
-                    <p className="text-[10px] text-slate-400 mb-1">تعويض</p>
+                    <p className="text-[10px] text-slate-400 mb-1">عجز فعلي</p>
                     <p className="text-sm font-black text-white">{Number(monthEndForecasts[0]?.forecast?.requiredRecovery || 0).toLocaleString()} ₪</p>
+                    {Number(monthEndForecasts[0]?.forecast?.spendingReductionNeeded || 0) > 0 && <p className="text-[9px] text-amber-200 mt-1">ضغط صرف {Number(monthEndForecasts[0]?.forecast?.spendingReductionNeeded || 0).toLocaleString()} ₪</p>}
                   </div>
                   <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-2.5">
                     <p className="text-[10px] text-slate-400 mb-1">سقف يومي</p>
