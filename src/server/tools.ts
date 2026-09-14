@@ -2904,7 +2904,7 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
   const nextMonthStart = `${nextMonth.toISOString().slice(0, 10)}T00:00:00.000Z`;
   const next30Iso = new Date(now.getTime() + 30 * 86400000).toISOString();
 
-  const [balanceResult, recentSnap, monthExpenseSnap, budgets, commitmentSnap] = await Promise.all([
+  const [balanceResult, recentSnap, monthExpenseSnap, budgets, commitmentSnap, cycleTxResult] = await Promise.all([
     getBalance({}, userId, token),
     adminDb.collection('transactions')
       .where('userId', '==', userId)
@@ -2925,6 +2925,7 @@ export async function getFinancialDecisionContext(args: any, userId: string, tok
       .where('dueDate', '<=', next30Iso)
       .limit(200)
       .get(),
+    queryTransactions({ period: 'current_salary_cycle', includeTransactions: true, limit: 500 }, userId, token).catch(() => ({ transactions: [], partial: true })),
   ]);
 
   const balances = balanceResult.balances;
