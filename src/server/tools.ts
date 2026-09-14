@@ -8127,20 +8127,21 @@ export async function reviewRecurringCommitments(args: any, userId: string, toke
     .limit(limit)
     .get();
   const commitments = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  const commitmentDueKey = (c: any) => normalizeCommitmentDueDateValue(c.dueDate ?? c.dueDayOfMonth ?? c.dueDay, safeNow, null) || auditDateKey(c.dueDate);
   const activeRecurring = commitments.filter((c: any) => {
     const status = String(c.status || 'pending').toLowerCase();
     if (['paid', 'cancelled'].includes(status)) return false;
     // Do not hide real commitments just because old records were not tagged
     // with recurring=true. Bills such as phone/internet/family support still
-    // need due-soon and overdue review if they have a dueDate.
-    return Boolean(c.dueDate || c.recurring || c.recurringFrequency || c.recurringDetectionKey);
+    // need due-soon and overdue review if they have a valid due date/day.
+    return Boolean(commitmentDueKey(c) || c.recurring || c.recurringFrequency || c.recurringDetectionKey);
   });
   const dueSoon = activeRecurring.filter((c: any) => {
-    const dueKey = auditDateKey(c.dueDate);
+    const dueKey = commitmentDueKey(c);
     return /^\d{4}-\d{2}-\d{2}$/.test(dueKey) && dueKey >= todayKey && dueKey <= endKey;
   });
   const overdue = activeRecurring.filter((c: any) => {
-    const dueKey = auditDateKey(c.dueDate);
+    const dueKey = commitmentDueKey(c);
     return /^\d{4}-\d{2}-\d{2}$/.test(dueKey) && dueKey < todayKey;
   });
 
