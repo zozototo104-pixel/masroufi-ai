@@ -2398,16 +2398,27 @@ function buildMonthEndForecastMessage(status: string, forecast: any) {
 
 function buildMonthEndCorrectionPlan(input: any) {
   const actions: any[] = [];
-  const recoveryNeeded = roundMoney(Math.max(0, input.requiredRecovery || input.projectedGap || 0));
+  const hardRecoveryNeeded = roundMoney(Math.max(0, input.requiredRecovery || 0));
+  const spendingReductionNeeded = roundMoney(Math.max(0, hardRecoveryNeeded > 0 ? 0 : input.projectedGap || 0));
+  const recoveryNeeded = hardRecoveryNeeded;
   const dailyCap = roundMoney(Math.max(0, input.dailyCorrectionCap || 0));
-  if (recoveryNeeded > 0) {
+  if (hardRecoveryNeeded > 0) {
     actions.push({
       id: 'recover_projected_gap',
       type: 'recover_gap',
       priority: 'critical',
-      title: 'عوّض الفجوة قبل نهاية الفترة',
-      message: `خفّض الصرف أو وفّر دخل إضافي بقيمة ${recoveryNeeded} ₪ تقريباً لحماية نهاية الشهر.`,
-      suggestedAmount: recoveryNeeded,
+      title: 'عوّض العجز الفعلي قبل نهاية الفترة',
+      message: `وفّر أو أدخل مبلغ ${hardRecoveryNeeded} ₪ تقريباً لأن السيولة أقل من الالتزامات/الحد الحرج/الأهداف.`,
+      suggestedAmount: hardRecoveryNeeded,
+    });
+  } else if (spendingReductionNeeded > 0) {
+    actions.push({
+      id: 'reduce_projected_spending_pressure',
+      type: 'reduce_spending_pressure',
+      priority: 'high',
+      title: 'خفّض ضغط الصرف المتوقع',
+      message: `خفّض الصرف المتوقع بحوالي ${spendingReductionNeeded} ₪ حتى نهاية الفترة إذا استمر نفس نمط الصرف.`,
+      suggestedAmount: spendingReductionNeeded,
     });
   }
   if (dailyCap > 0) {
