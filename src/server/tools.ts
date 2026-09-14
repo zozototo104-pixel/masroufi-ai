@@ -1282,13 +1282,13 @@ function summarizeHabitTransactions(transactions: any[], start: Date, end: Date)
     if (!date || date < start || date >= end) continue;
     const amount = parsePositiveFinancialAmount(tx.amount);
     if (amount <= 0) continue;
-    const type = String(tx.type || '').toLowerCase();
-    if (type === 'income') {
+    const kind = habitTransactionKind(tx);
+    if (kind === 'income') {
       summary.incomeTotal = roundMoney(summary.incomeTotal + amount);
       summary.incomeCount += 1;
       continue;
     }
-    if (type !== 'expense') continue;
+    if (kind !== 'expense') continue;
     summary.expenseTotal = roundMoney(summary.expenseTotal + amount);
     summary.expenseCount += 1;
     incrementHabitBucket(summary.byCategory, habitBucketKey(tx.category), amount, tx);
