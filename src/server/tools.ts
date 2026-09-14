@@ -2061,8 +2061,12 @@ export async function generateAdaptiveBudgetPlan(args: any, userId: string, toke
   const safeDecision = String((safe as any).decision || '').toLowerCase();
   const requiredRecovery = roundMoney(Math.max(
     parsePositiveFinancialAmount((safe as any).safeSpending?.deficitToProtected),
-    parsePositiveFinancialAmount((safe as any).safeSpending?.cashFlowGap),
     parsePositiveFinancialAmount((weeklyPlan as any).summary?.requiredRecovery)
+  ));
+  const spendingPressureGap = roundMoney(Math.max(
+    0,
+    parsePositiveFinancialAmount((safe as any).safeSpending?.cashFlowGap) - requiredRecovery,
+    parsePositiveFinancialAmount((weeklyPlan as any).summary?.spendingPressureGap)
   ));
   const protectedClaims = roundMoney(monthlyCommitments + monthlyGoalNeed + requiredRecovery);
   const salaryEnvelope = salary > 0 ? Math.max(0, salary - protectedClaims) : 0;
