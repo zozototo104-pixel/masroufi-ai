@@ -2378,7 +2378,11 @@ function resolveMonthEndForecastWindow(args: any, now: Date) {
 }
 
 function normalizeMonthEndForecastStatus(projectedFreeCash: number, projectedNetCash: number, requiredRecovery: number, dailyCap: number, dailyAverage: number, safeDecision: string) {
-  if (projectedNetCash < 0 || requiredRecovery > 0 || ['critical', 'danger'].includes(safeDecision)) return 'month_end_deficit';
+  // Deficit means a real hard shortage below protected obligations/floor/goals.
+  // A negative projected cash value caused only by continuing the same routine
+  // spending pace is a spending-pressure warning, not a critical cash deficit.
+  if (requiredRecovery > 0 || ['critical', 'danger'].includes(safeDecision)) return 'month_end_deficit';
+  if (projectedNetCash < 0 || projectedFreeCash < 0) return 'month_end_pressure';
   if (dailyAverage <= 0) return projectedFreeCash > 0 ? 'month_end_balanced' : 'month_end_pressure';
   if (projectedFreeCash < Math.max(100, dailyAverage * 2) || safeDecision === 'warning' || dailyCap < Math.max(20, dailyAverage * 0.6)) return 'month_end_pressure';
   if (projectedFreeCash >= Math.max(250, dailyAverage * 5)) return 'month_end_surplus';
@@ -2386,8 +2390,8 @@ function normalizeMonthEndForecastStatus(projectedFreeCash: number, projectedNet
 }
 
 function buildMonthEndForecastMessage(status: string, forecast: any) {
-  if (status === 'month_end_deficit') return `التوقع الحالي يشير إلى عجز/فجوة بنهاية الفترة بقيمة تقريبية ${forecast.requiredRecovery || forecast.projectedGap || 0} ₪ إذا استمر نفس النمط.`;
-  if (status === 'month_end_pressure') return `التوقع يشير إلى ضغط بنهاية الفترة: الهامش الحر المتوقع ${forecast.projectedFreeCashAfterReserve || 0} ₪ فقط، والسقف اليومي المقترح ${forecast.dailyCorrectionCap || 0} ₪.`;
+  if (status === 'month_end_deficit') return `التوقع الحالي يشير إلى عجز فعلي بقيمة تقريبية ${forecast.requiredRecovery || 0} ₪ مقابل الالتزامات/الحد الحرج/الأهداف.`;
+  if (status === 'month_end_pressure') return `التوقع يشير إلى ضغط صرف متوقع بقيمة تقريبية ${forecast.spendingReductionNeeded || forecast.projectedGap || 0} ₪ إذا استمر نفس نمط الصرف؛ هذا ليس عجزاً نقدياً طالما السيولة أعلى من الالتزامات والحد الحرج.`;
   if (status === 'month_end_surplus') return `التوقع جيد: قد تنهي الفترة بفائض حر يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪ بعد الالتزامات والاحتياطي والأهداف والصرف المتوقع.`;
   return `التوقع متوازن: نهاية الفترة قريبة من الصفر الآمن مع هامش يقارب ${forecast.projectedFreeCashAfterReserve || 0} ₪.`;
 }
