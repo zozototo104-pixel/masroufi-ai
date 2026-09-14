@@ -622,8 +622,16 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'daily pulse must not display a zero cap as a real result when safe-spending calculation fails');
   assert.ok(tools.includes('alreadyCoveredByPulse') && tools.includes("actionType === 'daily_cap'") && tools.includes("actionType === 'recover_gap'"),
     'daily pulse must not duplicate the same cap/recovery/pressure tasks from weekly and month-end engines');
-  assert.ok(app.includes("fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6'") && app.includes("idbSet('lkgs_advisor_audit'"),
-    'resolving or dismissing an alert must refresh the audit score shown on the dashboard');
+  assert.ok(app.includes("fetch('/api/advisor/audit?limit=1'") && app.includes("idbSet('lkgs_advisor_audit'"),
+    'dashboard must read the latest saved audit cheaply and cache it');
+  assert.ok(server.includes('GET must be a cheap saved-result read') && server.includes("collection('advisorAudits')") && server.includes('POST /api/advisor/audit is the explicit heavy action'),
+    'advisor audit GET must not run the full audit on every dashboard load');
+  assert.ok(app.includes('لا تشغّل اكتشاف الاشتراكات تلقائيًا') && app.includes('lkgs_recurring_commitment_candidates'),
+    'dashboard load must not auto-run heavy recurring detection; use cached candidates until the user presses detect');
+  assert.ok(app.includes("if (scope === 'all')") && app.includes('await fetchData();') && app.includes('return;'),
+    'all-scope refresh events must not run targeted advisor refresh and then full dashboard refresh again');
+  assert.ok(server.includes('cachedCloudHealth?.quotaExhausted ? 10 * 60_000 : 5 * 60_000'),
+    'cloud health probe must be cached long enough to avoid unnecessary Firestore health reads/writes');
   assert.ok(app.includes('window.confirm') && app.includes('تطبيق الخطة سيغيّر حدود الميزانيات'),
     'adaptive budget application must require visible user confirmation');
   assert.ok(tools.includes('calculationTrace') && tools.includes('currentLiquid + expectedRoutineIncome - expectedRoutineSpend - dueCommitments'),
