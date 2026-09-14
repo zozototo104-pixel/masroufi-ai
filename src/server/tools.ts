@@ -2757,6 +2757,13 @@ export async function generateDailyFinancialPulse(args: any, userId: string, tok
     });
   }
   for (const action of [...monthEndActions, ...weeklyActions].filter((a: any) => ['critical', 'high'].includes(String(a.priority || '').toLowerCase())).slice(0, 5)) {
+    const actionType = String(action.type || '').toLowerCase();
+    const actionId = String(action.id || '').toLowerCase();
+    const alreadyCoveredByPulse =
+      (actionType === 'daily_cap' && tasks.some((t: any) => t.type === 'daily_cap')) ||
+      (actionType === 'recover_gap' && tasks.some((t: any) => t.type === 'recover_gap')) ||
+      ((actionType === 'reduce' || actionId.includes('spending_pressure')) && tasks.some((t: any) => t.type === 'reduce_spending_pressure'));
+    if (alreadyCoveredByPulse) continue;
     addDailyPulseTask(tasks, {
       id: `daily_action_${action.id || stableDocId(action.title || action.message || 'action')}`,
       type: action.type || 'advisor_action',
