@@ -730,7 +730,7 @@ export async function getSafeSpendingLimit(args: any, userId: string, token: str
   if (profileDailyLimit > 0 && rawSafeToSpendToday > profileDailyLimit) warnings.push(`تم تقييد الصرف اليومي إلى ${profileDailyLimit} ₪ حسب ملف أمين الصندوق.`);
   if (profileWeeklyLimit > 0 && safeToSpendThisWeek >= profileWeeklyLimit) warnings.push(`تم تقييد الصرف الأسبوعي إلى ${profileWeeklyLimit} ₪ حسب ملف أمين الصندوق.`);
   if (profileCompleteness.status !== 'ready') warnings.push(`ملف أمين الصندوق مكتمل بنسبة ${profileCompleteness.score}%؛ دقة النصائح تتحسن عند استكمال البيانات الناقصة.`);
-  if (discretionaryAfterExpectedRoutine < 0) warnings.push(`بعد نمط الصرف المعتاد يوجد عجز متوقع ${Math.abs(discretionaryAfterExpectedRoutine)} ₪ حتى ${horizon.label}.`);
+  if (discretionaryAfterExpectedRoutine < 0) warnings.push(`بعد نمط الصرف المعتاد يوجد ضغط صرف متوقع ${Math.abs(discretionaryAfterExpectedRoutine)} ₪ حتى ${horizon.label}. هذا ليس عجزاً فعلياً طالما السيولة أعلى من الالتزامات والحد الحرج.`);
   if (savingsRequiredThisPeriod > 0) warnings.push(`الأهداف النشطة تحتاج تقريباً ${savingsRequiredThisPeriod} ₪ هذا الشهر للبقاء على المسار.`);
   if (implicitlyPaidCommitments.length > 0) warnings.push(`تم تجاهل ${implicitlyPaidCommitments.length} التزام من الحجز لأنه يبدو مدفوعاً كعملية مصروف داخل دورة الراتب الحالية.`);
 
