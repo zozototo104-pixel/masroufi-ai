@@ -7971,12 +7971,15 @@ export async function createCommitment(args: any, userId: string, token: string)
   const adminDb = getDb(token);
   const docRef = adminDb.collection('commitments').doc();
   const recurringFrequency = normalizeRecurringCommitmentFrequency(args.recurringFrequency || args.frequency || args.interval);
-  const isRecurring = parseBooleanLike(args.recurring) || Boolean(args.recurringFrequency || args.frequency || args.interval || args.recurringDetectionKey);
+  const dueDayOfMonth = commitmentDayOfMonthFromValue(args.dueDay ?? args.dueDayOfMonth ?? args.dayOfMonth ?? args.dueDate);
+  const normalizedDueDate = normalizeCommitmentDueDateValue(args.dueDay ?? args.dueDayOfMonth ?? args.dayOfMonth ?? args.dueDate, new Date(), 7);
+  const isRecurring = parseBooleanLike(args.recurring) || Boolean(args.recurringFrequency || args.frequency || args.interval || args.recurringDetectionKey || dueDayOfMonth);
   const commitment: any = {
     userId,
     title: args.title || 'التزام مجدول',
     amount: parsePositiveFinancialAmount(args.amount),
-    dueDate: args.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    dueDate: normalizedDueDate || formatDateKey(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+    dueDayOfMonth,
     category: args.category || 'أقساط والتزامات',
     notes: args.notes || '',
     recurring: isRecurring,
