@@ -6735,7 +6735,7 @@ function formatFinancialLocalDateKey(date: Date): string {
 }
 
 function transactionDateKey(tx: any): string {
-  const rawValue = tx?.date || tx?.transactionDate || tx?.createdAt;
+  const rawValue = tx?.date || tx?.localDay || tx?.localDate || tx?.dateKey || tx?.localDayKey || tx?.transactionDate || tx?.createdAt;
   const raw = normalizeDigits(rawValue);
   const dateOnly = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (dateOnly) {
