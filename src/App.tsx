@@ -1180,14 +1180,15 @@ export default function App() {
           } else {
             finalCom = comData.commitments;
           }
+          finalCom = normalizeCommitmentsForDisplay(finalCom);
           await idbSet('lkgs_commitments', finalCom);
         } else {
           let cachedCom = (await idbGet<any[]>('lkgs_commitments')) || [];
           if (!Array.isArray(cachedCom)) cachedCom = [];
           const pending = (comData && comData.partial && comData.commitments) ? comData.commitments : [];
-          const merged = new Map(cachedCom.map(c => [c.id, c]));
-          pending.forEach(p => merged.set(p.id, { ...p, _unsynced: true }));
-          finalCom = Array.from(merged.values()).filter(c => !c.deleted).sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+          const merged = new Map(cachedCom.map(c => [c.id || c._clientKey, c]));
+          pending.forEach(p => merged.set(p.id || p._clientKey, { ...p, _unsynced: true }));
+          finalCom = normalizeCommitmentsForDisplay(Array.from(merged.values()).filter(c => !c.deleted));
         }
         setCommitments(finalCom);
 
