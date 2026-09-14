@@ -2475,6 +2475,8 @@ export async function forecastMonthEndFinancialPosition(args: any, userId: strin
     projectedFreeCashAfterReserve,
     projectedGap,
     requiredRecovery,
+    spendingReductionNeeded,
+    hardForecastDeficit,
     dailyAverage,
     dailyCorrectionCap,
   };
