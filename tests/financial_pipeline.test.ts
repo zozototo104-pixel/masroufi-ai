@@ -632,6 +632,8 @@ test('TREASURER-18: advisor dashboard numbers remain explainable and tied to rea
     'all-scope refresh events must not run targeted advisor refresh and then full dashboard refresh again');
   assert.ok(server.includes('cachedCloudHealth?.quotaExhausted ? 10 * 60_000 : 5 * 60_000'),
     'cloud health probe must be cached long enough to avoid unnecessary Firestore health reads/writes');
+  assert.ok(app.includes("setNotifications(prev => prev.filter((n: any) => n.id !== 'firestore-quota-exhausted'))") && app.includes('إشارة حصة/ضغط من Firestore'),
+    'Firestore quota warning must be cleared on successful cloud health and worded as a cautious signal, not a definitive claim');
   assert.ok(app.includes('window.confirm') && app.includes('تطبيق الخطة سيغيّر حدود الميزانيات'),
     'adaptive budget application must require visible user confirmation');
   assert.ok(tools.includes('calculationTrace') && tools.includes('currentLiquid + expectedRoutineIncome - expectedRoutineSpend - dueCommitments'),
