@@ -2573,6 +2573,7 @@ function normalizeDailyPulseStatus(input: any) {
   const safeDecision = String(input.safeDecision || '').toLowerCase();
   const forecastStatus = String(input.forecastStatus || '').toLowerCase();
   const criticalAlertCount = Number(input.criticalAlertCount || 0);
+  if (input.safeCalculationOk === false) return 'daily_partial';
   if (criticalAlertCount > 0 || ['critical', 'danger'].includes(safeDecision) || forecastStatus === 'month_end_deficit') return 'daily_block';
   if (safeDecision === 'warning' || forecastStatus === 'month_end_pressure' || Number(input.warningTaskCount || 0) >= 2) return 'daily_caution';
   if (forecastStatus === 'month_end_surplus' && Number(input.safeToSpendToday || 0) >= 50) return 'daily_growth';
@@ -2580,6 +2581,7 @@ function normalizeDailyPulseStatus(input: any) {
 }
 
 function buildDailyPulseHeadline(status: string, data: any) {
+  if (status === 'daily_partial') return 'قراءة نبض اليوم جزئية: لم يتم حساب سقف اليوم بنجاح، أعد المحاولة بعد تحديث البيانات.';
   if (status === 'daily_block') return `اليوم ممنوع الصرف الكمالي. ابدأ بتغطية الخطر الأعلى قبل أي شراء.`;
   if (status === 'daily_caution') return `اليوم يحتاج ضبط: سقفك الآمن ${data.safeToSpendToday || 0} ₪ ولا تتجاوز خطة التصحيح.`;
   if (status === 'daily_growth') return `اليوم وضعك يسمح بتحسين صغير: حافظ على السقف وحوّل جزءاً مناسباً لهدف أو دين.`;
