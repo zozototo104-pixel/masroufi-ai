@@ -841,7 +841,7 @@ export default function App() {
 
     const fetchAdvisorAuditData = async (headers: Record<string, string>) => {
       try {
-        const auditRes = await fetch('/api/advisor/audit?scope=salary_cycle&findingLimit=6', { headers });
+        const auditRes = await fetch('/api/advisor/audit?limit=1', { headers });
         const auditPayload = await auditRes.json().catch(() => ({}));
         if (auditRes.ok && auditPayload?.success !== false) {
           setAdvisorAudit(auditPayload);
